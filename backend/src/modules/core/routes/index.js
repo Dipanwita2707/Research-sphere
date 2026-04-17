@@ -7,9 +7,9 @@
 const express = require('express');
 const router = express.Router();
 
-// ============================================
+// =====================================
 // CORE ROUTES (Administrative, Master Data)
-// ============================================
+// =====================================
 const dashboardRoutes = require('./dashboard.routes');
 const permissionRoutes = require('./permission.routes');
 const permissionManagementRoutes = require('./permissionManagement.routes');
@@ -25,9 +25,9 @@ const studentRoutes = require('./student.routes');
 const bulkUploadRoutes = require('./bulkUpload.routes');
 const reportingStructureRoutes = require('./reportingStructure.routes');
 
-// ============================================
+// =====================================
 // MODULAR IMPORTS (Domain Modules)
-// ============================================
+// =====================================
 const authModule = require('../../auth');
 const analyticsModule = require('../../analytics');
 const drdAnalyticsModule = require('../../drd-analytics');
@@ -41,9 +41,9 @@ const dswModule = require('../../dsw');
 const eventManagementModule = require('../../event-management/routes/event.routes');
 const tmsModule = require('../../tms');
 
-// ============================================
+// =====================================
 // MOUNT CORE ROUTES
-// ============================================
+// =====================================
 router.use('/auth', authModule);
 router.use('/dashboard', dashboardRoutes);
 router.use('/permissions', permissionRoutes);
@@ -64,9 +64,9 @@ router.use('/drd-analytics', drdAnalyticsModule);
 router.use('/notifications', notificationsModule);
 router.use('/file-upload', require('./fileUpload.routes'));
 
-// ============================================
+// =====================================
 // MOUNT DOMAIN MODULES
-// ============================================
+// =====================================
 router.use('/research', researchModule);
 router.use('/grants', grantsModule);
 router.use('/ipr', iprModule);
@@ -76,10 +76,10 @@ router.use('/dsw', dswModule);
 router.use('/events', eventManagementModule);
 router.use('/tms', tmsModule);
 
-// ============================================
+// =====================================
 // BACKWARD COMPATIBILITY ROUTES
 // Maintain compatibility with existing frontend
-// ============================================
+// =====================================
 router.use('/research-policies', require('../../research/routes/policies/research.routes'));
 router.use('/book-policies', require('../../research/routes/policies/book.routes'));
 router.use('/book-chapter-policies', require('../../research/routes/policies/bookChapter.routes'));

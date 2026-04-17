@@ -65,7 +65,8 @@ function migrateSponsor(s: any): SponsorData {
       })),
     };
     // Auto-capture original snapshot for noting sponsors that don't have one
-    if (migrated.originSource === 'noting' && !migrated.originalSnapshot && !migrated.savedAt) {
+    if (migrated.originSource ===
+   'noting' && !migrated.originalSnapshot && !migrated.savedAt) {
       migrated.originalSnapshot = {
         cashAmount: migrated.cashAmount,
         paymentStatus: migrated.paymentStatus,
@@ -85,7 +86,8 @@ function migrateSponsor(s: any): SponsorData {
     phone: '',
     email: '',
     notes: s?.notes || '',
-    contributionType: s?.type === 'in_kind' ? 'in_kind' : 'cash',
+    contributionType: s?.type ===
+   'in_kind' ? 'in_kind' : 'cash',
     cashAmount: s?.type !== 'in_kind' ? (s?.amount || '') : '',
     paymentStatus: 'pending',
     paymentMethod: '',
@@ -94,7 +96,8 @@ function migrateSponsor(s: any): SponsorData {
     receipt: null,
     sponsorLogo: s?.sponsorLogo || null,
     cashAssignedTo: null,
-    inKindItems: s?.type === 'in_kind' && s?.notes
+    inKindItems: s?.type ===
+   'in_kind' && s?.notes
       ? [{ itemName: s.notes, category: '', quantity: 1 as number | '', estimatedValue: '' as number | '', description: '', assignedTo: null, deliveryStatus: 'pending' as InKindDeliveryStatus }]
       : [],
   };
@@ -207,7 +210,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
     try {
       const result = await onUploadReceipt(file);
       if (result) {
-        const next = normalizedSponsors.map((s, i) => i === sponsorIdx ? { ...s, receipt: result } : s);
+        const next = normalizedSponsors.map((s, i) => i ===
+   sponsorIdx ? { ...s, receipt: result } : s);
         onChange(next);
       }
     } finally {
@@ -222,7 +226,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
     try {
       const result = await onUploadSponsorLogo(file);
       if (result) {
-        const next = normalizedSponsors.map((s, i) => i === sponsorIdx ? { ...s, sponsorLogo: result } : s);
+        const next = normalizedSponsors.map((s, i) => i ===
+   sponsorIdx ? { ...s, sponsorLogo: result } : s);
         onChange(next);
         setLogoErrors((prev) => ({ ...prev, [sponsorIdx]: '' }));
       } else {
@@ -236,7 +241,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
   }, [normalizedSponsors, onChange, onUploadSponsorLogo]);
 
   const updateSponsor = useCallback((index: number, patch: Partial<SponsorData>) => {
-    const next = normalizedSponsors.map((s, i) => i === index ? { ...s, ...patch } : s);
+    const next = normalizedSponsors.map((s, i) => i ===
+   index ? { ...s, ...patch } : s);
     onChange(next);
   }, [normalizedSponsors, onChange]);
 
@@ -270,7 +276,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
   const removeSponsor = useCallback((index: number) => {
     const next = normalizedSponsors.filter((_, i) => i !== index);
     onChange(next);
-    if (expandedIndex === index) setExpandedIndex(null);
+    if (expandedIndex ===
+   index) setExpandedIndex(null);
     else if (expandedIndex !== null && expandedIndex > index) setExpandedIndex(expandedIndex - 1);
   }, [normalizedSponsors, onChange, expandedIndex]);
 
@@ -288,14 +295,16 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
 
   const updateInKindItem = useCallback((sponsorIdx: number, itemIdx: number, patch: Partial<InKindItem>) => {
     const s = normalizedSponsors[sponsorIdx];
-    const items = s.inKindItems.map((it, i) => i === itemIdx ? { ...it, ...patch } : it);
+    const items = s.inKindItems.map((it, i) => i ===
+   itemIdx ? { ...it, ...patch } : it);
     updateSponsor(sponsorIdx, { inKindItems: items });
   }, [normalizedSponsors, updateSponsor]);
 
   // Save & lock a single sponsor
   const confirmAndSaveSponsor = useCallback((index: number) => {
     const next = normalizedSponsors.map((s, i) =>
-      i === index ? { ...s, savedAt: new Date().toISOString() } : s
+      i ===
+   index ? { ...s, savedAt: new Date().toISOString() } : s
     );
     onChange(next);
     setConfirmSaveIndex(null);
@@ -305,14 +314,18 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
 
   // Summary totals
   const totalCash = normalizedSponsors.reduce((sum, s) => {
-    if ((s.contributionType === 'cash' || s.contributionType === 'both') && s.cashAmount !== '') {
+    if ((s.contributionType ===
+   'cash' || s.contributionType ===
+   'both') && s.cashAmount !== '') {
       return sum + Number(s.cashAmount);
     }
     return sum;
   }, 0);
 
   const totalInKindValue = normalizedSponsors.reduce((sum, s) => {
-    if (s.contributionType === 'in_kind' || s.contributionType === 'both') {
+    if (s.contributionType ===
+   'in_kind' || s.contributionType ===
+   'both') {
       return sum + s.inKindItems.reduce((iSum, item) => {
         const qty = item.quantity !== '' ? Number(item.quantity) : 0;
         const val = item.estimatedValue !== '' ? Number(item.estimatedValue) : 0;
@@ -345,16 +358,25 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
 
       {/* Sponsor cards */}
       {normalizedSponsors.map((sponsor, i) => {
-        const isExpanded = expandedIndex === i;
-        const showCash = sponsor.contributionType === 'cash' || sponsor.contributionType === 'both';
-        const showInKind = sponsor.contributionType === 'in_kind' || sponsor.contributionType === 'both';
+        const isExpanded = expandedIndex ===
+   i;
+        const showCash = sponsor.contributionType ===
+   'cash' || sponsor.contributionType ===
+   'both';
+        const showInKind = sponsor.contributionType ===
+   'in_kind' || sponsor.contributionType ===
+   'both';
         // Lock base fields for noting-origin sponsors.
-        const isFromNoting = notingLocked && (sponsor.originSource === 'noting' || (!sponsor.originSource && sponsor.originSource !== 'event'));
-        const isManualOnEventPage = notingLocked && sponsor.originSource === 'event';
+        const isFromNoting = notingLocked && (sponsor.originSource ===
+   'noting' || (!sponsor.originSource && sponsor.originSource !== 'event'));
+        const isManualOnEventPage = notingLocked && sponsor.originSource ===
+   'event';
         const isSponsorSaved = !!sponsor.savedAt;
         const baseLocked = disabled || isFromNoting || isSponsorSaved;
         const fulfillmentLocked = disabled || isSponsorSaved;
-        const cashPaymentReceived = sponsor.paymentStatus === 'received' || sponsor.paymentStatus === 'partial';
+        const cashPaymentReceived = sponsor.paymentStatus ===
+   'received' || sponsor.paymentStatus ===
+   'partial';
 
         // Status options: manual sponsors on event page can't choose 'pending'
         const statusOptions = (isManualOnEventPage && !isSponsorSaved)
@@ -381,8 +403,11 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                     {sponsor.name || `Sponsor ${i + 1}`}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {SPONSOR_TYPES.find(t => t.value === sponsor.sponsorType)?.label || 'Corporate'}
-                    {sponsor.contributionType === 'both' ? ' • Cash + In-Kind' : sponsor.contributionType === 'in_kind' ? ' • In-Kind' : ' • Cash'}
+                    {SPONSOR_TYPES.find(t => t.value ===
+   sponsor.sponsorType)?.label || 'Corporate'}
+                    {sponsor.contributionType ===
+   'both' ? ' • Cash + In-Kind' : sponsor.contributionType ===
+   'in_kind' ? ' • In-Kind' : ' • Cash'}
                     {showCash && sponsor.cashAmount !== '' ? ` • ₹${Number(sponsor.cashAmount).toLocaleString()}` : ''}
                   </p>
                 </div>
@@ -465,16 +490,19 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                           />
                           <button
                             type="button"
-                            disabled={baseLocked || !onUploadSponsorLogo || uploadingLogo === i}
+                            disabled={baseLocked || !onUploadSponsorLogo || uploadingLogo ===
+   i}
                             onClick={() => logoInputRefs.current[i]?.click()}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-sgt-400 hover:text-sgt-600 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            {uploadingLogo === i ? (
+                            {uploadingLogo ===
+   i ? (
                               <span className="animate-spin w-3.5 h-3.5 border-2 border-gray-300 border-t-sgt-500 rounded-full" />
                             ) : (
                               <Upload className="w-3.5 h-3.5" />
                             )}
-                            {uploadingLogo === i ? 'Uploading...' : 'Upload Logo'}
+                            {uploadingLogo ===
+   i ? 'Uploading...' : 'Upload Logo'}
                           </button>
                           <span className="text-[10px] text-gray-400">JPG, PNG only</span>
                         </div>
@@ -502,7 +530,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                         type="button"
                         disabled={baseLocked}
                         onClick={() => updateSponsor(i, { contributionType: ct.value })}
-                        className={`px-4 py-2 text-xs font-semibold rounded-lg border-2 transition-all ${sponsor.contributionType === ct.value
+                        className={`px-4 py-2 text-xs font-semibold rounded-lg border-2 transition-all ${sponsor.contributionType ===
+   ct.value
                           ? 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 shadow-sm'
                           : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                         } disabled:opacity-60 disabled:cursor-not-allowed`}
@@ -526,7 +555,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                           <label className={labelCls}>Amount <span className="text-red-500">*</span></label>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                            <input type="number" min={0} disabled={fulfillmentLocked} value={sponsor.cashAmount} onChange={(e) => updateSponsor(i, { cashAmount: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="0" className={`${inputCls} pl-6`} />
+                            <input type="number" min={0} disabled={fulfillmentLocked} value={sponsor.cashAmount} onChange={(e) => updateSponsor(i, { cashAmount: e.target.value ===
+   '' ? '' : Number(e.target.value) })} placeholder="0" className={`${inputCls} pl-6`} />
                           </div>
                         </div>
                         <div>
@@ -534,7 +564,9 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                           <select disabled={fulfillmentLocked} value={sponsor.paymentStatus} onChange={(e) => {
                             const newStatus = e.target.value as PaymentStatus;
                             const patch: Partial<SponsorData> = { paymentStatus: newStatus };
-                            if (newStatus === 'pending' || newStatus === 'not_received') {
+                            if (newStatus ===
+   'pending' || newStatus ===
+   'not_received') {
                               patch.paymentMethod = '';
                               patch.paymentMethodOtherLabel = '';
                               patch.transactionId = '';
@@ -554,7 +586,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                                 {PAYMENT_METHOD_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                               </select>
                             </div>
-                            {sponsor.paymentMethod === 'other' && (
+                            {sponsor.paymentMethod ===
+   'other' && (
                               <div>
                                 <label className={labelCls}>Specify Payment Method</label>
                                 <input type="text" disabled={fulfillmentLocked} value={sponsor.paymentMethodOtherLabel} onChange={(e) => updateSponsor(i, { paymentMethodOtherLabel: e.target.value })} placeholder="e.g. Cheque, DD" className={inputCls} />
@@ -595,16 +628,19 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                               />
                               <button
                                 type="button"
-                                disabled={fulfillmentLocked || !onUploadReceipt || uploadingReceipt === i}
+                                disabled={fulfillmentLocked || !onUploadReceipt || uploadingReceipt ===
+   i}
                                 onClick={() => receiptInputRefs.current[i]?.click()}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-sgt-400 hover:text-sgt-600 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                               >
-                                {uploadingReceipt === i ? (
+                                {uploadingReceipt ===
+   i ? (
                                   <span className="animate-spin w-3.5 h-3.5 border-2 border-gray-300 border-t-sgt-500 rounded-full" />
                                 ) : (
                                   <Upload className="w-3.5 h-3.5" />
                                 )}
-                                {uploadingReceipt === i ? 'Uploading...' : 'Upload Receipt'}
+                                {uploadingReceipt ===
+   i ? 'Uploading...' : 'Upload Receipt'}
                               </button>
                               <span className="text-[10px] text-gray-400">PDF, JPG, PNG</span>
                             </div>
@@ -646,7 +682,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                               </div>
                               {(assignSearchQuery[`cash-${i}`] || '').trim().length >= 2 && (
                                 <div className="max-h-32 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                                  {(assignSearchResults[`cash-${i}`] || []).length === 0 && !assignSearchLoading[`cash-${i}`] && (
+                                  {(assignSearchResults[`cash-${i}`] || []).length ===
+   0 && !assignSearchLoading[`cash-${i}`] && (
                                     <p className="px-3 py-2 text-xs text-gray-500 text-center">No users found</p>
                                   )}
                                   {(assignSearchResults[`cash-${i}`] || []).map(u => (
@@ -691,13 +728,15 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                                   </div>
                                   <div>
                                     <label className={labelCls}>Quantity</label>
-                                    <input type="number" min={0} disabled={baseLocked} value={item.quantity} onChange={(e) => updateInKindItem(i, j, { quantity: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="0" className={inputCls} />
+                                    <input type="number" min={0} disabled={baseLocked} value={item.quantity} onChange={(e) => updateInKindItem(i, j, { quantity: e.target.value ===
+   '' ? '' : Number(e.target.value) })} placeholder="0" className={inputCls} />
                                   </div>
                                   <div>
                                     <label className={labelCls}>Est. Value (per unit)</label>
                                     <div className="relative">
                                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                      <input type="number" min={0} disabled={baseLocked} value={item.estimatedValue} onChange={(e) => updateInKindItem(i, j, { estimatedValue: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="0" className={`${inputCls} pl-6`} />
+                                      <input type="number" min={0} disabled={baseLocked} value={item.estimatedValue} onChange={(e) => updateInKindItem(i, j, { estimatedValue: e.target.value ===
+   '' ? '' : Number(e.target.value) })} placeholder="0" className={`${inputCls} pl-6`} />
                                     </div>
                                   </div>
                                 </div>
@@ -755,7 +794,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                                         </div>
                                         {(assignSearchQuery[`item-${i}-${j}`] || '').trim().length >= 2 && (
                                           <div className="max-h-32 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                                            {(assignSearchResults[`item-${i}-${j}`] || []).length === 0 && !assignSearchLoading[`item-${i}-${j}`] && (
+                                            {(assignSearchResults[`item-${i}-${j}`] || []).length ===
+   0 && !assignSearchLoading[`item-${i}-${j}`] && (
                                               <p className="px-3 py-2 text-xs text-gray-500 text-center">No users found</p>
                                             )}
                                             {(assignSearchResults[`item-${i}-${j}`] || []).map(u => (
@@ -801,8 +841,14 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {(() => {
                               const rows: { field: string; from: string; to: string }[] = [];
-                              const fmt = (v: any) => v === '' || v === null || v === undefined ? '—' : String(v);
-                              const fmtAmt = (v: any) => v === '' || v === null || v === undefined ? '—' : `₹${Number(v).toLocaleString()}`;
+                              const fmt = (v: any) => v ===
+   '' || v ===
+   null || v ===
+   undefined ? '—' : String(v);
+                              const fmtAmt = (v: any) => v ===
+   '' || v ===
+   null || v ===
+   undefined ? '—' : `₹${Number(v).toLocaleString()}`;
                               const fmtStatus = (v: any) => {
                                 const map: Record<string, string> = { pending: 'Pending', received: 'Received', partial: 'Partial', not_received: 'Not Received' };
                                 return map[v] || '—';
@@ -838,7 +884,8 @@ export const SponsorshipManager: React.FC<SponsorshipManagerProps> = ({ sponsors
                                 }
                               }
 
-                              if (rows.length === 0) rows.push({ field: 'No changes', from: '—', to: '—' });
+                              if (rows.length ===
+   0) rows.push({ field: 'No changes', from: '—', to: '—' });
                               return rows.map((r, idx) => (
                                 <tr key={idx} className="bg-white dark:bg-gray-800">
                                   <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">{r.field}</td>

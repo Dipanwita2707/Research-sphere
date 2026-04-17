@@ -64,10 +64,8 @@ async function main() {
         "6+": 0   // More than 5th gets 0%
       },
       indexingBonuses: {
-        // ========================================
-        // FLAT CATEGORY BONUSES (no sub-fields)
-        // ========================================
-        indexingCategoryBonuses: [
+        // =================================        // FLAT CATEGORY BONUSES (no sub-fields)
+        // =================================        indexingCategoryBonuses: [
           // 1. Nature/Science/Lancet/Cell/NEJM - Top tier
           { category: 'nature_science_lancet_cell_nejm', incentiveAmount: 200000, points: 100 },
           
@@ -90,10 +88,8 @@ async function main() {
           { category: 'conference_scopus', incentiveAmount: 7000, points: 7 }
         ],
         
-        // ========================================
-        // QUARTILE-BASED INCENTIVES (for SCOPUS)
-        // ========================================
-        quartileIncentives: [
+        // =================================        // QUARTILE-BASED INCENTIVES (for SCOPUS)
+        // =================================        quartileIncentives: [
           { quartile: 'Top 1%', incentiveAmount: 75000, points: 75 },
           { quartile: 'Top 5%', incentiveAmount: 60000, points: 60 },
           { quartile: 'Q1', incentiveAmount: 50000, points: 50 },
@@ -102,20 +98,16 @@ async function main() {
           { quartile: 'Q4', incentiveAmount: 5000, points: 5 }
         ],
         
-        // ========================================
-        // SJR-BASED INCENTIVES (for SCIE/SCI WOS)
-        // ========================================
-        sjrRanges: [
+        // =================================        // SJR-BASED INCENTIVES (for SCIE/SCI WOS)
+        // =================================        sjrRanges: [
           { minSJR: 2.0, maxSJR: 999, incentiveAmount: 50000, points: 50 },
           { minSJR: 1.0, maxSJR: 1.99, incentiveAmount: 30000, points: 30 },
           { minSJR: 0.5, maxSJR: 0.99, incentiveAmount: 15000, points: 15 },
           { minSJR: 0.0, maxSJR: 0.49, incentiveAmount: 5000, points: 5 }
         ],
         
-        // ========================================
-        // NESTED CATEGORY INCENTIVES
-        // ========================================
-        nestedCategoryIncentives: {
+        // =================================        // NESTED CATEGORY INCENTIVES
+        // =================================        nestedCategoryIncentives: {
           // 7. NAAS - Rating-based incentives (only NAAS uses nested structure)
           naasRatingIncentives: [
             { minRating: 10, maxRating: 20, incentiveAmount: 30000, points: 30 },
@@ -124,10 +116,8 @@ async function main() {
           ]
         },
         
-        // ========================================
-        // DISTRIBUTION PERCENTAGES
-        // ========================================
-        // Role percentages (for role-based distribution)
+        // =================================        // DISTRIBUTION PERCENTAGES
+        // =================================        // Role percentages (for role-based distribution)
         rolePercentages: [
           { role: 'first_author', percentage: 35 },
           { role: 'corresponding_author', percentage: 30 }

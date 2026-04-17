@@ -210,6 +210,8 @@ export interface HostelBooking {
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
   paymentQrCode?: string;
   paymentReference?: string;
+  hostelName?: string;
+  roomNumber?: string;
   hostel?: Hostel;
   room?: HostelRoom;
   createdAt: string;
@@ -286,7 +288,8 @@ function transformRoom(room: any): HostelRoom {
   let amenities: string[] | null = null;
   if (room.amenities) {
     try {
-      amenities = typeof room.amenities === 'string' ? JSON.parse(room.amenities) : room.amenities;
+      amenities = typeof room.amenities ===
+   'string' ? JSON.parse(room.amenities) : room.amenities;
     } catch {
       amenities = null;
     }
@@ -512,9 +515,12 @@ class GateEntryService {
     message?: string;
   }> {
     // Map frontend searchType to backend format
-    const backendSearchType = searchType === 'visitorName' ? 'name' 
-      : searchType === 'vehicleNumber' ? 'vehicle' 
-      : searchType === 'passId' ? 'pass_id' 
+    const backendSearchType = searchType ===
+   'visitorName' ? 'name' 
+      : searchType ===
+   'vehicleNumber' ? 'vehicle' 
+      : searchType ===
+   'passId' ? 'pass_id' 
       : searchType; // checkout_qr stays as is
     
     const response = await api.post<any>(
@@ -762,7 +768,8 @@ class GateEntryService {
         booking: rawBooking ? transformBooking(rawBooking) : null
       };
     } catch (error: any) {
-      if (error.response?.status === 404) {
+      if (error.response?.status ===
+   404) {
         return { success: false, booking: null };
       }
       throw error;

@@ -155,7 +155,8 @@ export function getRegistrationDisplayName(row: RegistrationRow): string {
 export function getRegistrationIdentifier(row: RegistrationRow): string {
   const u = row.user_login;
   if (!u) return '';
-  if (u.role === 'student' && u.studentLogin) {
+  if (u.role ===
+   'student' && u.studentLogin) {
     return u.studentLogin.registrationNo || u.studentLogin.studentId || u.uid;
   }
   if (u.employeeDetails?.empId) {

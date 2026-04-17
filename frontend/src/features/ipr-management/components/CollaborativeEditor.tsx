@@ -45,7 +45,8 @@ const ENUM_OPTIONS: Record<string, { value: string; label: string }[]> = {
 const getEnumLabel = (fieldName: string, value: string): string => {
   const options = ENUM_OPTIONS[fieldName];
   if (options) {
-    const option = options.find(opt => opt.value === value);
+    const option = options.find(opt => opt.value ===
+   value);
     return option?.label || value;
   }
   return value;
@@ -96,7 +97,9 @@ export default function CollaborativeEditor({
     try {
       const result = await collaborativeEditingService.getEditSuggestions(iprApplicationId);
       const fieldSuggestions = result.data.suggestions.filter(s => 
-        s.fieldName === fieldName || s.fieldPath === fieldPath
+        s.fieldName ===
+   fieldName || s.fieldPath ===
+   fieldPath
       );
       setSuggestions(fieldSuggestions);
     } catch (error: unknown) {
@@ -136,8 +139,10 @@ export default function CollaborativeEditor({
       await loadSuggestions();
       
       // If accepted, update the field value
-      if (action === 'accept') {
-        const acceptedSuggestion = suggestions.find(s => s.id === suggestionId);
+      if (action ===
+   'accept') {
+        const acceptedSuggestion = suggestions.find(s => s.id ===
+   suggestionId);
         if (acceptedSuggestion && acceptedSuggestion.suggestedValue) {
           setValue(acceptedSuggestion.suggestedValue);
           onChange?.(acceptedSuggestion.suggestedValue);
@@ -151,7 +156,8 @@ export default function CollaborativeEditor({
     }
   };
 
-  const pendingSuggestions = suggestions.filter(s => s.status === SUGGESTION_STATUS.PENDING);
+  const pendingSuggestions = suggestions.filter(s => s.status ===
+   SUGGESTION_STATUS.PENDING);
   const hasPendingSuggestions = pendingSuggestions.length > 0;
   const hasAnySuggestions = suggestions.length > 0;
   
@@ -349,8 +355,10 @@ export default function CollaborativeEditor({
               <div 
                 key={suggestion.id} 
                 className={`border rounded-lg p-3 ${
-                  suggestion.status === 'pending' ? 'border-orange-200 bg-orange-50' : 
-                  suggestion.status === 'accepted' ? 'border-green-200 bg-green-50' :
+                  suggestion.status ===
+   'pending' ? 'border-orange-200 bg-orange-50' : 
+                  suggestion.status ===
+   'accepted' ? 'border-green-200 bg-green-50' :
                   'border-red-200 bg-red-50'
                 }`}
               >
@@ -361,8 +369,10 @@ export default function CollaborativeEditor({
                       {suggestion.reviewer.employeeDetails?.displayName || suggestion.reviewer.uid}
                     </span>
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                      suggestion.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                      suggestion.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                      suggestion.status ===
+   'pending' ? 'bg-orange-100 text-orange-800' :
+                      suggestion.status ===
+   'accepted' ? 'bg-green-100 text-green-800' :
                       'bg-red-100 text-red-800'
                     }`}>
                       {suggestion.status}
@@ -403,7 +413,8 @@ export default function CollaborativeEditor({
                 </div>
 
                 {/* Applicant Action Buttons */}
-                {isApplicant && suggestion.status === 'pending' && (
+                {isApplicant && suggestion.status ===
+   'pending' && (
                   <div className="flex gap-2 mt-3 pt-2 border-t border-gray-200">
                     <button
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}

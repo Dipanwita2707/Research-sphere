@@ -76,13 +76,17 @@ export default function TourGuide({ steps, isOpen, onClose, onComplete }: TourGu
     const spaceRight = viewportWidth - rect.right;
 
     // Auto-adjust if not enough space - prefer top placement for footer elements
-    if (placement === 'bottom' && spaceBelow < tooltipHeight + padding) {
+    if (placement ===
+   'bottom' && spaceBelow < tooltipHeight + padding) {
       placement = 'top';
-    } else if (placement === 'top' && spaceAbove < tooltipHeight + padding) {
+    } else if (placement ===
+   'top' && spaceAbove < tooltipHeight + padding) {
       placement = 'bottom';
-    } else if (placement === 'left' && spaceLeft < tooltipWidth + padding) {
+    } else if (placement ===
+   'left' && spaceLeft < tooltipWidth + padding) {
       placement = spaceRight > spaceLeft ? 'right' : 'top';
-    } else if (placement === 'right' && spaceRight < tooltipWidth + padding) {
+    } else if (placement ===
+   'right' && spaceRight < tooltipWidth + padding) {
       placement = spaceLeft > spaceRight ? 'left' : 'top';
     }
 
@@ -186,9 +190,12 @@ export default function TourGuide({ steps, isOpen, onClose, onComplete }: TourGu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
-      if (e.key === 'Escape') handleSkip();
-      if (e.key === 'ArrowRight') handleNext();
-      if (e.key === 'ArrowLeft') handlePrev();
+      if (e.key ===
+   'Escape') handleSkip();
+      if (e.key ===
+   'ArrowRight') handleNext();
+      if (e.key ===
+   'ArrowLeft') handlePrev();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -288,7 +295,8 @@ export default function TourGuide({ steps, isOpen, onClose, onComplete }: TourGu
                   <div
                     key={idx}
                     className={`h-2 rounded-full transition-all ${
-                      idx === currentStep
+                      idx ===
+   currentStep
                         ? 'bg-blue-600 w-8'
                         : idx < currentStep
                           ? 'bg-blue-400 w-2'
@@ -303,9 +311,11 @@ export default function TourGuide({ steps, isOpen, onClose, onComplete }: TourGu
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrev}
-                disabled={currentStep === 0}
+                disabled={currentStep ===
+   0}
                 className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all shadow-md ${
-                  currentStep === 0
+                  currentStep ===
+   0
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 hover:shadow-lg'
                 }`}
@@ -318,7 +328,8 @@ export default function TourGuide({ steps, isOpen, onClose, onComplete }: TourGu
                 onClick={handleNext}
                 className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
               >
-                {currentStep === steps.length - 1 ? (
+                {currentStep ===
+   steps.length - 1 ? (
                   <>
                     <span>Finish Tour</span>
                     <CheckCircle className="w-5 h-5" />

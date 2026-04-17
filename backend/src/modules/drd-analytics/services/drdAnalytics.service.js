@@ -836,82 +836,102 @@ class DrdAnalyticsService {
     return 'research';
   }
 
+  // Lean select shared by all three analytics tables — no relation JOINs.
+  // Names (school, dept, user) are resolved in a single batch after all rows are
+  // fetched; see _attachApplicantNames().
+  _leanApplicantSelect(extra = {}) {
+    return {
+      id: true,
+      applicantUserId: true,
+      status: true,
+      incentiveAmount: true,
+      submittedAt: true,
+      createdAt: true,
+      schoolId: true,
+      departmentId: true,
+      ...extra,
+    };
+  }
+
   async _fetchApplicantRowsByCategory(category, access, from, to, filters = {}) {
     const scopeWhere = createScopeWhere(access, filters.schoolId, filters.departmentId);
 
     if (category === 'ipr') {
       return prisma.iprApplication.findMany({
         where: withDateScope(scopeWhere, from, to),
-        select: {
-          id: true,
-          applicantUserId: true,
-          status: true,
-          incentiveAmount: true,
-          submittedAt: true,
-          createdAt: true,
-          schoolId: true,
-          departmentId: true,
-          school: { select: { facultyName: true, shortName: true } },
-          department: { select: { departmentName: true, shortName: true } },
-          applicantUser: {
-            select: {
-              uid: true,
-              employeeDetails: { select: { displayName: true } },
-              studentLogin: { select: { displayName: true } },
-            },
-          },
-        },
+        select: this._leanApplicantSelect(),
       });
     }
 
     if (category === 'grants') {
       return prisma.grantApplication.findMany({
         where: withDateScope(scopeWhere, from, to),
-        select: {
-          id: true,
-          applicantUserId: true,
-          status: true,
-          incentiveAmount: true,
-          submittedAt: true,
-          createdAt: true,
-          schoolId: true,
-          departmentId: true,
-          school: { select: { facultyName: true, shortName: true } },
-          department: { select: { departmentName: true, shortName: true } },
-          applicantUser: {
-            select: {
-              uid: true,
-              employeeDetails: { select: { displayName: true } },
-              studentLogin: { select: { displayName: true } },
-            },
-          },
-        },
+        select: this._leanApplicantSelect(),
       });
     }
 
     return prisma.researchContribution.findMany({
       where: withDateScope(scopeWhere, from, to, [this._researchPublicationWhere(category)]),
-      select: {
-        id: true,
-        applicantUserId: true,
-        status: true,
-        incentiveAmount: true,
-        creditedAt: true,
-        submittedAt: true,
-        createdAt: true,
-        schoolId: true,
-        departmentId: true,
-        publicationType: true,
-        school: { select: { facultyName: true, shortName: true } },
-        department: { select: { departmentName: true, shortName: true } },
-        applicantUser: {
-          select: {
-            uid: true,
-            employeeDetails: { select: { displayName: true } },
-            studentLogin: { select: { displayName: true } },
-          },
-        },
-      },
+      select: this._leanApplicantSelect({ publicationType: true }),
+    });
+  }
+
+  /**
+   * After all category rows have been fetched (lean — no JOINs), resolve
+   * school names, department names and applicant display names in three
+   * parallel batch queries and attach them back onto each row in-place.
+   *
+   * This replaces the previous approach of embedding three JOIN sub-selects
+   * into every individual row query, which added a 3-table JOIN cost
+   * per analytics request regardless of row count.
+   */
+  async _attachApplicantNames(categoryRows) {
+    const allRows = categoryRows.flatMap((cr) => cr.rows);
+    if (allRows.length === 0) return;
+
+    const uniqueSchoolIds = unique(allRows.map((r) => r.schoolId).filter(Boolean));
+    const uniqueDeptIds = unique(allRows.map((r) => r.departmentId).filter(Boolean));
+    const uniqueUserIds = unique(allRows.map((r) => r.applicantUserId).filter(Boolean));
+
+    const [schools, depts, users] = await Promise.all([
+      uniqueSchoolIds.length
+        ? prisma.facultySchoolList.findMany({
+            where: { id: { in: uniqueSchoolIds } },
+            select: { id: true, shortName: true, facultyName: true },
+          })
+        : [],
+      uniqueDeptIds.length
+        ? prisma.department.findMany({
+            where: { id: { in: uniqueDeptIds } },
+            select: { id: true, shortName: true, departmentName: true },
+          })
+        : [],
+      uniqueUserIds.length
+        ? prisma.userLogin.findMany({
+            where: { id: { in: uniqueUserIds } },
+            select: {
+              id: true,
+              uid: true,
+              employeeDetails: { select: { displayName: true } },
+              studentLogin: { select: { displayName: true } },
+            },
+          })
+        : [],
+    ]);
+
+    const schoolMap = new Map(schools.map((s) => [s.id, s]));
+    const deptMap = new Map(depts.map((d) => [d.id, d]));
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    // Mutate rows in-place to attach resolved name objects — same shape as
+    // the old JOIN result so personSeed / schoolSeed / departmentSeed work unchanged.
+    categoryRows.forEach((cr) => {
+      cr.rows = cr.rows.map((row) => ({
+        ...row,
+        school: schoolMap.get(row.schoolId) || null,
+        department: deptMap.get(row.departmentId) || null,
+        applicantUser: userMap.get(row.applicantUserId) || null,
+      }));
     });
   }
 
@@ -976,6 +996,10 @@ class DrdAnalyticsService {
         rows: await this._fetchApplicantRowsByCategory(category, access, from, to, filters),
       }))
     );
+
+    // Batch-resolve school / department / user names in 3 parallel queries
+    // (replaces per-row JOIN overhead from the old findMany selects).
+    await this._attachApplicantNames(categoryRows);
 
     const personMap = new Map();
     const schoolMap = new Map();
@@ -1079,8 +1103,8 @@ class DrdAnalyticsService {
       },
     };
 
-    // Store in analytics cache (2 min TTL)
-    await cache.set(analyticsCacheKey, result, 120);
+    // Store in analytics cache (5 min TTL)
+    await cache.set(analyticsCacheKey, result, 300);
     return result;
   }
 
@@ -2153,7 +2177,7 @@ class DrdAnalyticsService {
         select: {
           id: true,
           uid: true,
-          employeeDetails: { select: { displayName: true, departmentId: true } },
+          employeeDetails: { select: { displayName: true, primaryDepartmentId: true } },
         },
       });
       const userMap = new Map(users.map((u) => [u.id, u]));
@@ -2715,7 +2739,7 @@ class DrdAnalyticsService {
       avgDaysPerStatus,
     };
 
-    await cache.set(trackerCacheKey, trackerResult, 120);
+    await cache.set(trackerCacheKey, trackerResult, 300); // 5 minutes
     return trackerResult;
   }
 
@@ -2808,6 +2832,189 @@ class DrdAnalyticsService {
       totalCount: records.length,
       records: records.map(mapTrackerRecord),
     };
+  }
+
+  /**
+   * Category breakdown pie chart data for applicant analytics.
+   * Returns per-category counts broken down by classification field:
+   *   - research: by indexingCategories (11 categories)
+   *   - book:     by bookPublicationType
+   *   - conference: by conferenceType + conferenceSubType
+   *   - grant:    by fundingAgency
+   */
+  async getCategoryBreakdown(user, filters = {}) {
+    const from = parseDate(filters.from, new Date(new Date().setMonth(new Date().getMonth() - 12)));
+    const to = parseEndDate(filters.to, new Date());
+
+    // Cache key — 5 minutes
+    const cacheKey = `drd:catBreakdown:${user.id}:${toIsoDate(from)}:${toIsoDate(to)}:${filters.schoolId || ''}:${filters.departmentId || ''}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return cached;
+
+    const _base = await this._fetchUserBasePermissions(user);
+
+    // Resolve access for every category in parallel (gracefully skip 403s)
+    const categoryAccessMap = {};
+    await Promise.all(
+      Object.keys(APPLICANT_CATEGORY_CONFIG).map(async (cat) => {
+        try {
+          categoryAccessMap[cat] = await this._resolveApplicantAccessByCategory(user, cat, _base);
+        } catch (err) {
+          if (err.statusCode !== 403) throw err;
+        }
+      })
+    );
+
+    const RESEARCH_CATEGORY_LABELS = {
+      nature_science_lancet_cell_nejm: 'Nature/Science/Lancet/Cell/NEJM',
+      subsidiary_if_above_20: 'Subsidiary IF > 20',
+      scopus: 'Scopus',
+      scie_wos: 'SCIE / WoS',
+      pubmed: 'PubMed',
+      naas_rating_6_plus: 'NAAS Rating ≥ 6',
+      abdc_scopus_wos: 'ABDC / Scopus / WoS',
+      sgtu_in_house: 'SGT In-House',
+      case_centre_uk: 'Case Centre UK',
+      other_indexed: 'Other Indexed',
+      non_indexed_reputed: 'Non-Indexed Reputed',
+    };
+    const BOOK_TYPE_LABELS = { authored: 'Authored Book', edited: 'Edited Book', chapter: 'Book Chapter', other: 'Other' };
+    const CONF_TYPE_LABELS = { international: 'International', national: 'National' };
+    const CONF_SUBTYPE_LABELS = {
+      paper_indexed_scopus: 'Paper Indexed (Scopus)',
+      paper_not_indexed: 'Paper Not Indexed',
+      keynote_speaker_invited_talks: 'Keynote / Invited Talk',
+      organizer_coordinator_member: 'Organizer / Coordinator',
+    };
+    const IPR_TYPE_LABELS = { patent: 'Patent', copyright: 'Copyright', trademark: 'Trademark', design: 'Design' };
+
+    // ── Fire all 5 data queries IN PARALLEL ────────────────────────────────
+    const [
+      researchRawRows,
+      bookRawRows,
+      confRawRows,
+      iprRawRows,
+      grantRawRows,
+    ] = await Promise.all([
+      categoryAccessMap.research
+        ? prisma.researchContribution.findMany({
+            where: withDateScope(
+              createScopeWhere(categoryAccessMap.research, filters.schoolId, filters.departmentId),
+              from, to, [{ publicationType: 'research_paper' }]
+            ),
+            select: { indexingCategories: true },
+          })
+        : Promise.resolve([]),
+
+      categoryAccessMap.book
+        ? prisma.researchContribution.findMany({
+            where: withDateScope(
+              createScopeWhere(categoryAccessMap.book, filters.schoolId, filters.departmentId),
+              from, to, [{ publicationType: { in: ['book', 'book_chapter'] } }]
+            ),
+            select: { bookPublicationType: true, publicationType: true },
+          })
+        : Promise.resolve([]),
+
+      categoryAccessMap.conference
+        ? prisma.researchContribution.findMany({
+            where: withDateScope(
+              createScopeWhere(categoryAccessMap.conference, filters.schoolId, filters.departmentId),
+              from, to, [{ publicationType: 'conference_paper' }]
+            ),
+            select: { conferenceType: true, conferenceSubType: true },
+          })
+        : Promise.resolve([]),
+
+      categoryAccessMap.ipr
+        ? prisma.iprApplication.findMany({
+            where: withDateScope(
+              createScopeWhere(categoryAccessMap.ipr, filters.schoolId, filters.departmentId),
+              from, to
+            ),
+            select: { iprType: true },
+          })
+        : Promise.resolve([]),
+
+      categoryAccessMap.grants
+        ? prisma.grantApplication.findMany({
+            where: withDateScope(
+              createScopeWhere(categoryAccessMap.grants, filters.schoolId, filters.departmentId),
+              from, to
+            ),
+            select: { fundingAgencyName: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    // ── Process research results ───────────────────────────────────────────
+    const researchBreakdown = {};
+    researchRawRows.forEach((row) => {
+      const cats = Array.isArray(row.indexingCategories) && row.indexingCategories.length > 0
+        ? row.indexingCategories
+        : ['non_indexed_reputed'];
+      cats.forEach((cat) => { researchBreakdown[cat] = (researchBreakdown[cat] || 0) + 1; });
+    });
+    const researchPie = Object.entries(RESEARCH_CATEGORY_LABELS)
+      .map(([key, label]) => ({ key, label, count: researchBreakdown[key] || 0 }))
+      .filter((item) => item.count > 0);
+
+    // ── Process book results ───────────────────────────────────────────────
+    const bookBreakdown = {};
+    bookRawRows.forEach((row) => {
+      const key = row.bookPublicationType || (row.publicationType === 'book_chapter' ? 'chapter' : 'other');
+      bookBreakdown[key] = (bookBreakdown[key] || 0) + 1;
+    });
+    const bookPie = Object.entries(bookBreakdown).map(([key, count]) => ({
+      key, label: BOOK_TYPE_LABELS[key] || key, count,
+    }));
+
+    // ── Process conference results ─────────────────────────────────────────
+    const confBreakdownType = {};
+    const confBreakdownSubType = {};
+    confRawRows.forEach((row) => {
+      const typeKey = row.conferenceType || 'national';
+      confBreakdownType[typeKey] = (confBreakdownType[typeKey] || 0) + 1;
+      if (row.conferenceSubType) {
+        confBreakdownSubType[row.conferenceSubType] = (confBreakdownSubType[row.conferenceSubType] || 0) + 1;
+      }
+    });
+    const conferencePie = Object.entries(confBreakdownType).map(([key, count]) => ({
+      key, label: CONF_TYPE_LABELS[key] || key, count,
+    }));
+    const conferenceSubtypePie = Object.entries(confBreakdownSubType).map(([key, count]) => ({
+      key, label: CONF_SUBTYPE_LABELS[key] || key, count,
+    }));
+
+    // ── Process IPR results ────────────────────────────────────────────────
+    const iprBreakdown = {};
+    iprRawRows.forEach((row) => { const key = row.iprType || 'other'; iprBreakdown[key] = (iprBreakdown[key] || 0) + 1; });
+    const iprPie = Object.entries(iprBreakdown)
+      .map(([key, count]) => ({ key, label: IPR_TYPE_LABELS[key] || key, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // ── Process grant results ──────────────────────────────────────────────
+    const grantBreakdown = {};
+    grantRawRows.forEach((row) => {
+      const key = (row.fundingAgencyName || 'Other').trim();
+      grantBreakdown[key] = (grantBreakdown[key] || 0) + 1;
+    });
+    const grantPie = Object.entries(grantBreakdown)
+      .map(([key, count]) => ({ key, label: key, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const result = {
+      research: researchPie,
+      book: bookPie,
+      conference: conferencePie,
+      conferenceSubtype: conferenceSubtypePie,
+      ipr: iprPie,
+      grant: grantPie,
+      meta: { timeRange: { from: toIsoDate(from), to: toIsoDate(to) } },
+    };
+
+    await cache.set(cacheKey, result, 300); // 5 minutes
+    return result;
   }
 }
 

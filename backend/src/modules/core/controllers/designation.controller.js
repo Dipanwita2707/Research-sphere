@@ -120,9 +120,9 @@ const PERMISSION_CATEGORIES = {
       { key: 'backup_restore', label: 'Backup & Restore' },
     ]
   },
-  // ===========================================
+  // ====================================
   // DSW (Dean of Student Welfare) Permissions
-  // ===========================================
+  // ====================================
   dsw: {
     label: 'DSW & Club Management',
     permissions: [
@@ -137,9 +137,9 @@ const PERMISSION_CATEGORIES = {
       { key: 'dsw_view_audit_logs', label: 'View DSW Audit Logs', description: 'Can view club audit and change history' },
     ]
   },
-  // ===========================================
+  // ====================================
   // Noting System Permissions
-  // ===========================================
+  // ====================================
   noting: {
     label: 'Noting & Approvals',
     permissions: [
@@ -155,9 +155,9 @@ const PERMISSION_CATEGORIES = {
       { key: 'noting_not_recommend', label: 'Not Recommend', description: 'Can mark notings as not recommended (also granted via Approve)' },
     ]
   },
-  // ===========================================
+  // ====================================
   // Event Management Permissions
-  // ===========================================
+  // ====================================
   events: {
     label: 'Event Management',
     permissions: [
@@ -322,9 +322,9 @@ const DESIGNATION_TEMPLATES = {
       events: ['event_view_all', 'event_manage_all', 'event_view_reports'],
     }
   },
-  // ===========================================
+  // ====================================
   // DSW Office Templates
-  // ===========================================
+  // ====================================
   'DSW Officer': {
     departments: ['DSW'],
     defaultPermissions: {
@@ -343,9 +343,9 @@ const DESIGNATION_TEMPLATES = {
       students: ['view_students'],
     }
   },
-  // ===========================================
+  // ====================================
   // Faculty Club Facilitator Template
-  // ===========================================
+  // ====================================
   'Faculty Facilitator': {
     departments: ['REGISTRAR'],
     defaultPermissions: {

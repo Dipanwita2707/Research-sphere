@@ -1,17 +1,16 @@
-// ============================================
-// TMS Types & Interfaces
-// ============================================
-
-export type TmsMessageType = 'grievance' | 'assistance' | 'enquiry' | 'feedback';
+// =====================================
+  // TMS Types & Interfaces
+// ==============================
+  export type TmsMessageType = 'grievance' | 'assistance' | 'enquiry' | 'feedback';
 export type TmsPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TmsTicketStatus = 'open' | 'in_progress' | 'escalated' | 'resolved' | 'closed';
 export type TmsEscalationLevel = 'sub_category' | 'category' | 'master_category' | 'registrar' | 'dean_academics' | 'vice_chancellor';
 export type TmsTimelineAction = 'created' | 'assigned' | 'escalated' | 'forwarded' | 'remarked' | 'status_changed' | 'resolved' | 'closed' | 'reopened' | 'auto_escalated' | 'rated';
 
-// ============================================
-// User fragments (mirrors backend userBrief)
-// ============================================
-export interface UserBrief {
+// =====================================
+  // User fragments (mirrors backend userBrief)
+// =====================================
+  export interface UserBrief {
   id: string;
   uid: string;
   role?: string;
@@ -36,10 +35,10 @@ export interface UserBrief {
   } | null;
 }
 
-// ============================================
-// Category hierarchy
-// ============================================
-export interface CategoryEmployee {
+// =====================================
+  // Category hierarchy
+// =====================================
+  export interface CategoryEmployee {
   id: string;
   uid: string;
   employeeDetails?: {
@@ -80,10 +79,10 @@ export interface TmsMasterCategory {
   categories?: TmsCategory[];
 }
 
-// ============================================
-// Timeline entry
-// ============================================
-export interface TmsTimelineEntry {
+// =====================================
+  // Timeline entry
+// =====================================
+  export interface TmsTimelineEntry {
   id: string;
   action: TmsTimelineAction;
   fromLevel?: TmsEscalationLevel | null;
@@ -95,20 +94,20 @@ export interface TmsTimelineEntry {
   performedBy?: UserBrief | null;
 }
 
-// ============================================
-// Rating
-// ============================================
-export interface TmsRating {
+// =====================================
+  // Rating
+// =====================================
+  export interface TmsRating {
   id: string;
   rating: number;
   feedback?: string | null;
   createdAt: string;
 }
 
-// ============================================
-// Ticket
-// ============================================
-export interface TmsTicket {
+// =====================================
+  // Ticket
+// =====================================
+  export interface TmsTicket {
   id: string;
   requestId: string;
   messageType: TmsMessageType;
@@ -136,10 +135,10 @@ export interface TmsTicket {
   _count?: { timeline: number };
 }
 
-// ============================================
-// API Payloads
-// ============================================
-export interface CreateTicketPayload {
+// =====================================
+  // API Payloads
+// =====================================
+  export interface CreateTicketPayload {
   messageType: TmsMessageType;
   priority?: TmsPriority;
   masterCategoryId: string;
@@ -173,10 +172,10 @@ export interface RatePayload {
   feedback?: string;
 }
 
-// ============================================
-// List / Filter params
-// ============================================
-export interface TicketListParams {
+// =====================================
+  // List / Filter params
+// =====================================
+  export interface TicketListParams {
   page?: number;
   limit?: number;
   status?: TmsTicketStatus;
@@ -198,10 +197,10 @@ export interface AdminTicketListParams extends TicketListParams {
   endDate?: string;
 }
 
-// ============================================
-// Analytics types
-// ============================================
-export interface TmsOverviewStats {
+// =====================================
+  // Analytics types
+// =====================================
+  export interface TmsOverviewStats {
   totalRequests: number;
   byStatus: Record<string, number>;
   byMessageType: Record<string, number>;
@@ -260,20 +259,20 @@ export interface TmsCategoryStats {
   bySubCategory: TmsCategoryStat[];
 }
 
-// ============================================
-// Pagination
-// ============================================
-export interface Pagination {
+// =====================================
+  // Pagination
+// =====================================
+  export interface Pagination {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
 }
 
-// ============================================
-// Category form payloads
-// ============================================
-export interface CreateMasterCategoryPayload {
+// =====================================
+  // Category form payloads
+// =====================================
+  export interface CreateMasterCategoryPayload {
   name: string;
   description?: string;
   isAcademic?: boolean;
@@ -306,10 +305,10 @@ export interface UpdateCategoryPayload {
   slaHours?: number;
 }
 
-// ============================================
-// Role Handlers (Registrar, Dean, VC)
-// ============================================
-export type TmsRoleHandlerLevel = 'registrar' | 'dean_academics' | 'vice_chancellor';
+// =====================================
+  // Role Handlers (Registrar, Dean, VC)
+// =====================================
+  export type TmsRoleHandlerLevel = 'registrar' | 'dean_academics' | 'vice_chancellor';
 
 export interface TmsRoleHandler {
   id: string;

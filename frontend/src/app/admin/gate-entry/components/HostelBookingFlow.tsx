@@ -91,7 +91,9 @@ export default function HostelBookingFlow({
 
   // Load available hostels when step changes to select_hostel
   useEffect(() => {
-    if (step === 'select_hostel' && bookingChoice === 'new') {
+    if (step ===
+   'select_hostel' && bookingChoice ===
+   'new') {
       if (hasBookingValidationError) {
         setHostels([]);
         return;
@@ -102,7 +104,8 @@ export default function HostelBookingFlow({
 
   // Load rooms when hostel is selected
   useEffect(() => {
-    if (selectedHostel && step === 'select_room') {
+    if (selectedHostel && step ===
+   'select_room') {
       if (hasBookingValidationError) {
         setRooms([]);
         return;
@@ -116,7 +119,8 @@ export default function HostelBookingFlow({
     try {
       const response = await gateEntryService.getAvailableHostels(bookingCheckInDate, bookingCheckOutDate);
       setHostels(response.hostels);
-      if (response.hostels.length === 0) {
+      if (response.hostels.length ===
+   0) {
         showWarning(t('hostel.noHostels'));
       }
     } catch (error) {
@@ -132,7 +136,8 @@ export default function HostelBookingFlow({
     try {
       const response = await gateEntryService.getHostelRooms(hostelId, bookingCheckInDate, bookingCheckOutDate);
       setRooms(response.rooms);
-      if (response.rooms.length === 0) {
+      if (response.rooms.length ===
+   0) {
         showWarning(t('hostel.noRooms'));
       }
     } catch (error) {
@@ -145,14 +150,17 @@ export default function HostelBookingFlow({
 
   const handleChoiceSelection = (choice: 'existing' | 'new' | 'none') => {
     setBookingChoice(choice);
-    if (choice === 'none') {
+    if (choice ===
+   'none') {
       onSuccess();
       onClose();
-    } else if (choice === 'existing') {
+    } else if (choice ===
+   'existing') {
       // For existing booking, just close - user should provide details in main form
       showInfo(t('hostel.infoExistingBooking'));
       onClose();
-    } else if (choice === 'new') {
+    } else if (choice ===
+   'new') {
       setStep('select_hostel');
     }
   };
@@ -308,7 +316,8 @@ export default function HostelBookingFlow({
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-600 mt-4">{t('hostel.loadingHostels')}</p>
         </div>
-      ) : hostels.length === 0 ? (
+      ) : hostels.length ===
+   0 ? (
         <div className="text-center py-8">
           <p className="text-gray-600">{t('hostel.noHostels')}</p>
         </div>
@@ -334,7 +343,8 @@ export default function HostelBookingFlow({
                 <div className="flex flex-wrap gap-2 mt-2">
                   {(() => {
                     try {
-                      const parsed = typeof hostel.facilities === 'string' ? JSON.parse(hostel.facilities) : hostel.facilities;
+                      const parsed = typeof hostel.facilities ===
+   'string' ? JSON.parse(hostel.facilities) : hostel.facilities;
                       if (Array.isArray(parsed)) {
                         return parsed.map((facility: string, idx: number) => (
                           <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
@@ -469,7 +479,8 @@ export default function HostelBookingFlow({
           <p className="text-xs text-red-600 mt-1">{bookingDatetimeValidationError}</p>
         )}
         <p className="text-xs text-blue-600 mt-2">
-          <span className="font-semibold">{billableDays} billable {billableDays === 1 ? t('hostel.day') : t('hostel.days')}</span>{' '}
+          <span className="font-semibold">{billableDays} billable {billableDays ===
+   1 ? t('hostel.day') : t('hostel.days')}</span>{' '}
           &bull; {guestCount} {guestCount > 1 ? t('hostel.guests') : t('hostel.guest')}
         </p>
       </div>
@@ -479,7 +490,8 @@ export default function HostelBookingFlow({
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-600 mt-4">{t('hostel.loadingRooms')}</p>
         </div>
-      ) : rooms.length === 0 ? (
+      ) : rooms.length ===
+   0 ? (
         <div className="text-center py-8">
           <p className="text-gray-600">{t('hostel.noRooms')}</p>
         </div>
@@ -526,7 +538,8 @@ export default function HostelBookingFlow({
                   <div className="text-right ml-4">
                     <p className="text-lg font-bold text-blue-600">₹{totalPrice}</p>
                     <p className="text-xs text-gray-500">₹{room.pricePerNight}/day</p>
-                    <p className="text-xs text-gray-400 mt-1">{billableDays} {billableDays === 1 ? t('hostel.day') : t('hostel.days')}</p>
+                    <p className="text-xs text-gray-400 mt-1">{billableDays} {billableDays ===
+   1 ? t('hostel.day') : t('hostel.days')}</p>
                   </div>
                 </div>
               </div>
@@ -551,10 +564,14 @@ export default function HostelBookingFlow({
           </button>
         </div>
 
-        {step === 'choice' && renderChoiceStep()}
-        {step === 'select_hostel' && renderHostelSelection()}
-        {step === 'select_room' && renderRoomSelection()}
-        {step === 'payment' && booking && (
+        {step ===
+   'choice' && renderChoiceStep()}
+        {step ===
+   'select_hostel' && renderHostelSelection()}
+        {step ===
+   'select_room' && renderRoomSelection()}
+        {step ===
+   'payment' && booking && (
           <PaymentQRModal
             booking={booking}
             onClose={() => {

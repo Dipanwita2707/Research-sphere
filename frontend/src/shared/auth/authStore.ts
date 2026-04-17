@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { authService, User } from '@/shared/services/auth.service';
 import { logger } from '@/shared/utils/logger';
 
+let authCheckInFlight: Promise<void> | null = null;
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -56,6 +58,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkAuth: async () => {
+        if (authCheckInFlight) {
+          logger.debug('AuthStore - Reusing in-flight auth check');
+          return authCheckInFlight;
+        }
+
         const state = get();
         // If we already have user data from persisted state, trust it
         // The ProtectedRoute components will handle validation on navigation
@@ -67,21 +74,27 @@ export const useAuthStore = create<AuthState>()(
         
         // Only check with server if we don't have persisted state
         logger.debug('AuthStore - No persisted auth, checking with server');
-        set({ isLoading: true });
-        try {
-          const user = await authService.getCurrentUser();
-          logger.debug('AuthStore - user fetched from server:', user);
-          set({ user, isAuthenticated: true, isLoading: false });
-        } catch (error: any) {
-          logger.error('AuthStore - checkAuth error:', error);
-          logger.error('AuthStore - Error details:', {
-            message: error.message,
-            status: error.response?.status,
-            statusText: error.response?.statusText,
-            data: error.response?.data
-          });
-          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
-        }
+        authCheckInFlight = (async () => {
+          set({ isLoading: true });
+          try {
+            const user = await authService.getCurrentUser();
+            logger.debug('AuthStore - user fetched from server:', user);
+            set({ user, isAuthenticated: true, isLoading: false });
+          } catch (error: any) {
+            logger.error('AuthStore - checkAuth error:', error);
+            logger.error('AuthStore - Error details:', {
+              message: error.message,
+              status: error.response?.status,
+              statusText: error.response?.statusText,
+              data: error.response?.data
+            });
+            set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          } finally {
+            authCheckInFlight = null;
+          }
+        })();
+
+        return authCheckInFlight;
       },
 
       refreshUser: async () => {

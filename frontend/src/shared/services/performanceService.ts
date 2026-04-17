@@ -33,7 +33,8 @@ export interface PerformanceStats {
 export const getUserPerformance = async (userId: number): Promise<PerformanceData[]> => {
   try {
     // Skip API call if userId is invalid
-    if (!userId || userId === 0 || isNaN(userId)) {
+    if (!userId || userId ===
+   0 || isNaN(userId)) {
       throw new Error('Invalid user ID');
     }
     

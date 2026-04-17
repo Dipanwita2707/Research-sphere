@@ -277,52 +277,70 @@ function AllPassesPageContent() {
   const [processingCheckin, setProcessingCheckin] = useState(false);
   const [processingRoomCancel, setProcessingRoomCancel] = useState(false);
   const [resendingPassId, setResendingPassId] = useState<string | null>(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,      // Active Today
-    pending: 0,     // All non-completed
-    completed: 0,
-    expired: 0,
-  });
   const deferredSearchTerm = useDeferredValue(searchTerm);
+  const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const stats = useMemo(() => {
+    if (!passes || passes.length === 0) {
+      return { total: 0, active: 0, pending: 0, completed: 0, expired: 0 };
+    }
+
+    let active = 0;
+    let pending = 0;
+    let completed = 0;
+    let expired = 0;
+
+    for (const pass of passes) {
+      if (pass.actualEntryTime) {
+        const entryDate = String(pass.actualEntryTime).split('T')[0];
+        if (entryDate === todayDate && pass.passStatus === 'checked_in') {
+          active += 1;
+        }
+      }
+
+      if (pass.passStatus === 'pending') pending += 1;
+      if (pass.passStatus === 'checked_out' || pass.status === 'completed') completed += 1;
+      if (pass.passStatus === 'expired') expired += 1;
+    }
+
+    return {
+      total: passes.length,
+      active,
+      pending,
+      completed,
+      expired,
+    };
+  }, [passes, todayDate]);
+
+  const fetchPasses = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await gateEntryService.getAllPasses();
+      const fetchedPasses = response.data?.passes || [];
+      setPasses(fetchedPasses);
+    } catch (err: any) {
+      console.error('Error fetching passes:', err);
+      // More user-friendly error messages
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setError(t('allPasses.error.network'));
+      } else if (err.response?.status === 401) {
+        setError(t('allPasses.error.sessionExpired'));
+      } else if (err.response?.status === 403) {
+        setError(t('allPasses.error.noPermission'));
+      } else {
+        setError(err.response?.data?.message || err.message || t('allPasses.error.loadFailed'));
+      }
+      setPasses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
 
   // Fetch passes from backend
   useEffect(() => {
     fetchPasses();
-  }, []);
-
-  // Calculate stats from passes array (no API call needed)
-  useEffect(() => {
-    try {
-      if (passes && passes.length > 0) {
-        const today = new Date().toISOString().split('T')[0];
-        
-        const calculated = {
-          total: passes.length,
-          active: passes.filter(p => {
-            if (!p.actualEntryTime) return false;
-            try {
-              const passDate = new Date(p.actualEntryTime).toISOString().split('T')[0];
-              return passDate === today && p.passStatus === 'checked_in';
-            } catch {
-              return false;
-            }
-          }).length,
-          pending: passes.filter(p => p.passStatus === 'pending').length,
-          completed: passes.filter(p => p.passStatus === 'checked_out' || p.status === 'completed').length,
-          expired: passes.filter(p => p.passStatus === 'expired').length,
-        };
-        
-        setStats(calculated);
-      } else {
-        setStats({ total: 0, active: 0, pending: 0, completed: 0, expired: 0 });
-      }
-    } catch (err) {
-      console.error('Error calculating stats:', err);
-      // Fallback to zero stats on error
-      setStats({ total: 0, active: 0, pending: 0, completed: 0, expired: 0 });
-    }
-  }, [passes]);
+  }, [fetchPasses]);
 
   // Auto-open pass detail modal when navigating from notification with reviewBooking/reviewRoomCancellation param
   useEffect(() => {
@@ -456,31 +474,6 @@ function AllPassesPageContent() {
     closeRoomCancelReasonModal();
   }, [roomCancelBookingId, roomCancelAction, roomCancelReason, closeRoomCancelReasonModal, handleRequestRoomCancel, handleRejectRoomCancel]);
 
-  const fetchPasses = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await gateEntryService.getAllPasses();
-      const fetchedPasses = response.data?.passes || [];
-      setPasses(fetchedPasses);
-    } catch (err: any) {
-      console.error('Error fetching passes:', err);
-      // More user-friendly error messages
-      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
-        setError(t('allPasses.error.network'));
-      } else if (err.response?.status === 401) {
-        setError(t('allPasses.error.sessionExpired'));
-      } else if (err.response?.status === 403) {
-        setError(t('allPasses.error.noPermission'));
-      } else {
-        setError(err.response?.data?.message || err.message || t('allPasses.error.loadFailed'));
-      }
-      setPasses([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Stats are now calculated from passes array, no separate API call needed
 
   const getQRStatusBadge = (qrStatus?: string) => {
@@ -513,13 +506,14 @@ function AllPassesPageContent() {
 
   // Filter and search logic
   const filteredPasses = useMemo(() => {
+    const searchLower = deferredSearchTerm.trim().toLowerCase();
+
     return passes.filter(pass => {
       // Search filter - only search in fields we're actually collecting (with null safety)
-      const searchLower = deferredSearchTerm.toLowerCase();
       const searchMatch = 
         (pass.passId?.toLowerCase() || '').includes(searchLower) ||
         (pass.visitorName?.toLowerCase() || '').includes(searchLower) ||
-        (pass.mobileNumber || '').includes(deferredSearchTerm) ||
+        (pass.mobileNumber || '').includes(searchLower) ||
         (pass.vehicleNumber?.toLowerCase() || '').includes(searchLower) ||
         (pass.visitorRelation?.toLowerCase() || '').includes(searchLower);
 
@@ -537,24 +531,19 @@ function AllPassesPageContent() {
       // Date filter
       let dateMatch = true;
       if (dateFilter !== 'all') {
-        try {
-          const today = new Date().toISOString().split('T')[0];
-          const passDate = (pass.visitDate || '').split('T')[0]; // Extract date part from ISO string
-          if (dateFilter === 'today') {
-            dateMatch = passDate === today;
-          } else if (dateFilter === 'upcoming') {
-            dateMatch = passDate > today;
-          } else if (dateFilter === 'past') {
-            dateMatch = passDate < today;
-          }
-        } catch {
-          dateMatch = true; // On error, include the pass
+        const passDate = String(pass.visitDate || '').split('T')[0];
+        if (dateFilter === 'today') {
+          dateMatch = passDate === todayDate;
+        } else if (dateFilter === 'upcoming') {
+          dateMatch = passDate > todayDate;
+        } else if (dateFilter === 'past') {
+          dateMatch = passDate < todayDate;
         }
       }
 
       return searchMatch && statusMatch && dateMatch;
     });
-  }, [passes, deferredSearchTerm, statusFilter, dateFilter]);
+  }, [passes, deferredSearchTerm, statusFilter, dateFilter, todayDate]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1474,70 +1463,6 @@ function AllPassesPageContent() {
                             </div>
                           );
                         })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Room Cancellation Request Section */}
-                  {selectedPass.hostelBooking?.roomCancelRequestStatus && (
-                    <div className="md:col-span-2">
-                      <div className={`border-2 rounded-lg p-5 ${
-                        selectedPass.hostelBooking.roomCancelRequestStatus === 'pending'
-                          ? 'border-amber-300 bg-amber-50'
-                          : selectedPass.hostelBooking.roomCancelRequestStatus === 'approved'
-                            ? 'border-green-300 bg-green-50'
-                            : 'border-red-300 bg-red-50'
-                      }`}>
-                        <div className="flex items-center justify-between mb-4">
-                          <h5 className="font-semibold text-lg flex items-center gap-2 text-gray-800">
-                            <AlertCircle className="w-5 h-5" />
-                            {t('room.cancelRequestStatus')}
-                          </h5>
-                          <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide ${
-                            selectedPass.hostelBooking.roomCancelRequestStatus === 'pending'
-                              ? 'bg-amber-200 text-amber-800'
-                              : selectedPass.hostelBooking.roomCancelRequestStatus === 'approved'
-                                ? 'bg-green-200 text-green-800'
-                                : 'bg-red-200 text-red-800'
-                          }`}>
-                            {getRequestStatusLabel(selectedPass.hostelBooking.roomCancelRequestStatus)}
-                          </span>
-                        </div>
-
-                        {selectedPass.hostelBooking.roomCancelRequestReason && (
-                          <p className="text-sm text-gray-700 mb-3">
-                            {t('room.requestReason')} <span className="font-medium">{selectedPass.hostelBooking.roomCancelRequestReason}</span>
-                          </p>
-                        )}
-
-                        {selectedPass.hostelBooking.roomCancelRequestStatus === 'rejected' && selectedPass.hostelBooking.roomCancelRequestRejectReason && (
-                          <p className="text-sm text-red-700 mb-3">
-                            {t('room.rejectionReason')} <span className="font-medium">{selectedPass.hostelBooking.roomCancelRequestRejectReason}</span>
-                          </p>
-                        )}
-
-                        {selectedPass.hostelBooking.roomCancelRequestStatus === 'pending' &&
-                          selectedPass.hostelBooking.id &&
-                          ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()) && (
-                          <div className="flex gap-3 mt-2 pt-4 border-t border-gray-200">
-                            <button
-                              onClick={() => handleApproveRoomCancel(selectedPass.hostelBooking!.id!)}
-                              disabled={processingRoomCancel}
-                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                            >
-                              {processingRoomCancel ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-                              {t('room.approveCancel')}
-                            </button>
-                            <button
-                              onClick={() => openRoomCancelReasonModal(selectedPass.hostelBooking!.id!, 'reject')}
-                              disabled={processingRoomCancel}
-                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                            >
-                              <XCircle className="w-5 h-5" />
-                              {t('room.rejectCancel')}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}

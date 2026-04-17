@@ -128,7 +128,8 @@ export default function AllClubsPage() {
   const handleStatusFilter = (status: string) => {
     setFilters((prev) => ({
       ...prev,
-      status: status === "all" ? undefined : (status as ClubFilters["status"]),
+      status: status ===
+   "all" ? undefined : (status as ClubFilters["status"]),
       page: 1,
     }));
   };
@@ -282,7 +283,8 @@ export default function AllClubsPage() {
       </div>
 
       {/* Clubs Grid */}
-      {clubs.length === 0 ? (
+      {clubs.length ===
+   0 ? (
         <div className="ev-card p-12 text-center">
           <Users className="w-14 h-14 text-ev-200 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-ev-900 mb-2">No Clubs Found</h3>
@@ -363,7 +365,8 @@ export default function AllClubsPage() {
                 page: Math.max(1, (prev.page ?? 1) - 1),
               }))
             }
-            disabled={filters.page === 1}
+            disabled={filters.page ===
+   1}
             className="ev-btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
@@ -395,7 +398,8 @@ export default function AllClubsPage() {
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
+            if (e.target ===
+   e.currentTarget) {
               setShowApplyModal(false);
               setApplyError(null);
             }
@@ -425,10 +429,13 @@ export default function AllClubsPage() {
               >
                 <option value="">Select Club</option>
                 {clubs
-                  .filter((club) => club.status === "active")
+                  .filter((club) => club.status ===
+   "active")
                   .map((club) => {
                     const status = applicationMap.get(club.id);
-                    const disabled = status === "pending" || status === "approved";
+                    const disabled = status ===
+   "pending" || status ===
+   "approved";
                     return (
                       <option key={club.id} value={club.id} disabled={disabled}>
                         {club.name}{disabled ? ` (${status})` : ""}

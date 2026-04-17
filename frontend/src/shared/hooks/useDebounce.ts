@@ -29,7 +29,8 @@ export function useDebounce<T>(
   value: T,
   delayOrOptions: number | UseDebounceOptions<T> = 500,
 ): T {
-  const opts = typeof delayOrOptions === 'number'
+  const opts = typeof delayOrOptions ===
+   'number'
     ? { delay: delayOrOptions }
     : delayOrOptions;
   const { delay = 500, onSettle } = opts;

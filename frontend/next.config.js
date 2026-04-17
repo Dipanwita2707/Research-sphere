@@ -2,7 +2,7 @@ const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5001';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disabled: StrictMode double-invokes effects in dev, causing duplicate API calls
   swcMinify: true,
   
   // Disable ESLint during production builds (for Render deployment)
@@ -12,8 +12,6 @@ const nextConfig = {
   
   // Configure for containerized environments
   experimental: {
-    // Tree-shake heavy packages — only bundle used exports
-    optimizePackageImports: ['lucide-react', '@mui/material', 'recharts', 'framer-motion'],
   },
   
   // Proxy API requests to backend

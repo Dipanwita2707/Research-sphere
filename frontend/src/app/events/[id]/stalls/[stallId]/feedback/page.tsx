@@ -115,7 +115,8 @@ export default function StallFeedbackPage() {
   }
 
   const activeRating = hoverRating || rating;
-  const ratingLabel = activeRating === 0 ? 'Tap to rate' :
+  const ratingLabel = activeRating ===
+   0 ? 'Tap to rate' :
     activeRating <= 3 ? 'Poor' :
     activeRating <= 5 ? 'Average' :
     activeRating <= 7 ? 'Good' :
@@ -167,7 +168,8 @@ export default function StallFeedbackPage() {
                 })}
               </div>
               <p className={`mt-2 text-sm font-medium transition-colors ${
-                activeRating === 0 ? 'text-gray-400 dark:text-gray-500' :
+                activeRating ===
+   0 ? 'text-gray-400 dark:text-gray-500' :
                 activeRating <= 3 ? 'text-red-500' :
                 activeRating <= 5 ? 'text-amber-500' :
                 activeRating <= 7 ? 'text-ev-700' :

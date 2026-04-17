@@ -7,13 +7,16 @@ import {
   drdAnalyticsService,
   type ReviewerDetailResponse,
 } from '@/features/ipr-management/services/drdAnalytics.service';
-import { KpiCardGrid, ExportActions } from '@/components/analytics';
+import { KpiCardGrid, ExportActions, TrendChartPanel, AnalyticsBarChart } from '@/components/analytics';
 import {
   AlertCircle,
   ArrowLeft,
+  BarChart3,
   CheckCircle2,
   Clock,
   FileText,
+  Layers,
+  Printer,
   RefreshCw,
   TrendingDown,
   XCircle,
@@ -21,8 +24,10 @@ import {
 import { logger } from '@/shared/utils/logger';
 
 function is403(err: unknown): boolean {
-  if (err && typeof err === 'object' && 'response' in err) {
-    return (err as { response?: { status?: number } }).response?.status === 403;
+  if (err && typeof err ===
+   'object' && 'response' in err) {
+    return (err as { response?: { status?: number } }).response?.status ===
+   403;
   }
   return false;
 }
@@ -77,25 +82,136 @@ export default function ReviewerDetailPage() {
   const timeline = data?.timeline || [];
 
   const filteredTimeline = timeline
-    .filter((t) => statusFilter === 'all' || t.decision?.toLowerCase() === statusFilter)
+    .filter((t) => statusFilter ===
+   'all' || t.decision?.toLowerCase() ===
+   statusFilter)
     .sort((a, b) => {
-      if (sortBy === 'date') {
+      if (sortBy ===
+   'date') {
         const da = new Date(a.reviewedAt || a.assignedAt || 0).getTime();
         const db = new Date(b.reviewedAt || b.assignedAt || 0).getTime();
-        return sortDir === 'desc' ? db - da : da - db;
+        return sortDir ===
+   'desc' ? db - da : da - db;
       }
-      return sortDir === 'desc'
+      return sortDir ===
+   'desc'
         ? (b.turnaroundHours || 0) - (a.turnaroundHours || 0)
         : (a.turnaroundHours || 0) - (b.turnaroundHours || 0);
     });
 
   const toggleSort = (col: 'date' | 'turnaround') => {
-    if (sortBy === col) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    if (sortBy ===
+   col) {
+      setSortDir((d) => (d ===
+   'asc' ? 'desc' : 'asc'));
     } else {
       setSortBy(col);
       setSortDir('desc');
     }
+  };
+
+  // Category breakdown from full timeline
+  const allTimeline = data?.timeline || [];
+  const categoryStats = {
+    research: allTimeline.filter((t) => t.category === 'research').length,
+    book: allTimeline.filter((t) => t.category === 'book').length,
+    conference: allTimeline.filter((t) => t.category === 'conference').length,
+    ipr: allTimeline.filter((t) => t.category === 'ipr').length,
+    grants: allTimeline.filter((t) => t.category === 'grants').length,
+  };
+
+  const categoryBarData = [
+    { label: 'Research', values: { Reviewed: categoryStats.research } },
+    { label: 'Book', values: { Reviewed: categoryStats.book } },
+    { label: 'Conference', values: { Reviewed: categoryStats.conference } },
+    { label: 'IPR', values: { Reviewed: categoryStats.ipr } },
+    { label: 'Grants', values: { Reviewed: categoryStats.grants } },
+  ].filter((d) => d.values.Reviewed > 0);
+
+  const categoryBarKeys = [{ key: 'Reviewed', label: 'Reviews', color: '#6366f1' }];
+
+  // Monthly decision trend from timeline
+  const monthlyMap = new Map<string, { label: string; approved: number; rejected: number; other: number }>();
+  allTimeline.forEach((t) => {
+    const date = t.firstResponseAt || t.assignedAt;
+    if (!date) return;
+    const d = new Date(date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const lbl = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+    if (!monthlyMap.has(key)) monthlyMap.set(key, { label: lbl, approved: 0, rejected: 0, other: 0 });
+    const dec = (t.decision || '').toLowerCase();
+    const bucket = monthlyMap.get(key)!;
+    if (['approved', 'recommended'].includes(dec)) bucket.approved++;
+    else if (dec === 'rejected') bucket.rejected++;
+    else bucket.other++;
+  });
+  const monthlyTrend = Array.from(monthlyMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([, v]) => ({ label: v.label, values: { Approved: v.approved, Rejected: v.rejected, Other: v.other } }));
+  const monthlyTrendKeys = [
+    { key: 'Approved', label: 'Approved', color: '#10b981' },
+    { key: 'Rejected', label: 'Rejected', color: '#ef4444' },
+    { key: 'Other', label: 'Other', color: '#f59e0b' },
+  ];
+
+  const handleGenerateReport = () => {
+    if (!data) return;
+    const revName = data.reviewer?.name || 'Reviewer';
+    const rows = allTimeline
+      .map(
+        (t, i) =>
+          `<tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">
+            <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">${i + 1}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;max-width:260px">${t.applicationTitle || t.title || 'Untitled'}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-transform:capitalize">${t.category}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">${t.decision || '\u2014'}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0">${t.reviewedAt ? new Date(t.reviewedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '\u2014'}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:right">${t.turnaroundHours != null ? t.turnaroundHours.toFixed(1) + 'h' : '\u2014'}</td>
+          </tr>`
+      )
+      .join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Reviewer Report - ${revName}</title>
+<style>
+  body{font-family:Arial,sans-serif;color:#1e293b;padding:28px;max-width:1000px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}  h2{font-size:13px;color:#64748b;margin:0 0 22px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:22px}
+  .kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}
+  .kpi-label{font-size:11px;color:#64748b;margin-bottom:3px}
+  .kpi-value{font-size:18px;font-weight:700;color:#1e293b}
+  .cat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:22px}
+  .cat{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;text-align:center}
+  .cat-label{font-size:11px;color:#3b82f6;margin-bottom:2px}
+  .cat-value{font-size:16px;font-weight:700;color:#1e40af}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:#f1f5f9;padding:8px 10px;text-align:left;font-weight:600;color:#475569;border-bottom:2px solid #e2e8f0}
+  @media print{body{padding:14px}}
+</style></head><body>
+<h1>Reviewer Performance Report \u2014 ${revName}</h1>
+<h2>All-time review history</h2>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-label">Total Reviews</div><div class="kpi-value">${allTimeline.length}</div></div>
+  <div class="kpi"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:#059669">${kpis?.decisionDistribution?.approved || 0}</div></div>
+  <div class="kpi"><div class="kpi-label">Rejected</div><div class="kpi-value" style="color:#dc2626">${kpis?.decisionDistribution?.rejected || 0}</div></div>
+  <div class="kpi"><div class="kpi-label">Avg Turnaround</div><div class="kpi-value">${fmtHours(kpis?.avgTurnaroundHours)}</div></div>
+  <div class="kpi"><div class="kpi-label">Median Turnaround</div><div class="kpi-value">${fmtHours(kpis?.medianTurnaroundHours)}</div></div>
+</div>
+<div class="cat-grid">
+  <div class="cat"><div class="cat-label">Research</div><div class="cat-value">${categoryStats.research}</div></div>
+  <div class="cat"><div class="cat-label">Book</div><div class="cat-value">${categoryStats.book}</div></div>
+  <div class="cat"><div class="cat-label">Conference</div><div class="cat-value">${categoryStats.conference}</div></div>
+  <div class="cat"><div class="cat-label">IPR</div><div class="cat-value">${categoryStats.ipr}</div></div>
+  <div class="cat"><div class="cat-label">Grants</div><div class="cat-value">${categoryStats.grants}</div></div>
+</div>
+<table>
+  <thead><tr><th>#</th><th>Application</th><th>Category</th><th>Decision</th><th>Date</th><th>Turnaround</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => w.print(), 400);
   };
 
   return (
@@ -135,6 +251,14 @@ export default function ReviewerDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleGenerateReport}
+                disabled={loading || !data}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                Report
+              </button>
               <ExportActions
                 data={filteredTimeline}
                 filename={`reviewer-${reviewerId}-detail`}
@@ -206,6 +330,42 @@ export default function ReviewerDetailPage() {
                 />
               )}
 
+              {/* Category Breakdown */}
+              {allTimeline.length > 0 && categoryBarData.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Layers className="w-4 h-4 text-indigo-500" />
+                    <h3 className="text-sm font-semibold text-gray-700">Category Breakdown</h3>
+                  </div>
+                  <div className="grid grid-cols-5 gap-3 mb-4">
+                    {[
+                      { key: 'research', label: 'Research', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+                      { key: 'book', label: 'Book', color: 'bg-sky-50 text-sky-700 border-sky-200' },
+                      { key: 'conference', label: 'Conference', color: 'bg-violet-50 text-violet-700 border-violet-200' },
+                      { key: 'ipr', label: 'IPR', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+                      { key: 'grants', label: 'Grants', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                    ].map(({ key, label, color }) => (
+                      <div key={key} className={`rounded-xl border p-3 text-center ${color}`}>
+                        <div className="text-xs font-medium mb-1">{label}</div>
+                        <div className="text-xl font-bold">{categoryStats[key as keyof typeof categoryStats]}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <AnalyticsBarChart data={categoryBarData} keys={categoryBarKeys} height={200} />
+                </div>
+              )}
+
+              {/* Monthly Decision Trend */}
+              {monthlyTrend.length > 1 && (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 className="w-4 h-4 text-indigo-500" />
+                    <h3 className="text-sm font-semibold text-gray-700">Monthly Review Trend</h3>
+                  </div>
+                  <TrendChartPanel data={monthlyTrend} keys={monthlyTrendKeys} height={240} />
+                </div>
+              )}
+
               {/* Decision Distribution */}
               {kpis && kpis.totalReviews > 0 && (
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
@@ -253,12 +413,14 @@ export default function ReviewerDetailPage() {
                         key={s}
                         onClick={() => setStatusFilter(s)}
                         className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                          statusFilter === s
+                          statusFilter ===
+   s
                             ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                             : 'border-gray-200 text-gray-500 hover:bg-gray-50'
                         }`}
                       >
-                        {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                        {s ===
+   'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
                       </button>
                     ))}
                   </div>
@@ -275,18 +437,23 @@ export default function ReviewerDetailPage() {
                           className="px-4 py-3 font-medium text-gray-500 cursor-pointer select-none"
                           onClick={() => toggleSort('date')}
                         >
-                          Date {sortBy === 'date' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+                          Date {sortBy ===
+   'date' ? (sortDir ===
+   'desc' ? '↓' : '↑') : ''}
                         </th>
                         <th
                           className="px-4 py-3 font-medium text-gray-500 text-right cursor-pointer select-none"
                           onClick={() => toggleSort('turnaround')}
                         >
-                          Turnaround {sortBy === 'turnaround' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+                          Turnaround {sortBy ===
+   'turnaround' ? (sortDir ===
+   'desc' ? '↓' : '↑') : ''}
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {filteredTimeline.length === 0 ? (
+                      {filteredTimeline.length ===
+   0 ? (
                         <tr>
                           <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
                             No reviews found

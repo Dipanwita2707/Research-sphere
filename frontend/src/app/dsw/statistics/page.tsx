@@ -113,13 +113,13 @@ export default function StatisticsPage() {
             <h2 className="ev-section-title">Clubs by Status</h2>
           </div>
           <div className="p-6 space-y-1">
-            {stats.clubsByStatus.map((status: { status: string; _count: number }) => (
+            {stats.clubsByStatus.map((status: { status: string; count: number }) => (
               <div key={status.status} className="flex items-center justify-between py-2 border-b border-[#edf4f8] last:border-0">
                 <div className="flex items-center gap-3">
                   <Activity className="w-4 h-4 text-ev-400" />
                   <span className="text-sm text-ev-800 capitalize">{status.status.replace('_', ' ')}</span>
                 </div>
-                <span className="text-sm font-semibold text-ev-900">{status._count}</span>
+                <span className="text-sm font-semibold text-ev-900">{status.count}</span>
               </div>
             ))}
           </div>
@@ -127,7 +127,8 @@ export default function StatisticsPage() {
       )}
 
       {/* Empty state */}
-      {(!stats?.clubsByCategory || stats.clubsByCategory.length === 0) && (
+      {(!stats?.clubsByCategory || stats.clubsByCategory.length ===
+   0) && (
         <div className="ev-card p-12 text-center">
           <BarChart3 className="w-14 h-14 text-ev-200 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-ev-900 mb-2">No Data Available</h3>

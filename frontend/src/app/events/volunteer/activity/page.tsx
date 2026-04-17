@@ -128,15 +128,19 @@ export default function VolunteerActivityPage() {
         (e.participant.uid && e.participant.uid.toLowerCase().includes(search.toLowerCase())) ||
         (e.participant.registrationNo && e.participant.registrationNo.toLowerCase().includes(search.toLowerCase())) ||
         (e.event?.name && e.event.name.toLowerCase().includes(search.toLowerCase()));
-      const matchesType = typeFilter === 'all' || e.entryType === typeFilter;
+      const matchesType = typeFilter ===
+   'all' || e.entryType ===
+   typeFilter;
       return matchesSearch && matchesType;
     });
   }, [entries, search, typeFilter]);
 
   // Stats
   const stats = useMemo(() => {
-    const totalEntries = entries.filter((e) => e.entryType === 'entry').length;
-    const totalExits = entries.filter((e) => e.entryType === 'exit').length;
+    const totalEntries = entries.filter((e) => e.entryType ===
+   'entry').length;
+    const totalExits = entries.filter((e) => e.entryType ===
+   'exit').length;
     const uniqueEvents = new Set(entries.map((e) => e.eventId)).size;
     const uniqueParticipants = new Set(entries.map((e) => e.participant.uid)).size;
     return { totalEntries, totalExits, total: entries.length, uniqueEvents, uniqueParticipants };
@@ -331,7 +335,8 @@ export default function VolunteerActivityPage() {
           <div className="flex items-center justify-center py-16">
             <Skeleton className="w-8 h-8 rounded-sm" />
           </div>
-        ) : filteredEntries.length === 0 ? (
+        ) : filteredEntries.length ===
+   0 ? (
           <div className={CARD + ' p-12 text-center'}>
             <History className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-ev-900 dark:text-white mb-2">
@@ -377,11 +382,13 @@ export default function VolunteerActivityPage() {
                         <div className="flex items-start gap-4">
                           {/* Entry type icon */}
                           <div className={`p-2.5 rounded-xl flex-shrink-0 ${
-                            entry.entryType === 'entry'
+                            entry.entryType ===
+   'entry'
                               ? 'bg-green-100 dark:bg-green-900/30'
                               : 'bg-ev-100 dark:bg-ev-900/30'
                           }`}>
-                            {entry.entryType === 'entry' ? (
+                            {entry.entryType ===
+   'entry' ? (
                               <LogIn className="h-5 w-5 text-green-600 dark:text-green-400" />
                             ) : (
                               <LogOut className="h-5 w-5 text-ev-700 dark:text-ev-400" />
@@ -397,11 +404,13 @@ export default function VolunteerActivityPage() {
                                     {entry.participant.name}
                                   </p>
                                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                    entry.entryType === 'entry'
+                                    entry.entryType ===
+   'entry'
                                       ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                       : 'bg-ev-100 dark:bg-ev-900/30 text-ev-800 dark:text-ev-400'
                                   }`}>
-                                    {entry.entryType === 'entry' ? 'CHECK-IN' : 'CHECK-OUT'}
+                                    {entry.entryType ===
+   'entry' ? 'CHECK-IN' : 'CHECK-OUT'}
                                   </span>
                                 </div>
 
@@ -480,7 +489,8 @@ export default function VolunteerActivityPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
-                    disabled={page === 1}
+                    disabled={page ===
+   1}
                     className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="h-5 w-5" />
@@ -502,7 +512,8 @@ export default function VolunteerActivityPage() {
                           key={pageNum}
                           onClick={() => setPage(pageNum)}
                           className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                            page === pageNum
+                            page ===
+   pageNum
                               ? 'bg-ev-700 text-white'
                               : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                           }`}
@@ -514,7 +525,8 @@ export default function VolunteerActivityPage() {
                   </div>
                   <button
                     onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
-                    disabled={page === pagination.totalPages}
+                    disabled={page ===
+   pagination.totalPages}
                     className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="h-5 w-5" />

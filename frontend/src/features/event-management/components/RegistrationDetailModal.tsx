@@ -188,14 +188,16 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
   // ESC to close
   useEffect(() => {
     if (!registrationId) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key ===
+   'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [registrationId, onClose]);
 
   // Click outside
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) onClose();
+    if (e.target ===
+   backdropRef.current) onClose();
   }, [onClose]);
 
   // Copy to clipboard
@@ -417,14 +419,16 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                       {data.couponDetails.discountType && (
                         <InfoRow
                           label="Discount Type"
-                          value={data.couponDetails.discountType === 'percentage' ? 'Percentage (%)' : 'Fixed Amount (₹)'}
+                          value={data.couponDetails.discountType ===
+   'percentage' ? 'Percentage (%)' : 'Fixed Amount (₹)'}
                         />
                       )}
                       {data.couponDetails.discountValue != null && (
                         <InfoRow
                           label="Discount Value"
                           value={
-                            data.couponDetails.discountType === 'percentage'
+                            data.couponDetails.discountType ===
+   'percentage'
                               ? `${data.couponDetails.discountValue}% off`
                               : `₹${data.couponDetails.discountValue.toLocaleString('en-IN')} off`
                           }
@@ -501,7 +505,8 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                     {data.entries.map(e => (
                       <div key={e.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/30 rounded-lg px-3 py-2">
                         <div className="flex items-center gap-2">
-                          {e.entryType === 'entry' ? (
+                          {e.entryType ===
+   'entry' ? (
                             <LogIn className="w-3.5 h-3.5 text-emerald-500" />
                           ) : (
                             <LogOut className="w-3.5 h-3.5 text-red-500" />
@@ -542,7 +547,8 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
               )}
 
               {/* ── 8. formData JSON fallback (if no structured fields) ── */}
-              {(!data.formFields || data.formFields.length === 0) && data.formData && Object.keys(data.formData).length > 0 && (
+              {(!data.formFields || data.formFields.length ===
+   0) && data.formData && Object.keys(data.formData).length > 0 && (
                 <Section icon={FileText} title="Event Form Responses">
                   <div className="space-y-2">
                     {Object.entries(data.formData).map(([key, val]) => (
@@ -627,7 +633,8 @@ function CopyableField({
   copiedField: string | null;
   onCopy: (text: string, field: string) => void;
 }) {
-  const isCopied = copiedField === fieldKey;
+  const isCopied = copiedField ===
+   fieldKey;
   return (
     <div>
       <span className="text-[10px] text-gray-500 dark:text-gray-400">{label}</span>

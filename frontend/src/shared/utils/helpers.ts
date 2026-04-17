@@ -49,7 +49,8 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
  * Deep clone an object
  */
 export function deepClone<T>(obj: T): T {
-  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj ===
+   null || typeof obj !== 'object') return obj;
   return JSON.parse(JSON.stringify(obj));
 }
 
@@ -90,7 +91,8 @@ export function deepMerge<T extends Record<string, unknown>>(
  * Check if value is a plain object
  */
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Object.prototype.toString.call(value) === '[object Object]';
+  return Object.prototype.toString.call(value) ===
+   '[object Object]';
 }
 
 /**
@@ -153,8 +155,10 @@ export function sortBy<T>(
 ): T[] {
   return [...array].sort((a, b) => {
     for (const key of keys) {
-      const aValue = typeof key === 'function' ? key(a) : a[key];
-      const bValue = typeof key === 'function' ? key(b) : b[key];
+      const aValue = typeof key ===
+   'function' ? key(a) : a[key];
+      const bValue = typeof key ===
+   'function' ? key(b) : b[key];
       
       // Handle null/undefined
       if (aValue == null && bValue == null) continue;
@@ -198,7 +202,9 @@ export function get<T>(
   let result: unknown = obj;
   
   for (const key of keys) {
-    if (result === null || result === undefined) {
+    if (result ===
+   null || result ===
+   undefined) {
       return defaultValue;
     }
     result = (result as Record<string, unknown>)[key];
@@ -270,7 +276,8 @@ export function isClient(): boolean {
  * Check if running on server side
  */
 export function isServer(): boolean {
-  return typeof window === 'undefined';
+  return typeof window ===
+   'undefined';
 }
 
 /**

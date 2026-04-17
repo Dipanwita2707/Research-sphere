@@ -144,7 +144,8 @@ export default function CollaborativeReviewModal({
     setSubmitting(true);
     try {
       // Submit the review based on decision
-      if (reviewData.decision === 'approved') {
+      if (reviewData.decision ===
+   'approved') {
         // Only users with approve permission can approve
         if (!canApprove) {
           toast({ type: 'warning', message: 'You do not have permission to approve. Please use "Recommend" instead.' });
@@ -152,7 +153,8 @@ export default function CollaborativeReviewModal({
         }
         await drdReviewService.approveReview(application.id, reviewData.comments);
         toast({ type: 'success', message: 'Application approved successfully! Any pending suggestions have been finalized.' });
-      } else if (reviewData.decision === 'recommended') {
+      } else if (reviewData.decision ===
+   'recommended') {
         // Recommend for approval
         if (!reviewData.comments.trim()) {
           toast({ type: 'error', message: 'Comments are required when recommending' });
@@ -160,15 +162,18 @@ export default function CollaborativeReviewModal({
         }
         await drdReviewService.recommendReview(application.id, reviewData.comments);
         toast({ type: 'success', message: 'Application recommended successfully! It will now go to DRD Head for final approval.' });
-      } else if (reviewData.decision === 'rejected') {
+      } else if (reviewData.decision ===
+   'rejected') {
         if (!reviewData.comments.trim()) {
           toast({ type: 'error', message: 'Comments are required for rejection' });
           return;
         }
         await drdReviewService.rejectReview(application.id, reviewData.comments);
         toast({ type: 'success', message: 'Application rejected successfully!' });
-      } else if (reviewData.decision === 'changes_required') {
-        if (pendingSuggestionsCount === 0 && !reviewData.comments.trim()) {
+      } else if (reviewData.decision ===
+   'changes_required') {
+        if (pendingSuggestionsCount ===
+   0 && !reviewData.comments.trim()) {
           toast({ type: 'error', message: 'Please create edit suggestions or provide comments when requesting changes' });
           return;
         }
@@ -193,7 +198,9 @@ export default function CollaborativeReviewModal({
 
   const getSuggestionCountForField = (fieldName: string) => {
     return editSuggestions.filter(s => 
-      s.fieldName === fieldName && s.status === 'pending'
+      s.fieldName ===
+   fieldName && s.status ===
+   'pending'
     ).length;
   };
 
@@ -255,7 +262,8 @@ export default function CollaborativeReviewModal({
               <button
                 onClick={() => setReviewMode('collaborative')}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  reviewMode === 'collaborative'
+                  reviewMode ===
+   'collaborative'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-600 hover:text-blue-600'
                 }`}
@@ -266,7 +274,8 @@ export default function CollaborativeReviewModal({
               <button
                 onClick={() => setReviewMode('traditional')}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  reviewMode === 'traditional'
+                  reviewMode ===
+   'traditional'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-600 hover:text-blue-600'
                 }`}
@@ -282,7 +291,8 @@ export default function CollaborativeReviewModal({
         <div className="flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto p-6 space-y-6">
             
-            {reviewMode === 'collaborative' ? (
+            {reviewMode ===
+   'collaborative' ? (
               // Collaborative Editing Mode
               <div className="space-y-6">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -390,13 +400,15 @@ export default function CollaborativeReviewModal({
                       </div>
                       <div className="bg-white rounded-lg p-3 border">
                         <div className="text-2xl font-bold text-green-600">
-                          {editSuggestions.filter(s => s.status === 'accepted').length}
+                          {editSuggestions.filter(s => s.status ===
+   'accepted').length}
                         </div>
                         <div className="text-sm text-gray-600">Accepted</div>
                       </div>
                       <div className="bg-white rounded-lg p-3 border">
                         <div className="text-2xl font-bold text-red-600">
-                          {editSuggestions.filter(s => s.status === 'rejected').length}
+                          {editSuggestions.filter(s => s.status ===
+   'rejected').length}
                         </div>
                         <div className="text-sm text-gray-600">Rejected</div>
                       </div>
@@ -466,9 +478,13 @@ export default function CollaborativeReviewModal({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Review Comments
-                    {(reviewData.decision === 'rejected' || 
-                      reviewData.decision === 'recommended' ||
-                      (reviewData.decision === 'changes_required' && reviewMode === 'traditional')) && 
+                    {(reviewData.decision ===
+   'rejected' || 
+                      reviewData.decision ===
+   'recommended' ||
+                      (reviewData.decision ===
+   'changes_required' && reviewMode ===
+   'traditional')) && 
                       <span className="text-red-500"> *</span>
                     }
                   </label>
@@ -478,14 +494,16 @@ export default function CollaborativeReviewModal({
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder={
-                      reviewMode === 'collaborative' 
+                      reviewMode ===
+   'collaborative' 
                         ? "Optional: Add additional comments about your review or suggestions..."
                         : "Provide detailed comments about your review decision..."
                     }
                   />
                 </div>
 
-                {reviewMode === 'collaborative' && pendingSuggestionsCount > 0 && (
+                {reviewMode ===
+   'collaborative' && pendingSuggestionsCount > 0 && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                     <p className="text-orange-800 text-sm">
                       <strong>Note:</strong> You have {pendingSuggestionsCount} pending suggestions. 

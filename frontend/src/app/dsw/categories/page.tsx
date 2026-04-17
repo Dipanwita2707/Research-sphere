@@ -15,7 +15,9 @@ export default function CategoriesPage() {
   const { user } = useAuthStore();
   const [categories, setCategories] = useState<ClubCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+  const isAdmin = user?.role?.name ===
+   'admin' || user?.userType ===
+   'admin';
 
   useEffect(() => {
     fetchCategories();
@@ -57,10 +59,12 @@ export default function CategoriesPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-ev-900">Club Categories</h1>
           <p className="mt-2 text-ev-400">
-            {categories.length} categor{categories.length === 1 ? 'y' : 'ies'} available
+            {categories.length} categor{categories.length ===
+   1 ? 'y' : 'ies'} available
           </p>
         </div>
-        {isAdmin && categories.length === 0 && (
+        {isAdmin && categories.length ===
+   0 && (
           <button onClick={handleSeedCategories} className="ev-btn w-full sm:w-auto">
             <Plus className="w-5 h-5" />
             Seed Default Categories
@@ -68,7 +72,8 @@ export default function CategoriesPage() {
         )}
       </div>
 
-      {categories.length === 0 ? (
+      {categories.length ===
+   0 ? (
         <div className="ev-card p-12 text-center">
           <FolderOpen className="w-14 h-14 text-ev-200 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-ev-900 mb-2">No Categories Found</h3>

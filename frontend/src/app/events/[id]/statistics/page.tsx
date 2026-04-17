@@ -33,17 +33,25 @@ import FlowByHourChart from './components/FlowByHourChart';
 
 const formatDays = (value: number | null | undefined) => {
   if (value == null) return 'N/A';
-  if (value === 0) return 'Today';
-  if (value > 0) return `In ${value} day${value === 1 ? '' : 's'}`;
-  return `${Math.abs(value)} day${Math.abs(value) === 1 ? '' : 's'} ago`;
+  if (value ===
+   0) return 'Today';
+  if (value > 0) return `In ${value} day${value ===
+   1 ? '' : 's'}`;
+  return `${Math.abs(value)} day${Math.abs(value) ===
+   1 ? '' : 's'} ago`;
 };
 
 const getStatusTone = (status?: string) => {
   const normalized = String(status || '').toLowerCase();
-  if (normalized === 'published' || normalized === 'ongoing') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
-  if (normalized === 'completed') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-  if (normalized === 'draft') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-  if (normalized === 'cancelled') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+  if (normalized ===
+   'published' || normalized ===
+   'ongoing') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+  if (normalized ===
+   'completed') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+  if (normalized ===
+   'draft') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+  if (normalized ===
+   'cancelled') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
   return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
 };
 
@@ -104,7 +112,9 @@ export default function EventStatisticsPage() {
     const normalizedSearch = searchQuery.trim().toLowerCase();
 
     return rows.filter((row) => {
-      const statusMatches = statusFilter === 'all' || row.status === statusFilter;
+      const statusMatches = statusFilter ===
+   'all' || row.status ===
+   statusFilter;
       if (!statusMatches) return false;
 
       if (!normalizedSearch) return true;
@@ -351,7 +361,8 @@ export default function EventStatisticsPage() {
                   <span className="font-medium">{day.count}</span>
                 </p>
               ))}
-              {(statistics.topRegistrationDays || []).length === 0 ? (
+              {(statistics.topRegistrationDays || []).length ===
+   0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">No trend data yet.</p>
               ) : null}
             </div>
@@ -420,7 +431,8 @@ export default function EventStatisticsPage() {
       <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <h2 className="text-base font-semibold text-ev-900 dark:text-white">Noting + Custom Data</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <StatsCard title="Noting Source" value={notingAndCustom?.source === 'noting' ? 'Noting' : 'Manual'} icon={BarChart3} />
+          <StatsCard title="Noting Source" value={notingAndCustom?.source ===
+   'noting' ? 'Noting' : 'Manual'} icon={BarChart3} />
           <StatsCard title="Noting Sponsors" value={notingAndCustom?.sponsorsFromNotingCount || 0} icon={Users} />
           <StatsCard title="Manual Sponsors" value={notingAndCustom?.sponsorsAddedManuallyCount || 0} icon={Users} />
           <StatsCard title="Custom Fields" value={(notingAndCustom?.customFields || []).length} icon={Activity} />
@@ -443,7 +455,8 @@ export default function EventStatisticsPage() {
                   <span className="text-gray-600 dark:text-gray-400">{field.responseCount} ({field.responseRate}%)</span>
                 </div>
               ))}
-              {(notingAndCustom?.customFields || []).length === 0 ? (
+              {(notingAndCustom?.customFields || []).length ===
+   0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">No custom fields configured for this event.</p>
               ) : null}
             </div>

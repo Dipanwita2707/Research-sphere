@@ -50,10 +50,9 @@ const { requireTicketCreator, requireTicketAssignee, requireTicketAccess } = req
 // All routes require authentication
 router.use(protect);
 
-// ============================================
+// =====================================
 // CATEGORY ROUTES (placed before param routes)
-// ============================================
-
+// =====================================
 // Get active categories (for ticket form & filters)
 router.get(
   '/categories',
@@ -134,10 +133,9 @@ router.delete(
   categoryController.deleteSubCategory
 );
 
-// ============================================
+// =====================================
 // ADMIN ROUTES
-// ============================================
-
+// =====================================
 // Role Handlers (Registrar, Dean, VC assignments)
 router.get(
   '/role-handlers',
@@ -182,10 +180,9 @@ router.get(
   adminController.listAllTickets
 );
 
-// ============================================
+// =====================================
 // TICKET ROUTES
-// ============================================
-
+// =====================================
 // Student: Submit a new ticket
 router.post(
   '/tickets',

@@ -29,10 +29,13 @@ export default function DynamicIPRPage() {
     }
 
     // Get role name - role can be an object { name, displayName } or userType is the role string
-    const roleName = typeof user.role === 'object' ? user.role?.name : user.userType;
+    const roleName = typeof user.role ===
+   'object' ? user.role?.name : user.userType;
     
     // Faculty and Student have inherent IPR filing rights
-    if (roleName === 'faculty' || roleName === 'student') {
+    if (roleName ===
+   'faculty' || roleName ===
+   'student') {
       setCanFileIpr(true);
       setLoading(false);
       return;
@@ -46,9 +49,12 @@ export default function DynamicIPRPage() {
           return dept.permissions?.some((p: string) => {
             const pLower = p.toLowerCase();
             // Check for exact ipr_file_new permission
-            return pLower === 'ipr_file_new' || 
-                   pLower === 'ipr_file' || 
-                   pLower === 'drd_ipr_file';
+            return pLower ===
+   'ipr_file_new' || 
+                   pLower ===
+   'ipr_file' || 
+                   pLower ===
+   'drd_ipr_file';
           });
         });
         setCanFileIpr(hasPermission);
@@ -72,7 +78,8 @@ export default function DynamicIPRPage() {
     );
   }
 
-  if (canFileIpr === false) {
+  if (canFileIpr ===
+   false) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
@@ -83,10 +90,16 @@ export default function DynamicIPRPage() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Denied</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               You do not have permission to file IPR applications. 
-              {((typeof user?.role === 'object' ? user?.role?.name : user?.userType) === 'staff' || 
-                (typeof user?.role === 'object' ? user?.role?.name : user?.userType) === 'admin') && (
+              {((typeof user?.role ===
+   'object' ? user?.role?.name : user?.userType) ===
+   'staff' || 
+                (typeof user?.role ===
+   'object' ? user?.role?.name : user?.userType) ===
+   'admin') && (
                 <span className="block mt-2 text-sm">
-                  {(typeof user?.role === 'object' ? user?.role?.name : user?.userType) === 'admin' 
+                  {(typeof user?.role ===
+   'object' ? user?.role?.name : user?.userType) ===
+   'admin' 
                     ? 'Admin accounts manage users and permissions. To file IPR, you need the "File New IPR Applications" permission assigned.'
                     : 'Staff members require the "File New IPR Applications" permission from an administrator.'}
                 </span>

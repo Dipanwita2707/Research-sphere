@@ -88,7 +88,8 @@ export default function TmsAdminPage() {
     { key: 'categories' as const, label: 'Category Analytics', icon: FolderTree },
   ];
   const rawTab = searchParams.get('tab');
-  const tab = rawTab && tabOptions.some((item) => item.key === rawTab) ? rawTab as typeof tabOptions[number]['key'] : 'overview';
+  const tab = rawTab && tabOptions.some((item) => item.key ===
+   rawTab) ? rawTab as typeof tabOptions[number]['key'] : 'overview';
 
   const setActiveTab = useCallback(
     (nextTab: typeof tabOptions[number]['key']) => {
@@ -109,13 +110,15 @@ export default function TmsAdminPage() {
   const filteredCats = useMemo(() => {
     if (!activeCats) return [];
     if (!masterCatFilter) return activeCats.flatMap((mc) => mc.categories || []);
-    const mc = activeCats.find((m) => m.id === masterCatFilter);
+    const mc = activeCats.find((m) => m.id ===
+   masterCatFilter);
     return mc?.categories || [];
   }, [activeCats, masterCatFilter]);
 
   const filteredSubCats = useMemo(() => {
     if (!catFilter) return filteredCats.flatMap((c) => (c as any).subCategories || []);
-    const cat = filteredCats.find((c) => c.id === catFilter);
+    const cat = filteredCats.find((c) => c.id ===
+   catFilter);
     return (cat as any)?.subCategories || [];
   }, [filteredCats, catFilter]);
 
@@ -141,7 +144,8 @@ export default function TmsAdminPage() {
     ...(startDate && { startDate }),
     ...(endDate && { endDate }),
   };
-  const { data: allTicketsData, isLoading: ticketsLoading } = useAllTickets(tab === 'tickets' ? ticketParams : undefined);
+  const { data: allTicketsData, isLoading: ticketsLoading } = useAllTickets(tab ===
+   'tickets' ? ticketParams : undefined);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
@@ -165,7 +169,8 @@ export default function TmsAdminPage() {
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
                 className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
-                  tab === t.key
+                  tab ===
+   t.key
                     ? 'border-[#005b96] text-[#005b96]'
                     : 'border-transparent text-[#6497b1] hover:text-[#005b96] hover:border-[#b3cde0]'
                 }`}
@@ -177,8 +182,11 @@ export default function TmsAdminPage() {
           })}
         </div>
 
-        {/* ========== OVERVIEW TAB ========== */}
-        {tab === 'overview' && (
+        {/* ==========
+   OVERVIEW TAB ==========
+   */}
+        {tab ===
+   'overview' && (
           <div className="space-y-6">
             {overviewLoading ? (
               <div className="flex justify-center py-16">
@@ -210,10 +218,14 @@ export default function TmsAdminPage() {
                           value={overview.byStatus[key] || 0}
                           total={overview.totalRequests}
                           color={
-                            key === 'open' ? 'bg-blue-500'
-                            : key === 'in_progress' ? 'bg-orange-500'
-                            : key === 'escalated' ? 'bg-red-500'
-                            : key === 'resolved' ? 'bg-emerald-500'
+                            key ===
+   'open' ? 'bg-blue-500'
+                            : key ===
+   'in_progress' ? 'bg-orange-500'
+                            : key ===
+   'escalated' ? 'bg-red-500'
+                            : key ===
+   'resolved' ? 'bg-emerald-500'
                             : 'bg-green-600'
                           }
                         />
@@ -319,8 +331,11 @@ export default function TmsAdminPage() {
           </div>
         )}
 
-        {/* ========== ALL TICKETS TAB ========== */}
-        {tab === 'tickets' && (
+        {/* ==========
+   ALL TICKETS TAB ==========
+   */}
+        {tab ===
+   'tickets' && (
           <div>
             {/* Filter Panel */}
             <div className="bg-white rounded-2xl border border-[#b3cde0]/40 p-5 mb-6" style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}>
@@ -496,7 +511,8 @@ export default function TmsAdminPage() {
                         return (
                           <tr
                             key={t.id}
-                            className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}
+                            className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}
                           >
                             <td className="px-4 py-3.5 font-semibold text-[#005b96]">{t.requestId}</td>
                             <td className="px-4 py-3.5 text-[#011f4b] max-w-[200px] truncate">{t.subject || t.description?.slice(0, 40)}</td>
@@ -526,7 +542,8 @@ export default function TmsAdminPage() {
                           </tr>
                         );
                       })}
-                      {(!allTicketsData?.tickets || allTicketsData.tickets.length === 0) && (
+                      {(!allTicketsData?.tickets || allTicketsData.tickets.length ===
+   0) && (
                         <tr><td colSpan={9} className="px-4 py-16 text-center text-[#6497b1]">No tickets found</td></tr>
                       )}
                     </tbody>
@@ -543,7 +560,8 @@ export default function TmsAdminPage() {
                   {Math.min(allTicketsData.pagination.page * allTicketsData.pagination.limit, allTicketsData.pagination.total)} of {allTicketsData.pagination.total}
                 </p>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border border-[#b3cde0]/40 rounded-xl text-[#005b96] hover:bg-[#005b96]/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page ===
+   1} className="p-2 border border-[#b3cde0]/40 rounded-xl text-[#005b96] hover:bg-[#005b96]/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <span className="px-3 py-1 bg-[#005b96]/[0.06] text-[#005b96] text-sm font-semibold rounded-lg">
@@ -558,8 +576,11 @@ export default function TmsAdminPage() {
           </div>
         )}
 
-        {/* ========== EMPLOYEE PERFORMANCE TAB ========== */}
-        {tab === 'employees' && (
+        {/* ==========
+   EMPLOYEE PERFORMANCE TAB ==========
+   */}
+        {tab ===
+   'employees' && (
           <div className="space-y-6">
             {/* Summary row */}
             {employees && employees.length > 0 && (
@@ -575,7 +596,8 @@ export default function TmsAdminPage() {
                   value={
                     (() => {
                       const rated = employees.filter((e) => e.avgRating !== null && e.avgRating !== undefined);
-                      if (rated.length === 0) return 'N/A';
+                      if (rated.length ===
+   0) return 'N/A';
                       return (rated.reduce((s, e) => s + (e.avgRating || 0), 0) / rated.length).toFixed(1);
                     })()
                   }
@@ -603,7 +625,8 @@ export default function TmsAdminPage() {
                   </thead>
                   <tbody>
                     {employees?.map((emp, idx) => (
-                      <tr key={emp.employee?.id || idx} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                      <tr key={emp.employee?.id || idx} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
                         <td className="px-4 py-3.5 font-semibold text-[#011f4b]">
                           {emp.employee?.employeeDetails?.displayName || 'Unknown'}
                         </td>
@@ -630,7 +653,8 @@ export default function TmsAdminPage() {
                         </td>
                       </tr>
                     ))}
-                    {(!employees || employees.length === 0) && (
+                    {(!employees || employees.length ===
+   0) && (
                       <tr><td colSpan={9} className="px-4 py-16 text-center text-[#6497b1]">No employee data available</td></tr>
                     )}
                   </tbody>
@@ -640,8 +664,11 @@ export default function TmsAdminPage() {
           </div>
         )}
 
-        {/* ========== CATEGORY ANALYTICS TAB ========== */}
-        {tab === 'categories' && (
+        {/* ==========
+   CATEGORY ANALYTICS TAB ==========
+   */}
+        {tab ===
+   'categories' && (
           <div className="space-y-6">
 
             {/* Summary Stats Row */}
@@ -745,8 +772,12 @@ export default function TmsAdminPage() {
                                 return cfg ? (
                                   <span key={status} className="text-[11px] text-[#03396c]">
                                     <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                                      status === 'open' ? 'bg-[#005b96]' : status === 'in_progress' ? 'bg-amber-500' :
-                                      status === 'escalated' ? 'bg-red-500' : status === 'resolved' ? 'bg-emerald-500' : 'bg-[#03396c]'
+                                      status ===
+   'open' ? 'bg-[#005b96]' : status ===
+   'in_progress' ? 'bg-amber-500' :
+                                      status ===
+   'escalated' ? 'bg-red-500' : status ===
+   'resolved' ? 'bg-emerald-500' : 'bg-[#03396c]'
                                     }`} />
                                     {cfg.label}: <span className="font-bold">{count as number}</span>
                                   </span>
@@ -796,7 +827,8 @@ export default function TmsAdminPage() {
                     </div>
                   );
                 })}
-                {(!categories?.byMasterCategory || categories.byMasterCategory.length === 0) && (
+                {(!categories?.byMasterCategory || categories.byMasterCategory.length ===
+   0) && (
                   <div className="col-span-2 bg-white rounded-2xl border border-[#b3cde0]/40 p-12 text-center">
                     <FolderTree className="w-10 h-10 text-[#b3cde0] mx-auto mb-3" />
                     <p className="text-sm text-[#6497b1]">No ticket data for master categories</p>
@@ -832,7 +864,8 @@ export default function TmsAdminPage() {
                     {categories?.byCategory.map((c, idx) => {
                       const resolvedPct = c.count > 0 && c.resolved ? Math.round((c.resolved / c.count) * 100) : 0;
                       return (
-                        <tr key={c.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                        <tr key={c.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
                           <td className="px-5 py-3.5 font-semibold text-[#011f4b]">{c.name}</td>
                           <td className="px-5 py-3.5">
                             <span className="inline-block px-2.5 py-1 rounded-lg bg-[#005b96]/[0.06] text-[#005b96] text-xs font-medium">{c.masterCategory}</span>
@@ -853,7 +886,8 @@ export default function TmsAdminPage() {
                         </tr>
                       );
                     })}
-                    {(!categories?.byCategory || categories.byCategory.length === 0) && (
+                    {(!categories?.byCategory || categories.byCategory.length ===
+   0) && (
                       <tr><td colSpan={8} className="px-5 py-12 text-center text-[#6497b1]">No data</td></tr>
                     )}
                   </tbody>
@@ -890,7 +924,8 @@ export default function TmsAdminPage() {
                       const resolved = s.byStatus?.resolved || 0;
                       const escalated = s.byStatus?.escalated || 0;
                       return (
-                        <tr key={s.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                        <tr key={s.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
                           <td className="px-5 py-3.5 font-semibold text-[#011f4b]">{s.name}</td>
                           <td className="px-5 py-3.5">
                             <span className="inline-block px-2.5 py-1 rounded-lg bg-[#005b96]/[0.06] text-[#005b96] text-xs font-medium">{s.category || '-'}</span>
@@ -917,7 +952,8 @@ export default function TmsAdminPage() {
                         </tr>
                       );
                     })}
-                    {(!categories?.bySubCategory || categories.bySubCategory.length === 0) && (
+                    {(!categories?.bySubCategory || categories.bySubCategory.length ===
+   0) && (
                       <tr><td colSpan={8} className="px-5 py-12 text-center text-[#6497b1]">No data</td></tr>
                     )}
                   </tbody>

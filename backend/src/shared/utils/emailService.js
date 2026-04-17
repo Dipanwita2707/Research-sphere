@@ -7,7 +7,7 @@ const sgMail = require('@sendgrid/mail');
 const { emailService: coreEmailService } = require('../../modules/core/services/email.service');
 
 const FROM_EMAIL  = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_FROM || process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || process.env.SMTP_USER || 'noreply@sgtresearch.com';
-const FROM_NAME   = process.env.SENDGRID_FROM_NAME || process.env.EMAIL_FROM_NAME || 'SGT Gate Pass System';
+const FROM_NAME   = process.env.EMAIL_FROM_NAME || 'SGT Gate Pass System';
 const COLLEGE_NAME = 'SGT University';
 
 let sendGridInitialized = false;
@@ -597,8 +597,8 @@ async function sendCheckoutReminder({ parentEmail, parentName, visitorName, pass
   const html = shell('Checkout Reminder ⏰', `
     <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
     <p style="margin:0 0 16px;font-size:14px;color:#475569">
-      This is a reminder that the guest house checkout for <strong>${visitorName}</strong> is scheduled for <strong>5:00 PM today</strong>.
-      Checkout after 5:00 PM will result in an additional day's charge.
+      This is a reminder that checkout for <strong>${visitorName}</strong> is due today.
+      Checkout before <strong>5:00 PM</strong> or extra charge will apply.
     </p>
 
     ${infoTable([
@@ -609,7 +609,7 @@ async function sendCheckoutReminder({ parentEmail, parentName, visitorName, pass
       ['Scheduled',   formatDate(checkOutDatetime)],
     ])}
 
-    ${alertBox('⏰', `Please ensure <strong>${visitorName}</strong> checks out of room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> before <strong>5:00 PM</strong> to avoid extra charges.`, '#fffbeb', BRAND.warning)}
+    ${alertBox('⏰', `Checkout before <strong>5:00 PM</strong> or extra charge will apply. Guest: <strong>${visitorName}</strong>, Room: <strong>${roomNumber}</strong> at <strong>${hostelName}</strong>.`, '#fffbeb', BRAND.warning)}
   `, BRAND.warning);
 
   await send({

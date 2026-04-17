@@ -582,7 +582,8 @@ class FileUploadService {
       return response.data.data.filePath;
     } catch (error: unknown) {
       logger.error('File upload error:', error);
-      if (error && typeof error === 'object' && 'response' in error) {
+      if (error && typeof error ===
+   'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { message?: string } } };
         throw new Error(axiosError.response?.data?.message || 'Failed to upload file');
       }
@@ -620,7 +621,8 @@ class FileUploadService {
       return response.data.data.filePath;
     } catch (error: unknown) {
       logger.error('Prototype upload error:', error);
-      if (error && typeof error === 'object' && 'response' in error) {
+      if (error && typeof error ===
+   'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { message?: string } } };
         throw new Error(axiosError.response?.data?.message || 'Failed to upload prototype');
       }

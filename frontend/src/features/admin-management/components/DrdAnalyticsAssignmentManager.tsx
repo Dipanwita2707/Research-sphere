@@ -221,7 +221,8 @@ export default function DrdAnalyticsAssignmentManager() {
   }, [users, query]);
 
   const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedUserId) || null,
+    () => users.find((user) => user.id ===
+   selectedUserId) || null,
     [users, selectedUserId]
   );
 
@@ -243,30 +244,39 @@ export default function DrdAnalyticsAssignmentManager() {
   useEffect(() => {
     if (!selectedUser || !drdDepartment) return;
 
-    const drdPerm = selectedUser.centralDeptPermissions.find((perm) => perm.centralDeptId === drdDepartment.id);
+    const drdPerm = selectedUser.centralDeptPermissions.find((perm) => perm.centralDeptId ===
+   drdDepartment.id);
     const hasSpecificApplicantPermission = APPLICANT_CATEGORIES.some(
-      ({ permissionKey }) => drdPerm?.permissions?.[permissionKey] === true
+      ({ permissionKey }) => drdPerm?.permissions?.[permissionKey] ===
+   true
     );
-    const hasLegacyApplicantPermission = drdPerm?.permissions?.[LEGACY_APPLICANT_ANALYTICS] === true;
+    const hasLegacyApplicantPermission = drdPerm?.permissions?.[LEGACY_APPLICANT_ANALYTICS] ===
+   true;
     const legacyApplicantSchools = drdPerm?.assignedSchoolIds || [];
 
     setReviewerSchoolIds(drdPerm?.assignedSchoolIds || []);
-    setDrdMemberAnalyticsEnabled(drdPerm?.permissions?.[DRD_MEMBER_ANALYTICS] === true);
+    setDrdMemberAnalyticsEnabled(drdPerm?.permissions?.[DRD_MEMBER_ANALYTICS] ===
+   true);
     setSelectedCategoryPermissions({
       ipr_applicant_analytics:
-        drdPerm?.permissions?.ipr_applicant_analytics === true ||
+        drdPerm?.permissions?.ipr_applicant_analytics ===
+   true ||
         (!hasSpecificApplicantPermission && hasLegacyApplicantPermission),
       research_applicant_analytics:
-        drdPerm?.permissions?.research_applicant_analytics === true ||
+        drdPerm?.permissions?.research_applicant_analytics ===
+   true ||
         (!hasSpecificApplicantPermission && hasLegacyApplicantPermission),
       book_applicant_analytics:
-        drdPerm?.permissions?.book_applicant_analytics === true ||
+        drdPerm?.permissions?.book_applicant_analytics ===
+   true ||
         (!hasSpecificApplicantPermission && hasLegacyApplicantPermission),
       conference_applicant_analytics:
-        drdPerm?.permissions?.conference_applicant_analytics === true ||
+        drdPerm?.permissions?.conference_applicant_analytics ===
+   true ||
         (!hasSpecificApplicantPermission && hasLegacyApplicantPermission),
       grant_applicant_analytics:
-        drdPerm?.permissions?.grant_applicant_analytics === true ||
+        drdPerm?.permissions?.grant_applicant_analytics ===
+   true ||
         (!hasSpecificApplicantPermission && hasLegacyApplicantPermission),
     });
 
@@ -290,26 +300,34 @@ export default function DrdAnalyticsAssignmentManager() {
     const nextSelection: DepartmentSelection = {};
     selectedUser.schoolDeptPermissions.forEach((permission) => {
       const hasSpecificDepartmentApplicantPermission = APPLICANT_CATEGORIES.some(
-        ({ permissionKey }) => permission.permissions?.[permissionKey] === true
+        ({ permissionKey }) => permission.permissions?.[permissionKey] ===
+   true
       );
-      const hasLegacyDepartmentApplicantPermission = permission.permissions?.[LEGACY_APPLICANT_ANALYTICS] === true;
+      const hasLegacyDepartmentApplicantPermission = permission.permissions?.[LEGACY_APPLICANT_ANALYTICS] ===
+   true;
 
       nextSelection[permission.departmentId] = {
-        drd_member_analytics: permission.permissions?.drd_member_analytics === true,
+        drd_member_analytics: permission.permissions?.drd_member_analytics ===
+   true,
         ipr_applicant_analytics:
-          permission.permissions?.ipr_applicant_analytics === true ||
+          permission.permissions?.ipr_applicant_analytics ===
+   true ||
           (!hasSpecificDepartmentApplicantPermission && hasLegacyDepartmentApplicantPermission),
         research_applicant_analytics:
-          permission.permissions?.research_applicant_analytics === true ||
+          permission.permissions?.research_applicant_analytics ===
+   true ||
           (!hasSpecificDepartmentApplicantPermission && hasLegacyDepartmentApplicantPermission),
         book_applicant_analytics:
-          permission.permissions?.book_applicant_analytics === true ||
+          permission.permissions?.book_applicant_analytics ===
+   true ||
           (!hasSpecificDepartmentApplicantPermission && hasLegacyDepartmentApplicantPermission),
         conference_applicant_analytics:
-          permission.permissions?.conference_applicant_analytics === true ||
+          permission.permissions?.conference_applicant_analytics ===
+   true ||
           (!hasSpecificDepartmentApplicantPermission && hasLegacyDepartmentApplicantPermission),
         grant_applicant_analytics:
-          permission.permissions?.grant_applicant_analytics === true ||
+          permission.permissions?.grant_applicant_analytics ===
+   true ||
           (!hasSpecificDepartmentApplicantPermission && hasLegacyDepartmentApplicantPermission),
       };
     });
@@ -389,7 +407,8 @@ export default function DrdAnalyticsAssignmentManager() {
       setSaving(true);
 
       const existingCentralPerm =
-        selectedUser.centralDeptPermissions.find((perm) => perm.centralDeptId === drdDepartment.id) || null;
+        selectedUser.centralDeptPermissions.find((perm) => perm.centralDeptId ===
+   drdDepartment.id) || null;
       const hasAnyApplicantAnalytics = APPLICANT_CATEGORIES.some(
         ({ permissionKey }) => selectedCategoryPermissions[permissionKey]
       );
@@ -470,7 +489,8 @@ export default function DrdAnalyticsAssignmentManager() {
       await Promise.all(
         departments.map(async (department) => {
           const permissions = getDepartmentState(department.id);
-          const existingDeptPerm = selectedUser.schoolDeptPermissions.find((perm) => perm.departmentId === department.id);
+          const existingDeptPerm = selectedUser.schoolDeptPermissions.find((perm) => perm.departmentId ===
+   department.id);
           const hasApplicantDepartmentScope = APPLICANT_CATEGORIES.some(
             ({ permissionKey }) => permissions[permissionKey]
           );
@@ -583,7 +603,8 @@ export default function DrdAnalyticsAssignmentManager() {
                 type="button"
                 onClick={() => setSelectedUserId(user.id)}
                 className={`w-full rounded-2xl border p-4 text-left transition-all ${
-                  selectedUserId === user.id
+                  selectedUserId ===
+   user.id
                     ? 'border-[#005b96] bg-[#005b96] text-white shadow-lg shadow-[#005b96]/20'
                     : 'border-[#d8e6ef] bg-white hover:border-[#b3cde0] hover:shadow-sm'
                 }`}
@@ -591,17 +612,20 @@ export default function DrdAnalyticsAssignmentManager() {
                 <div className="flex items-start gap-3">
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-                      selectedUserId === user.id ? 'bg-white/15 text-white' : 'bg-[#f7fbfe] text-[#005b96]'
+                      selectedUserId ===
+   user.id ? 'bg-white/15 text-white' : 'bg-[#f7fbfe] text-[#005b96]'
                     }`}
                   >
                     <User2 className="h-5 w-5" />
                   </div>
                   <div>
                     <p className="font-semibold">{getUserName(user)}</p>
-                    <p className={`mt-1 text-xs ${selectedUserId === user.id ? 'text-[#d8e6ef]' : 'text-gray-500'}`}>
+                    <p className={`mt-1 text-xs ${selectedUserId ===
+   user.id ? 'text-[#d8e6ef]' : 'text-gray-500'}`}>
                       {user.employeeDetails?.designation || user.role}
                     </p>
-                    <p className={`mt-1 text-xs ${selectedUserId === user.id ? 'text-[#d8e6ef]' : 'text-gray-400'}`}>
+                    <p className={`mt-1 text-xs ${selectedUserId ===
+   user.id ? 'text-[#d8e6ef]' : 'text-gray-400'}`}>
                       {user.email || user.uid}
                     </p>
                   </div>

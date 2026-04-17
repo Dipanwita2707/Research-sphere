@@ -16,10 +16,10 @@ import type {
   TmsRoleHandlerLevel,
 } from '../types/tms.types';
 
-// ============================================
-// Query Keys
-// ============================================
-export const TMS_QUERY_KEYS = {
+// =====================================
+  // Query Keys
+// =====================================
+  export const TMS_QUERY_KEYS = {
   myTickets: (params?: TicketListParams) => ['tms', 'my-tickets', params] as const,
   assignedTickets: (params?: TicketListParams) => ['tms', 'assigned-tickets', params] as const,
   history: (params?: TicketListParams) => ['tms', 'history', params] as const,
@@ -33,11 +33,10 @@ export const TMS_QUERY_KEYS = {
   roleHandlers: () => ['tms', 'role-handlers'] as const,
 };
 
-// ============================================
-// Student Hooks
-// ============================================
-
-export function useMyTickets(params?: TicketListParams) {
+// =====================================
+  // Student Hooks
+// ==============================
+  export function useMyTickets(params?: TicketListParams) {
   return useQuery({
     queryKey: TMS_QUERY_KEYS.myTickets(params),
     queryFn: () => tmsService.getMyTickets(params),
@@ -77,11 +76,10 @@ export function useRateTicket() {
   });
 }
 
-// ============================================
-// Employee Hooks
-// ============================================
-
-export function useAssignedTickets(params?: TicketListParams) {
+// =====================================
+  // Employee Hooks
+// ==============================
+  export function useAssignedTickets(params?: TicketListParams) {
   return useQuery({
     queryKey: TMS_QUERY_KEYS.assignedTickets(params),
     queryFn: () => tmsService.getAssignedTickets(params),
@@ -144,11 +142,10 @@ export function useCloseTicket() {
   });
 }
 
-// ============================================
-// Category Hooks
-// ============================================
-
-export function useActiveCategories() {
+// =====================================
+  // Category Hooks
+// ==============================
+  export function useActiveCategories() {
   return useQuery({
     queryKey: TMS_QUERY_KEYS.categories(),
     queryFn: () => tmsService.getActiveCategories(),
@@ -257,11 +254,10 @@ export function useDeleteSubCategory() {
   });
 }
 
-// ============================================
-// Admin Analytics Hooks
-// ============================================
-
-export function useOverviewAnalytics(params?: { startDate?: string; endDate?: string }) {
+// =====================================
+  // Admin Analytics Hooks
+// ==============================
+  export function useOverviewAnalytics(params?: { startDate?: string; endDate?: string }) {
   return useQuery({
     queryKey: TMS_QUERY_KEYS.overviewAnalytics(params),
     queryFn: () => tmsService.getOverviewAnalytics(params),
@@ -293,11 +289,10 @@ export function useAllTickets(params?: AdminTicketListParams) {
   });
 }
 
-// ============================================
-// Role Handler Hooks
-// ============================================
-
-export function useRoleHandlers() {
+// =====================================
+  // Role Handler Hooks
+// ==============================
+  export function useRoleHandlers() {
   return useQuery({
     queryKey: TMS_QUERY_KEYS.roleHandlers(),
     queryFn: () => tmsService.getRoleHandlers(),

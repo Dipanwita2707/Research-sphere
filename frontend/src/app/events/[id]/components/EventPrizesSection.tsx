@@ -10,8 +10,10 @@ interface EventPrizesSectionProps {
 
 function normalizePerks(perks: string[] | unknown): string[] {
   if (!perks) return [];
-  if (Array.isArray(perks)) return perks.filter((p): p is string => typeof p === "string");
-  if (typeof perks === "string") return perks.split(",").map((s) => s.trim()).filter(Boolean);
+  if (Array.isArray(perks)) return perks.filter((p): p is string => typeof p ===
+   "string");
+  if (typeof perks ===
+   "string") return perks.split(",").map((s) => s.trim()).filter(Boolean);
   return [];
 }
 
@@ -19,7 +21,8 @@ export default function EventPrizesSection({ event }: EventPrizesSectionProps) {
   if (
     !event.prizeDetails &&
     !event.certificateAvailable &&
-    (!event.prizes || event.prizes.length === 0)
+    (!event.prizes || event.prizes.length ===
+   0)
   ) {
     return null;
   }
@@ -68,11 +71,14 @@ export default function EventPrizesSection({ event }: EventPrizesSectionProps) {
               const hasCash = prize.prizeAmount && prize.prizeAmount > 0;
               const perks = normalizePerks(prize.additionalPerks);
               const rankLabel =
-                prize.position === 1
+                prize.position ===
+   1
                   ? "Winner"
-                  : prize.position === 2
+                  : prize.position ===
+   2
                     ? "1st Runner Up"
-                    : prize.position === 3
+                    : prize.position ===
+   3
                       ? "2nd Runner Up"
                       : prize.rank || prize.title || `Position ${idx + 1}`;
 

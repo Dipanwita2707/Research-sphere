@@ -64,7 +64,9 @@ function PriorityBadge({ priority }: { priority?: TmsPriority }) {
 export default function TmsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
+  const isStudent = user?.role?.name ===
+   'student' || user?.userType ===
+   'student';
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -91,7 +93,8 @@ export default function TmsPage() {
   const filteredTickets = useMemo(() => {
     let filtered = tickets;
     if (masterCategoryFilter) {
-      filtered = filtered.filter((t) => t.masterCategory?.id === masterCategoryFilter);
+      filtered = filtered.filter((t) => t.masterCategory?.id ===
+   masterCategoryFilter);
     }
     return filtered;
   }, [tickets, masterCategoryFilter]);
@@ -192,7 +195,8 @@ export default function TmsPage() {
               <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
               <p className="text-sm text-[#6497b1] mt-4 font-medium">Loading requests...</p>
             </div>
-          ) : filteredTickets.length === 0 ? (
+          ) : filteredTickets.length ===
+   0 ? (
             <div className="text-center py-20">
               <div className="w-14 h-14 mx-auto rounded-2xl bg-[#b3cde0]/20 flex items-center justify-center mb-4">
                 <FileText className="w-7 h-7 text-[#6497b1]" />
@@ -241,7 +245,8 @@ export default function TmsPage() {
                   {filteredTickets.map((ticket, idx) => (
                     <tr
                       key={ticket.id}
-                      className={`hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}
+                      className={`hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}
                     >
                       <td className="px-5 py-4">
                         <span className="text-sm text-[#005b96] font-semibold">{ticket.requestId}</span>
@@ -313,7 +318,8 @@ export default function TmsPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
+                disabled={page ===
+   1}
                 className="inline-flex items-center gap-1.5 px-4 py-2 border border-[#b3cde0]/50 rounded-xl text-sm font-medium text-[#03396c] bg-white hover:bg-[#f8fafc] hover:border-[#005b96]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />

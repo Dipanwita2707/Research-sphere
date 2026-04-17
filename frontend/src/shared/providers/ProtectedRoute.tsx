@@ -8,25 +8,22 @@ import { logger } from '@/shared/utils/logger';
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
-  const [isInitialized, setIsInitialized] = useState(false);
+  // Lazy init: if auth is already in store, skip spinner entirely
+  const [isInitialized, setIsInitialized] = useState(() => !!(isAuthenticated && user));
   const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
-    // Only check auth if we don't have a user and aren't already loading
+    if (isInitialized) return; // already done synchronously
     const initAuth = async () => {
-      // If already authenticated with user data, skip the check
       if (isAuthenticated && user) {
         logger.debug('ProtectedRoute - Already authenticated with user');
         setIsInitialized(true);
         return;
       }
-      
-      // Otherwise, verify auth status
       await checkAuth();
       setIsInitialized(true);
     };
-    
-    if (!isInitialized && !isLoading) {
+    if (!isLoading) {
       initAuth();
     }
   }, [checkAuth, isInitialized, isLoading, isAuthenticated, user]);

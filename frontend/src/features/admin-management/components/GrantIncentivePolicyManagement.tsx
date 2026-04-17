@@ -168,7 +168,8 @@ export default function GrantIncentivePolicyManagement() {
     setFormData(prev => ({
       ...prev,
       rolePercentages: prev.rolePercentages.map(rp => {
-        if (rp.role === role) {
+        if (rp.role ===
+   role) {
           return { ...rp, percentage };
         } else {
           // Adjust other role to maintain 100% total
@@ -191,7 +192,8 @@ export default function GrantIncentivePolicyManagement() {
       return;
     }
 
-    if (formData.splitPolicy === 'percentage_based' && calculateTotalPercentage() !== 100) {
+    if (formData.splitPolicy ===
+   'percentage_based' && calculateTotalPercentage() !== 100) {
       setError('Role percentages must total 100%');
       return;
     }
@@ -290,7 +292,8 @@ export default function GrantIncentivePolicyManagement() {
 
       {/* Policies Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {policies.length === 0 ? (
+        {policies.length ===
+   0 ? (
           <div className="col-span-full text-center py-12">
             <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">No grant policies found</p>
@@ -305,18 +308,23 @@ export default function GrantIncentivePolicyManagement() {
                     <h3 className="font-bold text-lg text-gray-900 mb-1">{policy.policyName}</h3>
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                        policy.projectCategory === 'govt' ? 'bg-blue-100 text-blue-700' :
-                        policy.projectCategory === 'non_govt' ? 'bg-purple-100 text-purple-700' :
+                        policy.projectCategory ===
+   'govt' ? 'bg-blue-100 text-blue-700' :
+                        policy.projectCategory ===
+   'non_govt' ? 'bg-purple-100 text-purple-700' :
                         'bg-green-100 text-green-700'
                       }`}>
                         <Building2 className="w-3 h-3" />
-                        {PROJECT_CATEGORIES.find(c => c.value === policy.projectCategory)?.label}
+                        {PROJECT_CATEGORIES.find(c => c.value ===
+   policy.projectCategory)?.label}
                       </span>
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                        policy.projectType === 'international' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
+                        policy.projectType ===
+   'international' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
                       }`}>
                         <Globe className="w-3 h-3" />
-                        {PROJECT_TYPES.find(t => t.value === policy.projectType)?.label}
+                        {PROJECT_TYPES.find(t => t.value ===
+   policy.projectType)?.label}
                       </span>
                     </div>
                   </div>
@@ -350,7 +358,8 @@ export default function GrantIncentivePolicyManagement() {
                         <Users className="w-5 h-5 text-purple-600" />
                         <span className="text-sm font-medium text-gray-700">Split Policy</span>
                       </div>
-                      <span className="text-xs font-medium text-purple-600">{policy.splitPolicy === 'equal' ? 'Equal' : 'Percentage-based'}</span>
+                      <span className="text-xs font-medium text-purple-600">{policy.splitPolicy ===
+   'equal' ? 'Equal' : 'Percentage-based'}</span>
                     </div>
                   )}
                 </div>
@@ -486,7 +495,8 @@ export default function GrantIncentivePolicyManagement() {
                     <input
                       type="radio"
                       value="equal"
-                      checked={formData.splitPolicy === 'equal'}
+                      checked={formData.splitPolicy ===
+   'equal'}
                       onChange={(e) => setFormData({ ...formData, splitPolicy: 'equal' })}
                       className="text-orange-600 focus:ring-orange-500"
                     />
@@ -496,7 +506,8 @@ export default function GrantIncentivePolicyManagement() {
                     <input
                       type="radio"
                       value="percentage_based"
-                      checked={formData.splitPolicy === 'percentage_based'}
+                      checked={formData.splitPolicy ===
+   'percentage_based'}
                       onChange={(e) => setFormData({ ...formData, splitPolicy: 'percentage_based' })}
                       className="text-orange-600 focus:ring-orange-500"
                     />
@@ -506,7 +517,8 @@ export default function GrantIncentivePolicyManagement() {
               </div>
 
               {/* Role Percentages */}
-              {formData.splitPolicy === 'percentage_based' && (
+              {formData.splitPolicy ===
+   'percentage_based' && (
                 <div className="border border-gray-200 rounded-xl p-4">
                   <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <Users className="w-5 h-5 text-orange-600" />
@@ -519,7 +531,8 @@ export default function GrantIncentivePolicyManagement() {
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
-                            value={formData.rolePercentages.find(rp => rp.role === role.value)?.percentage || 0}
+                            value={formData.rolePercentages.find(rp => rp.role ===
+   role.value)?.percentage || 0}
                             onChange={(e) => handleRolePercentageChange(role.value, Number(e.target.value))}
                             className="w-20 p-2 border border-gray-300 rounded-lg text-center"
                             min="0"
@@ -531,7 +544,8 @@ export default function GrantIncentivePolicyManagement() {
                     ))}
                     <div className="pt-3 border-t flex items-center justify-between">
                       <span className="font-semibold text-gray-900">Total</span>
-                      <span className={`font-bold text-lg ${calculateTotalPercentage() === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`font-bold text-lg ${calculateTotalPercentage() ===
+   100 ? 'text-green-600' : 'text-red-600'}`}>
                         {calculateTotalPercentage()}%
                       </span>
                     </div>

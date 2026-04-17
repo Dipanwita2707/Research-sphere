@@ -217,7 +217,8 @@ export default function FacultyModule({ permissions }: FacultyModuleProps) {
                     )}
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        member.status === 'Active' 
+                        member.status ===
+   'Active' 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>

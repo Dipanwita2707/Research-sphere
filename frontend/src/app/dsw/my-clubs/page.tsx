@@ -82,8 +82,11 @@ const APPROVAL_STEPS = ["Faculty", "HOD", "Dean", "DSW", "Higher Auth"];
 // Maps the backend approval-chain holder role (or final status) to how many
 // steps are fully done.  The chain is: Faculty(0) → HOD(1) → Dean(2) → DSW(3) → Higher Auth(4)
 function resolveApprovalDoneIndex(req: ClubCreationRequest): number {
-  if (req.status === "approved") return APPROVAL_STEPS.length; // all done
-  if (req.status === "rejected" || req.status === "withdrawn") {
+  if (req.status ===
+   "approved") return APPROVAL_STEPS.length; // all done
+  if (req.status ===
+   "rejected" || req.status ===
+   "withdrawn") {
     // Show progress up to the step where it stopped — derive from lastAction
     // We don't have a dedicated field, so fall back to "at least Faculty done"
     return 1;
@@ -104,7 +107,9 @@ function resolveApprovalDoneIndex(req: ClubCreationRequest): number {
 
 function ApprovalChain({ req }: { req: ClubCreationRequest }) {
   const doneIndex = resolveApprovalDoneIndex(req);
-  const isRejected = req.status === "rejected" || req.status === "withdrawn";
+  const isRejected = req.status ===
+   "rejected" || req.status ===
+   "withdrawn";
 
   return (
     <div className="flex flex-wrap items-center gap-1 mt-2">
@@ -114,7 +119,8 @@ function ApprovalChain({ req }: { req: ClubCreationRequest }) {
             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
               i < doneIndex
                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                : i === doneIndex && !isRejected
+                : i ===
+   doneIndex && !isRejected
                   ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 ring-1 ring-amber-400 dark:ring-amber-600"
                   : "bg-gray-100 text-gray-400 dark:bg-gray-700/50 dark:text-gray-500"
             }`}
@@ -250,14 +256,19 @@ export default function MyClubsPage() {
   // ── Split requests by lifecycle stage ─────────────────────────────────────
   // Active = still moving through the approval chain
   const activeRequests = allRequests.filter(
-    (r) => r.status === "pending" || r.status === "draft",
+    (r) => r.status ===
+   "pending" || r.status ===
+   "draft",
   );
   // Resolved = finished (approved, rejected, withdrawn)
   const resolvedRequests = allRequests.filter(
     (r) =>
-      r.status === "approved" ||
-      r.status === "rejected" ||
-      r.status === "withdrawn",
+      r.status ===
+   "approved" ||
+      r.status ===
+   "rejected" ||
+      r.status ===
+   "withdrawn",
   );
 
   // Legacy alias so the rest of the page doesn't need renaming
@@ -441,7 +452,8 @@ export default function MyClubsPage() {
       )}
 
       {/* ── Browse hint when only active requests exist ── */}
-      {activeRequests.length > 0 && clubs.length === 0 && (
+      {activeRequests.length > 0 && clubs.length ===
+   0 && (
         <div className="text-center py-4">
           <p className="text-sm text-ev-400">
             Want to join an existing club while you wait?{" "}
@@ -475,9 +487,11 @@ export default function MyClubsPage() {
               <div
                 key={req.id}
                 className={`bg-white rounded-xl border shadow-ev p-5 flex flex-col gap-3 opacity-80 ${
-                  req.status === "approved"
+                  req.status ===
+   "approved"
                     ? "border-green-200"
-                    : req.status === "rejected"
+                    : req.status ===
+   "rejected"
                       ? "border-red-200"
                       : "border-[#b3cde0]"
                 }`}
@@ -532,24 +546,29 @@ export default function MyClubsPage() {
                 )}
 
                 {/* Status-specific contextual message */}
-                {req.status === "approved" && clubs.length === 0 && (
+                {req.status ===
+   "approved" && clubs.length ===
+   0 && (
                   <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded px-3 py-2">
                     ✅ Fully approved — your club is being set up and will
                     appear in "My Active Clubs" shortly. Try refreshing.
                   </p>
                 )}
-                {req.status === "approved" && clubs.length > 0 && (
+                {req.status ===
+   "approved" && clubs.length > 0 && (
                   <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded px-3 py-2">
                     ✅ Club created successfully — see "My Active Clubs" above.
                   </p>
                 )}
-                {req.status === "rejected" && (
+                {req.status ===
+   "rejected" && (
                   <p className="text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded px-3 py-2">
                     ❌ This request was rejected. You can submit a new club
                     request if needed.
                   </p>
                 )}
-                {req.status === "withdrawn" && (
+                {req.status ===
+   "withdrawn" && (
                   <p className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/40 rounded px-3 py-2">
                     ↩ This request was withdrawn.
                   </p>

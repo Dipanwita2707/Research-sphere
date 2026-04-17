@@ -30,12 +30,14 @@ export default function StatusBreakdownList({
             <span className="font-medium capitalize text-ev-900 dark:text-white">{item.label.replace(/_/g, ' ')}</span>
             <div className="text-right">
               <p className="font-semibold text-gray-800 dark:text-gray-100">{item.count}</p>
-              {typeof item.amount === 'number' ? (
+              {typeof item.amount ===
+   'number' ? (
                 <p className="text-xs text-gray-500 dark:text-gray-400">₹{item.amount.toLocaleString('en-IN')}</p>
               ) : null}
             </div>
           </div>
-          {typeof item.percent === 'number' ? (
+          {typeof item.percent ===
+   'number' ? (
             <div className="mt-2">
               <div className="h-2 rounded-full bg-[#e7f0f8] dark:bg-gray-700">
                 <div

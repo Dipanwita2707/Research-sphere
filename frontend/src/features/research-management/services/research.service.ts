@@ -344,11 +344,10 @@ export interface ResearchIncentivePolicy {
 
 // Service class
 class ResearchService {
-  // ============================================
-  // Research Contribution CRUD
-  // ============================================
-
-  async createContribution(data: Partial<ResearchContribution>) {
+  // =====================================
+    // Research Contribution CRUD
+  // ==============================
+    async createContribution(data: Partial<ResearchContribution>) {
     const response = await api.post('/research', data);
     return response.data;
   }
@@ -397,11 +396,10 @@ class ResearchService {
     return response.data;
   }
 
-  // ============================================
-  // Author Management
-  // ============================================
-
-  async addAuthor(contributionId: string, author: Partial<ResearchContributionAuthor>) {
+  // =====================================
+    // Author Management
+  // ==============================
+    async addAuthor(contributionId: string, author: Partial<ResearchContributionAuthor>) {
     const response = await api.post(`/research/${contributionId}/authors`, author);
     return response.data;
   }
@@ -427,20 +425,18 @@ class ResearchService {
     return response.data;
   }
 
-  // ============================================
-  // Incentive Policies
-  // ============================================
-
-  async getIncentivePolicies() {
+  // =====================================
+    // Incentive Policies
+  // ==============================
+    async getIncentivePolicies() {
     const response = await api.get('/research/incentive-policies');
     return response.data;
   }
 
-  // ============================================
-  // DRD Review (for reviewers)
-  // ============================================
-
-  async getPendingReviews(params?: { status?: string; publicationType?: string; schoolId?: string; page?: number; limit?: number }) {
+  // =====================================
+    // DRD Review (for reviewers)
+  // ==============================
+    async getPendingReviews(params?: { status?: string; publicationType?: string; schoolId?: string; page?: number; limit?: number }) {
     const response = await api.get('/research/review/pending', { params });
     return response.data;
   }
@@ -485,11 +481,10 @@ class ResearchService {
     return response.data;
   }
 
-  // ============================================
-  // Edit Suggestions
-  // ============================================
-
-  async respondToSuggestion(suggestionId: string, data: { accept: boolean; response?: string }) {
+  // =====================================
+    // Edit Suggestions
+  // ==============================
+    async respondToSuggestion(suggestionId: string, data: { accept: boolean; response?: string }) {
     const response = await api.post(`/research/suggestions/${suggestionId}/respond`, data);
     return response.data;
   }
@@ -502,11 +497,10 @@ class ResearchService {
     return this.respondToSuggestion(suggestionId, { accept: false, response });
   }
 
-  // ============================================
-  // Grant Application Methods
-  // ============================================
-
-  async createGrantApplication(data: GrantApplicationData) {
+  // =====================================
+    // Grant Application Methods
+  // ==============================
+    async createGrantApplication(data: GrantApplicationData) {
     const response = await api.post('/grants', data);
     return response.data;
   }

@@ -111,7 +111,8 @@ const venueSchema = z
       });
     }
 
-    if (value.eventApproxCapacity === "") {
+    if (value.eventApproxCapacity ===
+   "") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventApproxCapacity"],
@@ -119,7 +120,8 @@ const venueSchema = z
       });
     }
 
-    if (value.eventDutyLeaveAvailable === null) {
+    if (value.eventDutyLeaveAvailable ===
+   null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventDutyLeaveAvailable"],
@@ -127,7 +129,8 @@ const venueSchema = z
       });
     }
 
-    if (value.eventDutyLeaveAvailable === true && !value.eventDutyLeaveRoleType) {
+    if (value.eventDutyLeaveAvailable ===
+   true && !value.eventDutyLeaveRoleType) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventDutyLeaveRoleType"],
@@ -136,7 +139,8 @@ const venueSchema = z
       });
     }
 
-    if (value.eventHasSponsorship === null) {
+    if (value.eventHasSponsorship ===
+   null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventHasSponsorship"],
@@ -144,9 +148,11 @@ const venueSchema = z
       });
     }
 
-    if (value.eventHasSponsorship === true) {
+    if (value.eventHasSponsorship ===
+   true) {
       const validSponsors = value.eventSponsors.filter((s) => s.name.trim());
-      if (validSponsors.length === 0) {
+      if (validSponsors.length ===
+   0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["eventSponsors"],
@@ -214,7 +220,8 @@ const venueSchema = z
       }
     }
 
-    if (value.eventHasResources === null) {
+    if (value.eventHasResources ===
+   null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventHasResources"],
@@ -223,10 +230,12 @@ const venueSchema = z
     }
 
     if (
-      value.eventHasResources === true &&
+      value.eventHasResources ===
+   true &&
       value.eventResources.filter(
         (resource) => resource.type.trim() || resource.description.trim(),
-      ).length === 0
+      ).length ===
+   0
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -235,7 +244,8 @@ const venueSchema = z
       });
     }
 
-    if (value.eventCertification === null) {
+    if (value.eventCertification ===
+   null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventCertification"],
@@ -243,7 +253,8 @@ const venueSchema = z
       });
     }
 
-    if (value.eventHasPrizes === null) {
+    if (value.eventHasPrizes ===
+   null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventHasPrizes"],
@@ -251,7 +262,9 @@ const venueSchema = z
       });
     }
 
-    if (value.eventHasPrizes === true && value.eventPrizesAwards.length === 0) {
+    if (value.eventHasPrizes ===
+   true && value.eventPrizesAwards.length ===
+   0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["eventPrizesAwards"],
@@ -259,10 +272,13 @@ const venueSchema = z
       });
     }
 
-    if (value.eventPaymentType === "paid") {
+    if (value.eventPaymentType ===
+   "paid") {
       if (
-        value.eventParticipationType === "individual" &&
-        value.eventRegistrationFeeIndividual === ""
+        value.eventParticipationType ===
+   "individual" &&
+        value.eventRegistrationFeeIndividual ===
+   ""
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -272,8 +288,10 @@ const venueSchema = z
         });
       }
       if (
-        value.eventParticipationType === "team" &&
-        value.eventRegistrationFeeTeam === ""
+        value.eventParticipationType ===
+   "team" &&
+        value.eventRegistrationFeeTeam ===
+   ""
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -319,7 +337,8 @@ const festivalSchema = z
       });
     }
 
-    if (value.subEvents.length === 0) {
+    if (value.subEvents.length ===
+   0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["subEvents"],
@@ -354,7 +373,9 @@ const baseNoteSchema = z
     departmentId: z.string().uuid("Please select a department."),
     departmentScope: z
       .string()
-      .refine((value) => value === "school" || value === "central", "Please select a department."),
+      .refine((value) => value ===
+   "school" || value ===
+   "central", "Please select a department."),
     description: z
       .string()
       .refine(
@@ -382,7 +403,8 @@ const baseNoteSchema = z
       });
     }
 
-    if (value.approvalPeriod === "recurring" && !value.recurringFrequency.trim()) {
+    if (value.approvalPeriod ===
+   "recurring" && !value.recurringFrequency.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["recurringFrequency"],
@@ -608,7 +630,8 @@ export function validateFestivalSubmission(
     const result = validateVenueEventSubmission(
       subEvent.venueFormData,
       eventVisibilitySettings,
-      subEvent.eventType === "stall" ? subEvent.stallConfig : undefined,
+      subEvent.eventType ===
+   "stall" ? subEvent.stallConfig : undefined,
     );
     if (result.message) {
       return {

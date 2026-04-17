@@ -39,15 +39,18 @@ export default function NewTicketPage() {
 
   // Cascading category selectors
   const selectedMaster = useMemo(
-    () => categories?.find((m) => m.id === masterCategoryId),
+    () => categories?.find((m) => m.id ===
+   masterCategoryId),
     [categories, masterCategoryId]
   );
   const selectedCategory = useMemo(
-    () => selectedMaster?.categories?.find((c) => c.id === categoryId),
+    () => selectedMaster?.categories?.find((c) => c.id ===
+   categoryId),
     [selectedMaster, categoryId]
   );
   const selectedSubCategory = useMemo(
-    () => selectedCategory?.subCategories?.find((sc) => sc.id === subCategoryId),
+    () => selectedCategory?.subCategories?.find((sc) => sc.id ===
+   subCategoryId),
     [selectedCategory, subCategoryId]
   );
 
@@ -141,10 +144,10 @@ export default function NewTicketPage() {
     'w-full px-4 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] placeholder-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-all';
   const labelClass = 'block text-sm font-semibold text-[#011f4b] mb-1.5';
 
-  // ==========================================
-  // CONSENT / AGREEMENT SCREEN
-  // ==========================================
-  if (!hasConsented) {
+  // ===================================
+    // CONSENT / AGREEMENT SCREEN
+  // ===================================
+    if (!hasConsented) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#e8f1f8] to-[#f8fafc] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
@@ -194,10 +197,10 @@ export default function NewTicketPage() {
     );
   }
 
-  // ==========================================
-  // TICKET FORM (shown after consent)
-  // ==========================================
-  return (
+  // ===================================
+    // TICKET FORM (shown after consent)
+  // ===================================
+    return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}

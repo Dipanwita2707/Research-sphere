@@ -84,19 +84,25 @@ export const useNotingDraftStore = create<NotingDraftStore>()(
           subcategory: note.subcategory || '',
           departmentId: note.departmentId || '',
           departmentScope:
-            note.departmentScope === 'school' || note.departmentScope === 'central'
+            note.departmentScope ===
+   'school' || note.departmentScope ===
+   'central'
               ? note.departmentScope
               : '',
           description: note.description || '',
           approvalPeriod: (note.approvalPeriod as 'one_time' | 'recurring') || 'one_time',
           recurringFrequency: note.recurringFrequency ?? '',
           policyCompliance:
-            note.policyCompliant === true ? 'yes' : note.policyCompliant === false ? 'no' : null,
-          amountRequired: note.amountRequired === true,
+            note.policyCompliant ===
+   true ? 'yes' : note.policyCompliant ===
+   false ? 'no' : null,
+          amountRequired: note.amountRequired ===
+   true,
           amount: note.amount != null ? String(note.amount) : '',
           points:
             note.points?.length && note.points.some((p) => p?.content?.trim())
-              ? note.points.map((p) => (typeof p === 'string' ? p : p?.content ?? '')).filter(Boolean)
+              ? note.points.map((p) => (typeof p ===
+   'string' ? p : p?.content ?? '')).filter(Boolean)
               : [''],
           attachments: (note.attachments ?? []).map((a) => ({
             filePath: a.filePath,

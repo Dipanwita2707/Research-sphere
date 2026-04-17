@@ -103,10 +103,9 @@ const requireResearchAccess = async (req, res, next) => {
   }
 };
 
-// ============================================
+// =====================================
 // Research Contribution Routes (Filing)
-// ============================================
-
+// =====================================
 // Get my research contributions
 router.get(
   '/my-contributions',
@@ -164,10 +163,9 @@ router.post(
   researchContributionController.submitResearchContribution
 );
 
-// ============================================
+// =====================================
 // Mentor Routes (for student submissions)
-// ============================================
-
+// =====================================
 // Get pending mentor approvals
 router.get(
   '/mentor/pending',
@@ -189,8 +187,7 @@ router.post(
   researchContributionController.mentorRejectContribution
 );
 
-// ============================================
-
+// =====================================
 // Resubmit after changes
 router.post(
   '/:id/resubmit',
@@ -205,10 +202,9 @@ router.delete(
   researchContributionController.deleteResearchContribution
 );
 
-// ============================================
+// =====================================
 // Document Upload Routes
-// ============================================
-
+// =====================================
 // Upload documents for research contribution
 router.post(
   '/:id/documents',
@@ -227,10 +223,9 @@ router.get(
   researchContributionController.downloadDocument
 );
 
-// ============================================
+// =====================================
 // Author Management Routes
-// ============================================
-
+// =====================================
 // Add author to contribution
 router.post(
   '/:id/authors',
@@ -252,10 +247,9 @@ router.delete(
   researchContributionController.removeAuthor
 );
 
-// ============================================
+// =====================================
 // DRD Review Routes
-// ============================================
-
+// =====================================
 // Get pending reviews (DRD - reviewers and approvers)
 router.get(
   '/review/pending',
@@ -335,10 +329,9 @@ router.post(
   researchReviewController.markCompleted
 );
 
-// ============================================
+// =====================================
 // Edit Suggestion Routes
-// ============================================
-
+// =====================================
 // Respond to edit suggestion (applicant)
 router.post(
   '/suggestions/:suggestionId/respond',

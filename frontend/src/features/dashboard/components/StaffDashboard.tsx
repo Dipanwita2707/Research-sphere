@@ -58,7 +58,9 @@ export default function StaffDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const isAdmin = user?.userType === 'admin' || user?.role?.name === 'admin';
+  const isAdmin = user?.userType ===
+   'admin' || user?.role?.name ===
+   'admin';
 
   useEffect(() => {
     fetchData();
@@ -73,7 +75,9 @@ export default function StaffDashboard() {
       setStats(staffResponse.data.data);
 
       // If admin, fetch overview stats
-      if (user?.userType === 'admin' || user?.role?.name === 'admin') {
+      if (user?.userType ===
+   'admin' || user?.role?.name ===
+   'admin') {
         try {
           const overviewResponse = await api.get('/analytics/overview');
           if (overviewResponse.data.success) {

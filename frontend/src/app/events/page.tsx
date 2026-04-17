@@ -139,6 +139,7 @@ function groupBrowseEvents(eventList: Event[]): BrowseGroupedItem[] {
 export default function EventsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -150,7 +151,6 @@ export default function EventsPage() {
     delay: 300,
     onSettle: () => setPage(1),
   });
-  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const { data: myClubsData } = useMyClubs();
   const isClubChairperson = !!(
     isStudent &&
@@ -246,7 +246,8 @@ export default function EventsPage() {
   };
 
   const festivalIds = React.useMemo(
-    () => groupedItems.filter((item) => item.type === 'festival' && item.festivalNotingId).map((item) => item.festivalNotingId as string),
+    () => groupedItems.filter((item) => item.type ===
+   'festival' && item.festivalNotingId).map((item) => item.festivalNotingId as string),
     [groupedItems],
   );
   const allExpanded = festivalIds.length > 0 && festivalIds.every((id) => expandedFestivals.has(id));
@@ -284,8 +285,10 @@ export default function EventsPage() {
   };
 
   const liveCount = events.filter(isEventOngoing).length;
-  const upcomingCount = events.filter((event) => event.status === 'published' && isEventUpcoming(event)).length;
-  const freeCount = events.filter((event) => event.paymentType === 'free').length;
+  const upcomingCount = events.filter((event) => event.status ===
+   'published' && isEventUpcoming(event)).length;
+  const freeCount = events.filter((event) => event.paymentType ===
+   'free').length;
   const activeFilterCount = [
     filters.eventType,
     debouncedSearch || undefined,
@@ -392,7 +395,8 @@ export default function EventsPage() {
                       onValueChange={(value) => {
                         setFilters((prev) => ({
                           ...prev,
-                          eventType: value === 'all' ? undefined : (value as EventFilters['eventType']),
+                          eventType: value ===
+   'all' ? undefined : (value as EventFilters['eventType']),
                         }));
                         setPage(1);
                       }}
@@ -493,7 +497,8 @@ export default function EventsPage() {
                   <EventCardShimmer key={i} />
                 ))}
               </div>
-            ) : filteredEvents.length === 0 ? (
+            ) : filteredEvents.length ===
+   0 ? (
               <div
                 className="rounded-2xl border border-[#b3cde0]/40 bg-white py-16 text-center dark:border-gray-700 dark:bg-gray-800"
                 style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
@@ -520,7 +525,8 @@ export default function EventsPage() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#6497b1]">Event feed</p>
                     <h2 className="mt-0.5 text-lg font-bold text-[#011f4b] dark:text-white sm:text-xl">
-                      {pagination.total} result{pagination.total === 1 ? '' : 's'}
+                      {pagination.total} result{pagination.total ===
+   1 ? '' : 's'}
                     </h2>
                   </div>
 
@@ -544,7 +550,8 @@ export default function EventsPage() {
                     let standaloneBuffer: Event[] = [];
 
                     const flushStandalone = () => {
-                      if (standaloneBuffer.length === 0) return;
+                      if (standaloneBuffer.length ===
+   0) return;
 
                       elements.push(
                         <div key={`standalone-${standaloneBuffer[0].id}`} className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -562,7 +569,8 @@ export default function EventsPage() {
                     };
 
                     for (const item of groupedItems) {
-                      if (item.type === 'standalone') {
+                      if (item.type ===
+   'standalone') {
                         if (item.event) {
                           standaloneBuffer.push(item.event);
                         }
@@ -669,7 +677,8 @@ export default function EventsPage() {
                                   e.preventDefault();
                                   if (page > 1) setPage((current) => Math.max(1, current - 1));
                                 }}
-                                className={page === 1 ? 'pointer-events-none opacity-50' : ''}
+                                className={page ===
+   1 ? 'pointer-events-none opacity-50' : ''}
                               />
                             </PaginationItem>
 
@@ -678,7 +687,8 @@ export default function EventsPage() {
                                 <PaginationItem key={pageNumber}>
                                   <PaginationLink
                                     href="#"
-                                    isActive={page === pageNumber}
+                                    isActive={page ===
+   pageNumber}
                                     onClick={(e) => {
                                       e.preventDefault();
                                       setPage(pageNumber);
@@ -699,7 +709,8 @@ export default function EventsPage() {
                                     setPage((current) => Math.min(pagination.totalPages, current + 1));
                                   }
                                 }}
-                                className={page === pagination.totalPages ? 'pointer-events-none opacity-50' : ''}
+                                className={page ===
+   pagination.totalPages ? 'pointer-events-none opacity-50' : ''}
                               />
                             </PaginationItem>
                           </PaginationContent>
@@ -743,7 +754,8 @@ function BrowseEventCard({
   const now = new Date();
   const registrationPhase = getRegistrationDayPhase(event, now);
   const eventPhase = getEventDayPhase(event, now);
-  const isRegistrationOpen = registrationPhase === 'live';
+  const isRegistrationOpen = registrationPhase ===
+   'live';
   const totalPrizePool = event.prizes?.reduce((sum, prize) => sum + (prize.prizeAmount || 0), 0) || 0;
 
   return (
@@ -766,14 +778,18 @@ function BrowseEventCard({
               </Badge>
               <Badge
                 className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                  eventPhase === 'live'
+                  eventPhase ===
+   'live'
                     ? 'border border-amber-200/80 bg-amber-50 text-amber-800'
-                    : eventPhase === 'upcoming'
+                    : eventPhase ===
+   'upcoming'
                       ? 'border border-[#b3cde0]/80 bg-[#b3cde0]/20 text-[#03396c]'
                       : 'border border-slate-200 bg-slate-100 text-slate-700'
                 }`}
               >
-                Event {eventPhase === 'live' ? 'Live' : eventPhase === 'upcoming' ? 'Upcoming' : 'End'}
+                Event {eventPhase ===
+   'live' ? 'Live' : eventPhase ===
+   'upcoming' ? 'Upcoming' : 'End'}
               </Badge>
             </div>
 
@@ -820,7 +836,8 @@ function BrowseEventCard({
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-[#005b96]" />
               <span className="capitalize leading-6">
                 {event.participationType}
-                {event.participationType === 'team' ? ` • ${event.minTeamSize}-${event.maxTeamSize} members` : ' registration'}
+                {event.participationType ===
+   'team' ? ` • ${event.minTeamSize}-${event.maxTeamSize} members` : ' registration'}
               </span>
             </div>
             <div className="flex items-start gap-2.5">
@@ -840,12 +857,14 @@ function BrowseEventCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge
               className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                event.paymentType === 'free'
+                event.paymentType ===
+   'free'
                   ? 'border border-emerald-200/80 bg-emerald-50 text-emerald-800'
                   : 'border border-[#b3cde0]/80 bg-[#b3cde0]/15 text-[#03396c]'
               }`}
             >
-              {event.paymentType === 'free' ? 'Free entry' : `₹${event.registrationFee}`}
+              {event.paymentType ===
+   'free' ? 'Free entry' : `₹${event.registrationFee}`}
             </Badge>
             {event.certificateAvailable ? (
               <Badge className="border border-amber-200/80 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800">

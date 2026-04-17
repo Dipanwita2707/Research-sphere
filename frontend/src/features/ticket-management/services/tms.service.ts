@@ -22,10 +22,10 @@ import type {
 
 const BASE = '/tms';
 
-// ============================================
-// Ticket APIs
-// ============================================
-export const tmsService = {
+// =====================================
+  // Ticket APIs
+// =====================================
+  export const tmsService = {
   // Student: Create ticket
   createTicket: (payload: CreateTicketPayload) =>
     api.post(`${BASE}/tickets`, payload).then((res) => res.data),
@@ -90,11 +90,10 @@ export const tmsService = {
         .catch(reject);
     }),
 
-  // ============================================
-  // Category APIs
-  // ============================================
-
-  // Get active categories (for ticket form)
+  // =====================================
+    // Category APIs
+  // ==============================
+    // Get active categories (for ticket form)
   getActiveCategories: (): Promise<TmsMasterCategory[]> =>
     api.get(`${BASE}/categories`).then((res) => res.data.data),
 
@@ -126,11 +125,10 @@ export const tmsService = {
   deleteSubCategory: (id: string) =>
     api.delete(`${BASE}/categories/sub-category/${id}`).then((res) => res.data),
 
-  // ============================================
-  // Admin Analytics APIs
-  // ============================================
-
-  getOverviewAnalytics: (params?: { startDate?: string; endDate?: string }): Promise<TmsOverviewStats> =>
+  // =====================================
+    // Admin Analytics APIs
+  // ==============================
+    getOverviewAnalytics: (params?: { startDate?: string; endDate?: string }): Promise<TmsOverviewStats> =>
     api.get(`${BASE}/admin/analytics/overview`, { params }).then((res) => res.data.data),
 
   getEmployeeAnalytics: (params?: { startDate?: string; endDate?: string }): Promise<TmsEmployeeStat[]> =>
@@ -146,11 +144,10 @@ export const tmsService = {
       pagination: res.data.data.pagination,
     })),
 
-  // ============================================
-  // Role Handler APIs (Registrar, Dean, VC)
-  // ============================================
-
-  getRoleHandlers: () =>
+  // =====================================
+    // Role Handler APIs (Registrar, Dean, VC)
+  // ==============================
+    getRoleHandlers: () =>
     api.get(`${BASE}/role-handlers`).then((res) => res.data.data),
 
   upsertRoleHandler: (payload: { role: string; employeeId: string }) =>

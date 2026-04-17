@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Inter is loaded via next/font/google in layout.tsx — no @import needed */
 
 @tailwind base;
 @tailwind components;
@@ -707,6 +707,30 @@ code {
   font-weight: 600;
   border-radius: 9999px;
   letter-spacing: 0.02em;
+}
+
+/* ===== Dashboard Orbit Animations (CSS — runs on compositor thread) ===== */
+@keyframes orbit-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes orbit-counter-spin {
+  to { transform: rotate(-360deg); }
+}
+@keyframes bg-drift {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+.animate-orbit-spin {
+  will-change: transform;
+  animation: orbit-spin 25s linear infinite;
+}
+.animate-orbit-counter-spin {
+  will-change: transform;
+  animation: orbit-counter-spin 25s linear infinite;
+}
+.animate-bg-drift {
+  animation: bg-drift 20s ease-in-out infinite alternate;
 }
 
 /* --- Modal / slider overlay ---------------------------------------- */

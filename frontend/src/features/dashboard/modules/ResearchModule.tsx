@@ -176,9 +176,11 @@ export default function ResearchModule({ permissions }: ResearchModuleProps) {
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">{project.title}</h3>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        project.status === 'Active' 
+                        project.status ===
+   'Active' 
                           ? 'bg-green-100 text-green-800'
-                          : project.status === 'Pending Approval'
+                          : project.status ===
+   'Pending Approval'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
@@ -225,7 +227,8 @@ export default function ResearchModule({ permissions }: ResearchModuleProps) {
                       {canEdit && (
                         <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit Details</button>
                       )}
-                      {canApprove && project.status === 'Pending Approval' && (
+                      {canApprove && project.status ===
+   'Pending Approval' && (
                         <button className="text-green-600 hover:text-green-800 text-sm font-medium">Approve</button>
                       )}
                       <button className="text-gray-600 hover:text-gray-800 text-sm font-medium">View Details</button>

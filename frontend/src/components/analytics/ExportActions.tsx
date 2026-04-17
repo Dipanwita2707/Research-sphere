@@ -17,8 +17,11 @@ export default function ExportActions({ data, filename = 'analytics-export', col
     const rows = data.map((row) =>
       cols.map((c) => {
         const val = row[c.key];
-        if (val === null || val === undefined) return '';
-        if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';');
+        if (val ===
+   null || val ===
+   undefined) return '';
+        if (typeof val ===
+   'object') return JSON.stringify(val).replace(/,/g, ';');
         return String(val).replace(/,/g, ';');
       }).join(',')
     );

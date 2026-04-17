@@ -77,7 +77,9 @@ function groupEvents(eventList: Event[]): GroupedItem[] {
 export default function MyCreatedEventsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
+  const isStudent = user?.role?.name ===
+   'student' || user?.userType ===
+   'student';
   const { data: notingPerms, isLoading: permsLoading } = useNotingPermissions({ enabled: !!isStudent });
   const isChairperson = !!(notingPerms?.isClubChairperson);
 
@@ -87,9 +89,16 @@ export default function MyCreatedEventsPage() {
 
   // Filter events by active tab (client-side - no refetch, data persists)
   const events = React.useMemo(() => {
-    if (activeTab === 'draft') return allEvents.filter((e) => e.status === 'draft');
-    if (activeTab === 'published') return allEvents.filter((e) => e.status === 'published' || e.status === 'ongoing');
-    return allEvents.filter((e) => e.status === 'completed' || e.status === 'cancelled');
+    if (activeTab ===
+   'draft') return allEvents.filter((e) => e.status ===
+   'draft');
+    if (activeTab ===
+   'published') return allEvents.filter((e) => e.status ===
+   'published' || e.status ===
+   'ongoing');
+    return allEvents.filter((e) => e.status ===
+   'completed' || e.status ===
+   'cancelled');
   }, [allEvents, activeTab]);
 
   // Group events by festival
@@ -97,7 +106,8 @@ export default function MyCreatedEventsPage() {
 
   // All festival IDs in current tab
   const festivalIds = React.useMemo(
-    () => groupedItems.filter((g) => g.type === 'festival').map((g) => (g as { festivalNotingId: string }).festivalNotingId),
+    () => groupedItems.filter((g) => g.type ===
+   'festival').map((g) => (g as { festivalNotingId: string }).festivalNotingId),
     [groupedItems],
   );
 
@@ -143,15 +153,21 @@ export default function MyCreatedEventsPage() {
     if (!event.registrationEndDate) missingFields.push('Registration End Date');
 
     return {
-      isComplete: missingFields.length === 0,
+      isComplete: missingFields.length ===
+   0,
       missingFields
     };
   };
 
   // Summary counts from ALL events (not filtered by tab)
-  const draftCount = allEvents.filter((e) => e.status === 'draft').length;
-  const publishedCount = allEvents.filter((e) => e.status === 'published' || e.status === 'ongoing').length;
-  const pastCount = allEvents.filter((e) => e.status === 'completed' || e.status === 'cancelled').length;
+  const draftCount = allEvents.filter((e) => e.status ===
+   'draft').length;
+  const publishedCount = allEvents.filter((e) => e.status ===
+   'published' || e.status ===
+   'ongoing').length;
+  const pastCount = allEvents.filter((e) => e.status ===
+   'completed' || e.status ===
+   'cancelled').length;
   const totalRegistrations = allEvents.reduce((sum, e) => sum + (e.currentRegistrations || 0), 0);
 
   return (
@@ -248,13 +264,15 @@ export default function MyCreatedEventsPage() {
                     <EventCardShimmer key={i} />
                   ))}
                 </div>
-              ) : events.length === 0 ? (
+              ) : events.length ===
+   0 ? (
                 <div
                   className="rounded-2xl border border-[#b3cde0]/40 bg-white py-14 text-center dark:border-gray-700 dark:bg-gray-800"
                   style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
                 >
                   <div className="px-6">
-                    {activeTab === 'draft' ? (
+                    {activeTab ===
+   'draft' ? (
                       <>
                         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3cde0]/20">
                           <AlertCircle className="h-7 w-7 text-[#6497b1]" />
@@ -300,10 +318,14 @@ export default function MyCreatedEventsPage() {
               ) : (
                 <div className="mb-8 space-y-5">
               {groupedItems.map((item) => {
-                if (item.type === 'festival') {
+                if (item.type ===
+   'festival') {
                   const isExpanded = expandedFestivals.has(item.festivalNotingId);
-                  const allDraft = item.events.every((e) => e.status === 'draft');
-                  const allPublished = item.events.every((e) => e.status === 'published' || e.status === 'ongoing');
+                  const allDraft = item.events.every((e) => e.status ===
+   'draft');
+                  const allPublished = item.events.every((e) => e.status ===
+   'published' || e.status ===
+   'ongoing');
                   const summaryStatus = allDraft ? 'draft' : allPublished ? 'published' : 'mixed';
 
                   return (
@@ -331,13 +353,16 @@ export default function MyCreatedEventsPage() {
                               Festival
                             </Badge>
                             <Badge className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                              summaryStatus === 'draft'
+                              summaryStatus ===
+   'draft'
                                 ? 'border border-slate-200 bg-slate-100 text-slate-700'
-                                : summaryStatus === 'published'
+                                : summaryStatus ===
+   'published'
                                   ? 'border border-[#b3cde0]/80 bg-[#b3cde0]/20 text-[#03396c]'
                                   : 'border border-amber-200/80 bg-amber-50 text-amber-800'
                             }`}>
-                              {summaryStatus === 'mixed' ? 'Partial' : summaryStatus}
+                              {summaryStatus ===
+   'mixed' ? 'Partial' : summaryStatus}
                             </Badge>
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#6497b1] dark:text-gray-400">
@@ -413,7 +438,8 @@ function EventCard({
             </span>
 
             {/* Draft Warning */}
-            {event.status === 'draft' && !isComplete && (
+            {event.status ===
+   'draft' && !isComplete && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
                 <AlertCircle className="h-3.5 w-3.5" />
                 Incomplete
@@ -428,11 +454,13 @@ function EventCard({
             {/* Sub-event type badge (Venue / Stall) when nested */}
             {nested && event.notingEventType && event.notingEventType !== 'festival' && (
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                event.notingEventType === 'stall'
+                event.notingEventType ===
+   'stall'
                   ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
                   : 'bg-ev-100 text-ev-800 dark:bg-ev-900/30 dark:text-ev-200'
               }`}>
-                {event.notingEventType === 'stall' ? '🪄 Stall' : '🏛️ Venue'}
+                {event.notingEventType ===
+   'stall' ? '🪄 Stall' : '🏛️ Venue'}
               </span>
             )}
           </div>
@@ -470,16 +498,19 @@ function EventCard({
             </div>
 
             <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-              event.paymentType === 'free'
+              event.paymentType ===
+   'free'
                 ? 'border border-emerald-200/80 bg-emerald-50 text-emerald-800'
                 : 'border border-[#b3cde0]/80 bg-[#b3cde0]/15 text-[#03396c]'
             }`}>
-              {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
+              {event.paymentType ===
+   'free' ? 'Free' : `₹${event.registrationFee}`}
             </div>
           </div>
 
           {/* Draft Checklist */}
-          {event.status === 'draft' && missingFields.length > 0 && (
+          {event.status ===
+   'draft' && missingFields.length > 0 && (
             <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
               <p className="text-xs font-medium text-yellow-900 dark:text-yellow-300 mb-2">
                 ⚠️ Complete these fields to publish:
@@ -502,7 +533,8 @@ function EventCard({
             </Link>
           </Button>
 
-          {event.status === 'draft' && (
+          {event.status ===
+   'draft' && (
             <Button asChild size="default" className="w-full justify-start rounded-xl bg-[#005b96] shadow-md shadow-[#005b96]/20 hover:bg-[#03396c]">
               <Link href={`/events/${event.id}/manage`}>
                 <Edit className="h-4 w-4" />

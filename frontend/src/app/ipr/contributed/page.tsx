@@ -158,15 +158,15 @@ function ContributedIPRsContent() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center mb-4">
-          <Link href="/ipr" className="mr-4 p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <Link href="/ipr" className="mr-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
               <Users className="w-7 h-7 mr-3 text-blue-600" />
               IPR Applications (As Contributor/Inventor)
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
               View IPR applications where you have been added as an inventor or contributor.
               You can view the status and details but cannot edit these applications.
             </p>
@@ -180,11 +180,12 @@ function ContributedIPRsContent() {
         </div>
       )}
 
-      {applications.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No Contributed Applications</h3>
-          <p className="text-gray-500 mb-6">
+      {applications.length ===
+   0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Contributed Applications</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">
             You haven't been added as an inventor or contributor to any IPR applications yet.
           </p>
           <Link
@@ -204,7 +205,7 @@ function ContributedIPRsContent() {
             return (
               <div
                 key={app.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -222,20 +223,20 @@ function ContributedIPRsContent() {
                       </span>
                     </div>
                     
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{app.title}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{app.title}</h3>
                     
                     {/* Filed By Info */}
-                    <div className="flex items-center text-sm text-gray-600 mb-3">
-                      <User className="w-4 h-4 mr-2 text-gray-400" />
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      <User className="w-4 h-4 mr-2 text-gray-400 dark:text-gray-500" />
                       <span className="font-medium">Filed by:</span>
                       <span className="ml-2">{getApplicantName(app)}</span>
                       {app.applicantUser?.uid && (
-                        <span className="ml-2 text-gray-400">({app.applicantUser.uid})</span>
+                        <span className="ml-2 text-gray-400 dark:text-gray-500">({app.applicantUser.uid})</span>
                       )}
                     </div>
                     
                     {/* Dates */}
-                    <div className="flex items-center gap-6 text-sm text-gray-500">
+                    <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 mr-1" />
                         Created: {formatDate(app.createdAt)}
@@ -250,8 +251,8 @@ function ContributedIPRsContent() {
 
                     {/* Other Contributors */}
                     {app.contributors && app.contributors.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-sm text-gray-600 mb-2">
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                           <Users className="w-4 h-4 inline mr-1" />
                           Other Inventors/Contributors:
                         </p>
@@ -259,7 +260,7 @@ function ContributedIPRsContent() {
                           {app.contributors.map((contributor, idx) => (
                             <span
                               key={idx}
-                              className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full"
+                              className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full"
                             >
                               {contributor.name} ({contributor.uid})
                             </span>
@@ -270,11 +271,11 @@ function ContributedIPRsContent() {
 
                     {/* Latest Status Update */}
                     {app.statusHistory && app.statusHistory.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-sm text-gray-600">
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
                           <span className="font-medium">Latest Update:</span>{' '}
                           {app.statusHistory[0].comments || `Status changed to ${app.statusHistory[0].toStatus}`}
-                          <span className="text-gray-400 ml-2">
+                          <span className="text-gray-400 dark:text-gray-500 ml-2">
                             ({formatDate(app.statusHistory[0].changedAt)})
                           </span>
                         </p>
@@ -286,7 +287,7 @@ function ContributedIPRsContent() {
                   <div className="ml-4">
                     <Link
                       href={`/ipr/contributed/${app.id}`}
-                      className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      className="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       View Details

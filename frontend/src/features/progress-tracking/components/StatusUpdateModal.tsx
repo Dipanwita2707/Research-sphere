@@ -42,7 +42,8 @@ export default function StatusUpdateModal({
   const [files, setFiles] = useState<File[]>([]);
 
   // Check if this is a monthly report (same status update)
-  const isMonthlyReport = currentStatus === nextStatus;
+  const isMonthlyReport = currentStatus ===
+   nextStatus;
 
   // Fetch and prefill tracker data for monthly reports
   useEffect(() => {
@@ -305,7 +306,8 @@ export default function StatusUpdateModal({
                 type="submit"
                 disabled={loading}
                 className={`px-4 py-2 text-white rounded-lg ${
-                  nextStatus === 'rejected'
+                  nextStatus ===
+   'rejected'
                     ? 'bg-red-600 hover:bg-red-700'
                     : isMonthlyReport
                     ? 'bg-blue-600 hover:bg-blue-700'

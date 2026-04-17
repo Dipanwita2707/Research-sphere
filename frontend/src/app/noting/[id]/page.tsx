@@ -150,17 +150,26 @@ export default function NoteDetailPage() {
     isLoading: permsLoading,
   } = useNotingPermissions();
   const { data: noteCopies = [] } = useNoteCopies(id, {
-    enabled: !!id && note?.status === "approved" && note?.createdById === user?.id,
+    enabled: !!id && note?.status ===
+   "approved" && note?.createdById ===
+   user?.id,
   });
 
   // ── Security: redirect if user has no access to this noting ──
   useEffect(() => {
+    if (user && user.role?.name ===
+   'student') {
+      toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
+      router.push('/dashboard');
+    }
     if (noteError) {
       const status = (noteError as any)?.response?.status;
-      if (status === 403) {
+      if (status ===
+   403) {
         toast({ type: 'error', message: 'You do not have access to this noting' });
         router.push('/noting');
-      } else if (status === 404) {
+      } else if (status ===
+   404) {
         // Note was deleted or doesn't exist — go back to list silently
         router.push('/noting');
       }
@@ -193,7 +202,8 @@ export default function NoteDetailPage() {
   // TanStack Query hook with built-in 500ms debounce + caching
   const { data: searchResults = [], isLoading: searchLoading } = useSearchEmployees(
     searchQuery,
-    { enabled: forwardMode === "manual" },
+    { enabled: forwardMode ===
+   "manual" },
   );
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -204,13 +214,16 @@ export default function NoteDetailPage() {
   // PERF FIX: Use TanStack Query hook instead of raw notingService.getMyManager().
   // useMyManager has 5-min staleTime — switching between auto/manual forward modes
   // no longer fires a fresh request each time.
-  const { data: managerInfo = null, isLoading: managerLoading } = useMyManager({ enabled: forwardMode === 'auto' });
+  const { data: managerInfo = null, isLoading: managerLoading } = useMyManager({ enabled: forwardMode ===
+   'auto' });
 
   // Block students without noting_create permission (chairpersons ARE allowed)
   useEffect(() => {
     if (
       user &&
-      (user.userType === "student" || user.role?.name === "student") &&
+      (user.userType ===
+   "student" || user.role?.name ===
+   "student") &&
       notingPerms &&
       !notingPerms.noting_create
     ) {
@@ -313,14 +326,16 @@ export default function NoteDetailPage() {
       const minR = MIN_MAIN_PX / w;
       const maxR = (w - SPLITTER_PX - MIN_SIDEBAR_PX) / w;
       const step = 0.025;
-      if (e.key === "ArrowLeft") {
+      if (e.key ===
+   "ArrowLeft") {
         e.preventDefault();
         setMainRatio((r) => {
           const n = Math.min(maxR, Math.max(minR, r - step));
           persistRatio(n);
           return n;
         });
-      } else if (e.key === "ArrowRight") {
+      } else if (e.key ===
+   "ArrowRight") {
         e.preventDefault();
         setMainRatio((r) => {
           const n = Math.min(maxR, Math.max(minR, r + step));
@@ -336,7 +351,8 @@ export default function NoteDetailPage() {
   const formatHistoryRemarks = useCallback(
     (action: string, remarks?: string | null, createdAt?: string) => {
       if (!remarks) return null;
-      if (action !== "copy_sent" || !createdAt || noteCopies.length === 0) {
+      if (action !== "copy_sent" || !createdAt || noteCopies.length ===
+   0) {
         return remarks;
       }
 
@@ -346,9 +362,12 @@ export default function NoteDetailPage() {
           const copyTime = new Date(copy.createdAt).getTime();
           return Math.abs(copyTime - historyTime) <= 10000;
         })
-        .filter((copy, index, arr) => arr.findIndex((item) => item.id === copy.id) === index);
+        .filter((copy, index, arr) => arr.findIndex((item) => item.id ===
+   copy.id) ===
+   index);
 
-      if (matchingCopies.length === 0) return remarks;
+      if (matchingCopies.length ===
+   0) return remarks;
 
       const recipientLabel = matchingCopies
         .map((copy) => {
@@ -374,9 +393,12 @@ export default function NoteDetailPage() {
     note?.currentHolderId && typeof window !== "undefined";
   const currentUserRole = user?.role?.name?.toLowerCase();
   const isPrivilegedApprover =
-    currentUserRole === 'admin' ||
-    currentUserRole === 'superadmin' ||
-    currentUserRole === 'dean';
+    currentUserRole ===
+   'admin' ||
+    currentUserRole ===
+   'superadmin' ||
+    currentUserRole ===
+   'dean';
   const modulePermissionKey = getModulePermissionKey(note);
   const hasSubcategoryApproval =
     isPrivilegedApprover ||
@@ -386,8 +408,10 @@ export default function NoteDetailPage() {
 
   // canAct: user must be the current holder of a pending note AND permissions must be loaded
   const canAct =
-    note?.status === "pending" &&
-    note?.currentHolderId === currentUserId &&
+    note?.status ===
+   "pending" &&
+    note?.currentHolderId ===
+   currentUserId &&
     !permsLoading;
 
   // Per-button permission gates (all still require canAct — permissions alone are not enough)
@@ -637,16 +661,21 @@ export default function NoteDetailPage() {
   const approverActions =
     note.history?.filter((h) => h.performedById !== note.createdById) || [];
   const canEdit =
-    note.createdById === currentUserId &&
-    (note.status === "reverted" ||
-      (approverActions.length === 0 &&
+    note.createdById ===
+   currentUserId &&
+    (note.status ===
+   "reverted" ||
+      (approverActions.length ===
+   0 &&
         note.status !== "approved" &&
         note.status !== "rejected"));
   // Reverted notes cannot be deleted — they've already been through the approval flow
   const canDelete =
-    note.createdById === currentUserId &&
+    note.createdById ===
+   currentUserId &&
     note.status !== "reverted" &&
-    approverActions.length === 0 &&
+    approverActions.length ===
+   0 &&
     note.status !== "approved" &&
     note.status !== "rejected";
 
@@ -703,7 +732,9 @@ export default function NoteDetailPage() {
         </div>
 
         {/* Reverted Notice */}
-        {note.status === "reverted" && note.createdById === currentUserId && (
+        {note.status ===
+   "reverted" && note.createdById ===
+   currentUserId && (
           <div className="mb-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
             <div className="flex items-start gap-2.5">
               <RotateCcw className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
@@ -728,7 +759,9 @@ export default function NoteDetailPage() {
           }
         >
           <div className="min-w-0 w-full shrink-0 lg:min-w-[280px] lg:max-w-[calc(100%-270px)] lg:w-[var(--noting-main-pct)]">
-        {/* ===== A4 Document Sheet ===== */}
+        {/* =====
+   A4 Document Sheet =====
+   */}
         <div
           className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0]/50 dark:border-[#6497b1]/35 overflow-hidden"
           style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.08)" }}
@@ -745,7 +778,8 @@ export default function NoteDetailPage() {
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${STATUS_STYLES[note.status] || STATUS_STYLES.draft}`}
                   >
                     <StatusIcon className="w-3.5 h-3.5" />
-                    {note.status === "pending"
+                    {note.status ===
+   "pending"
                       ? "IN REVIEW"
                       : note.status.toUpperCase()}
                   </span>
@@ -831,8 +865,10 @@ export default function NoteDetailPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {note.attachments.map((att) => {
-                    const isDownloading = downloadingPath === att.filePath;
-                    const isViewing = viewingPath === att.filePath;
+                    const isDownloading = downloadingPath ===
+   att.filePath;
+                    const isViewing = viewingPath ===
+   att.filePath;
                     return (
                       <div
                         key={att.id}
@@ -982,18 +1018,22 @@ export default function NoteDetailPage() {
                       Policy Compliance
                     </span>
                     <span
-                      className={`inline-flex items-center gap-1 text-base font-semibold mt-1 ${note.policyCompliant === true
+                      className={`inline-flex items-center gap-1 text-base font-semibold mt-1 ${note.policyCompliant ===
+   true
                           ? "text-emerald-700"
-                          : note.policyCompliant === false
+                          : note.policyCompliant ===
+   false
                             ? "text-red-700"
                             : "text-gray-400"
                         }`}
                     >
-                      {note.policyCompliant === true ? (
+                      {note.policyCompliant ===
+   true ? (
                         <>
                           <CheckCircle className="w-3 h-3" /> Yes
                         </>
-                      ) : note.policyCompliant === false ? (
+                      ) : note.policyCompliant ===
+   false ? (
                         <>
                           <XCircle className="w-3 h-3" /> No
                         </>
@@ -1013,7 +1053,8 @@ export default function NoteDetailPage() {
                   <span className="w-1.5 h-5 rounded-full bg-gradient-to-b from-[#005b96] to-[#b3cde0] shrink-0" aria-hidden />
                   Approval Trail
                   <span className="text-sm font-normal text-[#6497b1] dark:text-gray-400">
-                    ({note.history.length} {note.history.length === 1 ? "entry" : "entries"})
+                    ({note.history.length} {note.history.length ===
+   1 ? "entry" : "entries"})
                   </span>
                 </h3>
                 <div className="max-h-[560px] overflow-y-auto pr-1 scrollbar-thin">
@@ -1037,31 +1078,36 @@ export default function NoteDetailPage() {
                       glowColor = "shadow-emerald-500/40";
                       lineColor = "#10b981";
                       badgeBg = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-700/50";
-                    } else if (action === "recommended") {
+                    } else if (action ===
+   "recommended") {
                       Icon = ThumbsUp;
                       iconColor = "bg-gradient-to-br from-blue-400 to-blue-600";
                       glowColor = "shadow-blue-500/40";
                       lineColor = "#3b82f6";
                       badgeBg = "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-700/50";
-                    } else if (action === "not_recommended") {
+                    } else if (action ===
+   "not_recommended") {
                       Icon = ThumbsDown;
                       iconColor = "bg-gradient-to-br from-rose-400 to-rose-600";
                       glowColor = "shadow-rose-500/40";
                       lineColor = "#f43f5e";
                       badgeBg = "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 ring-1 ring-rose-200 dark:ring-rose-700/50";
-                    } else if (action === "copy_sent") {
+                    } else if (action ===
+   "copy_sent") {
                       Icon = Copy;
                       iconColor = "bg-gradient-to-br from-indigo-400 to-indigo-600";
                       glowColor = "shadow-indigo-500/40";
                       lineColor = "#6366f1";
                       badgeBg = "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 ring-1 ring-indigo-200 dark:ring-indigo-700/50";
-                    } else if (action === "copy_forwarded") {
+                    } else if (action ===
+   "copy_forwarded") {
                       Icon = AlertTriangle;
                       iconColor = "bg-gradient-to-br from-amber-400 to-amber-600";
                       glowColor = "shadow-amber-500/40";
                       lineColor = "#f59e0b";
                       badgeBg = "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-700/50";
-                    } else if (action === "copy_completed") {
+                    } else if (action ===
+   "copy_completed") {
                       Icon = CheckCircle;
                       iconColor = "bg-gradient-to-br from-emerald-400 to-emerald-600";
                       glowColor = "shadow-emerald-500/40";
@@ -1087,7 +1133,8 @@ export default function NoteDetailPage() {
                       badgeBg = "bg-[#b3cde0]/20 text-[#005b96] dark:bg-[#005b96]/10 dark:text-[#b3cde0] ring-1 ring-[#b3cde0]/40 dark:ring-[#005b96]/50";
                     }
 
-                    const isLast = idx === note.history!.length - 1;
+                    const isLast = idx ===
+   note.history!.length - 1;
                     const actionLabel = h.action
                       .replace(/_/g, " ")
                       .replace(/\b\w/g, (c: string) => c.toUpperCase());
@@ -1207,7 +1254,9 @@ export default function NoteDetailPage() {
               </section>
             )}
 
-            {/* ===== Inline Actions ===== */}
+            {/* =====
+   Inline Actions =====
+   */}
             {showActionsSection && (
               <section className="pt-6 mt-2 border-t border-[#b3cde0]/45 dark:border-gray-700">
                 <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
@@ -1230,7 +1279,8 @@ export default function NoteDetailPage() {
                   )}
 
                   {/* Forward Panel */}
-                  {actionType === "forward" && (
+                  {actionType ===
+   "forward" && (
                     <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-600 bg-[#f8fafc] dark:bg-gray-700/30 p-3 space-y-2.5">
                       {/* Radio Options */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5">
@@ -1238,7 +1288,8 @@ export default function NoteDetailPage() {
                           <input
                             type="radio"
                             name="forwardMode"
-                            checked={forwardMode === "auto"}
+                            checked={forwardMode ===
+   "auto"}
                             onChange={() => {
                               setForwardMode("auto");
                               setForwardUserId("");
@@ -1255,7 +1306,8 @@ export default function NoteDetailPage() {
                           <input
                             type="radio"
                             name="forwardMode"
-                            checked={forwardMode === "manual"}
+                            checked={forwardMode ===
+   "manual"}
                             onChange={() => {
                               setForwardMode("manual");
                               setForwardUserId("");
@@ -1270,7 +1322,8 @@ export default function NoteDetailPage() {
                       </div>
 
                       {/* Auto Forward */}
-                      {forwardMode === "auto" && (
+                      {forwardMode ===
+   "auto" && (
                         <div className="space-y-2">
                           {managerLoading ? (
                             <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -1324,7 +1377,8 @@ export default function NoteDetailPage() {
                       )}
 
                       {/* Manual Forward */}
-                      {forwardMode === "manual" && (
+                      {forwardMode ===
+   "manual" && (
                         <>
                           {/* Selected user or search input */}
                           {selectedUser ? (
@@ -1379,7 +1433,8 @@ export default function NoteDetailPage() {
                           {/* Search Results Dropdown */}
                           {!selectedUser && searchQuery.trim().length >= 2 && (
                             <div className="max-h-40 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
-                              {searchResults.length === 0 && !searchLoading && (
+                              {searchResults.length ===
+   0 && !searchLoading && (
                                 <p className="px-3 py-2 text-xs text-gray-500 text-center">
                                   No employees found
                                 </p>
@@ -1423,7 +1478,8 @@ export default function NoteDetailPage() {
                   {/* Action Buttons
                        Rules:
                        - Only buttons whose permission flag is true are rendered (not hidden, not disabled — absent entirely)
-                       - All buttons are additionally disabled while Forward panel is open (actionType === 'forward')
+                       - All buttons are additionally disabled while Forward panel is open (actionType ===
+   'forward')
                          to prevent double-actions on the same note.
                        - The Forward toggle is disabled while any async action is in flight (actionLoading).
                   */}
@@ -1434,11 +1490,13 @@ export default function NoteDetailPage() {
                         disabled={
                           actionLoading ||
                           !remarks.trim() ||
-                          actionType === "forward"
+                          actionType ===
+   "forward"
                         }
                         className="px-4 py-2.5 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                       >
-                        {actionLoading && actionType === null ? (
+                        {actionLoading && actionType ===
+   null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
                         ) : (
                           <CheckCircle className="w-3.5 h-3.5" />
@@ -1452,11 +1510,13 @@ export default function NoteDetailPage() {
                         disabled={
                           actionLoading ||
                           !remarks.trim() ||
-                          actionType === "forward"
+                          actionType ===
+   "forward"
                         }
                         className="px-4 py-2.5 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                       >
-                        {actionLoading && actionType === null ? (
+                        {actionLoading && actionType ===
+   null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
                         ) : (
                           <XCircle className="w-3.5 h-3.5" />
@@ -1470,12 +1530,14 @@ export default function NoteDetailPage() {
                         disabled={
                           actionLoading ||
                           !remarks.trim() ||
-                          actionType === "forward"
+                          actionType ===
+   "forward"
                         }
                         className="px-4 py-2.5 text-sm bg-orange-600 text-white rounded-xl hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                         title="Send back to creator for modifications"
                       >
-                        {actionLoading && actionType === null ? (
+                        {actionLoading && actionType ===
+   null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
                         ) : (
                           <RotateCcw className="w-3.5 h-3.5" />
@@ -1489,12 +1551,14 @@ export default function NoteDetailPage() {
                         disabled={
                           actionLoading ||
                           !remarks.trim() ||
-                          actionType === "forward"
+                          actionType ===
+   "forward"
                         }
                         className="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                         title="Recommend and forward to next authority"
                       >
-                        {actionLoading && actionType === null ? (
+                        {actionLoading && actionType ===
+   null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
                         ) : (
                           <ThumbsUp className="w-3.5 h-3.5" />
@@ -1508,12 +1572,14 @@ export default function NoteDetailPage() {
                         disabled={
                           actionLoading ||
                           !remarks.trim() ||
-                          actionType === "forward"
+                          actionType ===
+   "forward"
                         }
                         className="px-4 py-2.5 text-sm bg-rose-600 text-white rounded-xl hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                         title="Not recommend — reject with recommendation label"
                       >
-                        {actionLoading && actionType === null ? (
+                        {actionLoading && actionType ===
+   null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
                         ) : (
                           <ThumbsDown className="w-3.5 h-3.5" />
@@ -1526,23 +1592,28 @@ export default function NoteDetailPage() {
                       <button
                         onClick={() =>
                           setActionType(
-                            actionType === "forward" ? null : "forward",
+                            actionType ===
+   "forward" ? null : "forward",
                           )
                         }
                         disabled={actionLoading}
-                        className={`px-4 py-2.5 text-sm border rounded-xl flex items-center gap-1.5 font-medium transition-all duration-200 disabled:opacity-50 ${actionType === "forward"
+                        className={`px-4 py-2.5 text-sm border rounded-xl flex items-center gap-1.5 font-medium transition-all duration-200 disabled:opacity-50 ${actionType ===
+   "forward"
                             ? "bg-[#b3cde0]/20 dark:bg-[#005b96]/10 border-[#6497b1] text-[#005b96] dark:text-[#b3cde0]"
                             : "border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#f8fafc] dark:hover:bg-gray-700 text-[#03396c] dark:text-gray-300"
                           }`}
                         title="Forward note"
                       >
                         <Send className="w-3.5 h-3.5" />
-                        {actionType === "forward"
+                        {actionType ===
+   "forward"
                           ? "Cancel Forward"
                           : "Forward"}
                       </button>
                     )}
-                    {actionType === "forward" && forwardMode === "manual" && (
+                    {actionType ===
+   "forward" && forwardMode ===
+   "manual" && (
                       <button
                         onClick={doForward}
                         disabled={
@@ -1614,7 +1685,9 @@ export default function NoteDetailPage() {
 
           <aside className="min-w-0 w-full space-y-4 lg:sticky lg:top-4 lg:min-w-[248px] lg:flex-1">
             <NotingCreatorPanel note={note} getDisplayName={getDisplayName} />
-            {note.status === "approved" && note.createdById === currentUserId ? (
+            {note.status ===
+   "approved" && note.createdById ===
+   currentUserId ? (
               <div
                 className="rounded-2xl border border-[#b3cde0]/50 dark:border-[#6497b1]/35 bg-white dark:bg-gray-800 p-4 sm:p-5"
                 style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.08)" }}

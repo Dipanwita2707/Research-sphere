@@ -75,7 +75,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
   const router = useRouter();
   const { user } = useAuthStore();
   const { toast } = useToast();
-  const isStudent = user?.userType === 'student';
+  const isStudent = user?.userType ===
+   'student';
   
   const [application, setApplication] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -145,8 +146,10 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
       });
       
       // If accepted, apply the suggestion to the form
-      if (action === 'accept') {
-        const suggestion = suggestions.find(s => s.id === suggestionId);
+      if (action ===
+   'accept') {
+        const suggestion = suggestions.find(s => s.id ===
+   suggestionId);
         if (suggestion) {
           applysuggestionToForm(suggestion);
         }
@@ -165,15 +168,20 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
     const fieldName = suggestion.fieldName;
     const value = suggestion.suggestedValue;
     
-    if (fieldName === 'title') {
+    if (fieldName ===
+   'title') {
       setFormData(prev => ({ ...prev, title: value }));
-    } else if (fieldName === 'description') {
+    } else if (fieldName ===
+   'description') {
       setFormData(prev => ({ ...prev, description: value }));
-    } else if (fieldName === 'remarks') {
+    } else if (fieldName ===
+   'remarks') {
       setFormData(prev => ({ ...prev, remarks: value }));
-    } else if (fieldName === 'projectType') {
+    } else if (fieldName ===
+   'projectType') {
       setFormData(prev => ({ ...prev, projectType: value }));
-    } else if (fieldName === 'filingType') {
+    } else if (fieldName ===
+   'filingType') {
       setFormData(prev => ({ ...prev, filingType: value }));
     }
   };
@@ -195,10 +203,13 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
   };
 
   const getSuggestionsForField = (fieldName: string) => {
-    return suggestions.filter(s => s.fieldName === fieldName && s.status === 'pending');
+    return suggestions.filter(s => s.fieldName ===
+   fieldName && s.status ===
+   'pending');
   };
 
-  const pendingSuggestions = suggestions.filter(s => s.status === 'pending');
+  const pendingSuggestions = suggestions.filter(s => s.status ===
+   'pending');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -245,7 +256,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
         filingType: formData.filingType,
         sdgs: formData.selectedSdgs.map(code => ({
           code,
-          title: SDG_OPTIONS.find(s => s.code === code)?.title || ''
+          title: SDG_OPTIONS.find(s => s.code ===
+   code)?.title || ''
         })),
         annexureFilePath,
         prototypeFilePath,
@@ -269,10 +281,10 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
-          <p className="mt-4 text-gray-600">Loading application...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading application...</p>
         </div>
       </div>
     );
@@ -280,13 +292,13 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
 
   if (error && !application) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Cannot Edit Application</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Cannot Edit Application</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <Link
             href="/ipr/my-applications"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -301,19 +313,21 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
 
   // Check if application can be edited (only draft, changes_required, or pending_mentor_approval)
   // Once resubmitted, it's under review and cannot be edited until DRD requests changes again
-  const canEdit = application?.status === 'draft' || 
-                  application?.status === 'changes_required' 
+  const canEdit = application?.status ===
+   'draft' || 
+                  application?.status ===
+   'changes_required' 
                   ;
   
   if (!canEdit) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-yellow-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Cannot Edit</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Cannot Edit</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             This application cannot be edited in its current status ({application?.status}).
           </p>
           <Link
@@ -329,26 +343,27 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b shadow-sm">
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href={`/ipr/applications/${params.id}`}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Edit Application</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Edit Application</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {application?.applicationNumber} • {application?.iprType?.toUpperCase()}
                 </p>
               </div>
             </div>
-            {application?.status === 'pending_mentor_approval' && (
+            {application?.status ===
+   'pending_mentor_approval' && (
               <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
                 Pending Mentor Approval
               </span>
@@ -374,7 +389,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
         )}
 
         {/* Changes Requested Banner */}
-        {application?.status === 'changes_required' && application?.changesRequestedBy && (
+        {application?.status ===
+   'changes_required' && application?.changesRequestedBy && (
           <div className={`mb-6 p-4 rounded-xl border ${
             application.changesRequestedBy.isMentor 
               ? 'bg-purple-50 border-purple-200' 
@@ -438,8 +454,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Title <span className="text-red-500">*</span>
             </label>
             <input
@@ -447,7 +463,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter the title of your IPR"
               required
             />
@@ -476,7 +492,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                     >
                       <Check className="w-3 h-3" /> Accept
@@ -484,7 +501,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                     >
                       <X className="w-3 h-3" /> Reject
@@ -496,8 +514,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           </div>
 
           {/* Description */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -505,7 +523,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               value={formData.description}
               onChange={handleInputChange}
               rows={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Describe your invention/work in detail"
               required
             />
@@ -534,7 +552,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                     >
                       <Check className="w-3 h-3" /> Accept
@@ -542,7 +561,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                     >
                       <X className="w-3 h-3" /> Reject
@@ -554,17 +574,17 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           </div>
 
           {/* Project Type & Filing Type */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Project Type
                 </label>
                 <select
                   name="projectType"
                   value={formData.projectType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select project type</option>
                   <option value="phd">PhD Research</option>
@@ -599,7 +619,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                         >
                           <Check className="w-3 h-3" /> Accept
@@ -607,7 +628,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                         >
                           <X className="w-3 h-3" /> Reject
@@ -618,14 +640,14 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                 })}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Filing Type
                 </label>
                 <select
                   name="filingType"
                   value={formData.filingType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select filing type</option>
                   <option value="provisional">Provisional</option>
@@ -656,7 +678,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                         >
                           <Check className="w-3 h-3" /> Accept
@@ -664,7 +687,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                         >
                           <X className="w-3 h-3" /> Reject
@@ -678,8 +702,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           </div>
 
           {/* SDGs */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
               Sustainable Development Goals (SDGs)
             </label>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -691,7 +715,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                   className={`p-3 rounded-lg border text-left text-sm transition-all ${
                     formData.selectedSdgs.includes(sdg.code)
                       ? 'bg-blue-50 border-blue-500 text-blue-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                      : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
                   }`}
                 >
                   <span className="font-medium">SDG {sdg.code}</span>
@@ -739,7 +763,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                     >
                       <Check className="w-3 h-3" /> Accept
@@ -747,7 +772,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                     >
                       <X className="w-3 h-3" /> Reject
@@ -759,8 +785,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           </div>
 
           {/* Documents Section - allow applicant to update annexure, prototype, supporting docs */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
               Documents & Attachments
             </h2>
@@ -772,7 +798,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                   href={getUploadUrl(application.annexureFilePath)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded text-xs text-gray-700 hover:bg-gray-200"
+                  className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 >
                   <Download className="w-4 h-4" />
                   {application.annexureFilePath.split('/').pop()}
@@ -807,7 +833,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               
 
               {/* Supporting documents upload removed as requested. */}
-              {formData.filingType === 'complete' && (
+              {formData.filingType ===
+   'complete' && (
                 <div>
                   <label className="text-sm text-gray-700 mb-1 block">Replace Prototype (ZIP)</label>
                   <input type="file" accept=".zip" onChange={(e) => setPrototypeFile(e.target.files?.[0] || null)} />
@@ -847,7 +874,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           <div className="flex items-center justify-end gap-4 pt-4">
             <Link
               href={`/ipr/applications/${params.id}`}
-              className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              className="px-6 py-3 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium"
             >
               Cancel
             </Link>

@@ -4,11 +4,10 @@ import { z } from 'zod';
  * Common validation schemas for forms across the application
  */
 
-// ============================================
-// Common Field Schemas
-// ============================================
-
-export const emailSchema = z.string().email('Invalid email address');
+// =====================================
+  // Common Field Schemas
+// ==============================
+  export const emailSchema = z.string().email('Invalid email address');
 
 export const phoneSchema = z.string()
   .regex(/^[+]?[\d\s-]{10,15}$/, 'Invalid phone number')
@@ -21,11 +20,10 @@ export const requiredString = z.string().min(1, 'This field is required');
 
 export const optionalString = z.string().optional().or(z.literal(''));
 
-// ============================================
-// Auth & Profile Schemas
-// ============================================
-
-export const loginSchema = z.object({
+// =====================================
+  // Auth & Profile Schemas
+// ==============================
+  export const loginSchema = z.object({
   uid: z.string().min(1, 'User ID is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
@@ -34,7 +32,8 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(8, 'New password must be at least 8 characters'),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
-}).refine((data) => data.newPassword === data.confirmPassword, {
+}).refine((data) => data.newPassword ===
+   data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
 });
@@ -46,11 +45,10 @@ export const profileUpdateSchema = z.object({
   address: optionalString,
 });
 
-// ============================================
-// IPR Application Schemas
-// ============================================
-
-export const iprTypeSchema = z.enum(['patent', 'copyright', 'trademark', 'design']);
+// =====================================
+  // IPR Application Schemas
+// ==============================
+  export const iprTypeSchema = z.enum(['patent', 'copyright', 'trademark', 'design']);
 
 export const projectTypeSchema = z.enum([
   'phd',
@@ -84,11 +82,10 @@ export const iprApplicationSchema = z.object({
   priorArt: optionalString,
 });
 
-// ============================================
-// Research Contribution Schemas
-// ============================================
-
-export const publicationTypeSchema = z.enum([
+// =====================================
+  // Research Contribution Schemas
+// ==============================
+  export const publicationTypeSchema = z.enum([
   'research_paper',
   'book',
   'book_chapter', 
@@ -181,11 +178,10 @@ export const conferencePaperSchema = z.object({
   coAuthors: z.array(researchAuthorSchema).optional(),
 });
 
-// ============================================
-// Grant Application Schemas
-// ============================================
-
-export const grantCategorySchema = z.enum([
+// =====================================
+  // Grant Application Schemas
+// ==============================
+  export const grantCategorySchema = z.enum([
   'sponsored_project',
   'consultancy_project', 
   'seed_money'
@@ -234,11 +230,10 @@ export const grantApplicationSchema = z.object({
   sdgGoals: z.array(z.string()).optional(),
 });
 
-// ============================================
-// Type exports
-// ============================================
-
-export type LoginFormData = z.infer<typeof loginSchema>;
+// =====================================
+  // Type exports
+// ==============================
+  export type LoginFormData = z.infer<typeof loginSchema>;
 export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 export type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
 export type IprApplicationFormData = z.infer<typeof iprApplicationSchema>;

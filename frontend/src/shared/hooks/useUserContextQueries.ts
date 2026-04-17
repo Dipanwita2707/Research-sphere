@@ -30,7 +30,9 @@ export function useStaffDashboardSummary(options: { enabled?: boolean } = {}) {
       return response.data.data as StaffDashboardSummary;
     },
     enabled: enabled && !!userId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes — permissions change rarely
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -42,7 +44,9 @@ export function useUnreadNotificationCount(options: { enabled?: boolean } = {}) 
     queryKey: USER_CONTEXT_QUERY_KEYS.unreadCount(userId),
     queryFn: () => notificationService.getUnreadCount(),
     enabled: enabled && !!userId,
-    staleTime: 60 * 1000,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -58,6 +62,8 @@ export function useHasVolunteerAssignments(options: { enabled?: boolean } = {}) 
       return Array.isArray(assignments) && assignments.length > 0;
     },
     enabled: enabled && !!userId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes — volunteer status rarely changes mid-session
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
   });
 }

@@ -1,8 +1,16 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const { body } = require('express-validator');
 const authController = require('../controllers/auth.controller');
 const { protect } = require('../../../shared/middleware/auth');
+const { checkProfilePhotoPermission } = require('../middleware/profilePhoto.middleware');
+
+// Configure multer for profile photo uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+});
 
 // Validation middleware
 const loginValidation = [
@@ -52,5 +60,9 @@ router.put('/change-password', changePasswordValidation, authController.changePa
 router.put('/profile', updateProfileValidation, authController.updateProfile);
 router.get('/settings', authController.getSettings);
 router.put('/settings', authController.updateSettings);
+
+// Profile photo routes (with permission check)
+router.post('/profile/photo', checkProfilePhotoPermission, upload.single('photo'), authController.uploadProfilePhoto);
+router.delete('/profile/photo', authController.deleteProfilePhoto);
 
 module.exports = router;

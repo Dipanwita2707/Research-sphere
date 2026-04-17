@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useMemo, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -203,7 +203,8 @@ function TeamSection({
   onRemove,
   onEdit,
 }: TeamSectionProps) {
-  if (members.length === 0) return null;
+  if (members.length ===
+   0) return null;
 
   return (
     <div className="space-y-3">
@@ -286,7 +287,8 @@ function EditMemberModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedRole === currentRole) {
+    if (selectedRole ===
+   currentRole) {
       onClose();
       return;
     }
@@ -310,7 +312,8 @@ function EditMemberModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target ===
+   e.currentTarget && onClose()}
     >
       <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Header */}
@@ -342,7 +345,8 @@ function EditMemberModal({
             <div className="grid grid-cols-2 gap-2">
               {CLUB_MEMBER_ROLE_OPTIONS.map((opt) => {
                 const cfg = CLUB_MEMBER_ROLES[opt.value];
-                const isSelected = selectedRole === opt.value;
+                const isSelected = selectedRole ===
+   opt.value;
                 return (
                   <button
                     key={opt.value}
@@ -403,7 +407,8 @@ function EditMemberModal({
             </button>
             <button
               type="submit"
-              disabled={updateRole.isPending || selectedRole === currentRole}
+              disabled={updateRole.isPending || selectedRole ===
+   currentRole}
               className="flex-1 ev-btn disabled:opacity-60"
             >
               {updateRole.isPending ? (
@@ -474,7 +479,8 @@ function AddMemberModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target ===
+   e.currentTarget && onClose()}
     >
       <div className="w-full max-w-md bg-white rounded-2xl shadow-ev-lg border border-[#b3cde0] overflow-hidden">
         {/* Header */}
@@ -527,7 +533,8 @@ function AddMemberModal({
             <div className="grid grid-cols-2 gap-2">
               {CLUB_MEMBER_ROLE_OPTIONS.map((opt) => {
                 const cfg = CLUB_MEMBER_ROLES[opt.value];
-                const isSelected = selectedRole === opt.value;
+                const isSelected = selectedRole ===
+   opt.value;
                 return (
                   <button
                     key={opt.value}
@@ -680,7 +687,8 @@ export default function ClubDetailsPage() {
   const leadershipMembers = useMemo(
     () =>
       activeMembers.filter(
-        (m) => CLUB_MEMBER_ROLES[getMemberRole(m)]?.tier === 1,
+        (m) => CLUB_MEMBER_ROLES[getMemberRole(m)]?.tier ===
+   1,
       ),
     [activeMembers],
   );
@@ -689,13 +697,15 @@ export default function ClubDetailsPage() {
     () =>
       activeMembers.filter((m) => {
         const t = CLUB_MEMBER_ROLES[getMemberRole(m)]?.tier;
-        return t === 2;
+        return t ===
+   2;
       }),
     [activeMembers],
   );
 
   const volunteerMembers = useMemo(
-    () => activeMembers.filter((m) => getMemberRole(m) === "volunteer"),
+    () => activeMembers.filter((m) => getMemberRole(m) ===
+   "volunteer"),
     [activeMembers],
   );
 
@@ -703,41 +713,50 @@ export default function ClubDetailsPage() {
   const canManage = !!(
     currentUser &&
     (
-      currentUser.id === club?.chairpersonId ||
-      currentUser.id === club?.facultyFacilitatorId ||
+      currentUser.id ===
+   club?.chairpersonId ||
+      currentUser.id ===
+   club?.facultyFacilitatorId ||
       isAdminUser
     )
   );
 
   const isMember = !!(
     currentUser &&
-    activeMembers.some((m) => m.studentId === currentUser.id)
+    activeMembers.some((m) => m.studentId ===
+   currentUser.id)
   );
 
   const myApplication = currentUser
-    ? myApplications.find((a) => a.clubId === clubId)
+    ? myApplications.find((a) => a.clubId ===
+   clubId)
     : undefined;
 
   const canApplyToClub =
     isStudentUser &&
     !canManage &&
     !isMember &&
-    (!myApplication || myApplication.status === "rejected");
+    (!myApplication || myApplication.status ===
+   "rejected");
 
   // Filtered member groups — respects roleFilter when set
   const filteredLeadership = roleFilter
-    ? leadershipMembers.filter((m) => getMemberRole(m) === roleFilter)
+    ? leadershipMembers.filter((m) => getMemberRole(m) ===
+   roleFilter)
     : leadershipMembers;
   const filteredSupport = roleFilter
-    ? supportMembers.filter((m) => getMemberRole(m) === roleFilter)
+    ? supportMembers.filter((m) => getMemberRole(m) ===
+   roleFilter)
     : supportMembers;
   const filteredVolunteers = roleFilter
-    ? volunteerMembers.filter((m) => getMemberRole(m) === roleFilter)
+    ? volunteerMembers.filter((m) => getMemberRole(m) ===
+   roleFilter)
     : volunteerMembers;
 
   const handleRemove = useCallback(
     (memberId: string) => {
-      const m = activeMembers.find((x) => x.id === memberId);
+      const m = activeMembers.find((x) => x.id ===
+   memberId);
       if (m) {
         setConfirmDelete({ memberId, memberName: getMemberName(m) });
       }
@@ -888,7 +907,8 @@ export default function ClubDetailsPage() {
       {showApplyModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowApplyModal(false)}
+          onClick={(e) => e.target ===
+   e.currentTarget && setShowApplyModal(false)}
         >
           <div className="ev-modal w-full max-w-lg p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -943,7 +963,8 @@ export default function ClubDetailsPage() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={(e) =>
-            e.target === e.currentTarget && setConfirmDelete(null)
+            e.target ===
+   e.currentTarget && setConfirmDelete(null)
           }
         >
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-ev border border-[#b3cde0] p-6 space-y-4">
@@ -1039,7 +1060,8 @@ export default function ClubDetailsPage() {
                   <span className="flex items-center gap-1">
                     <Users className="w-3.5 h-3.5" />
                     {activeMembers.length}{" "}
-                    {activeMembers.length === 1 ? "Member" : "Members"}
+                    {activeMembers.length ===
+   1 ? "Member" : "Members"}
                   </span>
                 </div>
               </div>
@@ -1128,7 +1150,8 @@ export default function ClubDetailsPage() {
               type="button"
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === tab.key
+                activeTab ===
+   tab.key
                   ? "bg-white text-ev-700 shadow-ev"
                   : "text-ev-400 hover:text-ev-700 hover:bg-white/70"
               }`}
@@ -1142,7 +1165,8 @@ export default function ClubDetailsPage() {
         {/* ════════════════════════════════════════════════════════════════════ */}
         {/* OVERVIEW TAB                                                        */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === "overview" && (
+        {activeTab ===
+   "overview" && (
           <div className="space-y-5">
             {/* Purpose */}
             <div className="ev-card p-5">
@@ -1310,7 +1334,8 @@ export default function ClubDetailsPage() {
         {/* ════════════════════════════════════════════════════════════════════ */}
         {/* TEAM TAB                                                            */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === "team" && (
+        {activeTab ===
+   "team" && (
           <div className="ev-card p-5 sm:p-6 space-y-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -1319,7 +1344,8 @@ export default function ClubDetailsPage() {
                 </h2>
                 <p className="text-xs text-ev-400 mt-0.5">
                   {activeMembers.length} active{" "}
-                  {activeMembers.length === 1 ? "member" : "members"}
+                  {activeMembers.length ===
+   1 ? "member" : "members"}
                 </p>
               </div>
               {canManage && (
@@ -1337,7 +1363,8 @@ export default function ClubDetailsPage() {
               )}
             </div>
 
-            {activeMembers.length === 0 ? (
+            {activeMembers.length ===
+   0 ? (
               <div className="text-center py-12 text-ev-400">
                 <div className="text-5xl mb-3">👥</div>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">
@@ -1375,7 +1402,8 @@ export default function ClubDetailsPage() {
                     )
                       .filter(([k]) => k !== "chairperson")
                       .map(([key, cfg]) => {
-                        const isActive = roleFilter === key;
+                        const isActive = roleFilter ===
+   key;
                         return (
                           <button
                             key={key}
@@ -1440,9 +1468,12 @@ export default function ClubDetailsPage() {
 
                 {/* No results for active filter */}
                 {roleFilter &&
-                  filteredLeadership.length === 0 &&
-                  filteredSupport.length === 0 &&
-                  filteredVolunteers.length === 0 && (
+                  filteredLeadership.length ===
+   0 &&
+                  filteredSupport.length ===
+   0 &&
+                  filteredVolunteers.length ===
+   0 && (
                     <div className="text-center py-10">
                       <div className="text-4xl mb-2">
                         {CLUB_MEMBER_ROLES[roleFilter].emoji}
@@ -1471,7 +1502,8 @@ export default function ClubDetailsPage() {
         {/* ════════════════════════════════════════════════════════════════════ */}
         {/* DETAILS TAB                                                         */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === "details" && (
+        {activeTab ===
+   "details" && (
           <div className="space-y-5">
             {/* Governance */}
             <div className="ev-card p-5">
@@ -1584,7 +1616,8 @@ export default function ClubDetailsPage() {
         {/* ════════════════════════════════════════════════════════════════════ */}
         {/* APPLICATIONS TAB                                                    */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === "applications" && canManage && (
+        {activeTab ===
+   "applications" && canManage && (
           <div className="ev-card p-5 sm:p-6 space-y-4">
             <div>
               <h2 className="text-base font-bold text-ev-900">Club Application Requests</h2>
@@ -1593,7 +1626,8 @@ export default function ClubDetailsPage() {
               </p>
             </div>
 
-            {clubApplications.length === 0 ? (
+            {clubApplications.length ===
+   0 ? (
               <div className="text-center py-12 text-ev-400">
                 <div className="text-5xl mb-3">📭</div>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">No application requests yet</p>
@@ -1616,7 +1650,8 @@ export default function ClubDetailsPage() {
                     {clubApplications.map((app) => {
                       const approveId = `${app.id}:approved`;
                       const rejectId = `${app.id}:rejected`;
-                      const isPending = app.status === "pending";
+                      const isPending = app.status ===
+   "pending";
                       return (
                         <tr key={app.id} className="border-b border-[#b3cde0]/40">
                           <td className="py-3 pr-3 font-medium text-ev-900">{app.applicantName}</td>
@@ -1626,9 +1661,11 @@ export default function ClubDetailsPage() {
                           <td className="py-3 pr-3 text-ev-700">{new Date(app.createdAt).toLocaleDateString()}</td>
                           <td className="py-3 pr-3">
                             <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
-                              app.status === "approved"
+                              app.status ===
+   "approved"
                                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                                : app.status === "rejected"
+                                : app.status ===
+   "rejected"
                                   ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                                   : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                             }`}>
@@ -1641,18 +1678,24 @@ export default function ClubDetailsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleReview(app.id, "approved")}
-                                  disabled={reviewActionId === approveId || reviewActionId === rejectId}
+                                  disabled={reviewActionId ===
+   approveId || reviewActionId ===
+   rejectId}
                                   className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
                                 >
-                                  {reviewActionId === approveId ? "Accepting..." : "Accept"}
+                                  {reviewActionId ===
+   approveId ? "Accepting..." : "Accept"}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleReview(app.id, "rejected")}
-                                  disabled={reviewActionId === approveId || reviewActionId === rejectId}
+                                  disabled={reviewActionId ===
+   approveId || reviewActionId ===
+   rejectId}
                                   className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
                                 >
-                                  {reviewActionId === rejectId ? "Rejecting..." : "Reject"}
+                                  {reviewActionId ===
+   rejectId ? "Rejecting..." : "Reject"}
                                 </button>
                               </div>
                             ) : (
@@ -1672,7 +1715,8 @@ export default function ClubDetailsPage() {
         {/* ════════════════════════════════════════════════════════════════════ */}
         {/* EVENTS TAB                                                          */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {activeTab === "events" && (
+        {activeTab ===
+   "events" && (
           <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -1699,7 +1743,8 @@ export default function ClubDetailsPage() {
               <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-6 text-center">
                 <p className="text-sm text-red-600 dark:text-red-400">Failed to load events: {(eventsError as Error)?.message}</p>
               </div>
-            ) : clubEvents.length === 0 ? (
+            ) : clubEvents.length ===
+   0 ? (
               <div className="bg-white rounded-2xl border border-dashed border-[#b3cde0] p-14 text-center shadow-ev">
                 <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-ev-50 mx-auto mb-4">
                   <CalendarDays className="w-8 h-8 text-ev-400" />
@@ -1716,15 +1761,19 @@ export default function ClubDetailsPage() {
                   const canManageEvent =
                     isAdminUser ||
                     (!!currentUser?.id && (
-                      event.createdById === currentUser.id ||
-                      currentUser.id === club?.chairpersonId
+                      event.createdById ===
+   currentUser.id ||
+                      currentUser.id ===
+   club?.chairpersonId
                     ));
                   const eventTargetPath = canManageEvent
                     ? `/events/${event.eventId}/management`
                     : `/events/${event.eventId}`;
                   const statusColor =
-                    event.status === "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : event.status === "draft" ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    event.status ===
+   "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : event.status ===
+   "draft" ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                     : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
                   return (
                     <div

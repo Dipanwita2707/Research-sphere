@@ -91,7 +91,8 @@ export default function FinanceDashboard() {
     if (!selectedApp) return;
 
     // Validation
-    if (formData.auditStatus === 'approved') {
+    if (formData.auditStatus ===
+   'approved') {
       if (!formData.incentiveAmount || !formData.pointsAwarded) {
         toast({ type: 'error', message: 'Incentive amount and points are required for approval' });
         return;
@@ -106,7 +107,8 @@ export default function FinanceDashboard() {
     try {
       setSubmitting(true);
 
-      if (formData.auditStatus === 'approved') {
+      if (formData.auditStatus ===
+   'approved') {
         // Process incentive
         await financeService.submitReview(selectedApp.id, {
           auditStatus: 'approved',
@@ -258,7 +260,8 @@ export default function FinanceDashboard() {
           <h2 className="text-lg font-semibold text-gray-900">Applications Awaiting Finance Processing</h2>
         </div>
         
-        {applications.length === 0 ? (
+        {applications.length ===
+   0 ? (
           <div className="p-16 text-center">
             <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-10 h-10 text-emerald-500" />
@@ -405,7 +408,8 @@ export default function FinanceDashboard() {
                     </select>
                   </div>
 
-                  {formData.auditStatus === 'approved' && (
+                  {formData.auditStatus ===
+   'approved' && (
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -486,13 +490,15 @@ export default function FinanceDashboard() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Comments {formData.auditStatus === 'rejected' && <span className="text-red-500">*</span>}
+                      Comments {formData.auditStatus ===
+   'rejected' && <span className="text-red-500">*</span>}
                     </label>
                     <textarea
                       value={formData.comments}
                       onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                       rows={4}
-                      required={formData.auditStatus === 'rejected'}
+                      required={formData.auditStatus ===
+   'rejected'}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all resize-none"
                       placeholder="Additional comments..."
                     />

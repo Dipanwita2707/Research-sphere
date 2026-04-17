@@ -65,8 +65,10 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
       </div>
 
       {/* Paper Presentation Fields (Type 1 & 2) */}
-      {((data.conferenceSubType as string) === 'paper_not_indexed' || 
-        (data.conferenceSubType as string) === 'paper_indexed_scopus') && (
+      {((data.conferenceSubType as string) ===
+   'paper_not_indexed' || 
+        (data.conferenceSubType as string) ===
+   'paper_indexed_scopus') && (
         <>
           {/* Conference Details */}
           <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
@@ -108,7 +110,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                     placeholder="Enter priority funding area"
                   />
                 </div>
-                {data.conferenceSubType === 'paper_indexed_scopus' && (
+                {data.conferenceSubType ===
+   'paper_indexed_scopus' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Please Mention the Proceedings Quartile <span className="text-red-500">*</span>
@@ -143,7 +146,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                     onChange={(e) => {
                       const value = Number(e.target.value);
                       if (value > 2) return;
-                      if (value === 1) {
+                      if (value ===
+   1) {
                         onChange({ ...data, totalPresenters: value, isPresenter: 'yes' });
                       } else {
                         handleChange('totalPresenters', value);
@@ -159,13 +163,16 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                   <label className="block text-sm font-medium text-gray-700 mb-1">Whether you are a Presenter?</label>
                   <div className="flex gap-4 mt-2">
                     {['yes', 'no'].map(v => (
-                      <label key={v} className={`inline-flex items-center ${(data.totalPresenters as number) === 1 ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                      <label key={v} className={`inline-flex items-center ${(data.totalPresenters as number) ===
+   1 ? 'opacity-60 cursor-not-allowed' : ''}`}>
                         <input
                           type="radio"
                           value={v}
-                          checked={(data.isPresenter as string) === v}
+                          checked={(data.isPresenter as string) ===
+   v}
                           onChange={(e) => handleChange('isPresenter', e.target.value)}
-                          disabled={(data.totalPresenters as number) === 1}
+                          disabled={(data.totalPresenters as number) ===
+   1}
                           className="w-4 h-4 text-purple-600"
                         />
                         <span className="ml-2 text-sm capitalize">{v}</span>
@@ -181,7 +188,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                         <input
                           type="radio"
                           value={v}
-                          checked={(data.virtualConference as string) === v}
+                          checked={(data.virtualConference as string) ===
+   v}
                           onChange={(e) => handleChange('virtualConference', e.target.value)}
                           className="w-4 h-4 text-purple-600"
                         />
@@ -200,7 +208,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                       <input
                         type="radio"
                         value="yes"
-                        checked={(data.fullPaper as string) === 'yes'}
+                        checked={(data.fullPaper as string) ===
+   'yes'}
                         onChange={(e) => handleChange('fullPaper', e.target.value)}
                         className="w-4 h-4 text-purple-600"
                       />
@@ -218,7 +227,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                         <input
                           type="radio"
                           value={v}
-                          checked={(data.conferenceType as string) === v}
+                          checked={(data.conferenceType as string) ===
+   v}
                           onChange={(e) => handleChange('conferenceType', e.target.value)}
                           className="w-4 h-4 text-purple-600"
                         />
@@ -238,7 +248,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                         <input
                           type="radio"
                           value={v}
-                          checked={(data.conferenceHeldAtSgt as string) === v}
+                          checked={(data.conferenceHeldAtSgt as string) ===
+   v}
                           onChange={(e) => handleChange('conferenceHeldAtSgt', e.target.value)}
                           className="w-4 h-4 text-purple-600"
                         />
@@ -255,7 +266,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                         <input
                           type="radio"
                           value={v}
-                          checked={(data.conferenceBestPaperAward as string) === v}
+                          checked={(data.conferenceBestPaperAward as string) ===
+   v}
                           onChange={(e) => handleChange('conferenceBestPaperAward', e.target.value)}
                           className="w-4 h-4 text-purple-600"
                         />
@@ -280,7 +292,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                       <input
                         type="radio"
                         value={v}
-                        checked={(data.isInterdisciplinary as string) === v}
+                        checked={(data.isInterdisciplinary as string) ===
+   v}
                         onChange={(e) => handleChange('isInterdisciplinary', e.target.value)}
                         className="w-4 h-4 text-purple-600"
                       />
@@ -297,7 +310,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                       <input
                         type="radio"
                         value={v}
-                        checked={(data.hasLpuStudents as string) === v}
+                        checked={(data.hasLpuStudents as string) ===
+   v}
                         onChange={(e) => handleChange('hasLpuStudents', e.target.value)}
                         className="w-4 h-4 text-purple-600"
                       />
@@ -314,7 +328,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                       <input
                         type="radio"
                         value={v}
-                        checked={(data.industryCollaboration as string) === v}
+                        checked={(data.industryCollaboration as string) ===
+   v}
                         onChange={(e) => handleChange('industryCollaboration', e.target.value)}
                         className="w-4 h-4 text-purple-600"
                       />
@@ -341,7 +356,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                         <input
                           type="radio"
                           value={v}
-                          checked={(data.communicatedWithOfficialId as string) === v}
+                          checked={(data.communicatedWithOfficialId as string) ===
+   v}
                           onChange={(e) => handleChange('communicatedWithOfficialId', e.target.value)}
                           className="w-4 h-4 text-purple-600"
                         />
@@ -360,7 +376,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                         <input
                           type="radio"
                           value={v}
-                          checked={(data.centralFacilityUsed as string) === v}
+                          checked={(data.centralFacilityUsed as string) ===
+   v}
                           onChange={(e) => handleChange('centralFacilityUsed', e.target.value)}
                           className="w-4 h-4 text-purple-600"
                         />
@@ -371,7 +388,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                 </div>
               </div>
 
-              {data.communicatedWithOfficialId === 'no' && (
+              {data.communicatedWithOfficialId ===
+   'no' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Your Personal Email ID <span className="text-red-500">*</span>
@@ -420,7 +438,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
         {sdgGoals.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {sdgGoals.map(goal => {
-              const sdg = SDG_GOALS.find(s => s.value === goal);
+              const sdg = SDG_GOALS.find(s => s.value ===
+   goal);
               return sdg ? (
                 <span key={goal} className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
                   {sdg.value}. {sdg.label}

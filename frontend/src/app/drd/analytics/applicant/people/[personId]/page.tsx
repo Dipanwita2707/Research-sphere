@@ -44,15 +44,19 @@ function isoDate(d: Date) {
 }
 
 function is403(err: unknown): boolean {
-  if (err && typeof err === 'object' && 'response' in err) {
-    return (err as { response?: { status?: number } }).response?.status === 403;
+  if (err && typeof err ===
+   'object' && 'response' in err) {
+    return (err as { response?: { status?: number } }).response?.status ===
+   403;
   }
   return false;
 }
 
 function is404(err: unknown): boolean {
-  if (err && typeof err === 'object' && 'response' in err) {
-    return (err as { response?: { status?: number } }).response?.status === 404;
+  if (err && typeof err ===
+   'object' && 'response' in err) {
+    return (err as { response?: { status?: number } }).response?.status ===
+   404;
   }
   return false;
 }
@@ -209,8 +213,10 @@ function SubmissionsDrawer({ personId, personName, category, fromDate, toDate, o
 
   const submissions = data?.submissions ?? [];
   const visible =
-    filter === 'approved' ? submissions.filter((s) => s.isApproved) :
-    filter === 'other'    ? submissions.filter((s) => !s.isApproved) :
+    filter ===
+   'approved' ? submissions.filter((s) => s.isApproved) :
+    filter ===
+   'other'    ? submissions.filter((s) => !s.isApproved) :
     submissions;
 
   return (
@@ -252,10 +258,13 @@ function SubmissionsDrawer({ personId, personName, category, fromDate, toDate, o
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filter === f ? 'bg-[#011f4b] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                filter ===
+   f ? 'bg-[#011f4b] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               }`}
             >
-              {f === 'all' ? 'All' : f === 'approved' ? 'Approved' : 'Pending / Others'}
+              {f ===
+   'all' ? 'All' : f ===
+   'approved' ? 'Approved' : 'Pending / Others'}
             </button>
           ))}
         </div>
@@ -266,7 +275,8 @@ function SubmissionsDrawer({ personId, personName, category, fromDate, toDate, o
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />
             </div>
-          ) : visible.length === 0 ? (
+          ) : visible.length ===
+   0 ? (
             <div className="flex flex-col items-center py-16 gap-3 text-gray-400">
               <FileText className="w-10 h-10" />
               <p className="text-sm">No submissions found for this filter.</p>
@@ -672,7 +682,8 @@ export default function ApplicantProfilePage() {
                           <button
                             key={key}
                             onClick={() => count > 0 && setActiveCategory(key)}
-                            disabled={count === 0}
+                            disabled={count ===
+   0}
                             className={`rounded-xl p-4 flex flex-col gap-2 border transition-all text-left
                               ${meta.bg} ${meta.border}
                               ${count > 0
@@ -724,7 +735,8 @@ export default function ApplicantProfilePage() {
                       subtitle="Work items that have reached accepted or published milestones in the tracker."
                       icon={<CheckCircle2 className="h-4 w-4" />}
                     >
-                      {trackerWorks.completedWorks.length === 0 ? (
+                      {trackerWorks.completedWorks.length ===
+   0 ? (
                         <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-400">No completed or published works found in this time window.</div>
                       ) : (
                         <div className="space-y-3">{trackerWorks.completedWorks.map((work) => <TrackerWorkCard key={work.id} work={work} />)}</div>
@@ -736,7 +748,8 @@ export default function ApplicantProfilePage() {
                       subtitle="Research work still moving through writing, communication, or submission stages."
                       icon={<Clock className="h-4 w-4" />}
                     >
-                      {trackerWorks.ongoingWorks.length === 0 ? (
+                      {trackerWorks.ongoingWorks.length ===
+   0 ? (
                         <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-400">No active ongoing works found in this time window.</div>
                       ) : (
                         <div className="space-y-3">{trackerWorks.ongoingWorks.map((work) => <TrackerWorkCard key={work.id} work={work} />)}</div>
@@ -760,7 +773,8 @@ export default function ApplicantProfilePage() {
                           <button
                             key={key}
                             onClick={() => count > 0 && setActiveCategory(key)}
-                            disabled={count === 0}
+                            disabled={count ===
+   0}
                             className={`w-full flex items-center gap-3 group ${count > 0 ? 'cursor-pointer' : 'cursor-default'}`}
                           >
                             <div className={`w-32 text-xs font-medium ${meta.color} shrink-0 text-left group-hover:underline`}>
@@ -772,10 +786,14 @@ export default function ApplicantProfilePage() {
                                 style={{
                                   width: `${Math.max(pct, count > 0 ? 2 : 0)}%`,
                                   backgroundColor:
-                                    key === 'research' ? '#3b82f6' :
-                                    key === 'book'     ? '#8b5cf6' :
-                                    key === 'conference' ? '#f59e0b' :
-                                    key === 'ipr'      ? '#ef4444' :
+                                    key ===
+   'research' ? '#3b82f6' :
+                                    key ===
+   'book'     ? '#8b5cf6' :
+                                    key ===
+   'conference' ? '#f59e0b' :
+                                    key ===
+   'ipr'      ? '#ef4444' :
                                                          '#10b981',
                                 }}
                               />

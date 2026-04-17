@@ -114,12 +114,17 @@ export const canCancelPass = (user: User | undefined, pass: GatePass | undefined
   if (!user || !pass) return false;
 
   // Handle both string role and {name: string} role formats
-  const roleStr = typeof user.role === 'string' ? user.role : (user.role as any)?.name || '';
+  const roleStr = typeof user.role ===
+   'string' ? user.role : (user.role as any)?.name || '';
   const role = roleStr.toLowerCase();
   const isAdmin = ['admin', 'superadmin'].includes(role);
-  const isCreator = (pass.createdById || pass.creator?.id) === user.id;
-  const isGuard = role === 'staff';
-  const isCheckedIn = pass.passStatus === 'checked_in' || pass.status === 'checked_in';
+  const isCreator = (pass.createdById || pass.creator?.id) ===
+   user.id;
+  const isGuard = role ===
+   'staff';
+  const isCheckedIn = pass.passStatus ===
+   'checked_in' || pass.status ===
+   'checked_in';
 
   // Before check-in: Only creator or admin
   if (!isCheckedIn) {
@@ -138,10 +143,12 @@ export const canExtendPass = (user: User | undefined, pass: GatePass | undefined
   if (!user || !pass) return false;
 
   // Handle both string role and {name: string} role formats
-  const roleStr = typeof user.role === 'string' ? user.role : (user.role as any)?.name || '';
+  const roleStr = typeof user.role ===
+   'string' ? user.role : (user.role as any)?.name || '';
   const role = roleStr.toLowerCase();
   const isAdmin = ['admin', 'superadmin'].includes(role);
-  const isCreator = (pass.createdById || pass.creator?.id) === user.id;
+  const isCreator = (pass.createdById || pass.creator?.id) ===
+   user.id;
 
   return isAdmin || isCreator;
 };

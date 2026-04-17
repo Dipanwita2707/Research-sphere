@@ -13,10 +13,9 @@ const { protect } = require('../../../shared/middleware/auth');
 // All routes require authentication
 router.use(protect);
 
-// ============================================
+// =====================================
 // Registration Form Routes
-// ============================================
-
+// =====================================
 // Get user's profile data for auto-fill
 router.get('/profile-data', registrationController.getProfileData);
 
@@ -29,10 +28,9 @@ router.get('/:id/registration-form', registrationController.getRegistrationForm)
 // Submit registration form
 router.post('/:id/register-with-form', registrationController.submitRegistrationForm);
 
-// ============================================
+// =====================================
 // Team Management Routes
-// ============================================
-
+// =====================================
 // Get user's pending invitations
 router.get('/my-invitations', teamController.getMyInvitations);
 
@@ -66,10 +64,9 @@ router.delete('/teams/:teamId/members/:memberId', teamController.removeMemberFro
 // Cancel team
 router.delete('/teams/:teamId', teamController.cancelTeam);
 
-// ============================================
+// =====================================
 // Event-specific Team Routes
-// ============================================
-
+// =====================================
 // Create a team for an event
 router.post('/:id/teams', teamController.createTeam);
 

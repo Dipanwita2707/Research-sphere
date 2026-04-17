@@ -8,10 +8,9 @@ const ticketService = require('../services/ticket.service');
 const escalationService = require('../services/escalation.service');
 const { SUCCESS_MESSAGES } = require('../constants/tms.constants');
 
-// ============================================
+// =====================================
 // STUDENT ENDPOINTS
-// ============================================
-
+// =====================================
 /**
  * POST /tms/tickets
  * Student submits a new ticket (grievance/assistance/enquiry/feedback)
@@ -89,10 +88,9 @@ const rateTicket = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, result, SUCCESS_MESSAGES.TICKET_RATED);
 });
 
-// ============================================
+// =====================================
 // EMPLOYEE ENDPOINTS
-// ============================================
-
+// =====================================
 /**
  * GET /tms/tickets/assigned
  * Employee views tickets assigned to them

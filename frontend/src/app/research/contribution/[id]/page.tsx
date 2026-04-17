@@ -130,7 +130,8 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
   if (!filePath) return null;
   
   // If it's already an object with s3Key
-  if (typeof filePath === 'object' && filePath !== null && 's3Key' in filePath) {
+  if (typeof filePath ===
+   'object' && filePath !== null && 's3Key' in filePath) {
     const obj = filePath as ManuscriptFileInfo;
     return {
       s3Key: obj.s3Key,
@@ -141,10 +142,12 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
   }
   
   // If it's a string, try to parse as JSON first
-  if (typeof filePath === 'string') {
+  if (typeof filePath ===
+   'string') {
     try {
       const parsed = JSON.parse(filePath);
-      if (parsed && typeof parsed === 'object' && 's3Key' in parsed) {
+      if (parsed && typeof parsed ===
+   'object' && 's3Key' in parsed) {
         return {
           s3Key: parsed.s3Key,
           name: parsed.name || parsed.s3Key.split('/').pop() || 'document',
@@ -281,7 +284,7 @@ export default function ContributionDetailPage() {
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-500">Loading contribution details...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading contribution details...</p>
         </div>
       </div>
     );
@@ -291,11 +294,11 @@ export default function ContributionDetailPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-10 h-10 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Contribution Not Found</h2>
-          <p className="text-gray-500 mb-4">The research contribution you're looking for doesn't exist or has been removed.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Contribution Not Found</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">The research contribution you're looking for doesn't exist or has been removed.</p>
           <Link 
             href="/research/my-contributions" 
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -312,55 +315,68 @@ export default function ContributionDetailPage() {
   const StatusIcon = statusConfig.icon;
   const pubTypeConfig = PUBLICATION_TYPE_CONFIG[contribution.publicationType];
   const PubTypeIcon = pubTypeConfig?.icon || FileText;
-  const isOwner = contribution.applicantUserId === user?.id;
+  const isOwner = contribution.applicantUserId ===
+   user?.id;
   const canEdit = isOwner && ['draft', 'changes_required'].includes(contribution.status);
-  const pendingSuggestions = editSuggestions.filter(s => s.status === 'pending');
+  const pendingSuggestions = editSuggestions.filter(s => s.status ===
+   'pending');
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center text-sm text-gray-500 mb-6">
-        <Link href="/research" className="hover:text-gray-700">Research</Link>
-        <ChevronRight className="w-4 h-4 mx-2" />
-        <Link href="/research/my-contributions" className="hover:text-gray-700">My Contributions</Link>
-        <ChevronRight className="w-4 h-4 mx-2" />
-        <span className="text-gray-900 font-medium truncate max-w-[200px]">{contribution.title}</span>
+      <nav className="mb-5 flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <Link href="/research" className="rounded-full px-2.5 py-1 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">Research</Link>
+        <ChevronRight className="h-4 w-4" />
+        <Link href="/research/my-contributions" className="rounded-full px-2.5 py-1 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">My Contributions</Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="max-w-[320px] truncate rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-900 dark:bg-gray-800 dark:text-white">{contribution.title}</span>
       </nav>
 
       {/* Hero Section */}
-      <div className={`bg-gradient-to-r ${pubTypeConfig?.gradientFrom || 'from-blue-500'} ${pubTypeConfig?.gradientTo || 'to-blue-600'} rounded-2xl p-6 mb-6 text-white`}>
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-                <PubTypeIcon className="w-6 h-6" />
+      <div className={`relative mb-6 overflow-hidden rounded-[28px] bg-gradient-to-br ${pubTypeConfig?.gradientFrom || 'from-blue-500'} ${pubTypeConfig?.gradientTo || 'to-blue-600'} p-6 text-white shadow-[0_22px_60px_-28px_rgba(37,99,235,0.55)] sm:p-7`}>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.14),transparent_28%)]" />
+        <div className="relative flex flex-wrap items-start justify-between gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/15 backdrop-blur-md">
+                <PubTypeIcon className="h-7 w-7" />
               </div>
               <div>
-                <span className="text-white/80 text-sm">{pubTypeConfig?.label || 'Research Contribution'}</span>
-                <div className="flex items-center space-x-2">
-                  <span className="font-mono text-white/90">{contribution.applicationNumber || 'Draft'}</span>
+                <span className="text-sm font-medium text-white/75">{pubTypeConfig?.label || 'Research Contribution'}</span>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 font-mono text-sm text-white/90 backdrop-blur-sm">
+                    {contribution.applicationNumber || 'Draft'}
+                  </span>
                 </div>
               </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">{contribution.title}</h1>
+            <h1 className="mb-3 max-w-4xl text-2xl font-bold tracking-tight md:text-3xl xl:text-[2.15rem]">{contribution.title}</h1>
             {contribution.journalName && (
-              <p className="text-white/80 flex items-center">
-                <BookMarked className="w-4 h-4 mr-2" />
+              <p className="flex items-center text-sm text-white/80">
+                <BookMarked className="mr-2 h-4 w-4" />
                 {contribution.journalName}
               </p>
             )}
+            <div className="mt-5 flex flex-wrap gap-2.5 text-sm">
+              <MetaPill icon={StatusIcon} label={statusConfig.label} />
+              <MetaPill icon={Users} label={`${contribution.totalAuthors || contribution.authors?.length || 1} authors`} />
+              <MetaPill icon={Calendar} label={`Created ${new Date(contribution.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`} />
+              {contribution.school?.name && <MetaPill icon={School} label={contribution.school.name} />}
+            </div>
           </div>
-          <div className="flex flex-col items-end space-y-3">
-            <div className={`px-4 py-2 rounded-full font-medium flex items-center bg-white/20 backdrop-blur`}>
-              <StatusIcon className="w-4 h-4 mr-2" />
-              {statusConfig.label}
+          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-md sm:w-auto">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <HeroFact label="My Incentive" value={`₹${Number(contribution.authors?.find((a: any) => a.userId === user?.id)?.incentiveShare || 0).toLocaleString('en-IN')}`} />
+              <HeroFact label="My Points" value={`${contribution.authors?.find((a: any) => a.userId === user?.id)?.pointsShare || 0} pts`} />
+              <HeroFact label="Publication" value={pubTypeConfig?.label || 'Research'} />
+              <HeroFact label="Stage" value={statusConfig.label} />
             </div>
             {canEdit && (
               <Link
                 href={`/research/apply?type=${contribution.publicationType}&edit=${id}`}
-                className="px-4 py-2 bg-white/20 backdrop-blur rounded-lg hover:bg-white/30 flex items-center transition-colors"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/15 px-4 py-3 font-medium text-white transition-colors hover:bg-white/25"
               >
-                <Edit className="w-4 h-4 mr-2" />
+                <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Link>
             )}
@@ -369,7 +385,8 @@ export default function ContributionDetailPage() {
       </div>
 
       {/* Changes Required Alert */}
-      {contribution.status === 'changes_required' && pendingSuggestions.length > 0 && (
+      {contribution.status ===
+   'changes_required' && pendingSuggestions.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
           <div className="flex items-start space-x-3">
             <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -393,16 +410,18 @@ export default function ContributionDetailPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Incentive Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">My Incentive</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700/80 dark:bg-gray-800">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-green-500 to-emerald-400" />
+          <div className="mb-2 flex items-center justify-between pt-1">
+            <span className="text-sm text-gray-500 dark:text-gray-400">My Incentive</span>
             <Coins className="w-5 h-5 text-green-500" />
           </div>
           {(() => {
             // Find current user's author record
-            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId === user?.id);
+            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId ===
+   user?.id);
             const myIncentive = currentUserAuthor?.incentiveShare || 0;
             const isApprovedOrCompleted = ['approved', 'completed'].includes(contribution.status);
             
@@ -422,24 +441,26 @@ export default function ContributionDetailPage() {
               return (
                 <div>
                   <p className="text-2xl font-bold text-gray-400">-</p>
-                  <p className="text-xs text-gray-500 mt-1">Pending calculation</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pending calculation</p>
                 </div>
               );
             } else {
-              return <p className="text-2xl font-bold text-gray-400">-</p>;
+              return <p className="text-2xl font-bold text-gray-400 dark:text-gray-500">-</p>;
             }
           })()}
         </div>
 
         {/* Points Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">My Points</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700/80 dark:bg-gray-800">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 to-fuchsia-400" />
+          <div className="mb-2 flex items-center justify-between pt-1">
+            <span className="text-sm text-gray-500 dark:text-gray-400">My Points</span>
             <Award className="w-5 h-5 text-purple-500" />
           </div>
           {(() => {
             // Find current user's author record
-            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId === user?.id);
+            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId ===
+   user?.id);
             const myPoints = currentUserAuthor?.pointsShare || 0;
             const isApprovedOrCompleted = ['approved', 'completed'].includes(contribution.status);
             
@@ -449,7 +470,7 @@ export default function ContributionDetailPage() {
                   <p className={`text-2xl font-bold ${isApprovedOrCompleted ? 'text-purple-600' : 'text-indigo-600'}`}>
                     {myPoints}
                   </p>
-                  <p className={`text-xs mt-1 ${isApprovedOrCompleted ? 'text-purple-600' : 'text-gray-500'}`}>
+                  <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
                     {isApprovedOrCompleted ? '✓ Credited' : 'Estimated'}
                   </p>
                 </div>
@@ -458,44 +479,46 @@ export default function ContributionDetailPage() {
               // Fallback: If no author share calculated yet, show pending
               return (
                 <div>
-                  <p className="text-2xl font-bold text-gray-400">-</p>
-                  <p className="text-xs text-gray-500 mt-1">Pending calculation</p>
+                  <p className="text-2xl font-bold text-gray-400 dark:text-gray-500">-</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pending calculation</p>
                 </div>
               );
             } else {
-              return <p className="text-2xl font-bold text-gray-400">-</p>;
+              return <p className="text-2xl font-bold text-gray-400 dark:text-gray-500">-</p>;
             }
           })()}
         </div>
 
         {/* Authors Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">Authors</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700/80 dark:bg-gray-800">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
+          <div className="mb-2 flex items-center justify-between pt-1">
+            <span className="text-sm text-gray-500 dark:text-gray-400">Authors</span>
             <Users className="w-5 h-5 text-blue-500" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">{contribution.totalAuthors || contribution.authors?.length || 1}</p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{contribution.totalAuthors || contribution.authors?.length || 1}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {contribution.sgtAffiliatedAuthors || contribution.totalInternalAuthors || 1} from SGT
           </p>
         </div>
 
         {/* Indexing Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">Indexing Categories</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-700/80 dark:bg-gray-800">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 to-amber-400" />
+          <div className="mb-2 flex items-center justify-between pt-1">
+            <span className="text-sm text-gray-500 dark:text-gray-400">Indexing Categories</span>
             <Target className="w-5 h-5 text-orange-500" />
           </div>
           {(contribution as any).indexingCategories && (contribution as any).indexingCategories.length > 0 ? (
             <div className="space-y-1">
               {(contribution as any).indexingCategories.map((cat: string) => (
-                <div key={cat} className="text-sm font-medium text-gray-700">
+                <div key={cat} className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   • {INDEXING_CATEGORY_LABELS[cat] || cat}
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Not specified</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">Not specified</p>
           )}
           {contribution.quartile && QUARTILE_LABELS[contribution.quartile] && (
             <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium ${QUARTILE_LABELS[contribution.quartile].color}`}>
@@ -506,18 +529,20 @@ export default function ContributionDetailPage() {
       </div>
 
       {/* Warning for Missing Indexing Categories */}
-      {contribution.publicationType === 'research_paper' && 
-       (!(contribution as any).indexingCategories || (contribution as any).indexingCategories.length === 0) && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+      {contribution.publicationType ===
+   'research_paper' && 
+       (!(contribution as any).indexingCategories || (contribution as any).indexingCategories.length ===
+   0) && (
+        <div className="mb-6 border-l-4 border-red-500 bg-red-50 p-4 dark:bg-red-900/20">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-red-800 mb-1">No Indexing Categories Selected</h3>
-              <p className="text-sm text-red-700 mb-2">
+              <h3 className="mb-1 text-sm font-semibold text-red-800 dark:text-red-300">No Indexing Categories Selected</h3>
+              <p className="mb-2 text-sm text-red-700 dark:text-red-300">
                 This research contribution has no indexing categories selected, which is why the incentive shows ₹0. 
                 Indexing categories are required to calculate incentives based on the research impact.
               </p>
-              <p className="text-xs text-red-600">
+              <p className="text-xs text-red-600 dark:text-red-400">
                 <strong>Action Required:</strong> Please edit this contribution and select at least one indexing category 
                 (e.g., SCOPUS, PubMed, NAAS, etc.) from the available 11 categories to enable incentive calculation.
               </p>
@@ -527,21 +552,22 @@ export default function ContributionDetailPage() {
       )}
 
       {/* Incentive Calculation Breakdown - Only for Research Papers */}
-      {contribution.publicationType === 'research_paper' && 
+      {contribution.publicationType ===
+   'research_paper' && 
        (contribution as any).indexingCategories && 
        (contribution as any).indexingCategories.length > 0 && (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-gray-800 dark:to-slate-800">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
             <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
             Incentive Calculation Details
           </h3>
           <div className="space-y-4">
             {/* Base Categories */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Selected Indexing Categories:</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selected Indexing Categories:</h4>
               <div className="flex flex-wrap gap-2">
                 {(contribution as any).indexingCategories.map((cat: string) => (
-                  <span key={cat} className="px-3 py-1.5 bg-white border border-blue-200 text-blue-800 rounded-lg text-sm font-medium shadow-sm">
+                  <span key={cat} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-800 shadow-sm dark:border-blue-800 dark:bg-gray-800 dark:text-blue-300">
                     {INDEXING_CATEGORY_LABELS[cat] || cat}
                   </span>
                 ))}
@@ -551,44 +577,44 @@ export default function ContributionDetailPage() {
             {/* Category-Specific Details */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {contribution.quartile && (
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <span className="text-xs text-gray-500">Quartile</span>
-                  <p className="font-semibold text-gray-900">{QUARTILE_LABELS[contribution.quartile]?.label}</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Quartile</span>
+                  <p className="font-semibold text-gray-900 dark:text-white">{QUARTILE_LABELS[contribution.quartile]?.label}</p>
                 </div>
               )}
               {contribution.impactFactor && (
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <span className="text-xs text-gray-500">Impact Factor</span>
-                  <p className="font-semibold text-gray-900">{contribution.impactFactor}</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Impact Factor</span>
+                  <p className="font-semibold text-gray-900 dark:text-white">{contribution.impactFactor}</p>
                 </div>
               )}
               {contribution.sjr && (
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <span className="text-xs text-gray-500">SJR</span>
-                  <p className="font-semibold text-gray-900">{contribution.sjr}</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">SJR</span>
+                  <p className="font-semibold text-gray-900 dark:text-white">{contribution.sjr}</p>
                 </div>
               )}
               {(contribution as any).naasRating && (
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <span className="text-xs text-gray-500">NAAS Rating</span>
-                  <p className="font-semibold text-gray-900">{(contribution as any).naasRating}</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">NAAS Rating</span>
+                  <p className="font-semibold text-gray-900 dark:text-white">{(contribution as any).naasRating}</p>
                 </div>
               )}
               {(contribution as any).subsidiaryImpactFactor && (
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <span className="text-xs text-gray-500">Subsidiary IF</span>
-                  <p className="font-semibold text-gray-900">{(contribution as any).subsidiaryImpactFactor}</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Subsidiary IF</span>
+                  <p className="font-semibold text-gray-900 dark:text-white">{(contribution as any).subsidiaryImpactFactor}</p>
                 </div>
               )}
             </div>
 
             {/* Distribution Method */}
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900 mb-1">Distribution Method: Role-Based</p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Distribution Method: Role-Based</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     Incentives are distributed based on author roles (First Author, Corresponding Author, Co-Author). 
                     First and corresponding authors receive higher percentages. Internal faculty/employees receive both 
                     incentives and points, while students receive only incentives.
@@ -599,16 +625,16 @@ export default function ContributionDetailPage() {
 
             {/* Total Pool */}
             {(contribution.calculatedIncentiveAmount || contribution.calculatedPoints) && (
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-sm text-gray-500">Total Pool (Incentive)</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Total Pool (Incentive)</span>
                     <p className="text-xl font-bold text-green-600">
                       ₹{Number(contribution.calculatedIncentiveAmount || 0).toLocaleString()}
                     </p>
                   </div>
                   <div>
-                    <span className="text-sm text-gray-500">Total Pool (Points)</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Total Pool (Points)</span>
                     <p className="text-xl font-bold text-purple-600">
                       {contribution.calculatedPoints || 0} pts
                     </p>
@@ -621,9 +647,9 @@ export default function ContributionDetailPage() {
       )}
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200">
-          <nav className="flex -mb-px overflow-x-auto">
+      <div className="overflow-hidden rounded-[28px] border border-gray-200/80 bg-white/95 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.35)] backdrop-blur dark:border-gray-700/80 dark:bg-gray-800/95">
+        <div className="border-b border-gray-200/80 bg-gray-50/80 px-2 py-2 dark:border-gray-700 dark:bg-gray-900/30">
+          <nav className="flex gap-2 overflow-x-auto">
             {[
               { key: 'details', label: 'Details', icon: FileText },
               { key: 'authors', label: 'Authors', icon: Users, count: contribution.authors?.length },
@@ -633,17 +659,19 @@ export default function ContributionDetailPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`inline-flex items-center rounded-2xl px-4 py-3 text-sm font-medium transition-all whitespace-nowrap ${
+                  activeTab ===
+   tab.key
+                    ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-800 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-white/80 hover:text-gray-700 dark:hover:bg-gray-800/70 dark:hover:text-gray-200'
                 }`}
               >
                 <tab.icon className="w-4 h-4 mr-2" />
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                    activeTab === tab.key ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                    activeTab ===
+   tab.key ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}>
                     {tab.count}
                   </span>
@@ -653,13 +681,14 @@ export default function ContributionDetailPage() {
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="bg-gradient-to-b from-white to-gray-50/60 p-6 dark:from-gray-800 dark:to-gray-800/80">
           {/* Details Tab */}
-          {activeTab === 'details' && (
+          {activeTab ===
+   'details' && (
             <div className="space-y-6">
               {/* Applicant Information */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                   <User className="w-5 h-5 mr-2 text-indigo-500" />
                   Applicant Information
                 </h3>
@@ -684,23 +713,26 @@ export default function ContributionDetailPage() {
               
               {/* Research/Book Details Grid */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
                   <FileText className="w-5 h-5 mr-2 text-blue-500" />
-                  {contribution.publicationType === 'book' ? 'Book Information' :
-                   contribution.publicationType === 'book_chapter' ? 'Book Chapter Information' :
+                  {contribution.publicationType ===
+   'book' ? 'Book Information' :
+                   contribution.publicationType ===
+   'book_chapter' ? 'Book Chapter Information' :
                    'Research Information'}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <DetailItem label="Publication Type" value={pubTypeConfig?.label} />
                   {/* Research Paper Specific Fields */}
-                  {contribution.publicationType === 'research_paper' && (
+                  {contribution.publicationType ===
+   'research_paper' && (
                     <>
                       {(contribution as any).indexingCategories && (contribution as any).indexingCategories.length > 0 && (
                         <div className="col-span-full">
-                          <div className="text-sm text-gray-600 mb-2">Indexing Categories</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Indexing Categories</div>
                           <div className="flex flex-wrap gap-2">
                             {(contribution as any).indexingCategories.map((cat: string) => (
-                              <span key={cat} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                              <span key={cat} className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                                 {INDEXING_CATEGORY_LABELS[cat] || cat}
                               </span>
                             ))}
@@ -761,13 +793,17 @@ export default function ContributionDetailPage() {
                   )}
                   
                   {/* Book/Book Chapter Fields */}
-                  {(contribution.publicationType === 'book' || contribution.publicationType === 'book_chapter') && (
+                  {(contribution.publicationType ===
+   'book' || contribution.publicationType ===
+   'book_chapter') && (
                     <>
                       {(contribution as any).bookIndexingType && (
                         <DetailItem label="Publication Type" value={(contribution as any).bookIndexingType?.replace(/_/g, ' ')?.replace(/\b\w/g, (l: string) => l.toUpperCase())} />
                       )}
-                      {(contribution as any).bookPublicationType && contribution.publicationType === 'book' && (
-                        <DetailItem label="Book Type" value={(contribution as any).bookPublicationType === 'authored' ? 'Authored' : 'Edited'} />
+                      {(contribution as any).bookPublicationType && contribution.publicationType ===
+   'book' && (
+                        <DetailItem label="Book Type" value={(contribution as any).bookPublicationType ===
+   'authored' ? 'Authored' : 'Edited'} />
                       )}
                       {(contribution as any).communicatedWithOfficialId !== undefined && (
                         <DetailItem label="Communicated with Official ID" value={(contribution as any).communicatedWithOfficialId ? 'Yes' : 'No'} />
@@ -775,7 +811,8 @@ export default function ContributionDetailPage() {
                       {(contribution as any).personalEmail && (
                         <DetailItem label="Personal Email" value={(contribution as any).personalEmail} />
                       )}
-                      {contribution.publicationType === 'book_chapter' && (
+                      {contribution.publicationType ===
+   'book_chapter' && (
                         <>
                           {(contribution as any).bookTitle && (
                             <DetailItem label="Book Title" value={(contribution as any).bookTitle} />
@@ -810,7 +847,8 @@ export default function ContributionDetailPage() {
                         <DetailItem label="SGT Authors" value={(contribution as any).sgtAffiliatedAuthors?.toString()} />
                       )}
                       {(contribution as any).bookLetter && (
-                        <DetailItem label="Our Authorized Publications" value={(contribution as any).bookLetter === 'yes' ? 'Yes' : 'No'} />
+                        <DetailItem label="Our Authorized Publications" value={(contribution as any).bookLetter ===
+   'yes' ? 'Yes' : 'No'} />
                       )}
                     </>
                   )}
@@ -820,13 +858,13 @@ export default function ContributionDetailPage() {
               {/* SDG Goals */}
               {(contribution as any).sdg_goals && (contribution as any).sdg_goals.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                     <Target className="w-5 h-5 mr-2 text-green-500" />
                     UN Sustainable Development Goals (SDGs)
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {(contribution as any).sdg_goals.map((sdg: string) => (
-                      <span key={sdg} className="px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                      <span key={sdg} className="rounded-full border border-green-200 bg-green-100 px-3 py-1.5 text-sm font-medium text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300">
                         SDG {sdg}
                       </span>
                     ))}
@@ -837,20 +875,21 @@ export default function ContributionDetailPage() {
               {/* Faculty Remarks */}
               {(contribution as any).facultyRemarks && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                     <MessageSquare className="w-5 h-5 mr-2 text-gray-500" />
                     Faculty Remarks
                   </h3>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-700">{(contribution as any).facultyRemarks}</p>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <p className="text-gray-700 dark:text-gray-300">{(contribution as any).facultyRemarks}</p>
                   </div>
                 </div>
               )}
 
               {/* Conference Specific Details */}
-              {contribution.publicationType === 'conference_paper' && (
+              {contribution.publicationType ===
+   'conference_paper' && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
                   <Presentation className="w-5 h-5 mr-2 text-purple-500" />
                   Conference Information
                 </h3>
@@ -933,7 +972,7 @@ export default function ContributionDetailPage() {
 
               {/* Research Characteristics */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
                   <Info className="w-5 h-5 mr-2 text-green-500" />
                   Research Characteristics
                 </h3>
@@ -960,29 +999,29 @@ export default function ContributionDetailPage() {
               {/* School & Department */}
               {(contribution.school || contribution.department) && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                     <Building className="w-5 h-5 mr-2 text-purple-500" />
                     Affiliation
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {contribution.school && (
-                      <div className="p-4 bg-gray-50 rounded-lg">
+                      <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <School className="w-5 h-5 text-gray-400" />
                           <div>
-                            <p className="text-sm text-gray-500">School/Faculty</p>
-                            <p className="font-medium text-gray-900">{contribution.school.name || contribution.school.facultyName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">School/Faculty</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{contribution.school.name || contribution.school.facultyName}</p>
                           </div>
                         </div>
                       </div>
                     )}
                     {contribution.department && (
-                      <div className="p-4 bg-gray-50 rounded-lg">
+                      <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <Building className="w-5 h-5 text-gray-400" />
                           <div>
-                            <p className="text-sm text-gray-500">Department</p>
-                            <p className="font-medium text-gray-900">{contribution.department.name || contribution.department.departmentName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Department</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{contribution.department.name || contribution.department.departmentName}</p>
                           </div>
                         </div>
                       </div>
@@ -993,8 +1032,8 @@ export default function ContributionDetailPage() {
 
               {/* Timestamps */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Calendar className="w-5 h-5 mr-2 text-gray-500" />
+                <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
+                  <Calendar className="mr-2 h-5 w-5 text-gray-500 dark:text-gray-400" />
                   Timeline
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1013,7 +1052,7 @@ export default function ContributionDetailPage() {
 
               {/* Documents */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
                   <FileText className="w-5 h-5 mr-2 text-blue-500" />
                   Submitted Documents
                 </h3>
@@ -1022,17 +1061,17 @@ export default function ContributionDetailPage() {
                     {contribution.manuscriptFilePath && (() => {
                       const manuscriptInfo = parseManuscriptFilePath(contribution.manuscriptFilePath);
                       return manuscriptInfo ? (
-                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
                                 <FileText className="w-5 h-5 text-blue-600" />
                               </div>
                               <div>
-                                <p className="font-medium text-gray-900">
+                                <p className="font-medium text-gray-900 dark:text-white">
                                   Research Document
                                 </p>
-                                <p className="text-sm text-gray-500">{manuscriptInfo.name}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{manuscriptInfo.name}</p>
                               </div>
                             </div>
                             <a
@@ -1051,18 +1090,18 @@ export default function ContributionDetailPage() {
                     
                     {(contribution.supportingDocsFilePaths as any)?.files?.length > 0 && (
                       <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">Supporting Documents</p>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Supporting Documents</p>
                         <div className="space-y-2">
                           {((contribution.supportingDocsFilePaths as any).files as Array<{name: string, path: string, s3Key?: string, size: number}>).map((doc: any, index: number) => (
-                            <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
-                                  <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                                    <FileText className="w-4 h-4 text-gray-600" />
+                                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded flex items-center justify-center">
+                                    <FileText className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                                   </div>
                                   <div>
-                                    <p className="font-medium text-gray-900 text-sm">{doc.name}</p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="font-medium text-gray-900 dark:text-white text-sm">{doc.name}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
                                       {doc.size ? `${(doc.size / 1024).toFixed(2)} KB` : 'Unknown size'}
                                     </p>
                                   </div>
@@ -1084,9 +1123,9 @@ export default function ContributionDetailPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="p-8 bg-gray-50 rounded-lg border border-gray-200 text-center">
-                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500">No documents uploaded yet</p>
+                  <div className="p-8 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
+                    <FileText className="w-12 h-12 text-gray-300 dark:text-gray-500 mx-auto mb-2" />
+                    <p className="text-gray-500 dark:text-gray-400">No documents uploaded yet</p>
                   </div>
                 )}
               </div>
@@ -1094,10 +1133,11 @@ export default function ContributionDetailPage() {
           )}
 
           {/* Authors Tab */}
-          {activeTab === 'authors' && (
+          {activeTab ===
+   'authors' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Authors ({contribution.authors?.length || 0})
                 </h3>
                 
@@ -1105,20 +1145,20 @@ export default function ContributionDetailPage() {
                 {contribution.authors && contribution.authors.length > 0 && (
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-xs text-gray-500">Total Incentive</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Total Incentive</p>
                       <p className="text-lg font-bold text-green-600">
                         ₹{contribution.authors.reduce((sum: number, a: any) => sum + (Number(a.incentiveShare) || 0), 0).toLocaleString('en-IN')}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-gray-500">Total Points</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Total Points</p>
                       <p className="text-lg font-bold text-purple-600">
                         {contribution.authors.reduce((sum: number, a: any) => sum + (Number(a.pointsShare) || 0), 0)} pts
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-gray-500">Expected Total</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Expected Total</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         ₹{Number(contribution.calculatedIncentiveAmount || 0).toLocaleString('en-IN')} / {contribution.calculatedPoints || 0} pts
                       </p>
                     </div>
@@ -1127,10 +1167,10 @@ export default function ContributionDetailPage() {
               </div>
               
               {/* Incentive Distribution Rules Banner */}
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
                 <div className="flex items-start gap-3">
                   <Info className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-amber-800">
+                  <div className="text-sm text-amber-800 dark:text-amber-200">
                     <p className="font-semibold mb-1">Incentive Distribution Rules:</p>
                     <ul className="list-disc list-inside space-y-0.5">
                       <li><strong>Single Author:</strong> Gets 100% (automatically treated as First & Corresponding Author)</li>
@@ -1152,31 +1192,36 @@ export default function ContributionDetailPage() {
                     <div 
                       key={author.id || index}
                       className={`p-4 rounded-xl border ${
-                        author.authorType === 'first_author' || author.authorType === 'first_and_corresponding_author'
+                        author.authorType ===
+   'first_author' || author.authorType ===
+   'first_and_corresponding_author'
                           ? 'bg-blue-50 border-blue-200'
                           : author.isCorresponding
                           ? 'bg-purple-50 border-purple-200'
-                          : 'bg-gray-50 border-gray-200'
+                          : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                       }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-4">
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
-                            author.isInternal || author.userId ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
+                            author.isInternal || author.userId ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                           }`}>
                             {author.name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                           <div>
                             <div className="flex items-center flex-wrap gap-2">
-                              <h4 className="font-semibold text-gray-900">{author.name}</h4>
+                              <h4 className="font-semibold text-gray-900 dark:text-white">{author.name}</h4>
                               {/* Author Role Badge - Show combined role properly */}
                               {author.authorRole && AUTHOR_ROLE_LABELS[author.authorRole] && (
                                 <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                                  author.authorRole === 'first_and_corresponding_author' 
+                                  author.authorRole ===
+   'first_and_corresponding_author' 
                                     ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                    : author.authorRole === 'first_author'
+                                    : author.authorRole ===
+   'first_author'
                                     ? 'bg-blue-100 text-blue-700'
-                                    : author.authorRole === 'corresponding_author'
+                                    : author.authorRole ===
+   'corresponding_author'
                                     ? 'bg-purple-100 text-purple-700'
                                     : 'bg-gray-100 text-gray-700'
                                 }`}>
@@ -1184,7 +1229,8 @@ export default function ContributionDetailPage() {
                                 </span>
                               )}
                               {/* Fallback to old fields for backward compatibility - Check if single author */}
-                              {!author.authorRole && contribution.authors && contribution.authors.length === 1 && (
+                              {!author.authorRole && contribution.authors && contribution.authors.length ===
+   1 && (
                                 <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 border border-indigo-300 text-xs rounded-full font-medium">
                                   First & Corresponding Author
                                 </span>
@@ -1192,7 +1238,8 @@ export default function ContributionDetailPage() {
                               {/* Show separate badges for legacy data with multiple authors */}
                               {!author.authorRole && contribution.authors && contribution.authors.length > 1 && (
                                 <>
-                                  {author.orderNumber === 1 && (
+                                  {author.orderNumber ===
+   1 && (
                                     <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
                                       First Author
                                     </span>
@@ -1204,17 +1251,20 @@ export default function ContributionDetailPage() {
                                   )}
                                 </>
                               )}
-                              {author.userId === user?.id && (
+                              {author.userId ===
+   user?.id && (
                                 <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
                                   You
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 mt-0.5">
-                              {author.authorCategory === 'faculty' ? 'Faculty' : author.authorCategory === 'student' ? 'Student' : 'External'}
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                              {author.authorCategory ===
+   'faculty' ? 'Faculty' : author.authorCategory ===
+   'student' ? 'Student' : 'External'}
                               {author.affiliation && ` • ${author.affiliation}`}
                             </p>
-                            <div className="flex items-center flex-wrap gap-4 mt-2 text-sm text-gray-500">
+                            <div className="flex items-center flex-wrap gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
                               {author.email && (
                                 <span className="flex items-center">
                                   <Mail className="w-3.5 h-3.5 mr-1" />
@@ -1237,7 +1287,7 @@ export default function ContributionDetailPage() {
                               <div>
                                 <p className="text-green-600 font-semibold">₹{Number(author.incentiveShare).toLocaleString('en-IN')}</p>
                                 {author.incentivePercentage && (
-                                  <p className="text-xs text-gray-500">{author.incentivePercentage}%</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{author.incentivePercentage}%</p>
                                 )}
                               </div>
                             ) : (
@@ -1249,7 +1299,7 @@ export default function ContributionDetailPage() {
                               <div>
                                 <p className="text-purple-600 text-sm font-medium">{author.pointsShare} pts</p>
                                 {author.pointsPercentage && (
-                                  <p className="text-xs text-gray-500">{author.pointsPercentage}%</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{author.pointsPercentage}%</p>
                                 )}
                               </div>
                             ) : author.authorCategory !== 'student' && (author.isInternal || author.userId) ? (
@@ -1263,7 +1313,7 @@ export default function ContributionDetailPage() {
                               Internal
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full mt-2">
+                            <span className="inline-flex items-center px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full mt-2">
                               External
                             </span>
                           )}
@@ -1273,8 +1323,8 @@ export default function ContributionDetailPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                   <p>No authors found</p>
                 </div>
               )}
@@ -1282,10 +1332,11 @@ export default function ContributionDetailPage() {
           )}
 
           {/* Edit Suggestions Tab */}
-          {activeTab === 'suggestions' && (
+          {activeTab ===
+   'suggestions' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Edit Suggestions
                 </h3>
                 {pendingSuggestions.length > 0 && (
@@ -1301,9 +1352,11 @@ export default function ContributionDetailPage() {
                     <div 
                       key={suggestion.id}
                       className={`p-4 rounded-xl border ${
-                        suggestion.status === 'pending' 
+                        suggestion.status ===
+   'pending' 
                           ? 'bg-yellow-50 border-yellow-200' 
-                          : suggestion.status === 'accepted'
+                          : suggestion.status ===
+   'accepted'
                           ? 'bg-green-50 border-green-200'
                           : 'bg-gray-50 border-gray-200'
                       }`}
@@ -1311,51 +1364,56 @@ export default function ContributionDetailPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="font-medium text-gray-900 capitalize">
+                            <span className="font-medium text-gray-900 dark:text-white capitalize">
                               {suggestion.fieldName.replace(/([A-Z])/g, ' $1').trim()}
                             </span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              suggestion.status === 'pending' 
+                              suggestion.status ===
+   'pending' 
                                 ? 'bg-yellow-100 text-yellow-700'
-                                : suggestion.status === 'accepted'
+                                : suggestion.status ===
+   'accepted'
                                 ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-600'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                             }`}>
                               {suggestion.status}
                             </span>
                           </div>
                           <div className="space-y-2">
                             <div className="flex items-start space-x-2">
-                              <span className="text-sm text-gray-500 w-20 flex-shrink-0">Current:</span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">Current:</span>
                               <span className="text-sm text-red-600 line-through bg-red-50 px-2 py-1 rounded">
                                 {suggestion.originalValue || '(empty)'}
                               </span>
                             </div>
                             <div className="flex items-start space-x-2">
-                              <span className="text-sm text-gray-500 w-20 flex-shrink-0">Suggested:</span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">Suggested:</span>
                               <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
                                 {suggestion.suggestedValue || '(empty)'}
                               </span>
                             </div>
                           </div>
                           {suggestion.suggestionNote && (
-                            <div className="mt-3 p-3 bg-white rounded-lg border">
-                              <p className="text-sm text-gray-600">
+                            <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600">
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
                                 <MessageSquare className="w-4 h-4 inline mr-1 text-gray-400" />
                                 {suggestion.suggestionNote}
                               </p>
                             </div>
                           )}
                         </div>
-                        {suggestion.status === 'pending' && canEdit && (
+                        {suggestion.status ===
+   'pending' && canEdit && (
                           <div className="flex items-center space-x-2 ml-4">
                             <button
                               onClick={() => handleAcceptSuggestion(suggestion.id)}
-                              disabled={suggestionLoading === suggestion.id}
+                              disabled={suggestionLoading ===
+   suggestion.id}
                               className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                               title="Accept suggestion"
                             >
-                              {suggestionLoading === suggestion.id ? (
+                              {suggestionLoading ===
+   suggestion.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <Check className="w-4 h-4" />
@@ -1363,7 +1421,8 @@ export default function ContributionDetailPage() {
                             </button>
                             <button
                               onClick={() => handleRejectSuggestion(suggestion.id)}
-                              disabled={suggestionLoading === suggestion.id}
+                              disabled={suggestionLoading ===
+   suggestion.id}
                               className="p-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors"
                               title="Reject suggestion"
                             >
@@ -1376,10 +1435,10 @@ export default function ContributionDetailPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Edit3 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Edit3 className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                   <p>No edit suggestions</p>
-                  <p className="text-sm text-gray-400 mt-1">
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
                     Edit suggestions from reviewers will appear here
                   </p>
                 </div>
@@ -1388,12 +1447,13 @@ export default function ContributionDetailPage() {
           )}
 
           {/* History Tab */}
-          {activeTab === 'history' && (
+          {activeTab ===
+   'history' && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Status History</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Status History</h3>
               {contribution.statusHistory && contribution.statusHistory.length > 0 ? (
                 <div className="relative">
-                  <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                  <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
                   <div className="space-y-4">
                     {contribution.statusHistory.map((history: any, index: number) => {
                       const historyStatusConfig = STATUS_CONFIG[history.toStatus] || STATUS_CONFIG.draft;
@@ -1415,7 +1475,8 @@ export default function ContributionDetailPage() {
                           case 'approved':
                             return `Approved${userInfo}`;
                           case 'under_review':
-                            if (history.fromStatus === 'submitted') {
+                            if (history.fromStatus ===
+   'submitted') {
                               return `Review started${userInfo}`;
                             }
                             return `Recommended for final approval${userInfo}`;
@@ -1444,7 +1505,7 @@ export default function ContributionDetailPage() {
                               <span className={`font-medium ${historyStatusConfig.color}`}>
                                 {historyStatusConfig.label}
                               </span>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
                                 {new Date(history.changedAt || history.createdAt).toLocaleString('en-IN', {
                                   day: 'numeric',
                                   month: 'short',
@@ -1454,7 +1515,7 @@ export default function ContributionDetailPage() {
                                 })}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">{getStatusDescription()}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{getStatusDescription()}</p>
                           </div>
                         </div>
                       );
@@ -1462,8 +1523,8 @@ export default function ContributionDetailPage() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <History className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <History className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                   <p>No history available</p>
                 </div>
               )}
@@ -1474,14 +1535,15 @@ export default function ContributionDetailPage() {
 
       {/* Action Buttons */}
       {isOwner && (
-        <div className="mt-6 bg-white rounded-xl border border-gray-200 p-6">
+        <div className="mt-6 rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex flex-wrap gap-3">
-            {contribution.status === 'draft' && (
+            {contribution.status ===
+   'draft' && (
               <>
                 <button
                   onClick={handleSubmit}
                   disabled={actionLoading}
-                  className="flex-1 min-w-[200px] px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
                   Submit for Review
@@ -1489,7 +1551,7 @@ export default function ContributionDetailPage() {
                 <button
                   onClick={handleDelete}
                   disabled={actionLoading}
-                  className="px-6 py-3 border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  className="flex items-center justify-center rounded-2xl border border-red-200 px-6 py-3 font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
                 >
                   <Trash2 className="w-5 h-5 mr-2" />
                   Delete Draft
@@ -1497,13 +1559,14 @@ export default function ContributionDetailPage() {
               </>
             )}
             
-            {contribution.status === 'changes_required' && (
+            {contribution.status ===
+   'changes_required' && (
               <>
                 {pendingSuggestions.length > 0 ? (
                   <>
                     <Link
                       href={`/research/contribution/${id}/edit`}
-                      className="flex-1 min-w-[200px] px-6 py-3 bg-orange-600 text-white rounded-xl font-medium hover:bg-orange-700 transition-colors flex items-center justify-center"
+                      className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-orange-600 px-6 py-3 font-medium text-white transition-colors hover:bg-orange-700"
                     >
                       <Edit3 className="w-5 h-5 mr-2" />
                       Review & Edit ({pendingSuggestions.length} Suggestion{pendingSuggestions.length > 1 ? 's' : ''})
@@ -1511,9 +1574,9 @@ export default function ContributionDetailPage() {
                   </>
                 ) : (
                   <>
-                    <Link
+        <Link
                       href={`/research/contribution/${id}/edit`}
-                      className="flex-1 min-w-[200px] px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center justify-center"
+                      className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                     >
                       <Edit className="w-5 h-5 mr-2" />
                       Edit Contribution
@@ -1521,7 +1584,7 @@ export default function ContributionDetailPage() {
                     <button
                       onClick={handleResubmit}
                       disabled={actionLoading}
-                      className="flex-1 min-w-[200px] px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                      className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                     >
                       {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <RefreshCw className="w-5 h-5 mr-2" />}
                       Resubmit
@@ -1531,7 +1594,8 @@ export default function ContributionDetailPage() {
               </>
             )}
           </div>
-          {contribution.status === 'changes_required' && pendingSuggestions.length > 0 && (
+          {contribution.status ===
+   'changes_required' && pendingSuggestions.length > 0 && (
             <p className="text-sm text-orange-600 mt-3">
               <AlertCircle className="w-4 h-4 inline mr-1" />
               Accept or reject the {pendingSuggestions.length} suggestion{pendingSuggestions.length > 1 ? 's' : ''} first. Accepting a suggestion will automatically update your contribution with the suggested value.
@@ -1544,23 +1608,41 @@ export default function ContributionDetailPage() {
 }
 
 // Helper Components
+function MetaPill({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm text-white/85 backdrop-blur-sm">
+      <Icon className="h-4 w-4" />
+      {label}
+    </span>
+  );
+}
+
+function HeroFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/10 px-3 py-3 backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
 function DetailItem({ label, value, link }: { label: string; value?: string | number | null; link?: string }) {
   if (!value) return null;
   return (
-    <div className="p-3 bg-gray-50 rounded-lg">
-      <p className="text-sm text-gray-500 mb-1">{label}</p>
+    <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:from-gray-800 dark:to-gray-800/80">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">{label}</p>
       {link ? (
         <a 
           href={link} 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="font-medium text-blue-600 hover:underline flex items-center"
+          className="flex items-center font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
           {value}
           <ExternalLink className="w-3 h-3 ml-1" />
         </a>
       ) : (
-        <p className="font-medium text-gray-900">{value}</p>
+        <p className="font-medium leading-6 text-gray-900 dark:text-white">{value}</p>
       )}
     </div>
   );
@@ -1578,20 +1660,20 @@ function CharacteristicBadge({
   count?: number;
 }) {
   return (
-    <div className={`p-4 rounded-lg border ${value ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+    <div className={`rounded-2xl border p-4 shadow-sm ${value ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700'}`}>
       <div className="flex items-center space-x-2">
-        <Icon className={`w-5 h-5 ${value ? 'text-green-600' : 'text-gray-400'}`} />
-        <span className="text-sm font-medium text-gray-700">{label}</span>
+        <Icon className={`w-5 h-5 ${value ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`} />
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
       </div>
       <div className="mt-2 flex items-center space-x-2">
         {value ? (
-          <span className="flex items-center text-green-600 text-sm font-medium">
+          <span className="flex items-center text-sm font-medium text-green-600 dark:text-green-400">
             <CheckCircle className="w-4 h-4 mr-1" />
             Yes
             {count !== undefined && count > 0 && ` (${count})`}
           </span>
         ) : (
-          <span className="flex items-center text-gray-500 text-sm">
+          <span className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
             <XCircle className="w-4 h-4 mr-1" />
             No
           </span>

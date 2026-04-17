@@ -76,7 +76,9 @@ export default function CopyDetailPage() {
   const note = noteData ?? null;
   const copy = useMemo(() => {
     if (!copiesData?.copies || !copyId || !noteId) return null;
-    return (copiesData.copies as NoteCopy[]).find((c) => c.id === copyId && c.noteId === noteId) ?? null;
+    return (copiesData.copies as NoteCopy[]).find((c) => c.id ===
+   copyId && c.noteId ===
+   noteId) ?? null;
   }, [copiesData, copyId, noteId]);
 
   // Redirect if copy not found after data loads
@@ -98,8 +100,10 @@ export default function CopyDetailPage() {
   const canReply =
     copy &&
     user &&
-    (copy as any).assignedToId === user.id &&
-    copy.status === 'pending';
+    (copy as any).assignedToId ===
+   user.id &&
+    copy.status ===
+   'pending';
 
   const doReplyCopy = async () => {
     if (!copy || !replyRemarks.trim()) {
@@ -150,11 +154,14 @@ export default function CopyDetailPage() {
 
   const displayNote = note;
   const statusColor =
-    copy.status === 'completed'
+    copy.status ===
+   'completed'
       ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-      : copy.status === 'replied'
+      : copy.status ===
+   'replied'
         ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
-        : copy.status === 'forwarded'
+        : copy.status ===
+   'forwarded'
           ? 'text-amber-600 bg-amber-50 border-amber-200'
           : 'text-indigo-600 bg-indigo-50 border-indigo-200';
 
@@ -245,8 +252,10 @@ export default function CopyDetailPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {displayNote.attachments.map((attachment) => {
-                  const isDownloading = downloadingPath === attachment.filePath;
-                  const isViewing = viewingPath === attachment.filePath;
+                  const isDownloading = downloadingPath ===
+   attachment.filePath;
+                  const isViewing = viewingPath ===
+   attachment.filePath;
 
                   return (
                     <div
@@ -367,17 +376,21 @@ export default function CopyDetailPage() {
                     Policy Compliance
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 text-sm font-medium mt-0.5 ${displayNote.policyCompliant === true
+                    className={`inline-flex items-center gap-1 text-sm font-medium mt-0.5 ${displayNote.policyCompliant ===
+   true
                       ? 'text-emerald-700'
-                      : displayNote.policyCompliant === false
+                      : displayNote.policyCompliant ===
+   false
                         ? 'text-red-700'
                         : 'text-gray-400'}`}
                   >
-                    {displayNote.policyCompliant === true ? (
+                    {displayNote.policyCompliant ===
+   true ? (
                       <>
                         <CheckCircle className="w-3 h-3" /> Yes
                       </>
-                    ) : displayNote.policyCompliant === false ? (
+                    ) : displayNote.policyCompliant ===
+   false ? (
                       <>
                         <XCircle className="w-3 h-3" /> No
                       </>
@@ -434,7 +447,8 @@ export default function CopyDetailPage() {
             <h4 className="text-xs font-semibold text-[#6497b1] uppercase tracking-wider mb-3">Replies &amp; Updates</h4>
             <div className="space-y-3">
               {allReplies.map((r: any) => {
-                const isOwnReply = r.repliedBy?.id === user?.id;
+                const isOwnReply = r.repliedBy?.id ===
+   user?.id;
                 const replierName =
                   r.repliedBy?.employeeDetails?.displayName || r.repliedBy?.uid || 'Unknown';
                 return (
@@ -496,7 +510,8 @@ export default function CopyDetailPage() {
             {(() => {
               try {
                 const parsed = JSON.parse(copy.remarks);
-                if (parsed.type === 'escalation') {
+                if (parsed.type ===
+   'escalation') {
                   return (
                     <div className="space-y-3">
                       {/* System Warning */}
@@ -563,7 +578,8 @@ export default function CopyDetailPage() {
                     </div>
                   );
                 }
-                if (parsed.type === 'reassigned') {
+                if (parsed.type ===
+   'reassigned') {
                   return (
                     <div className="space-y-3">
                       {parsed.systemWarning && (
@@ -599,7 +615,9 @@ export default function CopyDetailPage() {
         </div>
 
         {/* Reply Section — one reply per level; after replying, wait for creator's action */}
-        {copy.status === 'replied' && (copy as any).assignedToId === user?.id && (
+        {copy.status ===
+   'replied' && (copy as any).assignedToId ===
+   user?.id && (
           <div className="px-4 sm:px-6 py-3 border-t border-[#b3cde0]/30 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10">
             <p className="text-sm text-amber-700 dark:text-amber-300">
               You have replied. The noting creator will review and take action (complete or forward). The reply form will open again when a new copy is assigned to you.

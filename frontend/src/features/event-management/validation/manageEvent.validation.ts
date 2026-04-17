@@ -131,7 +131,8 @@ const manageEventSchema = z
       .trim()
       .refine(
         (value) =>
-          value === "" || new RegExp(`^\\d{${MAX_CONTACT_MOBILE_DIGITS}}$`).test(value),
+          value ===
+   "" || new RegExp(`^\\d{${MAX_CONTACT_MOBILE_DIGITS}}$`).test(value),
         `Contact mobile must be exactly ${MAX_CONTACT_MOBILE_DIGITS} digits.`,
       ),
     alternateContact: z.string(),
@@ -205,8 +206,11 @@ const manageEventSchema = z
       }
     }
 
-    if (value.eventPaymentType === "paid") {
-      if (value.participationType === "team" && value.teamRegistrationFee === "") {
+    if (value.eventPaymentType ===
+   "paid") {
+      if (value.participationType ===
+   "team" && value.teamRegistrationFee ===
+   "") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["teamRegistrationFee"],
@@ -214,8 +218,10 @@ const manageEventSchema = z
         });
       }
       if (
-        value.participationType === "individual" &&
-        value.registrationFee === ""
+        value.participationType ===
+   "individual" &&
+        value.registrationFee ===
+   ""
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -225,8 +231,11 @@ const manageEventSchema = z
       }
     }
 
-    if (value.participationType === "team") {
-      if (value.minTeamSize === "" || value.maxTeamSize === "") {
+    if (value.participationType ===
+   "team") {
+      if (value.minTeamSize ===
+   "" || value.maxTeamSize ===
+   "") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["minTeamSize"],
@@ -241,12 +250,14 @@ const manageEventSchema = z
       }
     }
 
-    if (value.hasResources === true) {
+    if (value.hasResources ===
+   true) {
       const validResources = value.resources.filter(
         (resource) =>
           resource.type.trim().length > 0 || resource.description.trim().length > 0,
       );
-      if (validResources.length === 0) {
+      if (validResources.length ===
+   0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["resources"],
@@ -330,7 +341,8 @@ export function validateManageEventForm(
   const fieldErrors: Record<string, string> = {};
   for (const issue of result.error.issues) {
     const rawField = String(issue.path[0] ?? "form");
-    const field = rawField === "logoImageUrl" ? "logo" : rawField;
+    const field = rawField ===
+   "logoImageUrl" ? "logo" : rawField;
     if (!fieldErrors[field]) {
       fieldErrors[field] = issue.message;
     }

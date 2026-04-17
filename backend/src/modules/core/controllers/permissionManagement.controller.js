@@ -48,13 +48,8 @@ exports.getUserAllPermissions = async (req, res) => {
       });
     }
 
-    // Get user with assigned roles
-    const userWithRoles = await prisma.userLogin.findUnique({
-      where: { id: userId },
-      select: {
-        assignedRoleIds: true
-      }
-    });
+    // Get user with assigned roles (role assignment feature not implemented)
+    const userWithRoles = null;
 
     // Fetch direct permissions and employee details
     const [schoolDeptPerms, centralDeptPerms, employee] = await Promise.all([
@@ -135,8 +130,8 @@ exports.getUserAllPermissions = async (req, res) => {
       }),
     ]);
 
-    // Fetch role-based permissions
-    const roleIds = userWithRoles?.assignedRoleIds || [];
+    // Fetch role-based permissions (role assignment feature not implemented)
+    const roleIds = [];
     let rolesWithPermissions = [];
     
     if (Array.isArray(roleIds) && roleIds.length > 0) {
@@ -843,7 +838,6 @@ exports.getAllUsersWithPermissions = async (req, res) => {
         uid: true,
         email: true,
         role: true,
-        assignedRoleIds: true, // Add assigned role IDs
         employeeDetails: {
           select: {
             firstName: true,
@@ -1126,7 +1120,6 @@ exports.getDrdMembersWithSchools = async (req, res) => {
             uid: true,
             email: true,
             role: true,
-            assignedRoleIds: true,
             employeeDetails: {
               select: {
                 firstName: true,
@@ -1174,16 +1167,13 @@ exports.getDrdMembersWithSchools = async (req, res) => {
       // Fetch all users and filter in JavaScript since Prisma's JSON array queries can be tricky
       const allUsers = await prisma.userLogin.findMany({
         where: {
-          assignedRoleIds: {
-            not: prisma.JsonNull,
-          },
+          status: 'active',
         },
         select: {
           id: true,
           uid: true,
           email: true,
           role: true,
-          assignedRoleIds: true,
           employeeDetails: {
             select: {
               firstName: true,
@@ -1200,12 +1190,8 @@ exports.getDrdMembersWithSchools = async (req, res) => {
         },
       });
       
-      // Filter users who have at least one DRD role assigned
-      usersWithDrdRoles = allUsers.filter(user => {
-        const roleIds = user.assignedRoleIds || [];
-        if (!Array.isArray(roleIds)) return false;
-        return roleIds.some(roleId => drdRoleIds.includes(roleId));
-      });
+      // Filter users who have at least one DRD role assigned (role assignment not implemented)
+      usersWithDrdRoles = [];
     }
 
     // Combine both lists (direct permissions + role-based permissions)
@@ -1250,8 +1236,8 @@ exports.getDrdMembersWithSchools = async (req, res) => {
       // Get permissions from direct assignment (if exists)
       const directPerms = directPermission?.permissions || {};
       
-      // Get permissions from assigned roles
-      const userRoleIds = user.assignedRoleIds || [];
+      // Get permissions from assigned roles (role assignment not implemented)
+      const userRoleIds = [];
       const rolePerms = {};
       
       if (Array.isArray(userRoleIds) && userRoleIds.length > 0) {
@@ -1508,10 +1494,9 @@ exports.getSchoolsWithAssignedMembers = async (req, res) => {
   }
 };
 
-// ==========================================
+// ===================================
 // RESEARCH SCHOOL ASSIGNMENT FUNCTIONS
-// ==========================================
-
+// ===================================
 /**
  * Assign schools to a DRD member for RESEARCH review
  * @body { userId, schoolIds: string[] }
@@ -1948,10 +1933,9 @@ exports.getSchoolsWithResearchMembers = async (req, res) => {
   }
 };
 
-// ==========================================
+// ===================================
 // BOOK SCHOOL ASSIGNMENT FUNCTIONS
-// ==========================================
-
+// ===================================
 /**
  * Assign schools to a DRD member for BOOK/BOOK CHAPTER review
  * @body { userId, schoolIds: string[] }
@@ -2399,8 +2383,7 @@ exports.getMyAssignedBookSchools = async (req, res) => {
   }
 };
 
-// ========== CONFERENCE School Assignment Functions ==========
-
+// ========== CONFERENCE School Assignment Functions ===
 /**
  * Assign schools to a DRD member for CONFERENCE review
  * @body { userId, schoolIds: string[] }
@@ -3334,13 +3317,15 @@ exports.assignRolesToUser = async (req, res) => {
       where: { id: userId },
       data: {
         assignedRoleIds: roleIds,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
         uid: true,
         email: true,
-        employeeDetails: { select: { displayName: true } }
-      }
+        role: true,
+        assignedRoleIds: true,
+      },
     });
 
     // Log audit
@@ -3361,6 +3346,11 @@ exports.assignRolesToUser = async (req, res) => {
     res.json({
       success: true,
       message: 'Roles assigned successfully',
+      data: {
+        userId: updatedUser.id,
+        assignedRoleIds: updatedUser.assignedRoleIds,
+        roleNames: roles.map(r => r.name),
+      },
     });
   } catch (error) {
     console.error('Assign roles error:', error);

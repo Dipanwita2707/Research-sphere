@@ -24,7 +24,8 @@ export const EventTypeSelector: React.FC<EventTypeSelectorProps> = ({ value, onC
       </label>
       <div className="flex gap-2">
         {EVENT_TYPES.map((type) => {
-          const isSelected = value === type.id;
+          const isSelected = value ===
+   type.id;
           return (
             <button
               key={type.id}

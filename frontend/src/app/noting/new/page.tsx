@@ -99,11 +99,14 @@ function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> 
       ...s,
       id: s.id || crypto.randomUUID(),
       originSource: 'noting' as const,
-      cashAmount: s.cashAmount === '' ? 0 : Number(s.cashAmount),
+      cashAmount: s.cashAmount ===
+   '' ? 0 : Number(s.cashAmount),
       inKindItems: (s.inKindItems || []).map((item) => ({
         ...item,
-        quantity: item.quantity === '' ? 0 : Number(item.quantity),
-        estimatedValue: item.estimatedValue === '' ? 0 : Number(item.estimatedValue),
+        quantity: item.quantity ===
+   '' ? 0 : Number(item.quantity),
+        estimatedValue: item.estimatedValue ===
+   '' ? 0 : Number(item.estimatedValue),
       })),
     })) : null,
     eventHasResources: sanitizedVenue.eventHasResources,
@@ -116,18 +119,23 @@ function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> 
     eventCertification: sanitizedVenue.eventCertification,
     eventCapacityFixed: sanitizedVenue.eventCapacityFixed !== '' && sanitizedVenue.eventCapacityFixed != null ? Number(sanitizedVenue.eventCapacityFixed) : null,
     eventPrizesAwards: (sanitizedVenue.eventHasPrizes && sanitizedVenue.eventPrizesAwards.length > 0) ? sanitizedVenue.eventPrizesAwards.map((p, idx) => ({
-      position: p.position === '' ? idx + 1 : Number(p.position),
+      position: p.position ===
+   '' ? idx + 1 : Number(p.position),
       rank: p.rank,
       title: p.title,
       prizeType: p.prizeType,
-      prizeAmount: p.prizeAmount === '' ? undefined : Number(p.prizeAmount),
+      prizeAmount: p.prizeAmount ===
+   '' ? undefined : Number(p.prizeAmount),
       additionalPerks: p.additionalPerks ? p.additionalPerks.split(',').map((x) => x.trim()).filter(Boolean) : null,
       sortOrder: idx,
     })) : null,
   };
-  if (sanitizedVenue.eventPaymentType === 'paid') {
-    payload.eventRegistrationFeeIndividual = sanitizedVenue.eventParticipationType === 'individual' && sanitizedVenue.eventRegistrationFeeIndividual !== '' ? Number(sanitizedVenue.eventRegistrationFeeIndividual) : null;
-    payload.eventRegistrationFeeTeam = sanitizedVenue.eventParticipationType === 'team' && sanitizedVenue.eventRegistrationFeeTeam !== '' ? Number(sanitizedVenue.eventRegistrationFeeTeam) : null;
+  if (sanitizedVenue.eventPaymentType ===
+   'paid') {
+    payload.eventRegistrationFeeIndividual = sanitizedVenue.eventParticipationType ===
+   'individual' && sanitizedVenue.eventRegistrationFeeIndividual !== '' ? Number(sanitizedVenue.eventRegistrationFeeIndividual) : null;
+    payload.eventRegistrationFeeTeam = sanitizedVenue.eventParticipationType ===
+   'team' && sanitizedVenue.eventRegistrationFeeTeam !== '' ? Number(sanitizedVenue.eventRegistrationFeeTeam) : null;
   }
   return payload;
 }
@@ -160,7 +168,8 @@ function noteToVenueFormData(note: Record<string, unknown>): VenueFormData {
       phone: s.phone || '',
       email: s.email || '',
       notes: s.notes || '',
-      contributionType: s.contributionType || (s.type === 'in_kind' ? 'in_kind' : 'cash'),
+      contributionType: s.contributionType || (s.type ===
+   'in_kind' ? 'in_kind' : 'cash'),
       cashAmount: s.cashAmount ?? (s.amount ?? ''),
       paymentStatus: s.paymentStatus || 'pending',
       paymentMethod: s.paymentMethod || '',
@@ -192,7 +201,8 @@ function noteToVenueFormData(note: Record<string, unknown>): VenueFormData {
       title: p.title || '',
       prizeType: p.prizeType || 'cash',
       prizeAmount: p.prizeAmount ?? '',
-      additionalPerks: typeof p.additionalPerks === 'string' ? p.additionalPerks : Array.isArray(p.additionalPerks) ? (p.additionalPerks as string[]).join(', ') : undefined,
+      additionalPerks: typeof p.additionalPerks ===
+   'string' ? p.additionalPerks : Array.isArray(p.additionalPerks) ? (p.additionalPerks as string[]).join(', ') : undefined,
     })),
   };
 }
@@ -224,7 +234,9 @@ export default function NewNotePage() {
   const { user } = useAuthStore();
 
   // ── Student access check — noting is blocked for ALL students ─────────────
-  const isStudentUser = user && (user.role?.name === 'student' || user.userType === 'student');
+  const isStudentUser = user && (user.role?.name ===
+   'student' || user.userType ===
+   'student');
   const { data: notingPerms = null, isLoading: notingPermsLoading } = useNotingPermissions();
   useEffect(() => {
     if (isStudentUser) {
@@ -322,7 +334,8 @@ export default function NewNotePage() {
   const [departmentId, setDepartmentId] = useState(initial.departmentId);
   const [departmentScope, setDepartmentScope] = useState<'' | 'school' | 'central'>(initial.departmentScope);
 
-  const isChairperson = notingPerms?.isClubChairperson === true;
+  const isChairperson = notingPerms?.isClubChairperson ===
+   true;
   const effectiveCategory = isChairperson ? 'academic' : category;
   const effectiveSubcategory = isChairperson ? 'events' : subcategory;
   const [description, setDescription] = useState(initial.description);
@@ -389,8 +402,10 @@ export default function NewNotePage() {
     if (!config || draftLoaded) return;
 
     const loadDraftIntoForm = (note: Awaited<ReturnType<typeof notingService.getById>>) => {
-      setIsRevertedNote(note.status === 'reverted');
-      if (note.status === 'reverted' && note.history) {
+      setIsRevertedNote(note.status ===
+   'reverted');
+      if (note.status ===
+   'reverted' && note.history) {
         setRevertHistory(note.history);
       }
 
@@ -424,7 +439,9 @@ export default function NewNotePage() {
       setAnnexures(s.attachments.map((a) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription ?? '' })));
 
       const noteObj = note as unknown as Record<string, unknown>;
-      if (noteObj.notingEventType === 'venue' || noteObj.notingEventType === 'stall') {
+      if (noteObj.notingEventType ===
+   'venue' || noteObj.notingEventType ===
+   'stall') {
         setVenueFormData(noteToVenueFormData(noteObj));
       } else if (noteObj.eventName || noteObj.eventType) {
         setVenueFormData(noteToVenueFormData(noteObj));
@@ -482,7 +499,8 @@ export default function NewNotePage() {
             return;
           }
           // Only the creator can edit a reverted note
-          if (note.status === 'reverted' && note.createdById !== user?.id) {
+          if (note.status ===
+   'reverted' && note.createdById !== user?.id) {
             toast({ type: 'error', message: 'Only the creator can edit a reverted note' });
             router.push(`/noting/${note.id}`);
             return;
@@ -531,7 +549,8 @@ export default function NewNotePage() {
 
     // If we already have year and sequence, rebuild the ID with new category/subcategory
     if (notingYearAndSequence) {
-      const categoryPart = category === 'academic' ? 'ACAD' : 'ADMIN';
+      const categoryPart = category ===
+   'academic' ? 'ACAD' : 'ADMIN';
       const subcategoryPart = subcategory.toUpperCase().replace(/_/g, '-');
       const newId = `SGTU/${categoryPart}/${subcategoryPart}/${notingYearAndSequence.year}/${notingYearAndSequence.sequence}`;
       setNotingIdPreview(newId);
@@ -574,7 +593,8 @@ export default function NewNotePage() {
 
   // Auto-fill Overall Coordinator with noting creator's UID when Festival is selected
   useEffect(() => {
-    if (notingEventType === 'festival' && creatorInfo && !festivalData.coordinator?.trim()) {
+    if (notingEventType ===
+   'festival' && creatorInfo && !festivalData.coordinator?.trim()) {
       const uid = creatorInfo.employeeIdOrStudentId || creatorInfo.name || '';
       if (uid) {
         setFestivalData((prev) => ({ ...prev, coordinator: uid }));
@@ -633,7 +653,8 @@ export default function NewNotePage() {
         departmentScope: departmentScope || null,
         description: sanitizeNoteDescription(description).trim(),
         approvalPeriod,
-        recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
+        recurringFrequency: (approvalPeriod ===
+   'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
         policyCompliance: policyCompliance ?? undefined,
         amountRequired,
         amount: amountRequired && amount ? Number(amount) : undefined,
@@ -644,17 +665,21 @@ export default function NewNotePage() {
       };
 
       const eventPayload: any = {};
-      if (isEventNoting && (notingEventType === 'venue' || notingEventType === 'stall')) {
+      if (isEventNoting && (notingEventType ===
+   'venue' || notingEventType ===
+   'stall')) {
         Object.assign(eventPayload, venueFormDataToEventPayload(venueFormData));
       }
 
       // Stall & festival type fields (set outside inner condition to support all notingEventType values)
       if (isEventNoting && notingEventType) {
         eventPayload.notingEventType = notingEventType;
-        if (notingEventType === 'stall') {
+        if (notingEventType ===
+   'stall') {
           eventPayload.stallConfig = sanitizeStallConfig(stallConfig);
         }
-        if (false && notingEventType === 'festival') {
+        if (false && notingEventType ===
+   'festival') {
           const sanitizedFestivalData = sanitizeFestivalFormData(festivalData);
           eventPayload.festivalMeta = {
             name: sanitizedFestivalData.festivalName,
@@ -687,7 +712,8 @@ export default function NewNotePage() {
       // PERF: Compare JSON snapshot to skip no-op autosaves.
       // This prevents re-firing when object references change but values haven't.
       const snapshot = JSON.stringify({ ...payload, ...eventPayload });
-      if (snapshot === lastSavedSnapshotRef.current) return;
+      if (snapshot ===
+   lastSavedSnapshotRef.current) return;
       lastSavedSnapshotRef.current = snapshot;
 
       if (draftId) {
@@ -704,7 +730,8 @@ export default function NewNotePage() {
           attachments: payload.attachments,
           ...eventPayload,
         };
-        if (payload.approvalPeriod === 'one_time') updatePayload.recurringFrequency = null;
+        if (payload.approvalPeriod ===
+   'one_time') updatePayload.recurringFrequency = null;
         else if (payload.recurringFrequency) updatePayload.recurringFrequency = payload.recurringFrequency;
         if (payload.amountRequired !== true) {
           // controller will clear amount
@@ -762,7 +789,8 @@ export default function NewNotePage() {
   };
 
   const movePoint = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex) return;
+    if (fromIndex ===
+   toIndex) return;
     setPoints((p) => {
       const n = [...p];
       const [removed] = n.splice(fromIndex, 1);
@@ -817,7 +845,8 @@ export default function NewNotePage() {
     if (!arr.length) return;
     const oversized = arr.filter((f) => f.size > FILE_MAX_SIZE_BYTES);
     if (oversized.length > 0) {
-      toast({ type: 'error', message: `File size must not exceed 5MB. ${oversized.map((f) => f.name).join(', ')} ${oversized.length === 1 ? 'is' : 'are'} too large.` });
+      toast({ type: 'error', message: `File size must not exceed 5MB. ${oversized.map((f) => f.name).join(', ')} ${oversized.length ===
+   1 ? 'is' : 'are'} too large.` });
       return;
     }
     for (let i = 0; i < arr.length; i++) {
@@ -827,7 +856,8 @@ export default function NewNotePage() {
       try {
         const filePath = await notingService.uploadAttachment(file);
         setAnnexures((prev) =>
-          prev.map((a) => (a._id === _id ? { ...a, filePath, uploading: false } : a))
+          prev.map((a) => (a._id ===
+   _id ? { ...a, filePath, uploading: false } : a))
         );
       } catch {
         toast({ type: 'error', message: `Failed to upload ${file.name}` });
@@ -900,7 +930,8 @@ export default function NewNotePage() {
       departmentScope: departmentScope || null,
       description: sanitizedDescription.trim(),
       approvalPeriod,
-      recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
+      recurringFrequency: (approvalPeriod ===
+   'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
       policyCompliance: policyCompliance ?? undefined,
       amountRequired,
       amount: amountRequired && amount ? Number(amount) : undefined,
@@ -911,13 +942,16 @@ export default function NewNotePage() {
       submit: false,
     };
 
-    if (isEventNoting && (notingEventType === 'venue' || notingEventType === 'stall')) {
+    if (isEventNoting && (notingEventType ===
+   'venue' || notingEventType ===
+   'stall')) {
       Object.assign(basePayload, venueFormDataToEventPayload(sanitizedVenueFormData));
     }
     if (isEventNoting) {
       // Stall & Festival type
       (basePayload as any).notingEventType = notingEventType || 'venue';
-      if (notingEventType === 'stall') {
+      if (notingEventType ===
+   'stall') {
         (basePayload as any).stallConfig = sanitizeStallConfig(stallConfig);
       }
       // Optional club association
@@ -926,7 +960,8 @@ export default function NewNotePage() {
       }
       // Event visibility/settings
       (basePayload as any).eventVisibilitySettings = sanitizedVisibilitySettings;
-      if (notingEventType === 'festival') {
+      if (notingEventType ===
+   'festival') {
         (basePayload as any).festivalMeta = {
           name: sanitizedFestivalData.festivalName,
           startDate: sanitizedFestivalData.startDate,
@@ -987,16 +1022,21 @@ export default function NewNotePage() {
         errors.description = `Description exceeds the word limit (${wordCount}/${MAX_WORDS} words).`;
       }
       const validPoints = dedupePoints(points);
-      if (validPoints.length === 0) {
+      if (validPoints.length ===
+   0) {
         errors.points = 'Please add at least one requirement point.';
       }
-      if (policyCompliance === null || policyCompliance === undefined) {
+      if (policyCompliance ===
+   null || policyCompliance ===
+   undefined) {
         errors.policyCompliance = 'Please select Policy Compliance.';
       }
-      if (approvalPeriod === 'recurring' && !recurringFrequency?.trim()) {
+      if (approvalPeriod ===
+   'recurring' && !recurringFrequency?.trim()) {
         errors.recurringFrequency = 'Please select a frequency for recurring approval.';
       }
-      if (amountRequired && (amount === '' || Number(amount) < 0 || isNaN(Number(amount)))) {
+      if (amountRequired && (amount ===
+   '' || Number(amount) < 0 || isNaN(Number(amount)))) {
         errors.amount = 'Please enter a valid amount (₹).';
       } else if (amountRequired && Number(amount) <= 1) {
         errors.amount = 'Amount must be greater than ₹1.';
@@ -1022,7 +1062,8 @@ export default function NewNotePage() {
           toast({ type: 'error', message: 'Please select Event Structure: Venue Event, Stall-Based Event, or Fest.' });
           scrollToSection('section-event-details'); return;
         }
-        if (notingEventType === 'festival') {
+        if (notingEventType ===
+   'festival') {
           const festivalValidation = validateFestivalSubmission(
             festivalData,
             eventVisibilitySettings,
@@ -1033,11 +1074,14 @@ export default function NewNotePage() {
             return;
           }
         }
-        if (false && (notingEventType === 'venue' || notingEventType === 'stall')) {
+        if (false && (notingEventType ===
+   'venue' || notingEventType ===
+   'stall')) {
           const venueValidation = validateVenueEventSubmission(
             venueFormData,
             eventVisibilitySettings,
-            notingEventType === 'stall' ? stallConfig : undefined,
+            notingEventType ===
+   'stall' ? stallConfig : undefined,
           );
           if (venueValidation.message) {
             toast({ type: 'error', message: venueValidation.message || 'Please review the venue details.' });
@@ -1045,7 +1089,8 @@ export default function NewNotePage() {
             return;
           }
         }
-        if (notingEventType === 'festival') {
+        if (notingEventType ===
+   'festival') {
           if (!festivalData.festivalName?.trim()) { toast({ type: 'error', message: 'Please enter the Festival Name.' }); scrollToSection('section-event-details'); return; }
           if (!festivalData.startDate) { toast({ type: 'error', message: 'Please select the Festival Start Date.' }); scrollToSection('section-event-details'); return; }
           if (!festivalData.endDate) { toast({ type: 'error', message: 'Please select the Festival End Date.' }); scrollToSection('section-event-details'); return; }
@@ -1057,7 +1102,8 @@ export default function NewNotePage() {
           if (festivalData.startDate && festivalData.endDate && new Date(festivalData.endDate) < new Date(festivalData.startDate)) {
             toast({ type: 'error', message: 'Festival End Date should be after Start Date. Please correct the dates.' }); scrollToSection('section-event-details'); return;
           }
-          if (festivalData.subEvents.length === 0) {
+          if (festivalData.subEvents.length ===
+   0) {
             toast({ type: 'error', message: 'Please add at least one sub-event to the festival.' }); scrollToSection('section-event-details'); return;
           }
           for (let i = 0; i < festivalData.subEvents.length; i++) {
@@ -1076,19 +1122,26 @@ export default function NewNotePage() {
             if (v.eventStartDate && v.eventEndDate && new Date(v.eventEndDate) < new Date(v.eventStartDate)) {
               toast({ type: 'error', message: `${label}: End Date should be after Start Date. Please correct the dates.` }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventApproxCapacity === '' || v.eventApproxCapacity === undefined) { toast({ type: 'error', message: `${label}: Please enter the Approximate Capacity.` }); scrollToSection('section-event-details'); return; }
-            if (v.eventDutyLeaveAvailable === null) {
+            if (v.eventApproxCapacity ===
+   '' || v.eventApproxCapacity ===
+   undefined) { toast({ type: 'error', message: `${label}: Please enter the Approximate Capacity.` }); scrollToSection('section-event-details'); return; }
+            if (v.eventDutyLeaveAvailable ===
+   null) {
               toast({ type: 'error', message: `${label}: Please select Yes or No for Duty Leave Required.` }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
+            if (v.eventDutyLeaveAvailable ===
+   true && !v.eventDutyLeaveRoleType) {
               toast({ type: 'error', message: `${label}: Please select Duty Leave eligibility when Duty Leave is enabled.` }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventHasSponsorship === null) {
+            if (v.eventHasSponsorship ===
+   null) {
               toast({ type: 'error', message: `${label}: Please select Yes or No for Sponsorship Available.` }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventHasSponsorship === true) {
+            if (v.eventHasSponsorship ===
+   true) {
               const valid = (v.eventSponsors || []).filter((s) => s?.name?.trim());
-              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one sponsor with a name when Sponsorship is enabled.` }); scrollToSection('section-event-details'); return; }
+              if (valid.length ===
+   0) { toast({ type: 'error', message: `${label}: Please add at least one sponsor with a name when Sponsorship is enabled.` }); scrollToSection('section-event-details'); return; }
               // Validate all required sponsor information
               const allSponsors = (v.eventSponsors || []).filter((s) => s?.name?.trim());
               for (const sponsor of allSponsors) {
@@ -1116,23 +1169,31 @@ export default function NewNotePage() {
                 }
               }
             }
-            if (v.eventHasResources === null) {
+            if (v.eventHasResources ===
+   null) {
               toast({ type: 'error', message: `${label}: Please select Yes or No for Event Resources.` }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventHasResources === true) {
+            if (v.eventHasResources ===
+   true) {
               const valid = (v.eventResources || []).filter((r) => (r?.type || '').trim() || (r?.description || '').trim());
-              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one resource when Resources are enabled.` }); scrollToSection('section-event-details'); return; }
+              if (valid.length ===
+   0) { toast({ type: 'error', message: `${label}: Please add at least one resource when Resources are enabled.` }); scrollToSection('section-event-details'); return; }
             }
-            if (v.eventCertification === null) {
+            if (v.eventCertification ===
+   null) {
               toast({ type: 'error', message: `${label}: Please select Yes or No for Certificates.` }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventHasPrizes === null) {
+            if (v.eventHasPrizes ===
+   null) {
               toast({ type: 'error', message: `${label}: Please select Yes or No for Prizes & Winners.` }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventHasPrizes === true && (v.eventPrizesAwards || []).length === 0) {
+            if (v.eventHasPrizes ===
+   true && (v.eventPrizesAwards || []).length ===
+   0) {
               toast({ type: 'error', message: `${label}: Please add at least one prize when Prizes & Winners is enabled.` }); scrollToSection('section-event-details'); return;
             }
-            if (se.eventType === 'stall' && se.stallConfig) {
+            if (se.eventType ===
+   'stall' && se.stallConfig) {
               const sc = se.stallConfig;
               if (sc.enableStudentApplied && (sc.maxStudentStalls == null || sc.maxStudentStalls < 1)) {
                 toast({ type: 'error', message: `${label}: Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.` }); scrollToSection('section-event-details'); return;
@@ -1142,21 +1203,29 @@ export default function NewNotePage() {
               }
             }
             if (!v.eventPaymentType) { toast({ type: 'error', message: `${label}: Please select Payment Type (Free or Paid).` }); scrollToSection('section-event-details'); return; }
-            if (v.eventPaymentType === 'paid') {
-              if (v.eventParticipationType === 'individual' && (v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
+            if (v.eventPaymentType ===
+   'paid') {
+              if (v.eventParticipationType ===
+   'individual' && (v.eventRegistrationFeeIndividual ===
+   '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
                 toast({ type: 'error', message: `${label}: Please enter the Participation Fee (₹) for paid events.` }); scrollToSection('section-event-details'); return;
               }
-              if (v.eventParticipationType === 'team' && (v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
+              if (v.eventParticipationType ===
+   'team' && (v.eventRegistrationFeeTeam ===
+   '' || Number(v.eventRegistrationFeeTeam) < 0)) {
                 toast({ type: 'error', message: `${label}: Please enter the Fee per Team (₹) for paid events.` }); scrollToSection('section-event-details'); return;
               }
             }
           }
           // Festival-level event visibility settings validation
-          if (eventVisibilitySettings.visibleToRoles.length === 0) {
+          if (eventVisibilitySettings.visibleToRoles.length ===
+   0) {
             toast({ type: 'error', message: 'Please select at least one role in Audience Visibility settings.' }); scrollToSection('section-event-settings'); return;
           }
         }
-        if (notingEventType === 'venue' || notingEventType === 'stall') {
+        if (notingEventType ===
+   'venue' || notingEventType ===
+   'stall') {
           const v = venueFormData;
           if (!v.eventName?.trim()) { toast({ type: 'error', message: 'Please enter the Event Name.' }); scrollToSection('section-event-details'); return; }
           if (!v.eventType) { toast({ type: 'error', message: 'Please select the Event Type (e.g. Workshop, Seminar).' }); scrollToSection('section-event-details'); return; }
@@ -1169,23 +1238,35 @@ export default function NewNotePage() {
           }
           if (new Date(v.eventEndDate) < new Date(v.eventStartDate)) { toast({ type: 'error', message: 'Event End Date should be after Start Date. Please correct the dates.' }); scrollToSection('section-event-details'); return; }
           if (!v.eventPaymentType) { toast({ type: 'error', message: 'Please select Payment Type: Free or Paid.' }); scrollToSection('section-event-details'); return; }
-          if (v.eventPaymentType === 'paid') {
-            if (v.eventParticipationType === 'individual' && (v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
+          if (v.eventPaymentType ===
+   'paid') {
+            if (v.eventParticipationType ===
+   'individual' && (v.eventRegistrationFeeIndividual ===
+   '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
               toast({ type: 'error', message: 'Please enter the Participation Fee (₹) for paid individual events.' }); scrollToSection('section-event-details'); return;
             }
-            if (v.eventParticipationType === 'team' && (v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
+            if (v.eventParticipationType ===
+   'team' && (v.eventRegistrationFeeTeam ===
+   '' || Number(v.eventRegistrationFeeTeam) < 0)) {
               toast({ type: 'error', message: 'Please enter the Fee per Team (₹) for paid team events.' }); scrollToSection('section-event-details'); return;
             }
           }
-          if (v.eventApproxCapacity === '' || v.eventApproxCapacity === undefined) { toast({ type: 'error', message: 'Please enter the Approximate Capacity.' }); scrollToSection('section-event-details'); return; }
-          if (v.eventDutyLeaveAvailable === null) { toast({ type: 'error', message: 'Please select Yes or No for Duty Leave Required.' }); scrollToSection('section-event-details'); return; }
-          if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
+          if (v.eventApproxCapacity ===
+   '' || v.eventApproxCapacity ===
+   undefined) { toast({ type: 'error', message: 'Please enter the Approximate Capacity.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventDutyLeaveAvailable ===
+   null) { toast({ type: 'error', message: 'Please select Yes or No for Duty Leave Required.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventDutyLeaveAvailable ===
+   true && !v.eventDutyLeaveRoleType) {
             toast({ type: 'error', message: 'Please select who is eligible for Duty Leave when Duty Leave is enabled.' }); scrollToSection('section-event-details'); return;
           }
-          if (v.eventHasSponsorship === null) { toast({ type: 'error', message: 'Please select Yes or No for Sponsorship Available.' }); scrollToSection('section-event-details'); return; }
-          if (v.eventHasSponsorship === true) {
+          if (v.eventHasSponsorship ===
+   null) { toast({ type: 'error', message: 'Please select Yes or No for Sponsorship Available.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventHasSponsorship ===
+   true) {
             const valid = (v.eventSponsors || []).filter((s) => s?.name?.trim());
-            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one sponsor with a name when Sponsorship is enabled.' }); scrollToSection('section-event-details'); return; }
+            if (valid.length ===
+   0) { toast({ type: 'error', message: 'Please add at least one sponsor with a name when Sponsorship is enabled.' }); scrollToSection('section-event-details'); return; }
             // Validate all required sponsor information
             const allSponsors = (v.eventSponsors || []).filter((s) => s?.name?.trim());
             for (const sponsor of allSponsors) {
@@ -1213,17 +1294,25 @@ export default function NewNotePage() {
               }
             }
           }
-          if (v.eventHasResources === null) { toast({ type: 'error', message: 'Please select Yes or No for Event Resources.' }); scrollToSection('section-event-details'); return; }
-          if (v.eventHasResources === true) {
+          if (v.eventHasResources ===
+   null) { toast({ type: 'error', message: 'Please select Yes or No for Event Resources.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventHasResources ===
+   true) {
             const valid = (v.eventResources || []).filter((r) => (r?.type || '').trim() || (r?.description || '').trim());
-            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one resource when Resources are enabled.' }); scrollToSection('section-event-details'); return; }
+            if (valid.length ===
+   0) { toast({ type: 'error', message: 'Please add at least one resource when Resources are enabled.' }); scrollToSection('section-event-details'); return; }
           }
-          if (v.eventCertification === null) { toast({ type: 'error', message: 'Please select Yes or No for Certificates.' }); scrollToSection('section-event-details'); return; }
-          if (v.eventHasPrizes === null) { toast({ type: 'error', message: 'Please select Yes or No for Prizes & Winners.' }); scrollToSection('section-event-details'); return; }
-          if (v.eventHasPrizes === true && (v.eventPrizesAwards || []).length === 0) {
+          if (v.eventCertification ===
+   null) { toast({ type: 'error', message: 'Please select Yes or No for Certificates.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventHasPrizes ===
+   null) { toast({ type: 'error', message: 'Please select Yes or No for Prizes & Winners.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventHasPrizes ===
+   true && (v.eventPrizesAwards || []).length ===
+   0) {
             toast({ type: 'error', message: 'Please add at least one prize when Prizes & Winners is enabled.' }); scrollToSection('section-event-details'); return;
           }
-          if (notingEventType === 'stall' && stallConfig) {
+          if (notingEventType ===
+   'stall' && stallConfig) {
             if (stallConfig.enableStudentApplied && (stallConfig.maxStudentStalls == null || stallConfig.maxStudentStalls < 1)) {
               toast({ type: 'error', message: 'Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.' }); scrollToSection('section-event-details'); return;
             }
@@ -1232,7 +1321,8 @@ export default function NewNotePage() {
             }
           }
           // Event visibility settings validation
-          if (eventVisibilitySettings.visibleToRoles.length === 0) {
+          if (eventVisibilitySettings.visibleToRoles.length ===
+   0) {
             toast({ type: 'error', message: 'Please select at least one role in Audience Visibility settings.' }); scrollToSection('section-event-settings'); return;
           }
         }
@@ -1253,19 +1343,23 @@ export default function NewNotePage() {
       attachments: payload.attachments,
     };
 
-    if (isEventNoting && (notingEventType === 'venue' || notingEventType === 'stall')) {
+    if (isEventNoting && (notingEventType ===
+   'venue' || notingEventType ===
+   'stall')) {
       Object.assign(updatePayload, venueFormDataToEventPayload(venueFormData));
     }
 
     // Stall & festival type fields
     if (isEventNoting && notingEventType) {
       updatePayload.notingEventType = notingEventType;
-      if (notingEventType === 'stall') {
+      if (notingEventType ===
+   'stall') {
         updatePayload.stallConfig = stallConfig;
       }
       // Optional club association
       updatePayload.eventClubId = eventClubId || null;
-      if (notingEventType === 'festival') {
+      if (notingEventType ===
+   'festival') {
         updatePayload.festivalMeta = {
           name: festivalData.festivalName,
           startDate: festivalData.startDate,
@@ -1294,9 +1388,11 @@ export default function NewNotePage() {
       }
     }
 
-    if (payload.approvalPeriod === 'one_time') updatePayload.recurringFrequency = null;
+    if (payload.approvalPeriod ===
+   'one_time') updatePayload.recurringFrequency = null;
     else if (payload.recurringFrequency) updatePayload.recurringFrequency = payload.recurringFrequency;
-    if (payload.amountRequired === true) {
+    if (payload.amountRequired ===
+   true) {
       if (payload.amount !== undefined && !Number.isNaN(payload.amount)) updatePayload.amount = payload.amount;
     }
 
@@ -1377,9 +1473,11 @@ export default function NewNotePage() {
   }
 
   // For chairpersons: only show 'events' subcategory under 'academic'
-  const allSubcategories = config.categories.find((c) => c.value === effectiveCategory)?.subcategories ?? [];
+  const allSubcategories = config.categories.find((c) => c.value ===
+   effectiveCategory)?.subcategories ?? [];
   const subcategories = isChairperson
-    ? allSubcategories.filter((s) => s.value === 'events')
+    ? allSubcategories.filter((s) => s.value ===
+   'events')
     : allSubcategories;
 
   const baseValid = Boolean(
@@ -1398,8 +1496,10 @@ export default function NewNotePage() {
     const base = v.eventName?.trim() && v.eventType && v.eventStartDate && v.eventEndDate &&
       new Date(v.eventEndDate) >= new Date(v.eventStartDate) && v.eventPaymentType;
     if (!base) return false;
-    if (v.eventPaymentType === 'paid') {
-      return v.eventParticipationType === 'individual'
+    if (v.eventPaymentType ===
+   'paid') {
+      return v.eventParticipationType ===
+   'individual'
         ? (v.eventRegistrationFeeIndividual !== '' && Number(v.eventRegistrationFeeIndividual) >= 0)
         : (v.eventRegistrationFeeTeam !== '' && Number(v.eventRegistrationFeeTeam) >= 0);
     }
@@ -1408,14 +1508,18 @@ export default function NewNotePage() {
   const eventValid = !isEventNoting || (
     notingEventType &&
     (
-      (notingEventType === 'festival' && festivalData.festivalName?.trim() && festivalData.startDate && festivalData.endDate &&
+      (notingEventType ===
+   'festival' && festivalData.festivalName?.trim() && festivalData.startDate && festivalData.endDate &&
         new Date(festivalData.endDate) >= new Date(festivalData.startDate) && allSubEventsValid) ||
-      ((notingEventType === 'venue' || notingEventType === 'stall') &&
+      ((notingEventType ===
+   'venue' || notingEventType ===
+   'stall') &&
         venueFormData.eventName?.trim() && venueFormData.eventType && venueFormData.eventStartDate &&
         venueFormData.eventEndDate && new Date(venueFormData.eventEndDate) >= new Date(venueFormData.eventStartDate) &&
         venueFormData.eventPaymentType &&
         (venueFormData.eventPaymentType !== 'paid' ||
-          (venueFormData.eventParticipationType === 'individual' ? (venueFormData.eventRegistrationFeeIndividual !== '' && Number(venueFormData.eventRegistrationFeeIndividual) >= 0) :
+          (venueFormData.eventParticipationType ===
+   'individual' ? (venueFormData.eventRegistrationFeeIndividual !== '' && Number(venueFormData.eventRegistrationFeeIndividual) >= 0) :
             (venueFormData.eventRegistrationFeeTeam !== '' && Number(venueFormData.eventRegistrationFeeTeam) >= 0))))
     )
   );
@@ -1436,7 +1540,9 @@ export default function NewNotePage() {
             Back to Noting
           </Link>
 
-          {/* ===== A4 Document Sheet ===== */}
+          {/* =====
+   A4 Document Sheet =====
+   */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 shadow-[0_2px_8px_rgba(100,151,177,0.1)] overflow-hidden">
 
             {/* Document Header */}
@@ -1458,7 +1564,9 @@ export default function NewNotePage() {
             {/* Document Body */}
             <div className="px-4 sm:px-8 py-4 sm:py-6 space-y-6 sm:space-y-7">
 
-              {/* ===== Category & Subcategory ===== */}
+              {/* =====
+   Category & Subcategory =====
+   */}
               <section>
                 <SectionLabel>Classification</SectionLabel>
                 {isChairperson && (
@@ -1473,14 +1581,18 @@ export default function NewNotePage() {
                       Category <span className="text-red-500">*</span>
                     </label>
                     <div className="space-y-2">
-                      <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'academic' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
+                      <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category ===
+   'academic' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                         }`}>
-                        <input type="radio" name="category" checked={effectiveCategory === 'academic'} onChange={() => { if (!isChairperson && category !== 'academic') { setCategory('academic'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                        <input type="radio" name="category" checked={effectiveCategory ===
+   'academic'} onChange={() => { if (!isChairperson && category !== 'academic') { setCategory('academic'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                         <span className="text-sm font-medium">Academic</span>
                       </label>
-                      <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'administrative' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
+                      <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category ===
+   'administrative' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                         }`}>
-                        <input type="radio" name="category" checked={effectiveCategory === 'administrative'} onChange={() => { if (!isChairperson && category !== 'administrative') { setCategory('administrative'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                        <input type="radio" name="category" checked={effectiveCategory ===
+   'administrative'} onChange={() => { if (!isChairperson && category !== 'administrative') { setCategory('administrative'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                         <span className="text-sm font-medium">Administrative</span>
                       </label>
                     </div>
@@ -1528,7 +1640,8 @@ export default function NewNotePage() {
                       <option value="">Select department</option>
                       <optgroup label="School Departments">
                         {departmentOptions
-                          .filter((department) => department.scope === 'school')
+                          .filter((department) => department.scope ===
+   'school')
                           .map((department) => (
                             <option key={`school:${department.id}`} value={`school:${department.id}`}>
                               {department.displayLabel}
@@ -1537,7 +1650,8 @@ export default function NewNotePage() {
                       </optgroup>
                       <optgroup label="Central Departments">
                         {departmentOptions
-                          .filter((department) => department.scope === 'central')
+                          .filter((department) => department.scope ===
+   'central')
                           .map((department) => (
                             <option key={`central:${department.id}`} value={`central:${department.id}`}>
                               {department.displayLabel}
@@ -1584,7 +1698,9 @@ export default function NewNotePage() {
                 )}
               </section>
 
-              {/* ===== Description ===== */}
+              {/* =====
+   Description =====
+   */}
               <section id="field-description">
                 <SectionLabel>Description <span className="text-red-500">*</span></SectionLabel>
                 <div className={`noting-description-editor border rounded-xl bg-white dark:bg-gray-700 transition-all duration-200 ${fieldErrors.description ? 'border-red-500 ring-1 ring-red-500' : overLimit ? 'border-red-400' : 'border-[#b3cde0]/50 dark:border-gray-600 focus-within:border-[#005b96]'}`}>
@@ -1623,7 +1739,9 @@ export default function NewNotePage() {
                 )}
               </section>
 
-              {/* ===== Requirements / Points ===== */}
+              {/* =====
+   Requirements / Points =====
+   */}
               <section id="field-points">
                 <SectionLabel>Requirements & Points <span className="text-red-500">*</span></SectionLabel>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-1.5">
@@ -1640,9 +1758,11 @@ export default function NewNotePage() {
                       onDragLeave={() => setPointDropTargetIndex(null)}
                       onDrop={(e) => { e.preventDefault(); if (pointDraggedIndex !== null) movePoint(pointDraggedIndex, i); }}
                       onDragEnd={() => { setPointDraggedIndex(null); setPointDropTargetIndex(null); }}
-                      className={`flex gap-2 items-center p-2.5 rounded-xl border transition-all duration-200 ${pointDraggedIndex === i
+                      className={`flex gap-2 items-center p-2.5 rounded-xl border transition-all duration-200 ${pointDraggedIndex ===
+   i
                         ? 'opacity-50 border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10'
-                        : pointDropTargetIndex === i
+                        : pointDropTargetIndex ===
+   i
                           ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10'
                           : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                         }`}
@@ -1684,7 +1804,9 @@ export default function NewNotePage() {
                 )}
               </section>
 
-              {/* ===== Attachments ===== */}
+              {/* =====
+   Attachments =====
+   */}
               <section>
                 <SectionLabel>Attachments & Annexure</SectionLabel>
                 <input
@@ -1783,7 +1905,9 @@ export default function NewNotePage() {
                 )}
               </section>
 
-              {/* ===== Event Details (Conditional) ===== */}
+              {/* =====
+   Event Details (Conditional) =====
+   */}
               {isEventNoting && (
                 <section id="section-event-details">
                   <SectionLabel>Event Details <span className="text-red-500">*</span></SectionLabel>
@@ -1809,7 +1933,8 @@ export default function NewNotePage() {
 
 
                   {/* Festival form — replaces normal event fields */}
-                  {notingEventType === 'festival' && (
+                  {notingEventType ===
+   'festival' && (
                     <FestivalForm
                       data={festivalData}
                       onChange={setFestivalData}
@@ -1821,7 +1946,9 @@ export default function NewNotePage() {
                   )}
 
                   {/* Venue / Stall — shared EventFormFields (venue form UI everywhere) */}
-                  {(notingEventType === 'venue' || notingEventType === 'stall') && (
+                  {(notingEventType ===
+   'venue' || notingEventType ===
+   'stall') && (
                     <>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                         Event name, type, dates, and payment type will be <strong>locked</strong> after approval and cannot be changed.
@@ -1837,7 +1964,8 @@ export default function NewNotePage() {
                           searchEmployees={handleSponsorSearchEmployees}
                         />
                       </div>
-                      {notingEventType === 'stall' && (
+                      {notingEventType ===
+   'stall' && (
                         <div className="mt-4">
                           <StallConfigSection
                             config={stallConfig}
@@ -1850,7 +1978,9 @@ export default function NewNotePage() {
                 </section>
               )}
 
-              {/* ===== Event Visibility & Settings ===== */}
+              {/* =====
+   Event Visibility & Settings =====
+   */}
               {isEventNoting && notingEventType && (
                 <section id="section-event-settings" className="space-y-5 mt-5">
                   <div className="flex items-center gap-2.5 pb-2 border-b border-[#b3cde0]/30 dark:border-gray-700">
@@ -1866,7 +1996,9 @@ export default function NewNotePage() {
                 </section>
               )}
 
-              {/* ===== Additional Details ===== */}
+              {/* =====
+   Additional Details =====
+   */}
               <section>
                 <SectionLabel>Additional Details</SectionLabel>
                 <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 overflow-hidden">
@@ -1876,18 +2008,23 @@ export default function NewNotePage() {
                     <div id="field-recurringFrequency" className="bg-white dark:bg-gray-800 p-4">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period <span className="text-red-500">*</span></label>
                       <div className="flex flex-col gap-2">
-                        <label className={`flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer transition-all duration-200 ${approvalPeriod === 'one_time' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
+                        <label className={`flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer transition-all duration-200 ${approvalPeriod ===
+   'one_time' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                           }`}>
-                          <input type="radio" name="period" checked={approvalPeriod === 'one_time'} onChange={() => setApprovalPeriod('one_time')} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                          <input type="radio" name="period" checked={approvalPeriod ===
+   'one_time'} onChange={() => setApprovalPeriod('one_time')} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                           <span className="text-sm font-medium">One-time</span>
                         </label>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                          <label className={`flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer transition-all duration-200 flex-1 ${approvalPeriod === 'recurring' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
+                          <label className={`flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer transition-all duration-200 flex-1 ${approvalPeriod ===
+   'recurring' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                             }`}>
-                            <input type="radio" name="period" checked={approvalPeriod === 'recurring'} onChange={() => setApprovalPeriod('recurring')} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                            <input type="radio" name="period" checked={approvalPeriod ===
+   'recurring'} onChange={() => setApprovalPeriod('recurring')} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                             <span className="text-sm font-medium">Recurring</span>
                           </label>
-                          {approvalPeriod === 'recurring' && (
+                          {approvalPeriod ===
+   'recurring' && (
                             <select
                               value={recurringFrequency}
                               onChange={(e) => { setRecurringFrequency(e.target.value); clearFieldError('recurringFrequency'); }}
@@ -1910,14 +2047,18 @@ export default function NewNotePage() {
                     <div id="field-policyCompliance" className="bg-white dark:bg-gray-800 p-4">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Policy Compliance <span className="text-red-500">*</span></label>
                       <div className="flex flex-col gap-2">
-                        <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance ===
+   'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
-                          <input type="radio" name="policyCompliance" checked={policyCompliance === 'yes'} onChange={() => { setPolicyCompliance('yes'); clearFieldError('policyCompliance'); }} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+                          <input type="radio" name="policyCompliance" checked={policyCompliance ===
+   'yes'} onChange={() => { setPolicyCompliance('yes'); clearFieldError('policyCompliance'); }} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
                           <span className="text-sm font-medium">Yes, complies</span>
                         </label>
-                        <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'no' ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance ===
+   'no' ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
-                          <input type="radio" name="policyCompliance" checked={policyCompliance === 'no'} onChange={() => { setPolicyCompliance('no'); clearFieldError('policyCompliance'); }} className="w-4 h-4 text-red-600 focus:ring-red-500" />
+                          <input type="radio" name="policyCompliance" checked={policyCompliance ===
+   'no'} onChange={() => { setPolicyCompliance('no'); clearFieldError('policyCompliance'); }} className="w-4 h-4 text-red-600 focus:ring-red-500" />
                           <span className="text-sm font-medium">No</span>
                         </label>
                       </div>
@@ -1954,7 +2095,8 @@ export default function NewNotePage() {
                               onChange={(e) => {
                                 const val = e.target.value;
                                 // Only accept integers (no decimals)
-                                if (val === '' || /^\d+$/.test(val)) {
+                                if (val ===
+   '' || /^\d+$/.test(val)) {
                                   setAmount(val);
                                   clearFieldError('amount');
                                 }
@@ -1973,7 +2115,9 @@ export default function NewNotePage() {
                 </div>
               </section>
 
-              {/* ===== Creator Info ===== */}
+              {/* =====
+   Creator Info =====
+   */}
               {creatorInfo && (
                 <section>
                   <SectionLabel>Created By</SectionLabel>
@@ -2016,7 +2160,8 @@ export default function NewNotePage() {
                   <span className="inline-block w-8 h-px bg-gradient-to-r from-[#005b96] to-transparent" />
                   Approval Trail
                   <span className="text-[10px] font-normal text-gray-300 dark:text-gray-600 ml-1">
-                    ({revertHistory.length} {revertHistory.length === 1 ? 'entry' : 'entries'})
+                    ({revertHistory.length} {revertHistory.length ===
+   1 ? 'entry' : 'entries'})
                   </span>
                 </h3>
                 <div className="max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
@@ -2033,10 +2178,12 @@ export default function NewNotePage() {
                     } else if (action.includes('approve')) {
                       Icon = CheckCircle; iconColor = 'bg-gradient-to-br from-emerald-400 to-emerald-600'; lineColor = '#10b981';
                       badgeBg = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ring-1 ring-emerald-200';
-                    } else if (action === 'recommended') {
+                    } else if (action ===
+   'recommended') {
                       Icon = ThumbsUp; iconColor = 'bg-gradient-to-br from-blue-400 to-blue-600'; lineColor = '#3b82f6';
                       badgeBg = 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-blue-200';
-                    } else if (action === 'not_recommended') {
+                    } else if (action ===
+   'not_recommended') {
                       Icon = ThumbsDown; iconColor = 'bg-gradient-to-br from-rose-400 to-rose-600'; lineColor = '#f43f5e';
                       badgeBg = 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 ring-1 ring-rose-200';
                     } else if (action.includes('reject')) {
@@ -2048,12 +2195,14 @@ export default function NewNotePage() {
                     } else if (action.includes('forward')) {
                       Icon = ArrowRight; iconColor = 'bg-gradient-to-br from-[#6497b1] to-[#005b96]'; lineColor = '#005b96';
                       badgeBg = 'bg-[#b3cde0]/20 text-[#005b96] dark:bg-[#005b96]/10 dark:text-[#b3cde0] ring-1 ring-[#b3cde0]/40';
-                    } else if (action === 'copy_sent') {
+                    } else if (action ===
+   'copy_sent') {
                       Icon = Copy; iconColor = 'bg-gradient-to-br from-indigo-400 to-indigo-600'; lineColor = '#6366f1';
                       badgeBg = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 ring-1 ring-indigo-200';
                     }
 
-                    const isLast = idx === revertHistory.length - 1;
+                    const isLast = idx ===
+   revertHistory.length - 1;
                     const actionLabel = h.action.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
 
                     return (
@@ -2131,7 +2280,8 @@ export default function NewNotePage() {
                   disabled={!!actionInProgress}
                   className="px-5 py-2.5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
                 >
-                  {actionInProgress === 'submit' ? <LoadingSpinner size="sm" /> : <Send className="w-4 h-4" />}
+                  {actionInProgress ===
+   'submit' ? <LoadingSpinner size="sm" /> : <Send className="w-4 h-4" />}
                   {isRevertedNote ? 'Send for Reapproval' : 'Send for Approval'}
                 </button>
                 <button
@@ -2140,7 +2290,8 @@ export default function NewNotePage() {
                   disabled={!!actionInProgress}
                   className="px-5 py-2.5 border border-[#b3cde0]/50 dark:border-gray-600 text-[#03396c] dark:text-gray-300 text-sm font-medium rounded-xl hover:bg-white dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200"
                 >
-                  {actionInProgress === 'draft' ? <LoadingSpinner size="sm" /> : <Save className="w-4 h-4" />}
+                  {actionInProgress ===
+   'draft' ? <LoadingSpinner size="sm" /> : <Save className="w-4 h-4" />}
                   Save as Draft
                 </button>
                 {!isRevertedNote && (draftId || category || subcategory || description.trim() || points.some((p) => p.trim())) && (
@@ -2150,7 +2301,8 @@ export default function NewNotePage() {
                     disabled={!!actionInProgress}
                     className="ml-auto px-4 py-2.5 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200"
                   >
-                    {actionInProgress === 'discard' ? <LoadingSpinner size="sm" /> : <Trash2 className="w-4 h-4" />}
+                    {actionInProgress ===
+   'discard' ? <LoadingSpinner size="sm" /> : <Trash2 className="w-4 h-4" />}
                     Discard Draft
                   </button>
                 )}

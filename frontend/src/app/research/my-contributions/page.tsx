@@ -24,8 +24,7 @@ import {
   ChevronRight,
   ChevronDown,
   TrendingUp,
-  FolderOpen,
-  Loader2
+  FolderOpen
 } from 'lucide-react';
 import { researchService, ResearchContribution, ResearchPublicationType, GrantApplication } from '@/features/research-management/services/research.service';
 import { grantPolicyService, GrantIncentivePolicy } from '@/features/research-management/services/grantPolicy.service';
@@ -151,7 +150,8 @@ export default function MyContributionsPage() {
       }
       
       // Determine if applicant is internal
-      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
       
       if (!applicantIsInternal) {
         return { incentive: 0, points: 0 };
@@ -159,13 +159,16 @@ export default function MyContributionsPage() {
       
       // Get internal team members
       const internalTeamMembers = (grant.investigators || []).filter((inv: any) => 
-        inv.investigatorCategory === 'Internal' || inv.isInternal === true
+        inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true
       );
       
       // Total internal count includes applicant
       const totalInternal = 1 + internalTeamMembers.length;
       
-      if (totalInternal === 0) {
+      if (totalInternal ===
+   0) {
         return { incentive: 0, points: 0 };
       }
       
@@ -193,16 +196,21 @@ export default function MyContributionsPage() {
     
     setStats({
       total: contributions.length + grants.length,
-      drafts: contributions.filter((c: ResearchContribution) => c.status === 'draft').length + 
-              grants.filter((g: GrantApplication) => g.status === 'draft').length,
+      drafts: contributions.filter((c: ResearchContribution) => c.status ===
+   'draft').length + 
+              grants.filter((g: GrantApplication) => g.status ===
+   'draft').length,
       action_required: contributions.filter((c: ResearchContribution) => actionRequiredStatuses.includes(c.status)).length +
-                       grants.filter((g: GrantApplication) => g.status === 'changes_required').length,
+                       grants.filter((g: GrantApplication) => g.status ===
+   'changes_required').length,
       in_progress: contributions.filter((c: ResearchContribution) => inProgressStatuses.includes(c.status)).length +
                    grants.filter((g: GrantApplication) => ['submitted', 'under_review', 'resubmitted'].includes(g.status)).length,
       completed: contributions.filter((c: ResearchContribution) => completedStatuses.includes(c.status)).length +
                  grants.filter((g: GrantApplication) => ['approved', 'completed'].includes(g.status)).length,
-      rejected: contributions.filter((c: ResearchContribution) => c.status === 'rejected').length +
-                grants.filter((g: GrantApplication) => g.status === 'rejected').length,
+      rejected: contributions.filter((c: ResearchContribution) => c.status ===
+   'rejected').length +
+                grants.filter((g: GrantApplication) => g.status ===
+   'rejected').length,
       totalIncentives: creditedIncentives + totalGrantIncentives,
       totalPoints: creditedPoints + totalGrantPoints,
     });
@@ -214,19 +222,26 @@ export default function MyContributionsPage() {
     let filtered = [...contributions];
     
     // Tab filter
-    if (activeTab === 'action_required') {
-      filtered = filtered.filter(c => c.status === 'changes_required');
-    } else if (activeTab === 'draft') {
-      filtered = filtered.filter(c => c.status === 'draft');
-    } else if (activeTab === 'in_progress') {
+    if (activeTab ===
+   'action_required') {
+      filtered = filtered.filter(c => c.status ===
+   'changes_required');
+    } else if (activeTab ===
+   'draft') {
+      filtered = filtered.filter(c => c.status ===
+   'draft');
+    } else if (activeTab ===
+   'in_progress') {
       filtered = filtered.filter(c => ['submitted', 'under_review', 'resubmitted', 'pending_mentor_approval'].includes(c.status));
-    } else if (activeTab === 'completed') {
+    } else if (activeTab ===
+   'completed') {
       filtered = filtered.filter(c => ['approved', 'completed', 'rejected'].includes(c.status));
     }
     
     // Publication type filter
     if (publicationTypeFilter && publicationTypeFilter !== 'grant') {
-      filtered = filtered.filter(c => c.publicationType === publicationTypeFilter);
+      filtered = filtered.filter(c => c.publicationType ===
+   publicationTypeFilter);
     }
     
     // Search filter
@@ -249,13 +264,19 @@ export default function MyContributionsPage() {
     let filtered = [...grants];
     
     // Tab filter
-    if (activeTab === 'action_required') {
-      filtered = filtered.filter(g => g.status === 'changes_required');
-    } else if (activeTab === 'draft') {
-      filtered = filtered.filter(g => g.status === 'draft');
-    } else if (activeTab === 'in_progress') {
+    if (activeTab ===
+   'action_required') {
+      filtered = filtered.filter(g => g.status ===
+   'changes_required');
+    } else if (activeTab ===
+   'draft') {
+      filtered = filtered.filter(g => g.status ===
+   'draft');
+    } else if (activeTab ===
+   'in_progress') {
       filtered = filtered.filter(g => ['submitted', 'under_review', 'resubmitted'].includes(g.status));
-    } else if (activeTab === 'completed') {
+    } else if (activeTab ===
+   'completed') {
       filtered = filtered.filter(g => ['approved', 'completed', 'rejected'].includes(g.status));
     }
     
@@ -362,10 +383,50 @@ export default function MyContributionsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-500">Loading your contributions...</p>
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="h-7 w-56 bg-gray-200 rounded-lg animate-pulse mb-2" />
+            <div className="h-4 w-72 bg-gray-100 rounded animate-pulse" />
+          </div>
+          <div className="h-10 w-40 bg-gray-200 rounded-xl animate-pulse" />
+        </div>
+
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mb-3" />
+              <div className="h-8 w-12 bg-gray-200 rounded-lg animate-pulse" />
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs skeleton */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-9 w-28 bg-gray-200 rounded-lg animate-pulse flex-shrink-0" />
+          ))}
+        </div>
+
+        {/* List skeleton */}
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1 min-w-0">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="h-5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2" />
+                    <div className="h-4 w-1/2 bg-gray-100 dark:bg-gray-700 rounded animate-pulse mb-2" />
+                    <div className="h-3 w-1/3 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse flex-shrink-0" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -376,8 +437,8 @@ export default function MyContributionsPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Research Contributions</h1>
-          <p className="text-gray-500 mt-1">Track and manage all your research paper submissions</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Research Contributions</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Track and manage all your research paper submissions</p>
         </div>
         <Link
           href="/research/apply"
@@ -390,74 +451,79 @@ export default function MyContributionsPage() {
 
       {/* Stats Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500">Total</span>
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Total</span>
             <div className="p-2 bg-blue-50 rounded-lg">
               <FileText className="w-4 h-4 text-blue-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-xs text-gray-400 mt-1">All submissions</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">All submissions</p>
         </div>
         
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500">In Progress</span>
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">In Progress</span>
             <div className="p-2 bg-amber-50 rounded-lg">
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
           </div>
           <p className="text-2xl font-bold text-amber-600">{stats.in_progress}</p>
-          <p className="text-xs text-gray-400 mt-1">Under review</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Under review</p>
         </div>
         
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500">Completed</span>
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</span>
             <div className="p-2 bg-green-50 rounded-lg">
               <CheckCircle className="w-4 h-4 text-green-600" />
             </div>
           </div>
           <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-          <p className="text-xs text-gray-400 mt-1">Approved</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Approved</p>
         </div>
         
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500">Incentives</span>
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Incentives</span>
             <div className="p-2 bg-emerald-50 rounded-lg">
               <TrendingUp className="w-4 h-4 text-emerald-600" />
             </div>
           </div>
           <p className="text-2xl font-bold text-emerald-600">₹{stats.totalIncentives.toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-1">Total earned</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Total earned</p>
         </div>
         
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500">Points</span>
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Points</span>
             <div className="p-2 bg-purple-50 rounded-lg">
               <Award className="w-4 h-4 text-purple-600" />
             </div>
           </div>
           <p className="text-2xl font-bold text-purple-600">{stats.totalPoints}</p>
-          <p className="text-xs text-gray-400 mt-1">Research points</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Research points</p>
         </div>
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         {/* Tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex overflow-x-auto">
             {TABS.map(tab => {
               const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              const count = tab.key === 'all' ? stats.total :
-                           tab.key === 'action_required' ? stats.action_required :
-                           tab.key === 'draft' ? stats.drafts :
-                           tab.key === 'in_progress' ? stats.in_progress :
+              const isActive = activeTab ===
+   tab.key;
+              const count = tab.key ===
+   'all' ? stats.total :
+                           tab.key ===
+   'action_required' ? stats.action_required :
+                           tab.key ===
+   'draft' ? stats.drafts :
+                           tab.key ===
+   'in_progress' ? stats.in_progress :
                            stats.completed + stats.rejected;
               
               return (
@@ -467,13 +533,13 @@ export default function MyContributionsPage() {
                   className={`flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-all duration-200 ${
                     isActive 
                       ? 'border-blue-600 text-blue-600 bg-blue-50/50' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : tab.color}`} />
                   {tab.label}
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                    isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                   }`}>
                     {count}
                   </span>
@@ -484,7 +550,7 @@ export default function MyContributionsPage() {
         </div>
 
         {/* Filters Bar */}
-        <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex flex-wrap items-center gap-4">
+        <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 border-b border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[250px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -493,7 +559,7 @@ export default function MyContributionsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by title, journal, conference..."
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all dark:text-gray-100 dark:placeholder-gray-400"
               />
             </div>
           </div>
@@ -501,7 +567,7 @@ export default function MyContributionsPage() {
             <select
               value={publicationTypeFilter}
               onChange={(e) => setPublicationTypeFilter(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer transition-all"
+              className="appearance-none pl-4 pr-10 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer transition-all dark:text-gray-100"
             >
               <option value="">All Publication Types</option>
               {Object.entries(PUBLICATION_TYPE_CONFIG).map(([key, config]) => (
@@ -513,17 +579,21 @@ export default function MyContributionsPage() {
         </div>
 
         {/* Contributions List */}
-        <div className="divide-y divide-gray-100">
-          {filteredContributions.length === 0 && filteredGrants.length === 0 ? (
+        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+          {filteredContributions.length ===
+   0 && filteredGrants.length ===
+   0 ? (
             <div className="py-16 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FolderOpen className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No contributions found</h3>
-              <p className="text-gray-500 mb-6 max-w-sm mx-auto">
-                {activeTab === 'all' 
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No contributions found</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+                {activeTab ===
+   'all' 
                   ? "You haven't submitted any research contributions yet. Start by creating your first submission."
-                  : `No ${TABS.find(t => t.key === activeTab)?.label.toLowerCase()} contributions to display.`}
+                  : `No ${TABS.find(t => t.key ===
+   activeTab)?.label.toLowerCase()} contributions to display.`}
               </p>
               <Link
                 href="/research/apply"
@@ -546,8 +616,9 @@ export default function MyContributionsPage() {
                 <div key={`grant-${grant.id}`} className="relative">
                   <Link
                     href={`/research/grant/${grant.id}`}
-                    className={`block p-5 hover:bg-gray-50/80 transition-all duration-200 ${
-                      index === 0 ? 'rounded-t-none' : ''
+                    className={`block p-5 hover:bg-gray-50/80 dark:hover:bg-gray-700/50 transition-all duration-200 ${
+                      index ===
+   0 ? 'rounded-t-none' : ''
                     }`}
                   >
                     <div className="flex items-start gap-4">
@@ -560,12 +631,12 @@ export default function MyContributionsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 line-clamp-1 mb-1">
+                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 mb-1">
                               {grant.title}
                             </h3>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
                               <span className="inline-flex items-center">
-                                <span className="font-medium text-gray-700">{grant.agencyName || 'N/A'}</span>
+                                <span className="font-medium text-gray-700 dark:text-gray-300">{grant.agencyName || 'N/A'}</span>
                               </span>
                               {grant.submittedAmount && (
                                 <span className="inline-flex items-center gap-1">
@@ -583,7 +654,8 @@ export default function MyContributionsPage() {
                             {grant.projectType && (
                               <div className="mt-2">
                                 <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                                  {grant.projectType === 'indian' ? 'Indian Project' : 'International Project'}
+                                  {grant.projectType ===
+   'indian' ? 'Indian Project' : 'International Project'}
                                 </span>
                               </div>
                             )}
@@ -597,7 +669,8 @@ export default function MyContributionsPage() {
                             </div>
                             
                             {/* Action Buttons for Draft */}
-                            {grant.status === 'draft' && (
+                            {grant.status ===
+   'draft' && (
                               <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
                                 <button
                                   onClick={(e) => handleGrantSubmit(grant.id, e)}
@@ -621,7 +694,7 @@ export default function MyContributionsPage() {
                         </div>
                         
                         {/* Date Info */}
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
                           <span>Created: {new Date(grant.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                           {grant.updatedAt && grant.updatedAt !== grant.createdAt && (
                             <span>Updated: {new Date(grant.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
@@ -641,14 +714,16 @@ export default function MyContributionsPage() {
               const StatusIcon = statusConfig.icon;
               const pubTypeConfig = PUBLICATION_TYPE_CONFIG[contribution.publicationType];
               const PubTypeIcon = pubTypeConfig?.icon || FileText;
-              const isExpanded = expandedApp === contribution.id;
+              const isExpanded = expandedApp ===
+   contribution.id;
               
               return (
                 <div key={contribution.id} className="relative">
                   <Link
                     href={`/research/contribution/${contribution.id}`}
-                    className={`block p-5 hover:bg-gray-50/80 transition-all duration-200 ${
-                      index === 0 ? 'rounded-t-none' : ''
+                    className={`block p-5 hover:bg-gray-50/80 dark:hover:bg-gray-700/50 transition-all duration-200 ${
+                      index ===
+   0 ? 'rounded-t-none' : ''
                     }`}
                   >
                     <div className="flex items-start gap-4">
@@ -661,11 +736,11 @@ export default function MyContributionsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 line-clamp-1 mb-1">
+                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 mb-1">
                               {contribution.title}
                             </h3>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
-                              <span className="font-medium text-gray-600">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+                              <span className="font-medium text-gray-600 dark:text-gray-400">
                                 {contribution.applicationNumber || 'Draft'}
                               </span>
                               <span className="w-1 h-1 rounded-full bg-gray-300" />
@@ -713,7 +788,7 @@ export default function MyContributionsPage() {
                                         {contribution.calculatedPoints} pts
                                       </span>
                                     )}
-                                    <span className="text-xs text-gray-500">Estimated</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">Estimated</span>
                                   </>
                                 )}
                               </div>
@@ -728,7 +803,8 @@ export default function MyContributionsPage() {
                             </div>
                             
                             {/* Action Buttons for Draft */}
-                            {contribution.status === 'draft' && (
+                            {contribution.status ===
+   'draft' && (
                               <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
                                 <button
                                   onClick={(e) => handleSubmit(contribution.id, e)}
@@ -748,7 +824,8 @@ export default function MyContributionsPage() {
                             )}
                             
                             {/* Resubmit for Changes Required */}
-                            {contribution.status === 'changes_required' && (
+                            {contribution.status ===
+   'changes_required' && (
                               <button
                                 onClick={(e) => handleResubmit(contribution.id, e)}
                                 className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -763,7 +840,7 @@ export default function MyContributionsPage() {
                         </div>
                         
                         {/* Date Info */}
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
                           <span>Created: {new Date(contribution.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                           {contribution.updatedAt && contribution.updatedAt !== contribution.createdAt && (
                             <span>Updated: {new Date(contribution.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>

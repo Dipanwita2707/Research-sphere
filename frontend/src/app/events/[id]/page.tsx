@@ -89,23 +89,30 @@ export default function EventDetailPage() {
     return { name: userName, email: user.email || "" };
   }, [user]);
 
-  const isCreator = event?.createdBy?.id === currentUserId;
+  const isCreator = event?.createdBy?.id ===
+   currentUserId;
   const isRegistered =
     !!event?.userRegistration &&
-    event?.userRegistration?.status === "confirmed";
+    event?.userRegistration?.status ===
+   "confirmed";
   const hasIncompleteRegistration =
     !!event?.userRegistration &&
-    event?.userRegistration?.status === "incomplete_team";
+    event?.userRegistration?.status ===
+   "incomplete_team";
   const hasPendingPayment =
     !!event?.userRegistration &&
-    event?.userRegistration?.status === "pending" &&
-    event?.paymentType === "paid";
-  const isTeamBased = event?.participationType === "team";
+    event?.userRegistration?.status ===
+   "pending" &&
+    event?.paymentType ===
+   "paid";
+  const isTeamBased = event?.participationType ===
+   "team";
   const registrationOpen = event?.registrationEndDate
     ? new Date(event.registrationEndDate) >= new Date()
     : true;
   const canRegister =
-    event?.status === "published" &&
+    event?.status ===
+   "published" &&
     !isCreator &&
     !event?.userRegistration &&
     !isTeamBased &&
@@ -208,7 +215,9 @@ export default function EventDetailPage() {
 
   return (
     <div className="ev-page min-h-screen bg-[#f4f8fc]">
-      {/* ========== HERO BANNER ========== */}
+      {/* ==========
+   HERO BANNER ==========
+   */}
       <section
         className="relative overflow-hidden min-h-[340px] lg:min-h-[380px]"
         style={heroBackgroundUrl
@@ -279,7 +288,8 @@ export default function EventDetailPage() {
                   {durationLabel}
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold capitalize text-ev-900 shadow-sm">
-                  {event.participationType === "team" ? <Users className="w-4 h-4 text-sgt-600" /> : <User className="w-4 h-4 text-sgt-600" />}
+                  {event.participationType ===
+   "team" ? <Users className="w-4 h-4 text-sgt-600" /> : <User className="w-4 h-4 text-sgt-600" />}
                   {event.participationType || "Individual"}
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold capitalize text-ev-900 shadow-sm">
@@ -290,7 +300,8 @@ export default function EventDetailPage() {
                   <Award className="w-4 h-4 text-sgt-600" />
                   {EVENT_TYPE_LABELS[event.eventType]}
                 </span>
-                {event.paymentType === "free" ? (
+                {event.paymentType ===
+   "free" ? (
                   <span className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-sm">
                     Free Entry
                   </span>
@@ -323,7 +334,8 @@ export default function EventDetailPage() {
                     <ArrowLeft className="w-5 h-5 rotate-180" />
                   </button>
                 )}
-                {isTeamBased && event.status === "published" && !isCreator && !event.userRegistration && registrationOpen && (
+                {isTeamBased && event.status ===
+   "published" && !isCreator && !event.userRegistration && registrationOpen && (
                   <Link
                     href={`/events/${event.id}/registration`}
                     className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-3 text-base font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40 hover:brightness-110 active:scale-[0.98]"
@@ -354,7 +366,9 @@ export default function EventDetailPage() {
         </div>
       </section>
 
-      {/* ========== STICKY TAB NAVIGATION ========== */}
+      {/* ==========
+   STICKY TAB NAVIGATION ==========
+   */}
       <div className="sticky top-0 z-40 border-b border-[#b3cde0]/40 bg-[#f7fbff]/95 shadow-sm backdrop-blur">
         <nav className="flex items-center justify-start gap-0 overflow-x-auto scrollbar-hide -mb-px min-w-0 px-4 sm:px-6">
           {tabs.map((tab) => (
@@ -362,7 +376,8 @@ export default function EventDetailPage() {
               key={tab.id}
               onClick={() => switchTab(tab.id)}
               className={`relative flex items-center gap-2 whitespace-nowrap px-6 py-4 text-sm font-semibold transition-colors ${
-                activeTab === tab.id
+                activeTab ===
+   tab.id
                   ? "text-sgt-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[3px] after:rounded-t-full after:bg-sgt-600"
                   : "text-gray-500 hover:text-gray-800"
               }`}
@@ -374,13 +389,18 @@ export default function EventDetailPage() {
         </nav>
       </div>
 
-      {/* ========== TWO-COLUMN CONTENT AREA ========== */}
+      {/* ==========
+   TWO-COLUMN CONTENT AREA ==========
+   */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px]">
           {/* --- LEFT: Tab Content (only active tab shown) --- */}
           <div>
-            {/* ===== OVERVIEW TAB ===== */}
-            {activeTab === "overview" && (
+            {/* =====
+   OVERVIEW TAB =====
+   */}
+            {activeTab ===
+   "overview" && (
               <div className="space-y-6">
                 <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
                   <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
@@ -420,7 +440,8 @@ export default function EventDetailPage() {
                       )}
                       <div className="rounded-xl border border-[#b3cde0]/35 bg-[#f8fbff] p-4">
                         <div className="flex items-center gap-2 text-gray-400 mb-2">
-                          {event.participationType === "individual" ? <User className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                          {event.participationType ===
+   "individual" ? <User className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                           <span className="text-xs font-semibold uppercase tracking-wider">Format</span>
                         </div>
                         <p className="text-sm font-bold text-ev-900 capitalize">{event.participationType || "Individual"}</p>
@@ -483,10 +504,12 @@ export default function EventDetailPage() {
                               {isNewFormat && s.sponsorType && (
                                 <p className="text-xs text-gray-500 mt-0.5">{SPONSOR_TYPE_LABELS[s.sponsorType] || "Partner"}</p>
                               )}
-                              {!isNewFormat && s.type === "cash" && s.amount && (
+                              {!isNewFormat && s.type ===
+   "cash" && s.amount && (
                                 <p className="text-xs text-sgt-600 font-semibold mt-1">₹{Number(s.amount).toLocaleString()}</p>
                               )}
-                              {isNewFormat && s.contributionType === "cash" && s.cashAmount && (
+                              {isNewFormat && s.contributionType ===
+   "cash" && s.cashAmount && (
                                 <p className="text-xs text-sgt-600 font-semibold mt-1">₹{Number(s.cashAmount).toLocaleString()}</p>
                               )}
                             </div>
@@ -499,8 +522,11 @@ export default function EventDetailPage() {
               </div>
             )}
 
-            {/* ===== SCHEDULE TAB ===== */}
-            {activeTab === "schedule" && (
+            {/* =====
+   SCHEDULE TAB =====
+   */}
+            {activeTab ===
+   "schedule" && (
               <section className="py-2">
                 <div className="relative">
                   {/* Single continuous vertical timeline line */}
@@ -584,7 +610,8 @@ export default function EventDetailPage() {
                     })}
 
                   {/* Fallback: no rounds created, show basic event timeline */}
-                  {(!event.rounds || event.rounds.length === 0) && (() => {
+                  {(!event.rounds || event.rounds.length ===
+   0) && (() => {
                     const start = new Date(event.startDate);
                     const modeLabel = event.opportunityMode ? event.opportunityMode.charAt(0).toUpperCase() + event.opportunityMode.slice(1) : "Offline";
                     return (
@@ -649,8 +676,11 @@ export default function EventDetailPage() {
               </section>
             )}
 
-            {/* ===== RULES TAB ===== */}
-            {activeTab === "guidelines" && hasGuidelinesContent && (
+            {/* =====
+   RULES TAB =====
+   */}
+            {activeTab ===
+   "guidelines" && hasGuidelinesContent && (
               <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
                 <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                   <h2 className="text-lg font-bold text-ev-900">Rules</h2>
@@ -670,12 +700,14 @@ export default function EventDetailPage() {
                         const bothParts = text.split("\n\n---POINTS---\n\n");
                         const paragraph = bothParts[0]?.trim() || "";
                         const points =
-                          displayFmt === "both"
+                          displayFmt ===
+   "both"
                             ? bothParts[1]
                               ? bothParts[1].split("\n").map((s) => s.trim()).filter(Boolean)
                               : []
                             : text.split(/\n/).map((s) => s.trim()).filter(Boolean);
-                        if (displayFmt === "points") {
+                        if (displayFmt ===
+   "points") {
                           return (
                             <ul className="space-y-2 pl-1">
                               {points.map((p, i) => (
@@ -687,7 +719,8 @@ export default function EventDetailPage() {
                             </ul>
                           );
                         }
-                        if (displayFmt === "both") {
+                        if (displayFmt ===
+   "both") {
                           return (
                             <div className="space-y-3">
                               {paragraph && <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{paragraph}</p>}
@@ -723,12 +756,14 @@ export default function EventDetailPage() {
                         const bothParts = text.split("\n\n---POINTS---\n\n");
                         const paragraph = bothParts[0]?.trim() || "";
                         const points =
-                          displayFmt === "both"
+                          displayFmt ===
+   "both"
                             ? bothParts[1]
                               ? bothParts[1].split("\n").map((s) => s.trim()).filter(Boolean)
                               : []
                             : text.split(/\n/).map((s) => s.trim()).filter(Boolean);
-                        if (displayFmt === "points") {
+                        if (displayFmt ===
+   "points") {
                           return (
                             <ul className="space-y-2 pl-1">
                               {points.map((p, i) => (
@@ -740,7 +775,8 @@ export default function EventDetailPage() {
                             </ul>
                           );
                         }
-                        if (displayFmt === "both") {
+                        if (displayFmt ===
+   "both") {
                           return (
                             <div className="space-y-3">
                               {paragraph && <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{paragraph}</p>}
@@ -765,13 +801,19 @@ export default function EventDetailPage() {
               </section>
             )}
 
-            {/* ===== PRIZES TAB ===== */}
-            {activeTab === "prizes" && hasPrizesContent && (
+            {/* =====
+   PRIZES TAB =====
+   */}
+            {activeTab ===
+   "prizes" && hasPrizesContent && (
               <EventPrizesSection event={event} />
             )}
 
-            {/* ===== FAQ TAB ===== */}
-            {activeTab === "faq" && hasFaqContent && (
+            {/* =====
+   FAQ TAB =====
+   */}
+            {activeTab ===
+   "faq" && hasFaqContent && (
               <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
                 <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                   <h2 className="text-lg font-bold text-ev-900">Frequently Asked Questions</h2>
@@ -780,23 +822,27 @@ export default function EventDetailPage() {
                   {event.faqs!.map((faq, i) => (
                     <div
                       key={i}
-                      className={`rounded-lg border-2 transition-all ${expandedFaq === i ? "border-sgt-300 bg-sgt-50/50 shadow-sm" : "border-gray-200 bg-gray-50/50 hover:border-sgt-200 hover:bg-sgt-50/30"}`}
+                      className={`rounded-lg border-2 transition-all ${expandedFaq ===
+   i ? "border-sgt-300 bg-sgt-50/50 shadow-sm" : "border-gray-200 bg-gray-50/50 hover:border-sgt-200 hover:bg-sgt-50/30"}`}
                     >
                       <button
                         type="button"
-                        onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                        onClick={() => setExpandedFaq(expandedFaq ===
+   i ? null : i)}
                         className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left"
                       >
                         <span className="text-sm font-semibold text-ev-900">{faq.question}</span>
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm">
-                          {expandedFaq === i ? (
+                          {expandedFaq ===
+   i ? (
                             <ChevronUp className="w-5 h-5 text-sgt-600" />
                           ) : (
                             <ChevronDown className="w-5 h-5 text-sgt-600" />
                           )}
                         </span>
                       </button>
-                      {expandedFaq === i && (
+                      {expandedFaq ===
+   i && (
                         <div className="border-t border-gray-200 px-5 pb-4 pt-3 text-sm leading-relaxed text-gray-600 bg-white/80 rounded-b-lg">
                           {faq.answer}
                         </div>
@@ -807,8 +853,11 @@ export default function EventDetailPage() {
               </section>
             )}
 
-            {/* ===== CONTACT TAB ===== */}
-            {activeTab === "contact" && hasContactContent && (
+            {/* =====
+   CONTACT TAB =====
+   */}
+            {activeTab ===
+   "contact" && hasContactContent && (
               <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
                 <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                   <h2 className="text-lg font-bold text-ev-900">Contact</h2>

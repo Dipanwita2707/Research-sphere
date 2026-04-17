@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Redis Cache Configuration
  * High-performance caching layer for fast data retrieval
  */
@@ -6,30 +6,34 @@
 const Redis = require('ioredis');
 const log = require('../utils/logger');
 
-// Redis configuration - REDIS_URL takes precedence, else use individual vars
+// Redis configuration - uses environment variables or defaults to localhost
+// Redis configuration — supports REDIS_URL (cloud) or individual host/port vars
+const _baseRedisOpts = {
+  keepAlive: 30000,
+  reconnectOnError: (err) => {
+    const transient = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'READONLY'];
+    return transient.some((e) => err.message.toUpperCase().includes(e));
+  },
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+  lazyConnect: true,
+  connectTimeout: 10000,
+  commandTimeout: 8000,
+  retryStrategy: (times) => {
+    if (times > 10) return null;
+    return Math.min(times * 1000, 8000);
+  },
+};
+
 const redisConfig = process.env.REDIS_URL
-  ? {
-      maxRetriesPerRequest: 3,
-      retryDelayOnFailover: 1000,
-      enableReadyCheck: true,
-      lazyConnect: false,
-      connectTimeout: 10000,
-      commandTimeout: 1000, // Reduced from 5000ms — cache should be fast or skip
-      retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
-    }
+  ? _baseRedisOpts
   : {
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD || null,
       username: process.env.REDIS_USERNAME || null,
       db: parseInt(process.env.REDIS_DB) || 0,
-      maxRetriesPerRequest: 3,
-      retryDelayOnFailover: 1000,
-      enableReadyCheck: true,
-      lazyConnect: false,
-      connectTimeout: 10000,
-      commandTimeout: 1000, // Reduced from 5000ms — cache should be fast or skip
-      retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
+      ..._baseRedisOpts,
     };
 
 // Create Redis instance
@@ -38,14 +42,13 @@ let isConnected = false;
 let connectionAttempted = false;
 
 // In-memory fallback cache when Redis is unavailable
-const MAX_MEMORY_CACHE_SIZE = 5000; // Prevent unbounded growth
+const MAX_MEMORY_CACHE_SIZE = 5000;
 const memoryCache = new Map();
 const memoryCacheTTL = new Map();
 
 /** Evict oldest entries when memory cache exceeds limit */
 function _evictIfNeeded() {
   if (memoryCache.size <= MAX_MEMORY_CACHE_SIZE) return;
-  // Delete the oldest 10% of entries (FIFO via Map insertion order)
   const toDelete = Math.ceil(MAX_MEMORY_CACHE_SIZE * 0.1);
   let count = 0;
   for (const key of memoryCache.keys()) {
@@ -365,6 +368,96 @@ const invalidateLists = async (type) => {
 };
 
 /**
+ * Redis Set operations - Add member to set
+ */
+const sadd = async (key, ...members) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.sadd(key, ...members);
+    }
+    
+    // Memory fallback
+    let set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      set = new Set();
+    }
+    members.forEach(member => set.add(member));
+    memoryCache.set(key, set);
+    return members.length;
+  } catch (error) {
+    console.error('Cache sadd error:', error.message);
+    return 0;
+  }
+};
+
+/**
+ * Redis Set operations - Remove member from set
+ */
+const srem = async (key, ...members) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.srem(key, ...members);
+    }
+    
+    // Memory fallback
+    const set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      return 0;
+    }
+    let removed = 0;
+    members.forEach(member => {
+      if (set.delete(member)) removed++;
+    });
+    return removed;
+  } catch (error) {
+    console.error('Cache srem error:', error.message);
+    return 0;
+  }
+};
+
+/**
+ * Redis Set operations - Get all members of set
+ */
+const smembers = async (key) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.smembers(key);
+    }
+    
+    // Memory fallback
+    const set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      return [];
+    }
+    return Array.from(set);
+  } catch (error) {
+    console.error('Cache smembers error:', error.message);
+    return [];
+  }
+};
+
+/**
+ * Redis Set operations - Check if member exists in set
+ */
+const sismember = async (key, member) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.sismember(key, member);
+    }
+    
+    // Memory fallback
+    const set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      return 0;
+    }
+    return set.has(member) ? 1 : 0;
+  } catch (error) {
+    console.error('Cache sismember error:', error.message);
+    return 0;
+  }
+};
+
+/**
  * Get cache statistics
  */
 const getStats = async () => {
@@ -425,6 +518,10 @@ module.exports = {
   invalidateUser,
   invalidateLists,
   getStats,
+  sadd,
+  srem,
+  smembers,
+  sismember,
   getConnectionOpts,
   CACHE_TTL,
   CACHE_KEYS,

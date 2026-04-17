@@ -1,11 +1,24 @@
 'use client';
 
 import { useAuthStore } from '@/shared/auth/authStore';
-import ModernStaffDashboard from '@/features/dashboard/components/ModernStaffDashboard';
-import StudentDashboard from '@/features/dashboard/components/StudentDashboard';
 import PageLoader from '@/shared/components/PageLoader';
 import { useEffect } from 'react';
 import { logger } from '@/shared/utils/logger';
+import dynamic from 'next/dynamic';
+
+const ModernStaffDashboard = dynamic(
+  () => import('@/features/dashboard/components/ModernStaffDashboard'),
+  {
+    loading: () => <PageLoader fullScreen />,
+  }
+);
+
+const StudentDashboard = dynamic(
+  () => import('@/features/dashboard/components/StudentDashboard'),
+  {
+    loading: () => <PageLoader fullScreen />,
+  }
+);
 
 // Force reload - showing StudentDashboard for all users
 export default function DashboardPage() {
@@ -30,7 +43,9 @@ export default function DashboardPage() {
   logger.debug('Dashboard - Rendering for userType:', user.userType);
 
   // Check if user is a student
-  const isStudent = user?.userType === 'student' || user?.role?.name === 'student';
+  const isStudent = user?.userType ===
+   'student' || user?.role?.name ===
+   'student';
   
   // Debug: Log the check
   logger.debug('Dashboard - isStudent check:', isStudent, 'userType:', user?.userType, 'role:', user?.role?.name);

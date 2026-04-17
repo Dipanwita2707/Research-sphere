@@ -14,8 +14,10 @@ export default function PaymentQRModal({ booking, mode = 'booking', payableAmoun
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isExtensionMode = mode === 'extension';
-  const amountToPay = typeof payableAmount === 'number' && payableAmount > 0 ? payableAmount : booking.totalPrice;
+  const isExtensionMode = mode ===
+   'extension';
+  const amountToPay = typeof payableAmount ===
+   'number' && payableAmount > 0 ? payableAmount : booking.totalPrice;
 
   // Confirm payment (Test Mode - will be replaced with Razorpay verification later)
   const handleTestModePayment = async () => {

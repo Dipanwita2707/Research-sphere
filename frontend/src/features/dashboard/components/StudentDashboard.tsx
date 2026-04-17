@@ -34,19 +34,31 @@ import {
   Sparkles,
   ArrowRight
 } from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area
-} from 'recharts';
+import dynamic from 'next/dynamic';
+// Recharts — lazy-loaded so it doesn't block initial paint (it's ~500KB)
+const BarChart = dynamic(() => import('recharts').then(m => ({ default: m.BarChart })), { ssr: false });
+const Bar = dynamic(() => import('recharts').then(m => ({ default: m.Bar })), { ssr: false });
+const LineChart = dynamic(() => import('recharts').then(m => ({ default: m.LineChart })), { ssr: false });
+const Line = dynamic(() => import('recharts').then(m => ({ default: m.Line })), { ssr: false });
+const AreaChart = dynamic(() => import('recharts').then(m => ({ default: m.AreaChart })), { ssr: false });
+const Area = dynamic(() => import('recharts').then(m => ({ default: m.Area })), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then(m => ({ default: m.XAxis })), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then(m => ({ default: m.YAxis })), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then(m => ({ default: m.CartesianGrid })), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then(m => ({ default: m.Tooltip })), { ssr: false });
+const Legend = dynamic(() => import('recharts').then(m => ({ default: m.Legend })), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then(m => ({ default: m.ResponsiveContainer })), { ssr: false });
 import { logger } from '@/shared/utils/logger';
 import { FadeInUp } from '../animations/AnimatedComponents';
-import UniversityEventsSlideshow from './UniversityEventsSlideshow';
-import PermissionBasedDashboard from './PermissionBasedDashboard';
-import CurrentActionSection from './CurrentActionSection';
-import RecentNotifications from './RecentNotifications';
-import SocialFootprints from './SocialFootprints';
-import Footer from '../layouts/Footer';
-import TourGuide, { TourStep, TourStartButton } from './TourGuide';
+// Lazy-load below-the-fold heavy components so they don't block initial paint
+const UniversityEventsSlideshow = dynamic(() => import('./UniversityEventsSlideshow'), { ssr: false });
+const PermissionBasedDashboard = dynamic(() => import('./PermissionBasedDashboard'), { ssr: false });
+const CurrentActionSection = dynamic(() => import('./CurrentActionSection'), { ssr: false });
+const RecentNotifications = dynamic(() => import('./RecentNotifications'), { ssr: false });
+const SocialFootprints = dynamic(() => import('./SocialFootprints'), { ssr: false });
+const Footer = dynamic(() => import('../layouts/Footer'), { ssr: false });
+const TourGuide = dynamic(() => import('./TourGuide'), { ssr: false });
+import { TourStep, TourStartButton } from './TourGuide';
 import { eventService } from '@/features/event-management/services/event.service';
 
 interface StudentData {
@@ -1721,7 +1733,8 @@ export default function StudentDashboard() {
       ]);
 
       // Build set of event IDs the student is registered for
-      if (myRegsResult.status === 'fulfilled') {
+      if (myRegsResult.status ===
+   'fulfilled') {
         const registeredIds = new Set<string>(
           (myRegsResult.value.registrations || [])
             .filter((r: any) => r.status !== 'cancelled')
@@ -1731,10 +1744,12 @@ export default function StudentDashboard() {
       }
 
       const allEvents: any[] = [];
-      if (publishedResult.status === 'fulfilled') {
+      if (publishedResult.status ===
+   'fulfilled') {
         allEvents.push(...(publishedResult.value.events || []));
       }
-      if (ongoingResult.status === 'fulfilled') {
+      if (ongoingResult.status ===
+   'fulfilled') {
         allEvents.push(...(ongoingResult.value.events || []));
       }
 
@@ -1793,7 +1808,8 @@ export default function StudentDashboard() {
 
   const isExamDate = (day: number) => {
     const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return examSchedule.find(exam => exam.date === dateStr);
+    return examSchedule.find(exam => exam.date ===
+   dateStr);
   };
 
   // Render mini month for year view
@@ -1812,7 +1828,8 @@ export default function StudentDashboard() {
     // Days of month
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `2026-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const exam = examSchedule.find(exam => exam.date === dateStr);
+      const exam = examSchedule.find(exam => exam.date ===
+   dateStr);
       
       days.push(
         <div
@@ -1860,7 +1877,9 @@ export default function StudentDashboard() {
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const exam = isExamDate(day);
-      const isToday = day === new Date().getDate() && currentMonth.getMonth() === new Date().getMonth();
+      const isToday = day ===
+   new Date().getDate() && currentMonth.getMonth() ===
+   new Date().getMonth();
       
       days.push(
         <div
@@ -1923,7 +1942,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setCgpaActiveTab('statistical')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  cgpaActiveTab === 'statistical'
+                  cgpaActiveTab ===
+   'statistical'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -1933,7 +1953,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setCgpaActiveTab('marks')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  cgpaActiveTab === 'marks'
+                  cgpaActiveTab ===
+   'marks'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -1943,7 +1964,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setCgpaActiveTab('grades')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  cgpaActiveTab === 'grades'
+                  cgpaActiveTab ===
+   'grades'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -1954,7 +1976,8 @@ export default function StudentDashboard() {
 
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {/* Statistical Analysis Tab */}
-              {cgpaActiveTab === 'statistical' && (
+              {cgpaActiveTab ===
+   'statistical' && (
                 <div className="space-y-6">
                   {/* Grades Distribution Chart - Professional Recharts */}
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -1987,7 +2010,8 @@ export default function StudentDashboard() {
                             }}
                             formatter={(value, name) => [value, 'Subjects']}
                             labelFormatter={(label) => {
-                              const item = gradesChartData.find(d => d.grade === label);
+                              const item = gradesChartData.find(d => d.grade ===
+   label);
                               return `Grade: ${label} (${item?.fullForm})`;
                             }}
                           />
@@ -2135,7 +2159,8 @@ export default function StudentDashboard() {
               )}
 
               {/* Marks Tab */}
-              {cgpaActiveTab === 'marks' && (
+              {cgpaActiveTab ===
+   'marks' && (
                 <div className="space-y-6">
                   {/* Term Selector - Clickable */}
                   <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -2144,7 +2169,8 @@ export default function StudentDashboard() {
                         key={term}
                         onClick={() => setSelectedMarksTerm(term)}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
-                          selectedMarksTerm === term
+                          selectedMarksTerm ===
+   term
                             ? 'bg-blue-600 text-white shadow-lg'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                         }`}
@@ -2174,10 +2200,14 @@ export default function StudentDashboard() {
                               Credit: {subject.credit}
                             </span>
                             <span className={`px-3 py-1 text-white text-xs font-bold rounded ${
-                              subject.grade === 'O' ? 'bg-green-600' :
-                              subject.grade === 'A+' ? 'bg-blue-600' :
-                              subject.grade === 'A' ? 'bg-cyan-600' :
-                              subject.grade === 'B+' ? 'bg-yellow-500' :
+                              subject.grade ===
+   'O' ? 'bg-green-600' :
+                              subject.grade ===
+   'A+' ? 'bg-blue-600' :
+                              subject.grade ===
+   'A' ? 'bg-cyan-600' :
+                              subject.grade ===
+   'B+' ? 'bg-yellow-500' :
                               'bg-gray-500'
                             }`}>
                               Grade: {subject.grade}
@@ -2204,7 +2234,8 @@ export default function StudentDashboard() {
               )}
 
               {/* Grades Tab */}
-              {cgpaActiveTab === 'grades' && (
+              {cgpaActiveTab ===
+   'grades' && (
                 <div className="space-y-6">
                   {/* Grade Summary Chart */}
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -2232,7 +2263,8 @@ export default function StudentDashboard() {
                         key={term}
                         onClick={() => setSelectedGradesTerm(term)}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
-                          selectedGradesTerm === term
+                          selectedGradesTerm ===
+   term
                             ? 'bg-blue-600 text-white shadow-lg'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                         }`}
@@ -2262,10 +2294,14 @@ export default function StudentDashboard() {
                           </p>
                         </div>
                         <div className={`w-14 h-14 rounded-xl flex items-center justify-center font-bold text-white text-lg shadow-lg ${
-                          item.grade === 'O' ? 'bg-gradient-to-br from-green-500 to-green-600' :
-                          item.grade === 'A+' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
-                          item.grade === 'A' ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' :
-                          item.grade === 'B+' ? 'bg-gradient-to-br from-yellow-500 to-amber-600' :
+                          item.grade ===
+   'O' ? 'bg-gradient-to-br from-green-500 to-green-600' :
+                          item.grade ===
+   'A+' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
+                          item.grade ===
+   'A' ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' :
+                          item.grade ===
+   'B+' ? 'bg-gradient-to-br from-yellow-500 to-amber-600' :
                           'bg-gradient-to-br from-gray-400 to-gray-500'
                         }`}>
                           {item.grade}
@@ -2314,7 +2350,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setAttendanceActiveTab('overview')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  attendanceActiveTab === 'overview'
+                  attendanceActiveTab ===
+   'overview'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -2324,7 +2361,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setAttendanceActiveTab('comparison')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  attendanceActiveTab === 'comparison'
+                  attendanceActiveTab ===
+   'comparison'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -2335,7 +2373,8 @@ export default function StudentDashboard() {
 
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {/* Term-wise Overview Tab */}
-              {attendanceActiveTab === 'overview' && (
+              {attendanceActiveTab ===
+   'overview' && (
                 <div className="space-y-6">
                   {/* Term-wise Attendance Chart */}
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -2437,7 +2476,8 @@ export default function StudentDashboard() {
               )}
 
               {/* Comparison Analysis Tab */}
-              {attendanceActiveTab === 'comparison' && (
+              {attendanceActiveTab ===
+   'comparison' && (
                 <div className="space-y-6">
                   {/* Comparison Line Chart */}
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -2566,7 +2606,8 @@ export default function StudentDashboard() {
       )}
 
       {/* Happening Modal */}
-      {activeModal === 'happening' && (
+      {activeModal ===
+   'happening' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-orange-400 to-orange-500 p-6 rounded-t-2xl">
@@ -2599,13 +2640,17 @@ export default function StudentDashboard() {
               ].map((item) => (
                 <div key={item.id} className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-l-4 border-orange-400">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    item.priority === 'high' ? 'bg-red-100 dark:bg-red-900/30' :
-                    item.priority === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                    item.priority ===
+   'high' ? 'bg-red-100 dark:bg-red-900/30' :
+                    item.priority ===
+   'medium' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
                     'bg-blue-100 dark:bg-blue-900/30'
                   }`}>
                     <FileText className={`w-6 h-6 ${
-                      item.priority === 'high' ? 'text-red-600' :
-                      item.priority === 'medium' ? 'text-yellow-600' :
+                      item.priority ===
+   'high' ? 'text-red-600' :
+                      item.priority ===
+   'medium' ? 'text-yellow-600' :
                       'text-blue-600'
                     }`} />
                   </div>
@@ -2613,8 +2658,10 @@ export default function StudentDashboard() {
                     <div className="flex items-start justify-between">
                       <h4 className="font-semibold text-gray-900 dark:text-white">{item.title}</h4>
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        item.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        item.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        item.priority ===
+   'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        item.priority ===
+   'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
                         'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}>
                         {item.priority}
@@ -2638,7 +2685,8 @@ export default function StudentDashboard() {
       )}
 
       {/* Messages Modal */}
-      {activeModal === 'messages' && (
+      {activeModal ===
+   'messages' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-orange-400 via-orange-500 to-yellow-500 p-6 rounded-t-2xl">
@@ -2696,7 +2744,8 @@ export default function StudentDashboard() {
       )}
 
       {/* Assignments Modal */}
-      {activeModal === 'assignments' && (
+      {activeModal ===
+   'assignments' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-2xl">
@@ -2763,7 +2812,8 @@ export default function StudentDashboard() {
       )}
 
       {/* Events Modal */}
-      {activeModal === 'events' && (
+      {activeModal ===
+   'events' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-cyan-400 to-blue-500 p-6 rounded-t-2xl">
@@ -2789,7 +2839,8 @@ export default function StudentDashboard() {
                   <div className="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
                   <p className="text-gray-500 dark:text-gray-400 text-sm">Loading events...</p>
                 </div>
-              ) : upcomingRealEvents.length === 0 ? (
+              ) : upcomingRealEvents.length ===
+   0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-4">
                   <Calendar className="w-16 h-16 text-gray-300 dark:text-gray-600" />
                   <p className="text-xl font-semibold text-gray-500 dark:text-gray-400">No Upcoming Events</p>
@@ -2817,7 +2868,8 @@ export default function StudentDashboard() {
                     };
                     const icon = eventTypeIcons[event.eventType] || '📌';
 
-                    const isPaid = event.paymentType === 'paid';
+                    const isPaid = event.paymentType ===
+   'paid';
                     const fee = isPaid ? (event.registrationFee || event.teamRegistrationFee) : null;
                     const isRegistered = myRegisteredEventIds.has(event.id);
 
@@ -2845,7 +2897,8 @@ export default function StudentDashboard() {
                                   <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold capitalize">
                                     {event.eventType || 'Event'}
                                   </span>
-                                  {event.status === 'ongoing' && (
+                                  {event.status ===
+   'ongoing' && (
                                     <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">
                                       🟢 Ongoing
                                     </span>
@@ -3134,18 +3187,24 @@ export default function StudentDashboard() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className={`bg-gradient-to-r ${
-              selectedPlacementDrive.colorScheme === 'blue' ? 'from-blue-500 to-indigo-600' :
-              selectedPlacementDrive.colorScheme === 'purple' ? 'from-purple-500 to-pink-600' :
-              selectedPlacementDrive.colorScheme === 'teal' ? 'from-teal-500 to-cyan-600' :
+              selectedPlacementDrive.colorScheme ===
+   'blue' ? 'from-blue-500 to-indigo-600' :
+              selectedPlacementDrive.colorScheme ===
+   'purple' ? 'from-purple-500 to-pink-600' :
+              selectedPlacementDrive.colorScheme ===
+   'teal' ? 'from-teal-500 to-cyan-600' :
               'from-amber-500 to-orange-600'
             } p-6 rounded-t-2xl`}>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg">
                     <span className={`text-xl font-bold ${
-                      selectedPlacementDrive.colorScheme === 'blue' ? 'text-blue-600' :
-                      selectedPlacementDrive.colorScheme === 'purple' ? 'text-purple-600' :
-                      selectedPlacementDrive.colorScheme === 'teal' ? 'text-teal-600' :
+                      selectedPlacementDrive.colorScheme ===
+   'blue' ? 'text-blue-600' :
+                      selectedPlacementDrive.colorScheme ===
+   'purple' ? 'text-purple-600' :
+                      selectedPlacementDrive.colorScheme ===
+   'teal' ? 'text-teal-600' :
                       'text-amber-600'
                     }`}>{selectedPlacementDrive.shortName}</span>
                   </div>
@@ -3174,8 +3233,10 @@ export default function StudentDashboard() {
                   <Clock className="w-4 h-4" /> {selectedPlacementDrive.timing}
                 </span>
                 <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  selectedPlacementDrive.status === 'ongoing' ? 'bg-green-500 text-white' :
-                  selectedPlacementDrive.status === 'completed' ? 'bg-gray-500 text-white' :
+                  selectedPlacementDrive.status ===
+   'ongoing' ? 'bg-green-500 text-white' :
+                  selectedPlacementDrive.status ===
+   'completed' ? 'bg-gray-500 text-white' :
                   'bg-orange-500 text-white'
                 }`}>
                   {selectedPlacementDrive.statusText}
@@ -3308,9 +3369,12 @@ export default function StudentDashboard() {
                 </button>
                 <button
                   className={`flex-1 bg-gradient-to-r ${
-                    selectedPlacementDrive.colorScheme === 'blue' ? 'from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' :
-                    selectedPlacementDrive.colorScheme === 'purple' ? 'from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700' :
-                    selectedPlacementDrive.colorScheme === 'teal' ? 'from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700' :
+                    selectedPlacementDrive.colorScheme ===
+   'blue' ? 'from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' :
+                    selectedPlacementDrive.colorScheme ===
+   'purple' ? 'from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700' :
+                    selectedPlacementDrive.colorScheme ===
+   'teal' ? 'from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700' :
                     'from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700'
                   } text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2`}
                 >
@@ -3356,18 +3420,24 @@ export default function StudentDashboard() {
                       setSelectedPlacementDrive(drive);
                     }}
                     className={`p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1 ${
-                      drive.colorScheme === 'blue' ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800' :
-                      drive.colorScheme === 'purple' ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-purple-800' :
-                      drive.colorScheme === 'teal' ? 'border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 dark:border-teal-800' :
+                      drive.colorScheme ===
+   'blue' ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800' :
+                      drive.colorScheme ===
+   'purple' ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-purple-800' :
+                      drive.colorScheme ===
+   'teal' ? 'border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 dark:border-teal-800' :
                       'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 dark:border-amber-800'
                     }`}
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-14 h-14 bg-white dark:bg-gray-700 rounded-xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-gray-600">
                         <span className={`text-lg font-bold ${
-                          drive.colorScheme === 'blue' ? 'text-blue-600' :
-                          drive.colorScheme === 'purple' ? 'text-purple-600' :
-                          drive.colorScheme === 'teal' ? 'text-teal-600' :
+                          drive.colorScheme ===
+   'blue' ? 'text-blue-600' :
+                          drive.colorScheme ===
+   'purple' ? 'text-purple-600' :
+                          drive.colorScheme ===
+   'teal' ? 'text-teal-600' :
                           'text-amber-600'
                         }`}>{drive.shortName}</span>
                       </div>
@@ -3378,8 +3448,10 @@ export default function StudentDashboard() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">{drive.role}</p>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            drive.status === 'ongoing' ? 'bg-green-500 text-white' :
-                            drive.status === 'completed' ? 'bg-gray-400 text-white' :
+                            drive.status ===
+   'ongoing' ? 'bg-green-500 text-white' :
+                            drive.status ===
+   'completed' ? 'bg-gray-400 text-white' :
                             'bg-orange-500 text-white'
                           }`}>
                             {drive.statusText}
@@ -3772,7 +3844,8 @@ export default function StudentDashboard() {
                         <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 group-hover:bg-white/10 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-gray-200 dark:border-gray-600 group-hover:border-white/10 transition-all duration-500">
                           <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-white/90">Today</p>
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold ${
-                            studentData?.attendance.today === 'Present' ? 'bg-gray-200 dark:bg-gray-600 group-hover:bg-white/30 text-gray-700 dark:text-gray-200 group-hover:text-white' : 'bg-red-100 dark:bg-red-900 group-hover:bg-red-400/50 text-red-700 dark:text-red-200 group-hover:text-white'
+                            studentData?.attendance.today ===
+   'Present' ? 'bg-gray-200 dark:bg-gray-600 group-hover:bg-white/30 text-gray-700 dark:text-gray-200 group-hover:text-white' : 'bg-red-100 dark:bg-red-900 group-hover:bg-red-400/50 text-red-700 dark:text-red-200 group-hover:text-white'
                           }`}>
                             {studentData?.attendance.today}
                           </span>
@@ -3929,10 +4002,13 @@ export default function StudentDashboard() {
                             const currentDate = new Date(year, month, day);
                             // Use local date formatting to avoid timezone issues
                             const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            const dayEvents = allCalendarEvents.filter(e => e.date === dateString);
-                            const filteredEvents = calendarFilter === 'all' 
+                            const dayEvents = allCalendarEvents.filter(e => e.date ===
+   dateString);
+                            const filteredEvents = calendarFilter ===
+   'all' 
                               ? dayEvents 
-                              : dayEvents.filter(e => e.type === calendarFilter);
+                              : dayEvents.filter(e => e.type ===
+   calendarFilter);
 
                             const hasEvents = filteredEvents.length > 0;
                             const eventType = hasEvents ? filteredEvents[0].type : null;
@@ -3941,16 +4017,20 @@ export default function StudentDashboard() {
                             let bgGradient = '';
                             let ringColor = '';
                             
-                            if (eventType === 'holiday') {
+                            if (eventType ===
+   'holiday') {
                               bgGradient = 'from-red-400 to-pink-500';
                               ringColor = 'ring-red-400/50';
-                            } else if (eventType === 'exam') {
+                            } else if (eventType ===
+   'exam') {
                               bgGradient = 'from-orange-400 to-amber-500';
                               ringColor = 'ring-orange-400/50';
-                            } else if (eventType === 'event') {
+                            } else if (eventType ===
+   'event') {
                               bgGradient = 'from-purple-400 to-violet-500';
                               ringColor = 'ring-purple-400/50';
-                            } else if (eventType === 'crucial') {
+                            } else if (eventType ===
+   'crucial') {
                               bgGradient = 'from-blue-400 to-cyan-500';
                               ringColor = 'ring-blue-400/50';
                             }
@@ -3998,7 +4078,8 @@ export default function StudentDashboard() {
                             key={filter.key}
                             onClick={() => setCalendarFilter(filter.key as any)}
                             className={`px-3 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 ${
-                              calendarFilter === filter.key
+                              calendarFilter ===
+   filter.key
                                 ? `bg-gradient-to-r ${filter.color} text-white shadow-lg scale-105 ring-2 ring-white/50`
                                 : `${filter.bgColor} ${filter.textColor} hover:scale-105 border border-current/20`
                             }`}
@@ -4009,7 +4090,8 @@ export default function StudentDashboard() {
                       </div>
 
                       {/* View Timetable Button */}
-                      {calendarFilter === 'exam' && (
+                      {calendarFilter ===
+   'exam' && (
                         <div className="mt-2 text-center">
                           <button
                             onClick={() => setShowFullTimetable(true)}
@@ -4035,10 +4117,13 @@ export default function StudentDashboard() {
           const month = selectedDate!.getMonth() + 1;
           const day = selectedDate!.getDate();
           const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const dayEvents = allCalendarEvents.filter(e => e.date === dateString);
-          const filteredEvents = calendarFilter === 'all' 
+          const dayEvents = allCalendarEvents.filter(e => e.date ===
+   dateString);
+          const filteredEvents = calendarFilter ===
+   'all' 
             ? dayEvents 
-            : dayEvents.filter(e => e.type === calendarFilter);
+            : dayEvents.filter(e => e.type ===
+   calendarFilter);
 
           return filteredEvents.length > 0 ? (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn" onClick={() => setSelectedDate(null)}>
@@ -4059,7 +4144,8 @@ export default function StudentDashboard() {
                   };
 
                   // Check if this is an exam with detailed info
-                  const isExamWithDetails = event.type === 'exam' && (event as any).courseCode;
+                  const isExamWithDetails = event.type ===
+   'exam' && (event as any).courseCode;
                   const examDetails = event as any;
                   // Check if this is a real API event
                   const isRealEvent = !!(event as any).realEventId;
@@ -4090,7 +4176,8 @@ export default function StudentDashboard() {
                               <p className="text-white/80 text-sm mt-1 capitalize">{realEvent.eventType || 'University Event'}</p>
                             )}
                           </div>
-                          {idx === 0 && (
+                          {idx ===
+   0 && (
                             <button
                               onClick={() => setSelectedDate(null)}
                               className="text-white hover:bg-white/20 rounded-lg p-1.5 transition-all ml-2"
@@ -4209,7 +4296,8 @@ export default function StudentDashboard() {
                         {/* Payment badge for real events */}
                         {isRealEvent && (
                           <div className="flex items-center gap-2 flex-wrap">
-                            {realEvent.paymentType === 'paid' ? (
+                            {realEvent.paymentType ===
+   'paid' ? (
                               <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-semibold">
                                 ₹{realEvent.registrationFee || realEvent.teamRegistrationFee} Entry Fee
                               </span>
@@ -4218,7 +4306,8 @@ export default function StudentDashboard() {
                                 Free Entry
                               </span>
                             )}
-                            {realEvent.status === 'ongoing' && (
+                            {realEvent.status ===
+   'ongoing' && (
                               <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">🟢 Ongoing</span>
                             )}
                           </div>
@@ -4228,9 +4317,12 @@ export default function StudentDashboard() {
                         {!isExamWithDetails && event.description && (
                           <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-2">
-                              {event.type === 'holiday' && <span className="text-2xl">🏖️</span>}
-                              {event.type === 'event' && <span className="text-2xl">🎉</span>}
-                              {event.type === 'crucial' && <span className="text-2xl">⭐</span>}
+                              {event.type ===
+   'holiday' && <span className="text-2xl">🏖️</span>}
+                              {event.type ===
+   'event' && <span className="text-2xl">🎉</span>}
+                              {event.type ===
+   'crucial' && <span className="text-2xl">⭐</span>}
                               <span className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">{event.type}</span>
                             </div>
                             <p className="text-sm text-gray-700 dark:text-gray-300">{event.description}</p>
@@ -4265,7 +4357,8 @@ export default function StudentDashboard() {
                           );
                         })()}
 
-                        {idx === filteredEvents.length - 1 && (
+                        {idx ===
+   filteredEvents.length - 1 && (
                           <button
                             onClick={() => setSelectedDate(null)}
                             className={`w-full bg-gradient-to-r ${headerColors[event.type]} text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all`}
@@ -4312,9 +4405,11 @@ export default function StudentDashboard() {
                         <div className="flex items-center justify-between mb-1">
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{classItem.subject}</p>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            classItem.type === 'Lab' 
+                            classItem.type ===
+   'Lab' 
                               ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
-                              : classItem.type === 'Tutorial'
+                              : classItem.type ===
+   'Tutorial'
                               ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
                               : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                           }`}>
@@ -4414,9 +4509,12 @@ export default function StudentDashboard() {
                       key={drive.id}
                       onClick={() => setSelectedPlacementDrive(drive)}
                       className={`rounded-xl p-3 border hover:shadow-md transition-all cursor-pointer group ${
-                        drive.colorScheme === 'blue' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800' :
-                        drive.colorScheme === 'purple' ? 'bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800' :
-                        drive.colorScheme === 'teal' ? 'bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 border-teal-200 dark:border-teal-800' :
+                        drive.colorScheme ===
+   'blue' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800' :
+                        drive.colorScheme ===
+   'purple' ? 'bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800' :
+                        drive.colorScheme ===
+   'teal' ? 'bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 border-teal-200 dark:border-teal-800' :
                         'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800'
                       }`}
                     >
@@ -4425,17 +4523,23 @@ export default function StudentDashboard() {
                           <span className={`font-bold ${
                             drive.shortName.length > 5 ? 'text-[10px]' : drive.shortName.length > 3 ? 'text-sm' : 'text-lg'
                           } ${
-                            drive.colorScheme === 'blue' ? 'text-blue-600' :
-                            drive.colorScheme === 'purple' ? 'text-purple-600' :
-                            drive.colorScheme === 'teal' ? 'text-teal-600' :
+                            drive.colorScheme ===
+   'blue' ? 'text-blue-600' :
+                            drive.colorScheme ===
+   'purple' ? 'text-purple-600' :
+                            drive.colorScheme ===
+   'teal' ? 'text-teal-600' :
                             'text-amber-600'
                           }`}>{drive.shortName}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className={`text-base font-bold text-gray-900 dark:text-white transition-colors ${
-                            drive.colorScheme === 'blue' ? 'group-hover:text-blue-600' :
-                            drive.colorScheme === 'purple' ? 'group-hover:text-purple-600' :
-                            drive.colorScheme === 'teal' ? 'group-hover:text-teal-600' :
+                            drive.colorScheme ===
+   'blue' ? 'group-hover:text-blue-600' :
+                            drive.colorScheme ===
+   'purple' ? 'group-hover:text-purple-600' :
+                            drive.colorScheme ===
+   'teal' ? 'group-hover:text-teal-600' :
                             'group-hover:text-amber-600'
                           }`}>{drive.company}</h4>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{drive.role} | {drive.eligibility}</p>
@@ -4449,8 +4553,10 @@ export default function StudentDashboard() {
                           </div>
                         </div>
                         <span className={`px-2 py-0.5 text-white text-[9px] font-bold rounded-full ${
-                          drive.status === 'ongoing' ? 'bg-blue-500' :
-                          drive.status === 'completed' ? 'bg-green-500' :
+                          drive.status ===
+   'ongoing' ? 'bg-blue-500' :
+                          drive.status ===
+   'completed' ? 'bg-green-500' :
                           'bg-orange-500'
                         }`}>{drive.statusText}</span>
                       </div>
@@ -4505,7 +4611,8 @@ export default function StudentDashboard() {
                   }}
                   className={`
                     px-4 py-2 rounded-lg text-base font-medium transition-all
-                    ${activeAnnouncementTab === category.name
+                    ${activeAnnouncementTab ===
+   category.name
                       ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }
@@ -4514,7 +4621,8 @@ export default function StudentDashboard() {
                   {category.name}
                   <span className={`
                     ml-2 px-2 py-0.5 rounded-full text-sm font-bold
-                    ${activeAnnouncementTab === category.name
+                    ${activeAnnouncementTab ===
+   category.name
                       ? 'bg-white/20 text-white'
                       : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                     }
@@ -4537,7 +4645,8 @@ export default function StudentDashboard() {
                 >
                   {/* Announcement Header */}
                   <div
-                    onClick={() => setExpandedAnnouncement(expandedAnnouncement === announcement.id ? null : announcement.id)}
+                    onClick={() => setExpandedAnnouncement(expandedAnnouncement ===
+   announcement.id ? null : announcement.id)}
                     className="flex items-start gap-4 p-4 cursor-pointer"
                   >
                     {/* Bullet Point */}
@@ -4563,7 +4672,8 @@ export default function StudentDashboard() {
                         {announcement.date}
                       </span>
                       <div className="transition-transform duration-300" style={{
-                        transform: expandedAnnouncement === announcement.id ? 'rotate(180deg)' : 'rotate(0deg)'
+                        transform: expandedAnnouncement ===
+   announcement.id ? 'rotate(180deg)' : 'rotate(0deg)'
                       }}>
                         <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                       </div>
@@ -4571,7 +4681,8 @@ export default function StudentDashboard() {
                   </div>
 
                   {/* Expanded Details */}
-                  {expandedAnnouncement === announcement.id && (
+                  {expandedAnnouncement ===
+   announcement.id && (
                     <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-900/30">
                       <div className="pl-6">
                         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
@@ -4594,7 +4705,8 @@ export default function StudentDashboard() {
               ))}
 
               {/* No announcements message */}
-              {(!announcementsData[activeAnnouncementTab] || announcementsData[activeAnnouncementTab].length === 0) && (
+              {(!announcementsData[activeAnnouncementTab] || announcementsData[activeAnnouncementTab].length ===
+   0) && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                     <FileText className="w-8 h-8 text-gray-400" />
@@ -4664,8 +4776,10 @@ export default function StudentDashboard() {
                   const isVisible = Math.abs(position) <= 2;
                   if (!isVisible) return null;
                   
-                  const isCenter = position === 0;
-                  const isAdjacent = Math.abs(position) === 1;
+                  const isCenter = position ===
+   0;
+                  const isAdjacent = Math.abs(position) ===
+   1;
                   
                   // Calculate overlapping positions like SGT website
                   const translateX = position * 180; // Cards overlap
@@ -4879,7 +4993,8 @@ export default function StudentDashboard() {
                         onClick={() => setActiveSgtTimesTab(category.name)}
                         className={`
                           px-4 py-2 rounded-lg text-sm font-medium transition-all
-                          ${activeSgtTimesTab === category.name
+                          ${activeSgtTimesTab ===
+   category.name
                             ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 scale-105'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                           }
@@ -4888,7 +5003,8 @@ export default function StudentDashboard() {
                         {category.name}
                         <span className={`
                           ml-2 px-2 py-0.5 rounded-full text-xs font-bold
-                          ${activeSgtTimesTab === category.name
+                          ${activeSgtTimesTab ===
+   category.name
                             ? 'bg-white/20 text-white'
                             : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                           }
@@ -4917,11 +5033,16 @@ export default function StudentDashboard() {
                           <div className="flex-shrink-0 mt-1">
                             <span className={`
                               inline-block px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider
-                              ${article.category === 'Achievement' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' :
-                                article.category === 'Innovation' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
-                                article.category === 'Placements' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' :
-                                article.category === 'Global' ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white' :
-                                article.category === 'Events' ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white' :
+                              ${article.category ===
+   'Achievement' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' :
+                                article.category ===
+   'Innovation' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
+                                article.category ===
+   'Placements' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' :
+                                article.category ===
+   'Global' ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white' :
+                                article.category ===
+   'Events' ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white' :
                                 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white'
                               }
                             `}>

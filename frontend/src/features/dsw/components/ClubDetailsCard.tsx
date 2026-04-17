@@ -179,7 +179,8 @@ function BooleanIndicator({
   trueLabel?: string;
   falseLabel?: string;
 }) {
-  if (value === true) {
+  if (value ===
+   true) {
     return (
       <span className="inline-flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400">
         <CheckCircle2 className="w-4 h-4" />
@@ -187,7 +188,8 @@ function BooleanIndicator({
       </span>
     );
   }
-  if (value === false) {
+  if (value ===
+   false) {
     return (
       <span className="inline-flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
         <XCircle className="w-4 h-4" />
@@ -240,7 +242,8 @@ export default function ClubDetailsCard({
   data,
   resolvedDetails,
 }: ClubDetailsCardProps) {
-  const isView = mode === "view";
+  const isView = mode ===
+   "view";
 
   const socialHandles = data.clubSocialMediaHandles;
   const hasSocialMedia =
@@ -443,7 +446,8 @@ export default function ClubDetailsCard({
             {data.clubMeetingFrequency ? (
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(MEETING_FREQUENCIES).map(([key, label]) => {
-                  const isSelected = data.clubMeetingFrequency === key;
+                  const isSelected = data.clubMeetingFrequency ===
+   key;
                   return (
                     <span
                       key={key}

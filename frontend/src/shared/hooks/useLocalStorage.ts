@@ -20,7 +20,8 @@ export function useLocalStorage<T>(
   // Get initial value from localStorage or use initialValue
   const readValue = useCallback((): T => {
     // Server-side rendering check
-    if (typeof window === 'undefined') {
+    if (typeof window ===
+   'undefined') {
       return initialValue;
     }
 
@@ -39,7 +40,8 @@ export function useLocalStorage<T>(
   const setValue = useCallback(
     (value: T | ((prev: T) => T)) => {
       // Server-side rendering check
-      if (typeof window === 'undefined') {
+      if (typeof window ===
+   'undefined') {
         logger.warn(`Tried setting localStorage key "${key}" during SSR`);
         return;
       }
@@ -69,7 +71,8 @@ export function useLocalStorage<T>(
   // Remove the value from localStorage
   const removeValue = useCallback(() => {
     // Server-side rendering check
-    if (typeof window === 'undefined') {
+    if (typeof window ===
+   'undefined') {
       return;
     }
 
@@ -90,13 +93,16 @@ export function useLocalStorage<T>(
   // Listen for changes in other tabs/windows
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === key && event.newValue !== null) {
+      if (event.key ===
+   key && event.newValue !== null) {
         try {
           setStoredValue(JSON.parse(event.newValue) as T);
         } catch {
           setStoredValue(initialValue);
         }
-      } else if (event.key === key && event.newValue === null) {
+      } else if (event.key ===
+   key && event.newValue ===
+   null) {
         setStoredValue(initialValue);
       }
     };

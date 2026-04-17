@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -36,8 +36,10 @@ const CATEGORY_OPTIONS = [
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 
 function is403(err: unknown): boolean {
-  if (err && typeof err === 'object' && 'response' in err) {
-    return (err as { response?: { status?: number } }).response?.status === 403;
+  if (err && typeof err ===
+   'object' && 'response' in err) {
+    return (err as { response?: { status?: number } }).response?.status ===
+   403;
   }
   return false;
 }
@@ -62,17 +64,21 @@ export default function DrdAnalyticsOverviewPage() {
       ]);
 
       // If both fail with 403, user has no analytics permission
-      const app403 = appRes.status === 'rejected' && is403(appRes.reason);
-      const drd403 = drdRes.status === 'rejected' && is403(drdRes.reason);
+      const app403 = appRes.status ===
+   'rejected' && is403(appRes.reason);
+      const drd403 = drdRes.status ===
+   'rejected' && is403(drdRes.reason);
       if (app403 && drd403) {
         setAccessDenied(true);
         return;
       }
 
-      if (appRes.status === 'fulfilled' && appRes.value?.data) {
+      if (appRes.status ===
+   'fulfilled' && appRes.value?.data) {
         setApplicantData(appRes.value.data);
       }
-      if (drdRes.status === 'fulfilled' && drdRes.value?.data) {
+      if (drdRes.status ===
+   'fulfilled' && drdRes.value?.data) {
         setDrdData(drdRes.value.data);
       }
     } catch (err) {
@@ -96,13 +102,13 @@ export default function DrdAnalyticsOverviewPage() {
   return (
     <ProtectedRoute>
       {accessDenied ? (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center border">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+          <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border dark:border-gray-700">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-8 h-8 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Denied</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               You do not have permission to view DRD Analytics. Contact your administrator to request
               <strong> Applicant Analytics</strong> or <strong>DRD Member Analytics</strong> access.
             </p>
@@ -158,9 +164,9 @@ export default function DrdAnalyticsOverviewPage() {
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 animate-pulse">
-                  <div className="h-3 bg-slate-100 rounded w-20 mb-3" />
-                  <div className="h-7 bg-slate-100 rounded w-16" />
+                <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-4 animate-pulse">
+                  <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded w-20 mb-3" />
+                  <div className="h-7 bg-slate-100 dark:bg-slate-700 rounded w-16" />
                 </div>
               ))}
             </div>
@@ -170,13 +176,13 @@ export default function DrdAnalyticsOverviewPage() {
               {appKpis && (
                 <section>
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                       <Layers3 className="w-4 h-4" />
                       Applicant Submissions
                     </h2>
                     <button
                       onClick={() => router.push('/drd/analytics/applicant')}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                     >
                       View Details <ArrowRight className="w-3 h-3" />
                     </button>
@@ -198,13 +204,13 @@ export default function DrdAnalyticsOverviewPage() {
               {drdKpis && (
                 <section>
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                       <Users className="w-4 h-4" />
                       DRD Review Performance
                     </h2>
                     <button
                       onClick={() => router.push('/drd/analytics/drd-member')}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                     >
                       View Details <ArrowRight className="w-3 h-3" />
                     </button>
@@ -222,20 +228,20 @@ export default function DrdAnalyticsOverviewPage() {
                 </section>
               )}
 
-              {/* School Comparison — category-level bar chart + table */}
+              {/* School Comparison â€” category-level bar chart + table */}
               {applicantData && schoolRows.length > 0 && (
                 <section className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                       <GraduationCap className="w-4 h-4" />
-                      School Comparison — Category Breakdown
+                      School Comparison â€” Category Breakdown
                       <span className="text-xs font-normal text-slate-400">
                         ({schoolRows.length} school{schoolRows.length !== 1 ? 's' : ''} in scope)
                       </span>
                     </h2>
                   </div>
 
-                  {/* Bar chart — each school shows Research / Book / Conference / IPR / Grants */}
+                  {/* Bar chart â€” each school shows Research / Book / Conference / IPR / Grants */}
                   <AnalyticsBarChart
                     title="School-wise Category Comparison"
                     subtitle="Publications filed per category across every assigned school. Click a row in the table below to drill into departments."
@@ -260,18 +266,18 @@ export default function DrdAnalyticsOverviewPage() {
                   />
 
                   {/* School-wise category table */}
-                  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 px-5 py-4">
                       <div>
-                        <h3 className="text-sm font-semibold text-slate-800">School-wise Research Output</h3>
-                        <p className="mt-0.5 text-xs text-slate-400">Click any row to open that school&apos;s department comparison &amp; contributor details.</p>
+                        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">School-wise Research Output</h3>
+                        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Click any row to open that school&apos;s department comparison &amp; contributor details.</p>
                       </div>
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs text-slate-500">{schoolRows.length} school{schoolRows.length !== 1 ? 's' : ''}</span>
+                      <span className="rounded-full bg-slate-50 dark:bg-slate-700 px-3 py-1 text-xs text-slate-500 dark:text-slate-400">{schoolRows.length} school{schoolRows.length !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="bg-slate-50 text-left">
+                          <tr className="bg-slate-50 dark:bg-gray-700 text-left">
                             <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">School</th>
                             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-blue-500">Research</th>
                             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-violet-500">Book</th>
@@ -283,14 +289,14 @@ export default function DrdAnalyticsOverviewPage() {
                             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-400">Incentive</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                           {schoolRows.map((school: any) => {
                             const fc = school.filingCounts || {};
                             return (
                               <tr
                                 key={school.schoolId}
                                 onClick={() => router.push(`/drd/analytics/applicant/schools/${school.schoolId}`)}
-                                className="cursor-pointer transition-colors hover:bg-slate-50"
+                                className="cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
                               >
                                 <td className="px-4 py-3">
                                   <div className="flex items-center gap-2">
@@ -298,8 +304,8 @@ export default function DrdAnalyticsOverviewPage() {
                                       <GraduationCap className="w-4 h-4" />
                                     </div>
                                     <div>
-                                      <p className="font-medium text-slate-900">{school.schoolName}</p>
-                                      <p className="text-xs text-slate-400">View departments →</p>
+                                      <p className="font-medium text-slate-900 dark:text-slate-100">{school.schoolName}</p>
+                                      <p className="text-xs text-slate-400 dark:text-slate-500">View departments â†’</p>
                                     </div>
                                   </div>
                                 </td>
@@ -308,9 +314,9 @@ export default function DrdAnalyticsOverviewPage() {
                                 <td className="px-4 py-3 text-right font-medium text-amber-600">{fc.conference || 0}</td>
                                 <td className="px-4 py-3 text-right font-medium text-red-600">{fc.ipr || 0}</td>
                                 <td className="px-4 py-3 text-right font-medium text-emerald-600">{fc.grants || 0}</td>
-                                <td className="px-4 py-3 text-right font-bold text-slate-900">{school.totalApplications || 0}</td>
+                                <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100">{school.totalApplications || 0}</td>
                                 <td className="px-4 py-3 text-right font-medium text-emerald-700">{school.totalApproved || 0}</td>
-                                <td className="px-4 py-3 text-right font-medium text-slate-900">₹{(school.totalIncentive || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">₹{(school.totalIncentive || 0).toLocaleString('en-IN')}</td>
                               </tr>
                             );
                           })}
@@ -347,8 +353,8 @@ export default function DrdAnalyticsOverviewPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-slate-900">Applicant Analytics</h3>
-                      <p className="mt-1 text-sm text-slate-500">Submission trends, school/department breakdowns, applicant leaderboard</p>
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">Applicant Analytics</h3>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Submission trends, school/department breakdowns, applicant leaderboard</p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-slate-700 transition-colors" />
                   </div>
@@ -359,8 +365,8 @@ export default function DrdAnalyticsOverviewPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-slate-900">DRD Member Analytics</h3>
-                      <p className="mt-1 text-sm text-slate-500">Reviewer performance, turnaround times, decision distribution</p>
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">DRD Member Analytics</h3>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Reviewer performance, turnaround times, decision distribution</p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-slate-700 transition-colors" />
                   </div>
@@ -371,8 +377,8 @@ export default function DrdAnalyticsOverviewPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-slate-900">Progress Tracker Analytics</h3>
-                      <p className="mt-1 text-sm text-slate-500">Research pipeline stages, active researchers &amp; category breakdown</p>
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">Progress Tracker Analytics</h3>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Research pipeline stages, active researchers &amp; category breakdown</p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-slate-700 transition-colors" />
                   </div>
@@ -386,3 +392,4 @@ export default function DrdAnalyticsOverviewPage() {
     </ProtectedRoute>
   );
 }
+

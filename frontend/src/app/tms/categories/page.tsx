@@ -39,7 +39,8 @@ const PRIORITY_BADGE: Record<string, string> = {
 function slaLabel(hours: number): string {
   if (hours < 24) return `${hours} hours`;
   const days = Math.round(hours / 24);
-  return days === 1 ? '1 day' : `${days} days`;
+  return days ===
+   1 ? '1 day' : `${days} days`;
 }
 
 export default function CategoriesAdminPage() {
@@ -187,8 +188,10 @@ export default function CategoriesAdminPage() {
   const handleDelete = async (type: 'master' | 'category' | 'sub', id: string) => {
     if (!confirm('Are you sure you want to delete this? This cannot be undone.')) return;
     try {
-      if (type === 'master') await deleteMaster.mutateAsync(id);
-      else if (type === 'category') await deleteCat.mutateAsync(id);
+      if (type ===
+   'master') await deleteMaster.mutateAsync(id);
+      else if (type ===
+   'category') await deleteCat.mutateAsync(id);
       else await deleteSub.mutateAsync(id);
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { message?: string } } };
@@ -241,7 +244,8 @@ export default function CategoriesAdminPage() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`px-5 py-2.5 text-sm font-semibold transition-all ${
-                tab === t.key
+                tab ===
+   t.key
                   ? 'bg-gradient-to-r from-[#011f4b] to-[#03396c] text-white shadow-md'
                   : 'text-[#6497b1] hover:text-[#005b96] hover:bg-[#005b96]/[0.04]'
               }`}
@@ -258,26 +262,36 @@ export default function CategoriesAdminPage() {
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-5 rounded-full bg-[#005b96]" />
               <h2 className="text-lg font-bold text-[#011f4b]">
-                {tab === 'master' ? 'Master Categories' : tab === 'category' ? 'Categories' : tab === 'sub' ? 'Subcategories' : 'Role Handlers'}
+                {tab ===
+   'master' ? 'Master Categories' : tab ===
+   'category' ? 'Categories' : tab ===
+   'sub' ? 'Subcategories' : 'Role Handlers'}
               </h2>
             </div>
             {tab !== 'roles' && (
               <button
                 onClick={() => {
-                  if (tab === 'master') openCreate('create-master');
-                  else if (tab === 'category') openCreate('create-category');
+                  if (tab ===
+   'master') openCreate('create-master');
+                  else if (tab ===
+   'category') openCreate('create-category');
                   else openCreate('create-sub');
                 }}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005b96] hover:bg-[#03396c] text-white rounded-xl text-sm font-semibold shadow-md shadow-[#005b96]/20 hover:shadow-lg transition-all"
               >
                 <Plus className="w-4 h-4" />
-                Add {tab === 'master' ? 'Master Category' : tab === 'category' ? 'Category' : 'Subcategory'}
+                Add {tab ===
+   'master' ? 'Master Category' : tab ===
+   'category' ? 'Category' : 'Subcategory'}
               </button>
             )}
           </div>
 
-          {/* ========== MASTER CATEGORIES TABLE ========== */}
-          {tab === 'master' && (
+          {/* ==========
+   MASTER CATEGORIES TABLE ==========
+   */}
+          {tab ===
+   'master' && (
             <div className="overflow-hidden rounded-xl border border-[#b3cde0]/30">
             <table className="w-full text-sm">
               <thead>
@@ -289,7 +303,8 @@ export default function CategoriesAdminPage() {
               </thead>
               <tbody>
                 {masterCategories?.map((mc, idx) => (
-                  <tr key={mc.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                  <tr key={mc.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
                     <td className="py-3.5 px-5 text-[#005b96] font-semibold">{idx + 1}</td>
                     <td className="py-3.5 px-5 text-[#011f4b] font-medium">{mc.name}</td>
                     <td className="py-3.5 px-5">
@@ -304,7 +319,8 @@ export default function CategoriesAdminPage() {
                     </td>
                   </tr>
                 ))}
-                {(!masterCategories || masterCategories.length === 0) && (
+                {(!masterCategories || masterCategories.length ===
+   0) && (
                   <tr><td colSpan={3} className="py-12 text-center text-[#6497b1]">No master categories</td></tr>
                 )}
               </tbody>
@@ -312,8 +328,11 @@ export default function CategoriesAdminPage() {
             </div>
           )}
 
-          {/* ========== CATEGORIES TABLE ========== */}
-          {tab === 'category' && (
+          {/* ==========
+   CATEGORIES TABLE ==========
+   */}
+          {tab ===
+   'category' && (
             <div className="overflow-hidden rounded-xl border border-[#b3cde0]/30">
             <table className="w-full text-sm">
               <thead>
@@ -326,7 +345,8 @@ export default function CategoriesAdminPage() {
               </thead>
               <tbody>
                 {flatCategories.map((cat, idx) => (
-                  <tr key={cat.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                  <tr key={cat.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
                     <td className="py-3.5 px-5 text-[#005b96] font-semibold">{idx + 1}</td>
                     <td className="py-3.5 px-5 text-[#011f4b] font-medium">{cat.name}</td>
                     <td className="py-3.5 px-5">
@@ -344,7 +364,8 @@ export default function CategoriesAdminPage() {
                     </td>
                   </tr>
                 ))}
-                {flatCategories.length === 0 && (
+                {flatCategories.length ===
+   0 && (
                   <tr><td colSpan={4} className="py-12 text-center text-[#6497b1]">No categories</td></tr>
                 )}
               </tbody>
@@ -352,8 +373,11 @@ export default function CategoriesAdminPage() {
             </div>
           )}
 
-          {/* ========== SUBCATEGORIES TABLE ========== */}
-          {tab === 'sub' && (
+          {/* ==========
+   SUBCATEGORIES TABLE ==========
+   */}
+          {tab ===
+   'sub' && (
             <div className="overflow-x-auto rounded-xl border border-[#b3cde0]/30">
               <table className="w-full text-sm">
                 <thead>
@@ -369,7 +393,8 @@ export default function CategoriesAdminPage() {
                 </thead>
                 <tbody>
                   {flatSubCategories.map((sc, idx) => (
-                    <tr key={sc.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                    <tr key={sc.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
                       <td className="py-3.5 px-5 text-[#005b96] font-semibold">{idx + 1}</td>
                       <td className="py-3.5 px-5 text-[#011f4b] font-medium">{sc.name}</td>
                       <td className="py-3.5 px-5">
@@ -398,7 +423,8 @@ export default function CategoriesAdminPage() {
                       </td>
                     </tr>
                   ))}
-                  {flatSubCategories.length === 0 && (
+                  {flatSubCategories.length ===
+   0 && (
                     <tr><td colSpan={7} className="py-12 text-center text-[#6497b1]">No subcategories</td></tr>
                   )}
                 </tbody>
@@ -406,8 +432,11 @@ export default function CategoriesAdminPage() {
             </div>
           )}
 
-          {/* ========== ROLE HANDLERS TAB ========== */}
-          {tab === 'roles' && (
+          {/* ==========
+   ROLE HANDLERS TAB ==========
+   */}
+          {tab ===
+   'roles' && (
             <div>
               <p className="text-sm text-[#6497b1] mb-5">
                 Assign employees to handle tickets at the Registrar, Dean, and Vice Chancellor levels.
@@ -424,7 +453,8 @@ export default function CategoriesAdminPage() {
                   { role: 'dean_academics' as TmsRoleHandlerLevel, label: 'Dean (Academics)', desc: 'Handles academic escalations from Master Category level' },
                   { role: 'vice_chancellor' as TmsRoleHandlerLevel, label: 'Vice Chancellor', desc: 'Final escalation level for all tickets' },
                 ]).map(({ role, label, desc }) => {
-                  const current = (roleHandlers as TmsRoleHandler[] | undefined)?.find((h) => h.role === role);
+                  const current = (roleHandlers as TmsRoleHandler[] | undefined)?.find((h) => h.role ===
+   role);
                   const inputVal = roleInputs[role] ?? (current?.employee?.uid || '');
                   return (
                     <div key={role} className="bg-[#f8fafc] rounded-xl border border-[#b3cde0]/30 p-5 hover:border-[#005b96]/20 transition-colors">
@@ -467,11 +497,13 @@ export default function CategoriesAdminPage() {
                               setRoleSaving(null);
                             }
                           }}
-                          disabled={roleSaving === role}
+                          disabled={roleSaving ===
+   role}
                           className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#005b96] hover:bg-[#03396c] text-white rounded-xl text-sm font-semibold disabled:opacity-50 shadow-sm transition-all"
                         >
                           <Save className="w-3.5 h-3.5" />
-                          {roleSaving === role ? 'Saving...' : 'Save'}
+                          {roleSaving ===
+   role ? 'Saving...' : 'Save'}
                         </button>
                         {current && (
                           <button
@@ -500,7 +532,9 @@ export default function CategoriesAdminPage() {
           )}
         </div>
 
-        {/* ========== MODAL ========== */}
+        {/* ==========
+   MODAL ==========
+   */}
         {formMode && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#011f4b]/40 backdrop-blur-sm">
             <div className="bg-white rounded-2xl p-7 w-full max-w-md mx-4 relative border border-[#b3cde0]/30" style={{ boxShadow: '0 8px 32px 0 rgba(0, 91, 150, 0.15)' }}>
@@ -553,7 +587,8 @@ export default function CategoriesAdminPage() {
                 )}
 
                 {/* Parent selector for create-category */}
-                {formMode === 'create-category' && (
+                {formMode ===
+   'create-category' && (
                   <div>
                     <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Master Category</label>
                     <select
@@ -568,7 +603,8 @@ export default function CategoriesAdminPage() {
                 )}
 
                 {/* Parent selector for create-sub */}
-                {formMode === 'create-sub' && (
+                {formMode ===
+   'create-sub' && (
                   <div>
                     <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Category</label>
                     <select

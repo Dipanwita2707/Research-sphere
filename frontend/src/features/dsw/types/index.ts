@@ -263,12 +263,12 @@ export interface DSWStatistics {
     categoryName: string;
     _count: number;
   }>;
-  clubsBySession: Array<{
-    academicSession: string;
-    _count: number;
-  }>;
   clubsByStatus: Array<{
     status: string;
+    count: number;
+  }>;
+  clubsBySession?: Array<{
+    academicSession: string;
     _count: number;
   }>;
 }

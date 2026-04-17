@@ -57,14 +57,19 @@ const YesNoRadio = ({ value, onYes, onNo, disabled = false, name, error = false 
 }) => {
   const base = 'px-4 py-2 text-xs font-semibold rounded-lg border-2 transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2';
   const active = 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 shadow-sm';
-  const inactive = error && value === null 
+  const inactive = error && value ===
+   null 
     ? 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-gray-500 dark:text-gray-400'
     : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600';
   const dis = disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer';
   return (
     <div className="inline-flex gap-2 shrink-0">
-      <button type="button" role="radio" aria-checked={value === true} name={name} onClick={() => !disabled && onYes()} disabled={disabled} className={`${base} ${value === true ? active : inactive} ${dis}`}>Yes</button>
-      <button type="button" role="radio" aria-checked={value === false} name={name} onClick={() => !disabled && onNo()} disabled={disabled} className={`${base} ${value === false ? active : inactive} ${dis}`}>No</button>
+      <button type="button" role="radio" aria-checked={value ===
+   true} name={name} onClick={() => !disabled && onYes()} disabled={disabled} className={`${base} ${value ===
+   true ? active : inactive} ${dis}`}>Yes</button>
+      <button type="button" role="radio" aria-checked={value ===
+   false} name={name} onClick={() => !disabled && onNo()} disabled={disabled} className={`${base} ${value ===
+   false ? active : inactive} ${dis}`}>No</button>
     </div>
   );
 };
@@ -120,13 +125,17 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
   const [editingPrizeIndex, setEditingPrizeIndex] = useState<number | null>(null);
 
   const openAddPrize = useCallback(() => {
-    const defaultRank = dataRef.current.eventPrizesAwards.length === 0 ? 'Winner' : dataRef.current.eventPrizesAwards.length === 1 ? 'First Runner Up' : dataRef.current.eventPrizesAwards.length === 2 ? 'Second Runner Up' : `Position ${dataRef.current.eventPrizesAwards.length + 1}`;
+    const defaultRank = dataRef.current.eventPrizesAwards.length ===
+   0 ? 'Winner' : dataRef.current.eventPrizesAwards.length ===
+   1 ? 'First Runner Up' : dataRef.current.eventPrizesAwards.length ===
+   2 ? 'Second Runner Up' : `Position ${dataRef.current.eventPrizesAwards.length + 1}`;
     setEditingPrize({ position: dataRef.current.eventPrizesAwards.length + 1, rank: defaultRank, title: '', prizeType: 'certificate', prizeAmount: '', additionalPerksArr: [] });
     setEditingPrizeIndex(null);
     setShowPrizeModal(true);
   }, []);
   const openEditPrize = useCallback((prize: SubEventPrize, idx: number) => {
-    const perks = typeof prize.additionalPerks === 'string' && prize.additionalPerks
+    const perks = typeof prize.additionalPerks ===
+   'string' && prize.additionalPerks
       ? prize.additionalPerks.split(',').map((p) => p.trim()).filter(Boolean)
       : [];
     setEditingPrize({ ...prize, additionalPerksArr: perks });
@@ -287,15 +296,23 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                 <div>
                   <label className={labelCls}>Payment Type <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 gap-4">
-                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventPaymentType === 'free')} onClick={() => !disabled && set('eventPaymentType', 'free')} onKeyDown={(e) => e.key === 'Enter' && !disabled && set('eventPaymentType', 'free')}>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventPaymentType === 'free' ? 'border-sgt-500' : 'border-gray-300'}`}>
-                        {data.eventPaymentType === 'free' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
+                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventPaymentType ===
+   'free')} onClick={() => !disabled && set('eventPaymentType', 'free')} onKeyDown={(e) => e.key ===
+   'Enter' && !disabled && set('eventPaymentType', 'free')}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventPaymentType ===
+   'free' ? 'border-sgt-500' : 'border-gray-300'}`}>
+                        {data.eventPaymentType ===
+   'free' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
                       </div>
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Free</span>
                     </div>
-                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventPaymentType === 'paid')} onClick={() => !disabled && set('eventPaymentType', 'paid')} onKeyDown={(e) => e.key === 'Enter' && !disabled && set('eventPaymentType', 'paid')}>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventPaymentType === 'paid' ? 'border-sgt-500' : 'border-gray-300'}`}>
-                        {data.eventPaymentType === 'paid' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
+                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventPaymentType ===
+   'paid')} onClick={() => !disabled && set('eventPaymentType', 'paid')} onKeyDown={(e) => e.key ===
+   'Enter' && !disabled && set('eventPaymentType', 'paid')}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventPaymentType ===
+   'paid' ? 'border-sgt-500' : 'border-gray-300'}`}>
+                        {data.eventPaymentType ===
+   'paid' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
                       </div>
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Paid</span>
                     </div>
@@ -306,15 +323,23 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                 <div>
                   <label className={labelCls}>Participation Mode</label>
                   <div className="grid grid-cols-2 gap-4">
-                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventParticipationType === 'individual')} onClick={() => !disabled && set('eventParticipationType', 'individual')} onKeyDown={(e) => e.key === 'Enter' && !disabled && set('eventParticipationType', 'individual')}>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventParticipationType === 'individual' ? 'border-sgt-500' : 'border-gray-300'}`}>
-                        {data.eventParticipationType === 'individual' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
+                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventParticipationType ===
+   'individual')} onClick={() => !disabled && set('eventParticipationType', 'individual')} onKeyDown={(e) => e.key ===
+   'Enter' && !disabled && set('eventParticipationType', 'individual')}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventParticipationType ===
+   'individual' ? 'border-sgt-500' : 'border-gray-300'}`}>
+                        {data.eventParticipationType ===
+   'individual' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
                       </div>
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Individual</span>
                     </div>
-                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventParticipationType === 'team')} onClick={() => !disabled && set('eventParticipationType', 'team')} onKeyDown={(e) => e.key === 'Enter' && !disabled && set('eventParticipationType', 'team')}>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventParticipationType === 'team' ? 'border-sgt-500' : 'border-gray-300'}`}>
-                        {data.eventParticipationType === 'team' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
+                    <div role="button" tabIndex={0} className={radioLabelCls(data.eventParticipationType ===
+   'team')} onClick={() => !disabled && set('eventParticipationType', 'team')} onKeyDown={(e) => e.key ===
+   'Enter' && !disabled && set('eventParticipationType', 'team')}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${data.eventParticipationType ===
+   'team' ? 'border-sgt-500' : 'border-gray-300'}`}>
+                        {data.eventParticipationType ===
+   'team' && <div className="w-2 h-2 rounded-full bg-sgt-500" />}
                       </div>
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Team</span>
                     </div>
@@ -323,26 +348,33 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
               </div>
 
               {/* Conditional Fee Input */}
-              {data.eventPaymentType === 'paid' && (
+              {data.eventPaymentType ===
+   'paid' && (
                 <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <label className={labelCls}>{data.eventParticipationType === 'individual' ? 'Participation Fee (₹)' : 'Fee per Team (₹)'} <span className="text-red-500">*</span></label>
+                  <label className={labelCls}>{data.eventParticipationType ===
+   'individual' ? 'Participation Fee (₹)' : 'Fee per Team (₹)'} <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
                     <input
                       type="number" min={1} disabled={disabled}
-                      value={data.eventParticipationType === 'team' ? data.eventRegistrationFeeTeam : data.eventRegistrationFeeIndividual}
+                      value={data.eventParticipationType ===
+   'team' ? data.eventRegistrationFeeTeam : data.eventRegistrationFeeIndividual}
                       onChange={(e) => {
-                        const v = e.target.value === '' ? '' : Number(e.target.value);
-                        if (data.eventParticipationType === 'team') set('eventRegistrationFeeTeam', v);
+                        const v = e.target.value ===
+   '' ? '' : Number(e.target.value);
+                        if (data.eventParticipationType ===
+   'team') set('eventRegistrationFeeTeam', v);
                         else set('eventRegistrationFeeIndividual', v);
                       }}
                       className={`${inputCls} pl-8`}
-                      placeholder={data.eventParticipationType === 'individual' ? 'e.g. 500' : 'e.g. 2000'}
+                      placeholder={data.eventParticipationType ===
+   'individual' ? 'e.g. 500' : 'e.g. 2000'}
                     />
                   </div>
                   {/* Validation */}
                   {(() => {
-                    const fee = data.eventParticipationType === 'team' ? data.eventRegistrationFeeTeam : data.eventRegistrationFeeIndividual;
+                    const fee = data.eventParticipationType ===
+   'team' ? data.eventRegistrationFeeTeam : data.eventRegistrationFeeIndividual;
                     return fee !== '' && Number(fee) < 1 ? (
                       <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3 shrink-0" /> Participation fee must be at least ₹1.
@@ -350,7 +382,8 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                     ) : null;
                   })()}
                   {/* Team fee explanation */}
-                  {data.eventParticipationType === 'team' && (
+                  {data.eventParticipationType ===
+   'team' && (
                     <p className={helperTextCls}>
                       This is the total fee charged per team. It will be split equally among all team members.
                     </p>
@@ -368,7 +401,8 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                       min={1}
                       disabled={disabled}
                       value={data.eventApproxCapacity}
-                      onChange={(e) => set('eventApproxCapacity', e.target.value === '' ? '' : Number(e.target.value))}
+                      onChange={(e) => set('eventApproxCapacity', e.target.value ===
+   '' ? '' : Number(e.target.value))}
                       className={inputCls}
                       placeholder="e.g. 100"
                     />
@@ -383,7 +417,8 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                         min={1}
                         disabled={disabled}
                         value={data.eventCapacityFixed ?? ''}
-                        onChange={(e) => set('eventCapacityFixed', e.target.value === '' ? '' : Number(e.target.value))}
+                        onChange={(e) => set('eventCapacityFixed', e.target.value ===
+   '' ? '' : Number(e.target.value))}
                         className={inputCls}
                         placeholder="e.g. 50 (Strict limit)"
                       />
@@ -436,8 +471,10 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                       <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 block">Role Type</span>
                       <div className="flex flex-wrap gap-2">
                         {DUTY_LEAVE_ROLE_OPTIONS.map((opt) => (
-                          <label key={opt.value} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${data.eventDutyLeaveRoleType === opt.value ? 'bg-sgt-100 dark:bg-sgt-900/30 border-sgt-300 dark:border-sgt-700 text-sgt-800 dark:text-sgt-300 font-medium' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'}`}>
-                            <input type="radio" name={ns('dutyLeaveRole')} value={opt.value} checked={data.eventDutyLeaveRoleType === opt.value} onChange={() => !disabled && set('eventDutyLeaveRoleType', opt.value)} disabled={disabled} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500 focus-visible:ring-2 focus-visible:ring-sgt-500" />
+                          <label key={opt.value} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${data.eventDutyLeaveRoleType ===
+   opt.value ? 'bg-sgt-100 dark:bg-sgt-900/30 border-sgt-300 dark:border-sgt-700 text-sgt-800 dark:text-sgt-300 font-medium' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'}`}>
+                            <input type="radio" name={ns('dutyLeaveRole')} value={opt.value} checked={data.eventDutyLeaveRoleType ===
+   opt.value} onChange={() => !disabled && set('eventDutyLeaveRoleType', opt.value)} disabled={disabled} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500 focus-visible:ring-2 focus-visible:ring-sgt-500" />
                             <span className="text-sm">{opt.label}</span>
                           </label>
                         ))}
@@ -513,11 +550,13 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                                 <td className="p-2">
                                   <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                    <input type="number" min={0} disabled={disabled} value={r.pricePerPiece} onChange={(e) => updateResource(i, 'pricePerPiece', e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" className={`${inputCls} pl-6`} />
+                                    <input type="number" min={0} disabled={disabled} value={r.pricePerPiece} onChange={(e) => updateResource(i, 'pricePerPiece', e.target.value ===
+   '' ? '' : Number(e.target.value))} placeholder="0" className={`${inputCls} pl-6`} />
                                   </div>
                                 </td>
                                 <td className="p-2">
-                                  <input type="number" min={1} disabled={disabled} value={r.quantity} onChange={(e) => updateResource(i, 'quantity', e.target.value === '' ? '' : Number(e.target.value))} placeholder="1" className={inputCls} />
+                                  <input type="number" min={1} disabled={disabled} value={r.quantity} onChange={(e) => updateResource(i, 'quantity', e.target.value ===
+   '' ? '' : Number(e.target.value))} placeholder="1" className={inputCls} />
                                 </td>
                                 <td className="p-2">
                                   <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 text-right">
@@ -530,7 +569,8 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                               </tr>
                             );
                           })}
-                          {data.eventResources.length === 0 && (
+                          {data.eventResources.length ===
+   0 && (
                             <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">No resources added yet.</td></tr>
                           )}
                         </tbody>
@@ -596,8 +636,11 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                     {data.eventPrizesAwards.map((prize, idx) => (
                       <div key={idx} className="relative group p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 hover:border-sgt-200 dark:hover:border-sgt-800 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                         <div className="flex items-start justify-between mb-2">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${prize.prizeType === 'cash' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-sgt-100 dark:bg-sgt-900/30 text-sgt-600 dark:text-sgt-400'}`}>
-                            {prize.prizeType === 'trophy' ? <Trophy className="w-5 h-5" /> : prize.prizeType === 'cash' ? <IndianRupee className="w-5 h-5" /> : <Award className="w-5 h-5" />}
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${prize.prizeType ===
+   'cash' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-sgt-100 dark:bg-sgt-900/30 text-sgt-600 dark:text-sgt-400'}`}>
+                            {prize.prizeType ===
+   'trophy' ? <Trophy className="w-5 h-5" /> : prize.prizeType ===
+   'cash' ? <IndianRupee className="w-5 h-5" /> : <Award className="w-5 h-5" />}
                           </div>
                           <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <button type="button" disabled={disabled} onClick={() => openEditPrize(prize, idx)} className="p-1.5 text-gray-400 hover:text-sgt-600 hover:bg-white rounded-md shadow-sm"><Settings className="w-4 h-4" /></button>
@@ -607,7 +650,8 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
 
                         <h4 className="font-bold text-gray-900 dark:text-white">{prize.rank}</h4>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                          {prize.prizeType === 'cash' && prize.prizeAmount ? `₹${Number(prize.prizeAmount).toLocaleString()}` : prize.title || 'Prize'}
+                          {prize.prizeType ===
+   'cash' && prize.prizeAmount ? `₹${Number(prize.prizeAmount).toLocaleString()}` : prize.title || 'Prize'}
                         </p>
 
                         {prize.additionalPerks?.trim() && (
@@ -657,8 +701,10 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                 <label className={labelCls}>Prize Type</label>
                 <div className="grid grid-cols-4 gap-3">
                   {PRIZE_TYPE_OPTIONS.map((opt) => (
-                    <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize, prizeType: opt.value })} className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${editingPrize.prizeType === opt.value ? 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 dark:text-sgt-300 ring-2 ring-sgt-500 ring-offset-1 dark:ring-offset-gray-800' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300 hover:bg-gray-50'}`}>
-                      <div className={editingPrize.prizeType === opt.value ? 'text-sgt-600' : 'text-gray-400'}>{opt.icon}</div>
+                    <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize, prizeType: opt.value })} className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${editingPrize.prizeType ===
+   opt.value ? 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 dark:text-sgt-300 ring-2 ring-sgt-500 ring-offset-1 dark:ring-offset-gray-800' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300 hover:bg-gray-50'}`}>
+                      <div className={editingPrize.prizeType ===
+   opt.value ? 'text-sgt-600' : 'text-gray-400'}>{opt.icon}</div>
                       <span className="text-[10px] font-bold uppercase tracking-wide">{opt.label}</span>
                     </button>
                   ))}
@@ -670,12 +716,14 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                 <input type="text" value={editingPrize.title} onChange={(e) => setEditingPrize({ ...editingPrize, title: e.target.value })} className={inputCls} placeholder="e.g. Gold Medal" />
               </div>
 
-              {editingPrize.prizeType === 'cash' && (
+              {editingPrize.prizeType ===
+   'cash' && (
                 <div className="animate-in fade-in slide-in-from-top-2">
                   <label className={labelCls}>Prize Amount (₹)</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
-                    <input type="number" min={0} value={editingPrize.prizeAmount ?? ''} onChange={(e) => setEditingPrize({ ...editingPrize, prizeAmount: e.target.value === '' ? '' : Number(e.target.value) })} className={`${inputCls} pl-8 font-semibold text-lg`} placeholder="0" />
+                    <input type="number" min={0} value={editingPrize.prizeAmount ?? ''} onChange={(e) => setEditingPrize({ ...editingPrize, prizeAmount: e.target.value ===
+   '' ? '' : Number(e.target.value) })} className={`${inputCls} pl-8 font-semibold text-lg`} placeholder="0" />
                   </div>
                 </div>
               )}

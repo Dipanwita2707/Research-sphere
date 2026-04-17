@@ -31,9 +31,11 @@ const DECISION_BADGE: Record<string, { color: string; icon: React.ReactNode }> =
 export default function ReviewerDetailDrawer({ data, onBack }: Props) {
   const [filterCat, setFilterCat] = useState('all');
 
-  const filteredTimeline = filterCat === 'all'
+  const filteredTimeline = filterCat ===
+   'all'
     ? data.timeline
-    : data.timeline.filter((t) => t.category === filterCat);
+    : data.timeline.filter((t) => t.category ===
+   filterCat);
 
   const categories = Array.from(new Set(data.timeline.map((t) => t.category)));
 

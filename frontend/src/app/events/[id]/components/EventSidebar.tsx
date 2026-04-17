@@ -80,7 +80,9 @@ export default function EventSidebar({
 
   return (
     <div className="space-y-6 lg:sticky lg:top-20 lg:self-start">
-      {/* ===== REGISTRATION INFO CARD ===== */}
+      {/* =====
+   REGISTRATION INFO CARD =====
+   */}
       <div className="overflow-hidden rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
         <div className="border-b border-[#b3cde0]/35 bg-gradient-to-r from-[#011f4b] to-[#03396c] px-5 py-4">
           <h3 className="text-base font-bold text-white">Registration Info</h3>
@@ -120,7 +122,8 @@ export default function EventSidebar({
           <div className="flex items-center justify-between px-5 py-3.5">
             <span className="text-sm text-[#6497b1]">Entry Fee</span>
             <span className="text-sm font-semibold text-[#011f4b]">
-              {event.paymentType === "free" ? "Free" : `₹${event.registrationFee}`}
+              {event.paymentType ===
+   "free" ? "Free" : `₹${event.registrationFee}`}
             </span>
           </div>
 
@@ -164,7 +167,8 @@ export default function EventSidebar({
                   <ArrowLeft className="w-4 h-4 rotate-180" />
                 </button>
               )}
-              {isTeamBased && event.status === "published" && !isCreator && !event.userRegistration && registrationOpen && (
+              {isTeamBased && event.status ===
+   "published" && !isCreator && !event.userRegistration && registrationOpen && (
                 <Link
                   href={`/events/${event.id}/registration`}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sgt-400 via-sgt-500 to-sgt-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-105 active:scale-[0.98]"
@@ -333,7 +337,9 @@ export default function EventSidebar({
         </div>
       </div>
 
-      {/* ===== ORGANIZER CARD ===== */}
+      {/* =====
+   ORGANIZER CARD =====
+   */}
       {event.createdBy && (
         <div className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 p-5 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6497b1]">Organized By</p>
@@ -351,7 +357,9 @@ export default function EventSidebar({
         </div>
       )}
 
-      {/* ===== EVENT REFERENCE CARD ===== */}
+      {/* =====
+   EVENT REFERENCE CARD =====
+   */}
       <div className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 p-5 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6497b1]">Event Reference</p>
         <div className="space-y-2.5">

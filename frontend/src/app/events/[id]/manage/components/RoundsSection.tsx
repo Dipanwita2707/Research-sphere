@@ -89,7 +89,8 @@ export default function RoundsSection({ eventId, eventStartDate, eventEndDate, t
       errors.endTime = 'Cannot end after event end';
     }
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    return Object.keys(errors).length ===
+   0;
   };
 
   const checkOverlap = (): EventRound | null => {
@@ -97,7 +98,8 @@ export default function RoundsSection({ eventId, eventStartDate, eventEndDate, t
     const rStart = new Date(form.startTime);
     const rEnd = new Date(form.endTime);
     for (const existing of rounds) {
-      if (editingId && existing.id === editingId) continue;
+      if (editingId && existing.id ===
+   editingId) continue;
       const exStart = new Date(existing.startTime);
       const exEnd = new Date(existing.endTime);
       if (rStart < exEnd && rEnd > exStart) return existing;
@@ -189,7 +191,8 @@ export default function RoundsSection({ eventId, eventStartDate, eventEndDate, t
         <div className="space-y-3">
           {rounds.map((round, idx) => {
             const status = getRoundStatus(round);
-            const typeInfo = ROUND_TYPE_OPTIONS.find(t => t.value === round.roundType) || ROUND_TYPE_OPTIONS[0];
+            const typeInfo = ROUND_TYPE_OPTIONS.find(t => t.value ===
+   round.roundType) || ROUND_TYPE_OPTIONS[0];
             return (
               <div
                 key={round.id}
@@ -207,7 +210,8 @@ export default function RoundsSection({ eventId, eventStartDate, eventEndDate, t
                           {typeInfo.label}
                         </span>
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${status.color}`}>
-                          {status.label === 'Ongoing' && <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />}
+                          {status.label ===
+   'Ongoing' && <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />}
                           {status.label}
                         </span>
                       </div>
@@ -251,7 +255,8 @@ export default function RoundsSection({ eventId, eventStartDate, eventEndDate, t
         </div>
       )}
 
-      {rounds.length === 0 && !showForm && (
+      {rounds.length ===
+   0 && !showForm && (
         <div className="rounded-lg border-2 border-dashed border-gray-200 p-6 text-center">
           <Clock className="mx-auto h-8 w-8 text-gray-300" />
           <p className="mt-2 text-sm font-medium text-gray-500">No rounds created yet</p>

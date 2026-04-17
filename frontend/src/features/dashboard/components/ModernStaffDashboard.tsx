@@ -12,18 +12,21 @@ import {
   DollarSign,
   CheckCircle
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import HeroSection from './HeroSection';
 import AnimatedStatsGrid from './AnimatedStatsGrid';
 import QuickAccessModules from './QuickAccessModules';
-import UniversityEventsSlideshow from './UniversityEventsSlideshow';
-import PermissionBasedDashboard from './PermissionBasedDashboard';
-import CurrentActionSection from './CurrentActionSection';
-import RecentNotifications from './RecentNotifications';
-import SocialFootprints from './SocialFootprints';
-import Footer from '../layouts/Footer';
 import { FadeInUp } from '../animations/AnimatedComponents';
 import api from '@/shared/api/api';
 import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
+
+// Lazy-load below-the-fold heavy components so they don't block initial paint
+const UniversityEventsSlideshow = dynamic(() => import('./UniversityEventsSlideshow'), { ssr: false });
+const PermissionBasedDashboard = dynamic(() => import('./PermissionBasedDashboard'), { ssr: false });
+const CurrentActionSection = dynamic(() => import('./CurrentActionSection'), { ssr: false });
+const RecentNotifications = dynamic(() => import('./RecentNotifications'), { ssr: false });
+const SocialFootprints = dynamic(() => import('./SocialFootprints'), { ssr: false });
+const Footer = dynamic(() => import('../layouts/Footer'), { ssr: false });
 
 interface StaffStats {
   department: string;
@@ -54,7 +57,9 @@ interface AdminOverview {
 
 export default function ModernStaffDashboard() {
   const { user } = useAuthStore();
-  const isAdmin = user?.userType === 'admin' || user?.role?.name === 'admin';
+  const isAdmin = user?.userType ===
+   'admin' || user?.role?.name ===
+   'admin';
   const {
     data: statsData,
     isLoading: isStatsLoading,
@@ -78,7 +83,6 @@ export default function ModernStaffDashboard() {
     faculty: 'N/A',
     permissions: [],
   };
-  const isLoading = isStatsLoading || (isAdmin && isAdminOverviewLoading);
 
   const getUserName = () => {
     if (user?.firstName && user?.lastName) {
@@ -90,11 +94,14 @@ export default function ModernStaffDashboard() {
     return user?.username || 'User';
   };
 
-  const isStudent = user?.userType === 'student' || user?.role?.name === 'student';
+  const isStudent = user?.userType ===
+   'student' || user?.role?.name ===
+   'student';
 
   const getUserType = () => {
     if (isAdmin) return 'Administrator';
-    if (user?.userType === 'faculty') return 'Faculty';
+    if (user?.userType ===
+   'faculty') return 'Faculty';
     if (isStudent) return 'Student';
     return 'Staff';
   };
@@ -210,14 +217,6 @@ export default function ModernStaffDashboard() {
     ];
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="space-y-4 sm:space-y-6 lg:space-y-8 px-2 sm:px-0">
@@ -251,6 +250,11 @@ export default function ModernStaffDashboard() {
                   userPermissions={stats.permissions || []}
                   userRole={user?.role?.name || user?.userType || 'staff'}
                 />
+                {(isStatsLoading || (isAdmin && isAdminOverviewLoading)) && (
+                  <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    Refreshing dashboard data...
+                  </p>
+                )}
               </div>
             </div>
 

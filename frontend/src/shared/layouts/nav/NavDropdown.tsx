@@ -14,7 +14,8 @@ function MenuItemCard({ subItem, onDrillDown, onClose }: {
   onDrillDown: (name: string) => void;
   onClose: () => void;
 }) {
-  const isComingSoon = subItem.href === '#' || subItem.description?.includes('Coming Soon');
+  const isComingSoon = subItem.href ===
+   '#' || subItem.description?.includes('Coming Soon');
 
   if (isComingSoon && !subItem.children) {
     return (
@@ -84,9 +85,12 @@ export function NavDropdown({ item, onClose }: NavDropdownProps) {
   const resetAndClose = () => { setLevel2(null); setLevel3(null); setLevel4(null); onClose(); };
 
   const level2Items = item.subItems ?? [];
-  const level3Items = level2Items.find(s => s.name === level2)?.children ?? [];
-  const level4Items = level3Items.find(s => s.name === level3)?.children ?? [];
-  const level5Items = level4Items.find(s => s.name === level4)?.children ?? [];
+  const level3Items = level2Items.find(s => s.name ===
+   level2)?.children ?? [];
+  const level4Items = level3Items.find(s => s.name ===
+   level3)?.children ?? [];
+  const level5Items = level4Items.find(s => s.name ===
+   level4)?.children ?? [];
 
   return (
     <div

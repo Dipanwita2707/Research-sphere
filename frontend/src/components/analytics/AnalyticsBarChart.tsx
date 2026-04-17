@@ -35,7 +35,8 @@ function niceMax(val: number): number {
 }
 
 function formatTick(val: number): string {
-  if (val >= 1000) return `${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k`;
+  if (val >= 1000) return `${(val / 1000).toFixed(val % 1000 ===
+   0 ? 0 : 1)}k`;
   return String(val);
 }
 
@@ -111,7 +112,8 @@ export default function AnalyticsBarChart({
               const y = plotH * (1 - frac);
               return (
                 <g key={i}>
-                  <line x1={0} y1={y} x2={plotW} y2={y} stroke={i === 0 ? '#e2e8f0' : '#f1f5f9'} strokeDasharray={i > 0 ? '4 4' : undefined} />
+                  <line x1={0} y1={y} x2={plotW} y2={y} stroke={i ===
+   0 ? '#e2e8f0' : '#f1f5f9'} strokeDasharray={i > 0 ? '4 4' : undefined} />
                   <text x={-12} y={y} textAnchor="end" dominantBaseline="middle" fontSize={10} fill="#94a3b8" fontWeight={500}>{formatTick(Math.round(yMax * frac))}</text>
                 </g>
               );
@@ -119,7 +121,8 @@ export default function AnalyticsBarChart({
             {data.map((d, di) => {
               const gx = di * groupW;
               const barsOffset = (groupW - barsW) / 2;
-              const isHovered = tooltip?.d === d;
+              const isHovered = tooltip?.d ===
+   d;
               return (
                 <g key={di}>
                   {isHovered && <rect x={gx + 1} y={-4} width={groupW - 2} height={plotH + 8} fill="#f8fafc" rx={8} opacity={0.7} />}

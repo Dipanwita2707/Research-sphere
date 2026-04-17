@@ -80,14 +80,18 @@ export default function VolunteerActivityDetailPage() {
         e.participant.name.toLowerCase().includes(search.toLowerCase()) ||
         (e.participant.uid && e.participant.uid.toLowerCase().includes(search.toLowerCase())) ||
         (e.participant.registrationNo && e.participant.registrationNo.toLowerCase().includes(search.toLowerCase()));
-      const matchesType = typeFilter === 'all' || e.entryType === typeFilter;
+      const matchesType = typeFilter ===
+   'all' || e.entryType ===
+   typeFilter;
       return matchesSearch && matchesType;
     });
   }, [entries, search, typeFilter]);
 
   const stats = useMemo(() => {
-    const checkIns = entries.reduce((sum, e) => sum + (e.entryType === 'entry' ? (e.entryCount || 1) : 0), 0);
-    const checkOuts = entries.reduce((sum, e) => sum + (e.entryType === 'exit' ? (e.entryCount || 1) : 0), 0);
+    const checkIns = entries.reduce((sum, e) => sum + (e.entryType ===
+   'entry' ? (e.entryCount || 1) : 0), 0);
+    const checkOuts = entries.reduce((sum, e) => sum + (e.entryType ===
+   'exit' ? (e.entryCount || 1) : 0), 0);
     return { checkIns, checkOuts, total: entries.length };
   }, [entries]);
 
@@ -263,7 +267,8 @@ export default function VolunteerActivityDetailPage() {
                   <div className="flex justify-center py-12">
                     <Skeleton className="w-5 h-5 rounded-sm" />
                   </div>
-                ) : Object.keys(groupedEntries).length === 0 ? (
+                ) : Object.keys(groupedEntries).length ===
+   0 ? (
                   <div className="text-center py-16">
                     <History className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-600 dark:text-gray-400 font-medium">No activity yet</p>
@@ -283,14 +288,16 @@ export default function VolunteerActivityDetailPage() {
                             <div
                               key={entry.id}
                               className={`p-4 rounded-lg border transition-all ${
-                                entry.entryType === 'entry'
+                                entry.entryType ===
+   'entry'
                                   ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
                                   : 'border-ev-200 dark:border-ev-800 bg-ev-50 dark:bg-ev-900/10'
                               }`}
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div className="flex items-start gap-3">
-                                  {entry.entryType === 'entry' ? (
+                                  {entry.entryType ===
+   'entry' ? (
                                     <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-full mt-0.5">
                                       <LogIn className="h-4 w-4 text-green-600 dark:text-green-400" />
                                     </div>
@@ -345,12 +352,14 @@ export default function VolunteerActivityDetailPage() {
                                 <div className="flex flex-col items-end gap-1.5 shrink-0">
                                   <span
                                     className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                      entry.entryType === 'entry'
+                                      entry.entryType ===
+   'entry'
                                         ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                         : 'bg-ev-100 dark:bg-ev-900/30 text-ev-800 dark:text-ev-400'
                                     }`}
                                   >
-                                    {entry.entryType === 'entry' ? 'IN' : 'OUT'}
+                                    {entry.entryType ===
+   'entry' ? 'IN' : 'OUT'}
                                   </span>
                                   {(entry.entryCount || 1) > 1 && (
                                     <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">

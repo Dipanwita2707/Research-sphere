@@ -70,7 +70,8 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
     }
   };
 
-  const selectedFieldType = FIELD_TYPES.find(t => t.value === localField.fieldType);
+  const selectedFieldType = FIELD_TYPES.find(t => t.value ===
+   localField.fieldType);
   const needsOptions = ['dropdown', 'checkbox', 'radio'].includes(localField.fieldType || '');
 
   return (

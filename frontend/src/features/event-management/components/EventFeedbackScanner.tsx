@@ -77,7 +77,8 @@ export default function EventFeedbackScanner() {
               setLastDetected(type);
               toast({
                 type: 'success',
-                message: type === 'stall' ? 'Stall feedback QR detected! Opening...' : 'Event feedback QR detected! Opening...',
+                message: type ===
+   'stall' ? 'Stall feedback QR detected! Opening...' : 'Event feedback QR detected! Opening...',
               });
               navigateToFeedback(router, path);
             }
@@ -119,7 +120,8 @@ export default function EventFeedbackScanner() {
   const switchToCameraMode = useCallback(() => setScanMode('camera'), []);
 
   useEffect(() => {
-    if (scanMode === 'camera') {
+    if (scanMode ===
+   'camera') {
       const t = setTimeout(() => startCameraScanner(), 100);
       return () => { clearTimeout(t); stopCameraScanner(); };
     }
@@ -186,7 +188,8 @@ export default function EventFeedbackScanner() {
                 type="button"
                 onClick={switchToCameraMode}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md transition-colors ${
-                  scanMode === 'camera' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500 hover:text-gray-700'
+                  scanMode ===
+   'camera' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <Camera className="w-4 h-4" />
@@ -196,14 +199,16 @@ export default function EventFeedbackScanner() {
                 type="button"
                 onClick={switchToInputMode}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md transition-colors ${
-                  scanMode === 'input' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500 hover:text-gray-700'
+                  scanMode ===
+   'input' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 Paste URL
               </button>
             </div>
 
-            {scanMode === 'camera' ? (
+            {scanMode ===
+   'camera' ? (
               <div className="rounded-lg overflow-hidden border border-[#b3cde0] dark:border-gray-600">
                 <div id="event-feedback-qr-reader" className="w-full" />
               </div>
@@ -238,7 +243,8 @@ export default function EventFeedbackScanner() {
             {lastDetected && (
               <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-sm">
                 <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                {lastDetected === 'stall' ? 'Stall feedback QR detected — redirecting...' : 'Event feedback QR detected — redirecting...'}
+                {lastDetected ===
+   'stall' ? 'Stall feedback QR detected — redirecting...' : 'Event feedback QR detected — redirecting...'}
               </div>
             )}
           </div>

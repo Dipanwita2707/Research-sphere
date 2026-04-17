@@ -329,12 +329,37 @@ export interface ApplicantPersonTrackerWorks {
   completedWorks: ProgressTrackerRecord[];
 }
 
+export interface CategoryBreakdownItem {
+  key: string;
+  label: string;
+  count: number;
+  [key: string]: string | number;
+}
+
+export interface CategoryBreakdownResponse {
+  research: CategoryBreakdownItem[];
+  book: CategoryBreakdownItem[];
+  conference: CategoryBreakdownItem[];
+  conferenceSubtype: CategoryBreakdownItem[];
+  ipr: CategoryBreakdownItem[];
+  grant: CategoryBreakdownItem[];
+  meta: { timeRange: { from: string; to: string } };
+}
+
 class DrdAnalyticsService {
   private baseUrl = '/drd-analytics';
 
   async getApplicantAnalytics(filters?: DrdAnalyticsFilters) {
     const response = await api.get<{ success: boolean; data: DrdAnalyticsResponse }>(
       `${this.baseUrl}/applicant`,
+      { params: filters }
+    );
+    return response.data;
+  }
+
+  async getCategoryBreakdown(filters?: DrdAnalyticsFilters) {
+    const response = await api.get<{ success: boolean; data: CategoryBreakdownResponse }>(
+      `${this.baseUrl}/applicant/category-breakdown`,
       { params: filters }
     );
     return response.data;

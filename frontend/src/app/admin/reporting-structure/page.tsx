@@ -38,7 +38,8 @@ export default function ReportingStructurePage() {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        setSelectedDepartmentKeys(parsed.filter((item) => typeof item === 'string'));
+        setSelectedDepartmentKeys(parsed.filter((item) => typeof item ===
+   'string'));
       }
     } catch {
       setSelectedDepartmentKeys([]);
@@ -96,7 +97,8 @@ export default function ReportingStructurePage() {
 
   const selectedDepartments = useMemo(
     () => selectedDepartmentKeys
-      .map((key) => departmentOptions.find((department) => getDepartmentKey(department) === key))
+      .map((key) => departmentOptions.find((department) => getDepartmentKey(department) ===
+   key))
       .filter((department): department is ReportingDepartmentOption => !!department),
     [departmentOptions, selectedDepartmentKeys],
   );
@@ -204,7 +206,8 @@ export default function ReportingStructurePage() {
 
           {loading ? (
             <p className="text-sm text-gray-500">Loading departments...</p>
-          ) : availableDepartments.length === 0 ? (
+          ) : availableDepartments.length ===
+   0 ? (
             <p className="text-sm text-gray-500">No departments available to add.</p>
           ) : (
             <div>
@@ -220,7 +223,8 @@ export default function ReportingStructurePage() {
                       <div>
                         <p className="font-medium text-gray-900 leading-tight">{department.name}</p>
                         <p className="text-xs text-gray-500 mt-0.5 leading-tight">
-                          {department.scope === 'school' ? 'School Department' : 'Central Department'}
+                          {department.scope ===
+   'school' ? 'School Department' : 'Central Department'}
                           {department.code ? ` • ${department.code}` : ''}
                         </p>
                       </div>
@@ -243,7 +247,8 @@ export default function ReportingStructurePage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setAvailablePage((prev) => Math.max(1, prev - 1))}
-                      disabled={availablePage === 1}
+                      disabled={availablePage ===
+   1}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ChevronLeft size={14} />
@@ -257,7 +262,8 @@ export default function ReportingStructurePage() {
                           key={pageNumber}
                           onClick={() => setAvailablePage(pageNumber)}
                           className={`px-2.5 py-1.5 text-sm border rounded-md transition-colors ${
-                            pageNumber === availablePage
+                            pageNumber ===
+   availablePage
                               ? 'bg-blue-600 border-blue-600 text-white'
                               : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                           }`}
@@ -268,7 +274,8 @@ export default function ReportingStructurePage() {
 
                     <button
                       onClick={() => setAvailablePage((prev) => Math.min(totalAvailablePages, prev + 1))}
-                      disabled={availablePage === totalAvailablePages}
+                      disabled={availablePage ===
+   totalAvailablePages}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next
@@ -309,11 +316,13 @@ export default function ReportingStructurePage() {
             />
           </div>
 
-          {selectedDepartments.length === 0 ? (
+          {selectedDepartments.length ===
+   0 ? (
             <div className="border border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500">
               No department card selected yet.
             </div>
-          ) : filteredSelectedDepartments.length === 0 ? (
+          ) : filteredSelectedDepartments.length ===
+   0 ? (
             <div className="border border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500">
               No selected departments match your search.
             </div>
@@ -334,7 +343,8 @@ export default function ReportingStructurePage() {
                       <div className="min-w-0">
                         <p className="font-semibold text-gray-900 truncate">{department.name}</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {department.scope === 'school' ? 'School Department' : 'Central Department'}
+                          {department.scope ===
+   'school' ? 'School Department' : 'Central Department'}
                           {department.code ? ` • ${department.code}` : ''}
                         </p>
                         <p className={`text-[11px] mt-1 font-medium ${hasHierarchy ? 'text-emerald-700' : 'text-amber-700'}`}>

@@ -175,8 +175,7 @@ class CollaborativeEditingService {
     }
   }
 
-  // ========== MENTOR COLLABORATIVE EDITING METHODS ==========
-
+  // ========== MENTOR COLLABORATIVE EDITING METHODS ===
   /**
    * Mentor creates an individual edit suggestion
    */

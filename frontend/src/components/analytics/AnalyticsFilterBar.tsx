@@ -40,9 +40,9 @@ const DEFAULT_QUICK_FILTERS = [
 ];
 
 const INPUT_CLS =
-  'h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100';
+  'h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-700 px-3 text-sm text-slate-700 dark:text-gray-200 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:focus:ring-slate-700';
 const SELECT_CLS =
-  'h-9 rounded-lg border border-slate-200 bg-white pl-3 pr-7 text-sm text-slate-700 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 appearance-none';
+  'h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-700 pl-3 pr-7 text-sm text-slate-700 dark:text-gray-200 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:focus:ring-slate-700 appearance-none';
 
 export default function AnalyticsFilterBar({
   fromDate,
@@ -64,7 +64,7 @@ export default function AnalyticsFilterBar({
   children,
 }: AnalyticsFilterBarProps) {
   return (
-    <div className="border-b border-slate-200 bg-white px-6 py-3 sm:px-8 lg:px-12 xl:px-16">
+    <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-6 py-3 sm:px-8 lg:px-12 xl:px-16">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {/* Filter icon label */}
         <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-slate-400">
@@ -83,9 +83,11 @@ export default function AnalyticsFilterBar({
                 setTimeout(onApply, 0);
               }}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                fromDate === qf.from && toDate === qf.to
+                fromDate ===
+   qf.from && toDate ===
+   qf.to
                   ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
+                  : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:border-slate-300 hover:bg-white dark:hover:bg-gray-600'
               }`}
             >
               {qf.label}
@@ -161,7 +163,7 @@ export default function AnalyticsFilterBar({
           {onReset && (
             <button
               onClick={onReset}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-700 px-3.5 text-xs font-medium text-slate-500 dark:text-gray-400 transition-colors hover:bg-slate-50 dark:hover:bg-gray-600"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Reset

@@ -99,14 +99,31 @@ export default function NotingListPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  
+  // Block students from accessing noting system
+  useEffect(() => {
+    if (user && user.role?.name ===
+   'student') {
+      toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
+      router.push('/dashboard');
+    }
+  }, [user, router, toast]);
+  
+  // Counts for badges
+  // Search and filters
   const [, startTransition] = useTransition();
 
   // ── Student access check (computed early to disable queries) ──────────────
   // Noting is blocked for ALL students, including club chairpersons
-  const isStudent = !!user && (user.role?.name === "student" || user.userType === "student");
+  const isStudent = !!user && (user.role?.name ===
+   "student" || user.userType ===
+   "student");
   const roleName = user?.role?.name || user?.userType || "";
   const { data: notingPerms, isLoading: permsLoading } = useNotingPermissions();
-  const canViewAdminDashboard = roleName === "admin" || roleName === "superadmin";
+  const canViewAdminDashboard = roleName ===
+   "admin" || roleName ===
+   "superadmin";
   const studentHasAccess = !isStudent;
 
   // ── URL is the single source of truth ────────────────────────────────────
@@ -142,7 +159,8 @@ export default function NotingListPage() {
   const currentStatusOptions = tabStatusOptions[filter];
   const currentStatusValues: string[] = currentStatusOptions.map((option) => option.value);
   const currentSearchPlaceholder =
-    filter === "copies"
+    filter ===
+   "copies"
       ? "Search by Note ID, sender, or description..."
       : "Search by Note ID or description...";
 
@@ -164,7 +182,9 @@ export default function NotingListPage() {
       startTransition(() => {
         const next = new URLSearchParams(searchParams.toString());
         Object.entries(updates).forEach(([key, val]) => {
-          if (val === undefined || val === "") {
+          if (val ===
+   undefined || val ===
+   "") {
             next.delete(key);
           } else {
             next.set(key, val);
@@ -182,7 +202,8 @@ export default function NotingListPage() {
     onSettle: (v) => {
       const str = (v as string) || "";
       const current = searchParams.get("search") ?? "";
-      if (str === current) return;
+      if (str ===
+   current) return;
       setParams({ search: str || undefined, page: undefined });
     },
   });
@@ -198,9 +219,11 @@ export default function NotingListPage() {
     (val: typeof filter) => {
       const nextStatusValues: string[] = tabStatusOptions[val].map((option) => option.value);
       setParams({
-        tab: val === "mine" ? undefined : val,
+        tab: val ===
+   "mine" ? undefined : val,
         page: undefined,
-        copies: val === "copies" && copiesFilter !== "all" ? copiesFilter : undefined,
+        copies: val ===
+   "copies" && copiesFilter !== "all" ? copiesFilter : undefined,
         status:
           status && nextStatusValues.includes(status)
             ? status
@@ -211,8 +234,10 @@ export default function NotingListPage() {
   );
   const setPage = useCallback(
     (val: number | ((prev: number) => number)) => {
-      const next = typeof val === "function" ? val(page) : val;
-      setParams({ page: next === 1 ? undefined : String(next) });
+      const next = typeof val ===
+   "function" ? val(page) : val;
+      setParams({ page: next ===
+   1 ? undefined : String(next) });
     },
     [setParams, page],
   );
@@ -235,14 +260,19 @@ export default function NotingListPage() {
   );
   const setCopiesFilter = useCallback(
     (val: typeof copiesFilter) =>
-      setParams({ copies: val === "all" ? undefined : val, page: undefined }),
+      setParams({ copies: val ===
+   "all" ? undefined : val, page: undefined }),
     [setParams],
   );
 
   // ── Notes list query ──────────────────────────────────────────────────────
   // Map UI filter keys to API filter + handledAction params
-  const apiFilter = (filter === "handled_approved" || filter === "handled_rejected") ? "handled" : filter;
-  const apiHandledAction = filter === "handled_approved" ? "approved" : filter === "handled_rejected" ? "rejected" : undefined;
+  const apiFilter = (filter ===
+   "handled_approved" || filter ===
+   "handled_rejected") ? "handled" : filter;
+  const apiHandledAction = filter ===
+   "handled_approved" ? "approved" : filter ===
+   "handled_rejected" ? "rejected" : undefined;
 
   const listParams = {
     filter: apiFilter as "mine" | "pending" | "handled" | "copies",
@@ -279,11 +309,13 @@ export default function NotingListPage() {
     page,
     limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
-    status: filter === "copies" && currentStatusValues.includes(status) ? status : undefined,
+    status: filter ===
+   "copies" && currentStatusValues.includes(status) ? status : undefined,
     category: category || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
-    enabled: filter === "copies" && !!user && studentHasAccess,
+    enabled: filter ===
+   "copies" && !!user && studentHasAccess,
   });
   const myCopies: NoteCopy[] = copiesData?.copies ?? [];
   const myManagerId = copiesData?.myManagerId ?? null;
@@ -295,12 +327,14 @@ export default function NotingListPage() {
   const [seenCopyIds, setSeenCopyIds] = useState<string[]>([]);
 
   const persistSeenIds = useCallback((key: string, ids: string[]) => {
-    if (typeof window === "undefined") return;
+    if (typeof window ===
+   "undefined") return;
     window.localStorage.setItem(key, JSON.stringify(ids));
   }, []);
 
   useEffect(() => {
-    if (!user?.id || typeof window === "undefined") return;
+    if (!user?.id || typeof window ===
+   "undefined") return;
     try {
       const pendingRaw = window.localStorage.getItem(`noting:pending-seen:${user.id}`);
       const copyRaw = window.localStorage.getItem(`noting:copy-seen:${user.id}`);
@@ -313,7 +347,8 @@ export default function NotingListPage() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (filter !== "pending" || !user?.id || pendingPreviewIds.length === 0) return;
+    if (filter !== "pending" || !user?.id || pendingPreviewIds.length ===
+   0) return;
     setSeenPendingIds((prev) => {
       const next = Array.from(new Set([...prev, ...pendingPreviewIds]));
       persistSeenIds(`noting:pending-seen:${user.id}`, next);
@@ -322,7 +357,8 @@ export default function NotingListPage() {
   }, [filter, pendingPreviewIds, persistSeenIds, user?.id]);
 
   useEffect(() => {
-    if (filter !== "copies" || !user?.id || copyPreviewIds.length === 0) return;
+    if (filter !== "copies" || !user?.id || copyPreviewIds.length ===
+   0) return;
     setSeenCopyIds((prev) => {
       const next = Array.from(new Set([...prev, ...copyPreviewIds]));
       persistSeenIds(`noting:copy-seen:${user.id}`, next);
@@ -340,7 +376,8 @@ export default function NotingListPage() {
   );
 
   const pagination =
-    filter === "copies"
+    filter ===
+   "copies"
       ? (copiesPagination ?? {
         page: 1,
         limit: PAGE_SIZE,
@@ -354,7 +391,8 @@ export default function NotingListPage() {
         totalPages: 0,
       });
 
-  const isLoading = listLoading || (filter === "copies" && copiesLoading);
+  const isLoading = listLoading || (filter ===
+   "copies" && copiesLoading);
 
   // Show error toast for copies fetch failures (once per unique error)
   const lastCopiesErrRef = React.useRef<string | null>(null);
@@ -495,15 +533,18 @@ export default function NotingListPage() {
     (c: NoteCopy) => {
       const rootAssignee = (c as any).rootCopy?.assignedToId;
       if (!rootAssignee) return true;
-      return rootAssignee === currentUserId;
+      return rootAssignee ===
+   currentUserId;
     },
     [currentUserId],
   );
 
   const filteredCopies = useMemo(() => {
     if (filter !== "copies") return [];
-    if (copiesFilter === "my_work") return myCopies.filter(isMyWork);
-    if (copiesFilter === "complaints")
+    if (copiesFilter ===
+   "my_work") return myCopies.filter(isMyWork);
+    if (copiesFilter ===
+   "complaints")
       return myCopies.filter((c) => !isMyWork(c));
     return myCopies;
   }, [filter, copiesFilter, myCopies, isMyWork]);
@@ -593,7 +634,8 @@ export default function NotingListPage() {
           <div className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {TABS.map((tab) => {
               const Icon = tab.icon;
-              const isActive = filter === tab.key;
+              const isActive = filter ===
+   tab.key;
               return (
                 <button
                   key={tab.key}
@@ -695,7 +737,8 @@ export default function NotingListPage() {
               {currentStatusOptions.length > 0 && (
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6497b1] dark:text-gray-400">
-                    {filter === "copies" ? "Copy Status" : "Status"}
+                    {filter ===
+   "copies" ? "Copy Status" : "Status"}
                   </label>
                   <select
                     value={status}
@@ -703,7 +746,8 @@ export default function NotingListPage() {
                     className="w-full rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] px-3 py-2.5 text-sm text-[#03396c] outline-none transition-all focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     <option value="">
-                      {filter === "copies" ? "All Copy Statuses" : "All Statuses"}
+                      {filter ===
+   "copies" ? "All Copy Statuses" : "All Statuses"}
                     </option>
                     {currentStatusOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -766,7 +810,8 @@ export default function NotingListPage() {
         </div>
 
         {/* Copies sub-filters: My Work | Complaints (only when Copies tab is active) */}
-        {filter === "copies" && (
+        {filter ===
+   "copies" && (
           <div
             className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-[#b3cde0]/40 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
             style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.06)" }}
@@ -774,14 +819,16 @@ export default function NotingListPage() {
             <button
               type="button"
               onClick={() => setCopiesFilter("all")}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${copiesFilter === "all"
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${copiesFilter ===
+   "all"
                 ? "bg-[#005b96] text-white border-[#005b96] shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
                 : "bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-300 border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700"
                 }`}
             >
               All
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter === "all" ? "bg-white/20" : "bg-[#b3cde0]/30 dark:bg-gray-600 text-[#03396c] dark:text-gray-300"}`}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter ===
+   "all" ? "bg-white/20" : "bg-[#b3cde0]/30 dark:bg-gray-600 text-[#03396c] dark:text-gray-300"}`}
               >
                 {copiesPagination?.total ?? myCopies.length}
               </span>
@@ -789,7 +836,8 @@ export default function NotingListPage() {
             <button
               type="button"
               onClick={() => setCopiesFilter("my_work")}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${copiesFilter === "my_work"
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${copiesFilter ===
+   "my_work"
                 ? "bg-[#005b96] text-white border-[#005b96] shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
                 : "bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-300 border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700"
                 }`}
@@ -797,7 +845,8 @@ export default function NotingListPage() {
               <Briefcase className="w-4 h-4" />
               My Work
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter === "my_work" ? "bg-white/20" : "bg-[#b3cde0]/30 dark:bg-gray-600 text-[#03396c] dark:text-gray-300"}`}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter ===
+   "my_work" ? "bg-white/20" : "bg-[#b3cde0]/30 dark:bg-gray-600 text-[#03396c] dark:text-gray-300"}`}
               >
                 {myWorkCount}
               </span>
@@ -805,7 +854,8 @@ export default function NotingListPage() {
             <button
               type="button"
               onClick={() => setCopiesFilter("complaints")}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${copiesFilter === "complaints"
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${copiesFilter ===
+   "complaints"
                 ? "bg-[#005b96] text-white border-[#005b96] shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
                 : "bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-300 border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700"
                 }`}
@@ -813,7 +863,8 @@ export default function NotingListPage() {
               <AlertCircle className="w-4 h-4" />
               Complaints
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter === "complaints" ? "bg-white/20" : "bg-[#b3cde0]/30 dark:bg-gray-600 text-[#03396c] dark:text-gray-300"}`}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter ===
+   "complaints" ? "bg-white/20" : "bg-[#b3cde0]/30 dark:bg-gray-600 text-[#03396c] dark:text-gray-300"}`}
               >
                 {complaintsCount}
               </span>
@@ -822,15 +873,19 @@ export default function NotingListPage() {
         )}
 
         {/* Content */}
-        {filter === "copies" ? (
-          /* ===== Copies For Me Tab ===== */
+        {filter ===
+   "copies" ? (
+          /* =====
+   Copies For Me Tab =====
+   */
           copiesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <NotingCardShimmer key={i} />
               ))}
             </div>
-          ) : myCopies.length === 0 ? (
+          ) : myCopies.length ===
+   0 ? (
             <div
               className="rounded-2xl border border-[#b3cde0]/40 bg-white p-12 dark:border-gray-700 dark:bg-gray-800"
               style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
@@ -848,7 +903,8 @@ export default function NotingListPage() {
                 </p>
               </div>
             </div>
-          ) : filteredCopies.length === 0 ? (
+          ) : filteredCopies.length ===
+   0 ? (
             <div
               className="rounded-2xl border border-[#b3cde0]/40 bg-white p-12 dark:border-gray-700 dark:bg-gray-800"
               style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
@@ -858,11 +914,13 @@ export default function NotingListPage() {
                   <Filter className="h-7 w-7 text-[#6497b1]" />
                 </div>
                 <h3 className="text-base font-semibold text-[#011f4b] dark:text-white mb-1.5">
-                  No {copiesFilter === "my_work" ? "My Work" : "Complaints"}{" "}
+                  No {copiesFilter ===
+   "my_work" ? "My Work" : "Complaints"}{" "}
                   Copies
                 </h3>
                 <p className="text-sm text-[#6497b1] dark:text-gray-400">
-                  {copiesFilter === "my_work"
+                  {copiesFilter ===
+   "my_work"
                     ? 'You have no work assignment copies. Try "Complaints" or "All" to see other copies.'
                     : 'You have no complaint/escalation copies. Try "My Work" or "All" to see other copies.'}
                 </p>
@@ -875,11 +933,14 @@ export default function NotingListPage() {
             >
               {filteredCopies.map((copy) => {
                 const statusColor =
-                  copy.status === "completed"
+                  copy.status ===
+   "completed"
                     ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                    : copy.status === "replied"
+                    : copy.status ===
+   "replied"
                       ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                      : copy.status === "forwarded"
+                      : copy.status ===
+   "forwarded"
                         ? "text-amber-600 bg-amber-50 border-amber-200"
                         : "text-indigo-600 bg-indigo-50 border-indigo-200";
                 const noteData = copy.note;
@@ -933,13 +994,15 @@ export default function NotingListPage() {
                           (() => {
                             try {
                               const p = JSON.parse(copy.remarks);
-                              if (p.type === "reassigned") {
+                              if (p.type ===
+   "reassigned") {
                                 const imm = p.immediateBossName;
                                 const bosses: string[] =
                                   p.bossesNotified ||
                                   (p.bossNotified ? [p.bossNotified] : []);
                                 const level = p.level || copy.escalationLevel;
-                                if (level === 1 && imm) {
+                                if (level ===
+   1 && imm) {
                                   return (
                                     <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
                                       <AlertTriangle className="w-3 h-3 flex-shrink-0" />
@@ -960,7 +1023,8 @@ export default function NotingListPage() {
                                   );
                                 }
                               }
-                              if (p.type === "escalation") {
+                              if (p.type ===
+   "escalation") {
                                 return (
                                   <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
                                     <AlertTriangle className="w-3 h-3 flex-shrink-0" />
@@ -995,7 +1059,8 @@ export default function NotingListPage() {
               <NotingCardShimmer key={i} />
             ))}
           </div>
-        ) : notes.length === 0 ? (
+        ) : notes.length ===
+   0 ? (
           <div
             className="rounded-2xl border border-[#b3cde0]/40 bg-white p-12 dark:border-gray-700 dark:bg-gray-800"
             style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
@@ -1005,22 +1070,31 @@ export default function NotingListPage() {
                 <FileText className="h-7 w-7 text-[#6497b1] dark:text-[#6497b1]" />
               </div>
               <h3 className="text-base font-semibold text-[#011f4b] dark:text-white mb-1.5">
-                {filter === "mine" && "No Notes Created Yet"}
-                {filter === "pending" && "No Pending Approvals"}
-                {filter === "handled_approved" && "No Approved / Recommended Notes"}
-                {filter === "handled_rejected" && "No Rejected / Not Recommended Notes"}
+                {filter ===
+   "mine" && "No Notes Created Yet"}
+                {filter ===
+   "pending" && "No Pending Approvals"}
+                {filter ===
+   "handled_approved" && "No Approved / Recommended Notes"}
+                {filter ===
+   "handled_rejected" && "No Rejected / Not Recommended Notes"}
               </h3>
               <p className="text-sm text-[#6497b1] dark:text-gray-400 mb-5 max-w-sm mx-auto">
-                {filter === "mine" &&
+                {filter ===
+   "mine" &&
                   "Start by creating your first approval request."}
-                {filter === "pending" &&
+                {filter ===
+   "pending" &&
                   "No notes waiting for your review right now."}
-                {filter === "handled_approved" &&
+                {filter ===
+   "handled_approved" &&
                   "You haven't approved or recommended any notes yet."}
-                {filter === "handled_rejected" &&
+                {filter ===
+   "handled_rejected" &&
                   "You haven't rejected or not-recommended any notes yet."}
               </p>
-              {filter === "mine" && (
+              {filter ===
+   "mine" && (
                 <Link
                   href="/noting/new"
                   onClick={() => useNotingDraftStore.getState().clearDraft()}
@@ -1043,7 +1117,8 @@ export default function NotingListPage() {
               const StatusIcon = statusConf.icon;
               const isDeleting =
                 deleteMutation.isPending &&
-                deleteMutation.variables === note.id;
+                deleteMutation.variables ===
+   note.id;
 
               const approverActions =
                 note.history?.filter(
@@ -1057,18 +1132,23 @@ export default function NotingListPage() {
               //    falling back to _count.history — list API doesn't return history items)
               const hasApproverActed =
                 approverActions.length > 0 ||
-                (note.history === undefined && (note._count?.history ?? 0) > 1);
+                (note.history ===
+   undefined && (note._count?.history ?? 0) > 1);
               // For reverted notes, only the creator can edit (revert sends it back for modifications)
               // Reverted notes cannot be deleted since they've been through the approval flow
               const canEdit =
-                filter === "mine" &&
+                filter ===
+   "mine" &&
                 note.status !== "approved" &&
                 note.status !== "rejected" &&
-                (note.status === "reverted"
-                  ? note.createdById === currentUserId
+                (note.status ===
+   "reverted"
+                  ? note.createdById ===
+   currentUserId
                   : !hasApproverActed);
               const canDelete =
-                filter === "mine" &&
+                filter ===
+   "mine" &&
                 note.status !== "approved" &&
                 note.status !== "rejected" &&
                 note.status !== "reverted" &&
@@ -1078,13 +1158,18 @@ export default function NotingListPage() {
                 <Link
                   key={note.id}
                   href={
-                    note.status === "draft" || (note.status === "reverted" && note.createdById === currentUserId)
+                    note.status ===
+   "draft" || (note.status ===
+   "reverted" && note.createdById ===
+   currentUserId)
                       ? `/noting/new?draft=${note.id}`
                       : `/noting/${note.id}`
                   }
                   className="group block"
                   onMouseEnter={() => {
-                    if (note.status !== "draft" && !(note.status === "reverted" && note.createdById === currentUserId)) {
+                    if (note.status !== "draft" && !(note.status ===
+   "reverted" && note.createdById ===
+   currentUserId)) {
                       queryClient.prefetchQuery({
                         queryKey: NOTING_QUERY_KEYS.detail(note.id),
                         queryFn: () => notingService.getById(note.id),
@@ -1147,7 +1232,8 @@ export default function NotingListPage() {
                               <span className="flex items-center gap-1">
                                 <History className="w-3 h-3" />
                                 {note._count!.history}{" "}
-                                {note._count!.history === 1
+                                {note._count!.history ===
+   1
                                   ? "action"
                                   : "actions"}
                               </span>
@@ -1156,7 +1242,9 @@ export default function NotingListPage() {
                         </div>
 
                         <div className="flex flex-row flex-wrap items-center justify-end gap-2 shrink-0">
-                          {(filter === "handled_approved" || filter === "handled_rejected") && note.myAction ? (
+                          {(filter ===
+   "handled_approved" || filter ===
+   "handled_rejected") && note.myAction ? (
                             <div className="flex flex-col items-end gap-1.5">
                               {(() => {
                                 const actionConf =
@@ -1281,7 +1369,8 @@ export default function NotingListPage() {
                           type="button"
                           onClick={() => setPage(pageNum)}
                           disabled={isLoading}
-                          className={`w-8 h-8 rounded-xl text-xs font-medium transition-all duration-200 ${pagination.page === pageNum
+                          className={`w-8 h-8 rounded-xl text-xs font-medium transition-all duration-200 ${pagination.page ===
+   pageNum
                             ? "bg-[#005b96] text-white shadow-[0_2px_6px_rgba(0,91,150,0.3)]"
                             : "text-[#03396c] dark:text-gray-300 hover:bg-[#b3cde0]/20 dark:hover:bg-gray-700"
                             }`}

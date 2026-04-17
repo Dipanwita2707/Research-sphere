@@ -391,7 +391,11 @@ function GateEntryAnalyticsPageContent() {
 
   const getDepartmentLabel = (department?: string | null) => {
     const normalized = (department || '').trim().toLowerCase();
-    if (!normalized || normalized === 'n/a' || normalized === 'na' || normalized === 'null' || normalized === '-') {
+    if (!normalized || normalized ===
+   'n/a' || normalized ===
+   'na' || normalized ===
+   'null' || normalized ===
+   '-') {
       return t('common.na');
     }
 
@@ -450,7 +454,7 @@ function GateEntryAnalyticsPageContent() {
           <h2 className="text-2xl font-bold text-[#011f4b] mb-2">{t('analytics.msg.errorLoading')}</h2>
           <p className="text-[#6497b1] mb-4">{error}</p>
           <button
-            onClick={fetchAnalytics}
+            onClick={() => fetchAnalytics()}
             className="px-6 py-2 bg-[#005b96] text-white rounded-lg hover:bg-[#03396c] transition-colors"
           >
             {t('analytics.msg.tryAgain')}
@@ -498,7 +502,7 @@ function GateEntryAnalyticsPageContent() {
               {/* Bottom Row: Action Buttons */}
               <div className="flex items-center gap-3 justify-end">
                 <button
-                  onClick={fetchAnalytics}
+                  onClick={() => fetchAnalytics()}
                   disabled={loading}
                   className="flex items-center gap-2 px-4 py-2.5 bg-white/15 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/25 transition-all font-medium hover-lift disabled:opacity-50"
                 >
@@ -912,7 +916,9 @@ function GateEntryAnalyticsPageContent() {
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip
                         contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px' }}
-                        formatter={(value: any, name?: string) => [name === 'revenue' ? formatCurrency(value) : value, name === 'revenue' ? t('analytics.gh.revenue') : t('analytics.gh.bookingsCount')]}
+                        formatter={(value: any, name?: string) => [name ===
+   'revenue' ? formatCurrency(value) : value, name ===
+   'revenue' ? t('analytics.gh.revenue') : t('analytics.gh.bookingsCount')]}
                       />
                       <Legend />
                       <Bar dataKey="bookings" fill="#6366F1" name={t('analytics.gh.bookingsCount')} radius={[4, 4, 0, 0]} />
@@ -986,9 +992,12 @@ function GateEntryAnalyticsPageContent() {
                           <td className="px-3 py-3 text-sm font-semibold text-gray-900 text-right">{formatCurrency(booking.totalPrice)}</td>
                           <td className="px-3 py-3 text-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-800' :
-                              booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
-                              booking.bookingStatus === 'completed' ? 'bg-gray-100 text-gray-800' :
+                              booking.bookingStatus ===
+   'confirmed' ? 'bg-green-100 text-green-800' :
+                              booking.bookingStatus ===
+   'cancelled' ? 'bg-red-100 text-red-800' :
+                              booking.bookingStatus ===
+   'completed' ? 'bg-gray-100 text-gray-800' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>
                               {getBookingStatusLabel(booking.bookingStatus)}
@@ -996,8 +1005,10 @@ function GateEntryAnalyticsPageContent() {
                           </td>
                           <td className="px-3 py-3 text-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              booking.paymentStatus === 'verified' ? 'bg-green-100 text-green-800' :
-                              booking.paymentStatus === 'failed' ? 'bg-red-100 text-red-800' :
+                              booking.paymentStatus ===
+   'verified' ? 'bg-green-100 text-green-800' :
+                              booking.paymentStatus ===
+   'failed' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
                             }`}>
                               {getPaymentStatusLabel(booking.paymentStatus)}
@@ -1007,8 +1018,11 @@ function GateEntryAnalyticsPageContent() {
                             {booking.refund ? (
                               <div>
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  booking.refund.refundStatus === 'completed' || booking.refund.refundStatus === 'processed' ? 'bg-green-100 text-green-800' :
-                                  booking.refund.refundStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  booking.refund.refundStatus ===
+   'completed' || booking.refund.refundStatus ===
+   'processed' ? 'bg-green-100 text-green-800' :
+                                  booking.refund.refundStatus ===
+   'pending' ? 'bg-yellow-100 text-yellow-800' :
                                   'bg-red-100 text-red-800'
                                 }`}>
                                   {getRefundStatusLabel(booking.refund.refundStatus)}: {formatCurrency(booking.refund.refundAmount)}
@@ -1078,7 +1092,8 @@ function GateEntryAnalyticsPageContent() {
                     <td className="px-4 py-3 text-sm font-semibold text-blue-600 text-right">{guard.total}</td>
                   </tr>
                 ))}
-                {analyticsData.guardPerformance.length === 0 && (
+                {analyticsData.guardPerformance.length ===
+   0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                       {t('analytics.empty.noGuardActivity')}
@@ -1175,7 +1190,8 @@ function GateEntryAnalyticsPageContent() {
                     </td>
                   </tr>
                 ))}
-                {(!analyticsData.checkedInVisitors || analyticsData.checkedInVisitors.length === 0) && (
+                {(!analyticsData.checkedInVisitors || analyticsData.checkedInVisitors.length ===
+   0) && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                       {t('analytics.checkedIn.noVisitors')}

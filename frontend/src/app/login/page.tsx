@@ -51,7 +51,7 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: '100vh', width: '100vw', display: 'flex', overflow: 'hidden' }}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .lp-left {
           flex: 2.2;
           position: relative;
@@ -204,7 +204,7 @@ export default function LoginPage() {
         .lp-btn:disabled { background: #93a3c8; cursor: not-allowed; box-shadow: none; }
 
         @keyframes lp-spin { to { transform: rotate(360deg); } }
-      `}</style>
+      `}} />
 
       {/* ── LEFT: SGT campus slideshow ── */}
       <div className="lp-left">

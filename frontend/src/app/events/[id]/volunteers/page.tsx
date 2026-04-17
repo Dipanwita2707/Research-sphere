@@ -417,7 +417,8 @@ export default function VolunteersPage() {
                 </h3>
               </div>
               <div className="p-5">
-                {volunteers.length === 0 ? (
+                {volunteers.length ===
+   0 ? (
                   <div className="text-center py-12">
                     <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-600 dark:text-gray-400 mb-2">
@@ -435,7 +436,8 @@ export default function VolunteersPage() {
                         role="button"
                         tabIndex={0}
                         onClick={() => router.push(`/events/${eventId}/volunteers/${volunteer.id}`)}
-                        onKeyDown={(e) => e.key === 'Enter' && router.push(`/events/${eventId}/volunteers/${volunteer.id}`)}
+                        onKeyDown={(e) => e.key ===
+   'Enter' && router.push(`/events/${eventId}/volunteers/${volunteer.id}`)}
                         className="p-4 border-2 border-[#b3cde0] dark:border-gray-600 rounded-lg hover:border-purple-300 dark:hover:border-purple-600 transition-all cursor-pointer group"
                       >
                         <div className="flex items-start justify-between gap-4">

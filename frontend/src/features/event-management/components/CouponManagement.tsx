@@ -89,10 +89,13 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
     if (!form.code.trim()) errs.code = 'Coupon code is required';
     else if (!/^[A-Za-z0-9_-]+$/.test(form.code)) errs.code = 'Only letters, digits, - and _ allowed';
     if (!form.discountValue || form.discountValue < 1)
-      errs.discountValue = form.discountType === 'percentage' ? 'Minimum discount is 1%' : 'Minimum discount is ₹1';
-    if (form.discountType === 'percentage' && form.discountValue > 100) errs.discountValue = 'Percentage cannot exceed 100';
+      errs.discountValue = form.discountType ===
+   'percentage' ? 'Minimum discount is 1%' : 'Minimum discount is ₹1';
+    if (form.discountType ===
+   'percentage' && form.discountValue > 100) errs.discountValue = 'Percentage cannot exceed 100';
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    return Object.keys(errs).length ===
+   0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,7 +106,8 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
       await onSave({
         ...form,
         code: form.code.trim().toUpperCase(),
-        maxDiscountCap: form.discountType === 'percentage' ? (form.maxDiscountCap || null) : null,
+        maxDiscountCap: form.discountType ===
+   'percentage' ? (form.maxDiscountCap || null) : null,
         expiresAt: form.expiresAt || null,
       });
       onClose();
@@ -157,13 +161,16 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
                     type="button"
                     onClick={() => set('discountType', t)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm rounded-lg border-2 transition-all ${
-                      form.discountType === t
+                      form.discountType ===
+   t
                         ? 'border-ev-700 bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 font-semibold'
                         : 'border-[#b3cde0] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300'
                     }`}
                   >
-                    {t === 'percentage' ? <Percent className="w-3.5 h-3.5" /> : <IndianRupee className="w-3.5 h-3.5" />}
-                    {t === 'percentage' ? '%' : '₹ Fixed'}
+                    {t ===
+   'percentage' ? <Percent className="w-3.5 h-3.5" /> : <IndianRupee className="w-3.5 h-3.5" />}
+                    {t ===
+   'percentage' ? '%' : '₹ Fixed'}
                   </button>
                 ))}
               </div>
@@ -174,14 +181,16 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                  {form.discountType === 'percentage' ? '%' : '₹'}
+                  {form.discountType ===
+   'percentage' ? '%' : '₹'}
                 </span>
                 <input
                   type="number"
                   value={form.discountValue}
                   onChange={(e) => set('discountValue', parseFloat(e.target.value) || 0)}
                   min={1}
-                  max={form.discountType === 'percentage' ? 100 : undefined}
+                  max={form.discountType ===
+   'percentage' ? 100 : undefined}
                   step="any"
                   className={`${INPUT} pl-7 ${errors.discountValue ? 'border-red-400 focus:ring-red-400' : ''}`}
                 />
@@ -191,7 +200,8 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
           </div>
 
           {/* Max Discount Cap (percentage only) */}
-          {form.discountType === 'percentage' && (
+          {form.discountType ===
+   'percentage' && (
             <div>
               <label className={LABEL}>
                 Max Discount Cap (₹) <span className="text-xs font-normal text-gray-400 ml-1">optional</span>
@@ -352,8 +362,10 @@ const CouponCard: React.FC<{
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className={`p-2.5 rounded-lg shrink-0 ${coupon.discountType === 'percentage' ? 'bg-violet-50 dark:bg-violet-900/20' : 'bg-ev-50 dark:bg-ev-900/20'}`}>
-            {coupon.discountType === 'percentage'
+          <div className={`p-2.5 rounded-lg shrink-0 ${coupon.discountType ===
+   'percentage' ? 'bg-violet-50 dark:bg-violet-900/20' : 'bg-ev-50 dark:bg-ev-900/20'}`}>
+            {coupon.discountType ===
+   'percentage'
               ? <Percent className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               : <IndianRupee className="w-4 h-4 text-ev-700 dark:text-ev-400" />
             }
@@ -383,7 +395,8 @@ const CouponCard: React.FC<{
         <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5">
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Discount</p>
           <p className="font-semibold text-gray-800 dark:text-gray-200">
-            {coupon.discountType === 'percentage'
+            {coupon.discountType ===
+   'percentage'
               ? `${coupon.discountValue}%${coupon.maxDiscountCap ? ` (max ₹${coupon.maxDiscountCap})` : ''}`
               : `₹${coupon.discountValue}`
             }
@@ -423,11 +436,13 @@ const CouponCard: React.FC<{
           {/* Toggle Active */}
           <button
             onClick={() => onToggle(coupon.id, !coupon.isActive)}
-            disabled={toggling === coupon.id}
+            disabled={toggling ===
+   coupon.id}
             className={`p-1.5 transition-colors rounded ${coupon.isActive ? 'text-emerald-500 hover:text-emerald-700' : 'text-gray-400 hover:text-gray-600'}`}
             title={coupon.isActive ? 'Deactivate' : 'Activate'}
           >
-            {toggling === coupon.id
+            {toggling ===
+   coupon.id
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : coupon.isActive
                 ? <ToggleRight className="w-5 h-5" />
@@ -445,11 +460,13 @@ const CouponCard: React.FC<{
           {/* Delete */}
           <button
             onClick={() => onDelete(coupon.id)}
-            disabled={deleting === coupon.id}
+            disabled={deleting ===
+   coupon.id}
             className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded disabled:opacity-50"
             title="Delete"
           >
-            {deleting === coupon.id
+            {deleting ===
+   coupon.id
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <Trash2 className="w-4 h-4" />
             }
@@ -495,7 +512,8 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
     try {
       if (editingCoupon) {
         const updated = await eventService.updateCoupon(eventId, editingCoupon.id, data);
-        setCoupons((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+        setCoupons((prev) => prev.map((c) => c.id ===
+   updated.id ? updated : c));
         onToast({ type: 'success', message: 'Coupon updated' });
       } else {
         const created = await eventService.createCoupon(eventId, data);
@@ -526,7 +544,8 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
     setTogglingId(couponId);
     try {
       const updated = await eventService.updateCoupon(eventId, couponId, { isActive });
-      setCoupons((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+      setCoupons((prev) => prev.map((c) => c.id ===
+   updated.id ? updated : c));
       onToast({ type: 'success', message: isActive ? 'Coupon activated' : 'Coupon deactivated' });
     } catch (err: any) {
       onToast({ type: 'error', message: err?.response?.data?.message || 'Failed to toggle coupon' });
@@ -603,7 +622,8 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-ev-700" />
         </div>
-      ) : coupons.length === 0 ? (
+      ) : coupons.length ===
+   0 ? (
         <div className={CARD}>
           <EmptyState onAdd={openCreate} />
         </div>

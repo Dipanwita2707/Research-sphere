@@ -150,10 +150,10 @@ const MONTHLY_REPORT_PERMISSIONS = {
   },
 };
 
-// ===========================================
+// ====================================
 // DSW (Dean of Student Welfare) Permissions
 // Centralized club and student activity management
-// ===========================================
+// ====================================
 const DSW_PERMISSIONS = {
   DSW_CLUB: {
     category: "DSW Club Management",
@@ -213,10 +213,10 @@ const DSW_PERMISSIONS = {
   },
 };
 
-// ===========================================
+// ====================================
 // Noting System Permissions
 // Document approval workflow management
-// ===========================================
+// ====================================
 const NOTING_PERMISSIONS = {
   NOTING_CORE: {
     category: "Noting Permissions",
@@ -323,10 +323,10 @@ const NOTING_PERMISSIONS = {
   },
 };
 
-// ===========================================
+// ====================================
 // Event Management Permissions
 // Campus event creation and management
-// ===========================================
+// ====================================
 const EVENT_PERMISSIONS = {
   EVENT_CORE: {
     category: "Event Management",
@@ -380,10 +380,10 @@ const EVENT_PERMISSIONS = {
   },
 };
 
-// ===========================================
+// ====================================
 // Reporting Structure Permissions
 // Organizational hierarchy and reporting relationships
-// ===========================================
+// ====================================
 const REPORTING_STRUCTURE_PERMISSIONS = {
   REPORTING_CORE: {
     category: "Reporting Structure",
@@ -403,10 +403,10 @@ const REPORTING_STRUCTURE_PERMISSIONS = {
   },
 };
 
-// ===========================================
+// ====================================
 // TMS (Ticket Management System) Permissions
 // Student grievance, assistance, enquiry & feedback
-// ===========================================
+// ====================================
 const TMS_PERMISSIONS = {
   TMS_CORE: {
     category: 'Ticket Management System',
@@ -828,10 +828,9 @@ const ROUTE_PERMISSION_MAP = {
   "GET /api/v1/progress-tracker/monthly-reports": ["monthly_report_view"],
   "GET /api/v1/progress-tracker/all": ["monthly_report_view"],
 
-  // ===========================================
+  // ====================================
   // DSW Club Routes
-  // ===========================================
-  "POST /api/v1/dsw/clubs/noting": ["dsw_create_club_noting"],
+  // ====================================  "POST /api/v1/dsw/clubs/noting": ["dsw_create_club_noting"],
   "GET /api/v1/dsw/clubs": ["dsw_view_club"],
   "GET /api/v1/dsw/clubs/all": ["dsw_view_all_clubs"],
   "GET /api/v1/dsw/clubs/:id": ["dsw_view_club"],
@@ -843,10 +842,9 @@ const ROUTE_PERMISSION_MAP = {
   "POST /api/v1/dsw/clubs/:id/approve-change": ["dsw_approve_club_change"],
   "GET /api/v1/dsw/audit-logs": ["dsw_view_audit_logs"],
 
-  // ===========================================
+  // ====================================
   // Noting Routes
-  // ===========================================
-  "POST /api/v1/noting/create": ["noting_create"],
+  // ====================================  "POST /api/v1/noting/create": ["noting_create"],
   "GET /api/v1/noting/my-notings": ["noting_view_own"],
   "GET /api/v1/noting/department": ["noting_view_department"],
   "GET /api/v1/noting/all": ["noting_view_all"],
@@ -855,10 +853,9 @@ const ROUTE_PERMISSION_MAP = {
   "POST /api/v1/noting/:id/return": ["noting_return"],
   "POST /api/v1/noting/:id/comment": ["noting_add_comment"],
 
-  // ===========================================
+  // ====================================
   // Event Management Routes
-  // ===========================================
-  'POST /api/v1/events/create': ['event_create'],
+  // ====================================  'POST /api/v1/events/create': ['event_create'],
   'GET /api/v1/events/all': ['event_view_all'],
   'PUT /api/v1/events/:id': ['event_manage_own', 'event_manage_all'],
   'POST /api/v1/events/:id/publish': ['event_publish'],
@@ -867,10 +864,9 @@ const ROUTE_PERMISSION_MAP = {
   'POST /api/v1/events/:id/volunteers': ['event_assign_volunteers'],
   'GET /api/v1/events/reports': ['event_view_reports'],
   
-  // ===========================================
+  // ====================================
   // TMS Ticket Management Routes
-  // ===========================================
-  'POST /api/v1/tms/tickets': ['tms_submit_ticket'],
+  // ====================================  'POST /api/v1/tms/tickets': ['tms_submit_ticket'],
   'GET /api/v1/tms/tickets/my': ['tms_view_own_tickets'],
   'GET /api/v1/tms/tickets/assigned': ['tms_view_assigned_tickets'],
   'GET /api/v1/tms/tickets/:id': ['tms_view_own_tickets', 'tms_view_assigned_tickets', 'tms_view_analytics'],

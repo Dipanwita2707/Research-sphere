@@ -57,8 +57,10 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
             >
               <option value="">Select {field.fieldLabel}</option>
               {((field.options || []) as Array<string | { value: string; label: string }>).map((opt, idx) => (
-                <option key={idx} value={typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value}>
-                  {typeof opt === 'string' ? opt : (opt as { value: string; label: string }).label}
+                <option key={idx} value={typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).value}>
+                  {typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).label}
                 </option>
               ))}
             </select>
@@ -72,28 +74,38 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
         return (
           <div className="space-y-3 pt-1">
             {((field.options || []) as Array<string | { value: string; label: string }>).map((opt, idx) => (
-              <label key={idx} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${value === (typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value)
+              <label key={idx} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${value ===
+   (typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).value)
                   ? 'border-ev-700 bg-ev-50/50 dark:bg-ev-900/20 ring-1 ring-ev-700'
                   : 'border-[#b3cde0] dark:border-gray-700 hover:bg-ev-50/30 dark:hover:bg-gray-800'
                 }`}>
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${value === (typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value)
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${value ===
+   (typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).value)
                     ? 'border-ev-700 bg-ev-700'
                     : 'border-[#b3cde0] dark:border-gray-600'
                   }`}>
-                  {value === (typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value) && (
+                  {value ===
+   (typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).value) && (
                     <div className="w-2 h-2 rounded-full bg-white" />
                   )}
                 </div>
                 <input
                   type="radio"
                   name={field.fieldName}
-                  value={typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value}
-                  checked={value === (typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value)}
+                  value={typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).value}
+                  checked={value ===
+   (typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).value)}
                   onChange={(e) => onChange(e.target.value)}
                   className="sr-only"
                 />
                 <span className="text-gray-700 dark:text-gray-300 font-medium">
-                  {typeof opt === 'string' ? opt : (opt as { value: string; label: string }).label}
+                  {typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).label}
                 </span>
               </label>
             ))}
@@ -104,7 +116,8 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
         return (
           <div className="space-y-3 pt-1">
             {((field.options || []) as Array<string | { value: string; label: string }>).map((opt, idx) => {
-              const val = typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value;
+              const val = typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).value;
               const isChecked = Array.isArray(value) && value.includes(val);
 
               return (
@@ -135,7 +148,8 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
                     className="sr-only"
                   />
                   <span className="text-gray-700 dark:text-gray-300 font-medium">
-                    {typeof opt === 'string' ? opt : (opt as { value: string; label: string }).label}
+                    {typeof opt ===
+   'string' ? opt : (opt as { value: string; label: string }).label}
                   </span>
                 </label>
               );
@@ -146,7 +160,9 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
       default:
         return (
           <input
-            type={field.fieldType === 'number' ? 'number' : field.fieldType === 'phone' ? 'tel' : field.fieldType}
+            type={field.fieldType ===
+   'number' ? 'number' : field.fieldType ===
+   'phone' ? 'tel' : field.fieldType}
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={field.placeholder}
@@ -258,7 +274,8 @@ export default function EventRegistrationPage() {
     if (!values.institute?.trim()) newErrors.institute = 'Institute is required';
 
     // Academic/Identity fields — only validate if visible (i.e. NOT filled from profile)
-    const isStudent = formData?.userProfile?.userType === 'student';
+    const isStudent = formData?.userProfile?.userType ===
+   'student';
     if (isStudent && !profileFields.registrationNo && !profileFields.studentId) {
       if (!values.registrationNo?.trim()) newErrors.registrationNo = 'Registration No / UID is required';
     }
@@ -284,18 +301,25 @@ export default function EventRegistrationPage() {
     // Custom fields
     formData?.customFields.forEach(field => {
       const val = values[field.fieldName];
-      const isEmpty = val === undefined || val === null || (typeof val === 'string' && !val.trim()) || (Array.isArray(val) && val.length === 0);
+      const isEmpty = val ===
+   undefined || val ===
+   null || (typeof val ===
+   'string' && !val.trim()) || (Array.isArray(val) && val.length ===
+   0);
       if (field.isRequired && isEmpty) {
         newErrors[field.fieldName] = `${field.fieldLabel} is required`;
-      } else if (field.fieldType === 'email' && val && !emailRegex.test(String(val).trim())) {
+      } else if (field.fieldType ===
+   'email' && val && !emailRegex.test(String(val).trim())) {
         newErrors[field.fieldName] = 'Please enter a valid email';
-      } else if (field.fieldType === 'phone' && val && phoneDigits(String(val)).length !== 10) {
+      } else if (field.fieldType ===
+   'phone' && val && phoneDigits(String(val)).length !== 10) {
         newErrors[field.fieldName] = 'Please enter a valid 10-digit mobile number';
       }
     });
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length ===
+   0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -313,14 +337,16 @@ export default function EventRegistrationPage() {
     setSubmitting(true);
     try {
       const result = await eventService.submitRegistrationForm(eventId, values);
-      if (result.nextStep === 'team_management') {
+      if (result.nextStep ===
+   'team_management') {
         toast({ type: 'success', message: 'Profile saved! Proceeding to Team Setup.' });
         router.push(`/events/${eventId}/registration/team`);
       } else if (result.couponFullyFree) {
         // Coupon covered 100% — registration auto-confirmed, no payment needed
         toast({ type: 'success', message: 'Registration complete! Coupon covered the full amount.' });
         router.push(`/events/${eventId}`);
-      } else if (formData?.event.paymentType === 'paid') {
+      } else if (formData?.event.paymentType ===
+   'paid') {
         // Individual paid event → redirect to payment step
         toast({ type: 'success', message: 'Profile saved! Proceeding to Payment.' });
         router.push(`/events/${eventId}/registration/payment`);
@@ -357,13 +383,18 @@ export default function EventRegistrationPage() {
     );
   }
 
-  const isTeamEvent = formData.event.participationType === 'team';
+  const isTeamEvent = formData.event.participationType ===
+   'team';
   const existingReg = formData.existingRegistration;
   // Statuses that mean personal info is already locked in
   const isAlreadySubmitted = !!existingReg && existingReg.status !== 'draft';
-  const isFullyConfirmed = existingReg?.status === 'confirmed';
-  const isPendingPayment = existingReg?.status === 'pending' && formData.event.paymentType === 'paid';
-  const isIncompleteTeam = existingReg?.status === 'incomplete_team';
+  const isFullyConfirmed = existingReg?.status ===
+   'confirmed';
+  const isPendingPayment = existingReg?.status ===
+   'pending' && formData.event.paymentType ===
+   'paid';
+  const isIncompleteTeam = existingReg?.status ===
+   'incomplete_team';
 
   // Show read-only registered view
   if (isAlreadySubmitted) {
@@ -531,11 +562,13 @@ export default function EventRegistrationPage() {
           {/* Progress Steps for Team Events */}
           {isTeamEvent && (
             <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pr-4 sm:pr-6 rounded-2xl border border-[#b3cde0]/60 dark:border-gray-700 shadow-ev overflow-x-auto scrollbar-hide">
-              <div className={`flex items-center gap-3 pl-2 pr-4 py-2 rounded-xl transition-all ${step === 'form'
+              <div className={`flex items-center gap-3 pl-2 pr-4 py-2 rounded-xl transition-all ${step ===
+   'form'
                   ? 'bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 shadow-ev ring-1 ring-ev-200 dark:ring-ev-800'
                   : 'text-ev-400 dark:text-gray-400'
                 }`}>
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === 'form' ? 'bg-ev-700 text-white' : 'bg-gray-200 dark:bg-gray-700'
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step ===
+   'form' ? 'bg-ev-700 text-white' : 'bg-gray-200 dark:bg-gray-700'
                   }`}>1</span>
                 <span className="font-semibold text-sm">Personal Info</span>
               </div>
@@ -710,7 +743,8 @@ export default function EventRegistrationPage() {
 
               {/* 1b. Academic / Identity Details - Only show fields NOT available from profile */}
               {(() => {
-                const isStudent = formData.userProfile?.userType === 'student';
+                const isStudent = formData.userProfile?.userType ===
+   'student';
                 const showRegNo = isStudent && !profileFields.registrationNo && !profileFields.studentId;
                 const showEmpId = !isStudent && !profileFields.employeeId;
                 const showGender = !profileFields.gender;
@@ -877,7 +911,8 @@ export default function EventRegistrationPage() {
 
                   <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                     {formData.customFields.map(field => (
-                      <div key={field.id} className={field.fieldType === 'textarea' ? 'md:col-span-2' : ''}>
+                      <div key={field.id} className={field.fieldType ===
+   'textarea' ? 'md:col-span-2' : ''}>
                         <DynamicField
                           field={field}
                           value={values[field.fieldName]}

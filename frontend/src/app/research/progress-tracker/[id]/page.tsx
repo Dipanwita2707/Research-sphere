@@ -137,10 +137,14 @@ export default function TrackerDetailPage() {
   // Initialize form data when tracker loads
   useEffect(() => {
     if (tracker) {
-      const typeData = tracker.publicationType === 'research_paper' ? tracker.researchPaperData :
-                       tracker.publicationType === 'book' ? tracker.bookData :
-                       tracker.publicationType === 'book_chapter' ? tracker.bookChapterData :
-                       tracker.publicationType === 'conference_paper' ? tracker.conferencePaperData : {};
+      const typeData = tracker.publicationType ===
+   'research_paper' ? tracker.researchPaperData :
+                       tracker.publicationType ===
+   'book' ? tracker.bookData :
+                       tracker.publicationType ===
+   'book_chapter' ? tracker.bookChapterData :
+                       tracker.publicationType ===
+   'conference_paper' ? tracker.conferencePaperData : {};
       
       // Get the latest status-specific data from ALL history entries (merged newest first)
       let mergedStatusData: Record<string, unknown> = {};
@@ -148,9 +152,11 @@ export default function TrackerDetailPage() {
         // Merge all status data from oldest to newest so newest values take precedence
         const sortedHistory = [...tracker.statusHistory].reverse(); // oldest first
         sortedHistory.forEach((entry: any) => {
-          if (entry.statusData && typeof entry.statusData === 'object') {
+          if (entry.statusData && typeof entry.statusData ===
+   'object') {
             // Handle nested initialData structure from backend
-            if (entry.statusData.initialData && typeof entry.statusData.initialData === 'object') {
+            if (entry.statusData.initialData && typeof entry.statusData.initialData ===
+   'object') {
               mergedStatusData = { ...mergedStatusData, ...entry.statusData.initialData };
             } else {
               mergedStatusData = { ...mergedStatusData, ...entry.statusData };
@@ -173,11 +179,14 @@ export default function TrackerDetailPage() {
       // Backwards compatibility: Convert old targetedResearch to new indexingCategories
       if (!initialData.indexingCategories && (initialData.targetedResearch || initialData.targetedResearchType)) {
         const tr = (initialData.targetedResearch || initialData.targetedResearchType) as string;
-        if (tr === 'scopus') {
+        if (tr ===
+   'scopus') {
           initialData.indexingCategories = ['scopus'];
-        } else if (tr === 'sci_scie') {
+        } else if (tr ===
+   'sci_scie') {
           initialData.indexingCategories = ['scie_wos'];
-        } else if (tr === 'both') {
+        } else if (tr ===
+   'both') {
           initialData.indexingCategories = ['scopus', 'scie_wos'];
         } else {
           initialData.indexingCategories = [];
@@ -211,7 +220,9 @@ export default function TrackerDetailPage() {
       logger.debug('Tracker current status:', tracker?.currentStatus);
 
       // Allow update if there are changes OR documents to upload
-      if (Object.keys(changes).length === 0 && uploadedDocuments.length === 0) {
+      if (Object.keys(changes).length ===
+   0 && uploadedDocuments.length ===
+   0) {
         setUpdateError('No changes detected');
         return;
       }
@@ -227,9 +238,12 @@ export default function TrackerDetailPage() {
       };
 
       // Add type-specific data
-      const typeDataKey = tracker?.publicationType === 'research_paper' ? 'researchPaperData' :
-                          tracker?.publicationType === 'book' ? 'bookData' :
-                          tracker?.publicationType === 'book_chapter' ? 'bookChapterData' :
+      const typeDataKey = tracker?.publicationType ===
+   'research_paper' ? 'researchPaperData' :
+                          tracker?.publicationType ===
+   'book' ? 'bookData' :
+                          tracker?.publicationType ===
+   'book_chapter' ? 'bookChapterData' :
                           'conferencePaperData';
       
       const typeData = { ...formData };
@@ -346,24 +360,34 @@ export default function TrackerDetailPage() {
 
   const formatDisplayValue = (key: string, value: unknown): string | null => {
     // Skip null, undefined, empty strings, false booleans
-    if (value === null || value === undefined || value === '' || (typeof value === 'boolean' && !value)) return null;
+    if (value ===
+   null || value ===
+   undefined || value ===
+   '' || (typeof value ===
+   'boolean' && !value)) return null;
     
     // Handle booleans
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value ===
+   'boolean') return value ? 'Yes' : 'No';
     
     // Handle arrays (like coAuthors, sdgGoals, indexingCategories)
     if (Array.isArray(value)) {
-      if (value.length === 0) return null;
+      if (value.length ===
+   0) return null;
       // If it's an array of author objects
-      if (typeof value[0] === 'object' && value[0]?.name) {
+      if (typeof value[0] ===
+   'object' && value[0]?.name) {
         return value.map((author: any) => {
-          const category = author.authorCategory === 'Internal' ? 'Internal' : 'External';
+          const category = author.authorCategory ===
+   'Internal' ? 'Internal' : 'External';
           const role = author.authorRole || 'Co-Author';
           return `${author.name} (${category}, ${role})`;
         }).join('; ');
       }
       // SDG goals - format nicely
-      if (key === 'sdgs' || key === 'sdgGoals') {
+      if (key ===
+   'sdgs' || key ===
+   'sdgGoals') {
         const sdgLabels: Record<string, string> = {
           '1': 'No Poverty', '2': 'Zero Hunger', '3': 'Good Health', '4': 'Quality Education',
           '5': 'Gender Equality', '6': 'Clean Water', '7': 'Clean Energy', '8': 'Decent Work',
@@ -374,7 +398,8 @@ export default function TrackerDetailPage() {
         return value.map((v: string) => `SDG ${v}: ${sdgLabels[v] || v}`).join(', ');
       }
       // Indexing categories - format nicely
-      if (key === 'indexingCategories') {
+      if (key ===
+   'indexingCategories') {
         const categoryLabels: Record<string, string> = {
           'nature_science_lancet_cell_nejm': 'Nature/Science/Lancet/Cell/NEJM',
           'subsidiary_if_above_20': 'Subsidiary Journals (IF > 20)',
@@ -392,12 +417,14 @@ export default function TrackerDetailPage() {
     }
     
     // Handle objects
-    if (typeof value === 'object') {
+    if (typeof value ===
+   'object') {
       return JSON.stringify(value);
     }
     
     // Handle date strings (ISO format)
-    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(T|$)/.test(value)) {
+    if (typeof value ===
+   'string' && /^\d{4}-\d{2}-\d{2}(T|$)/.test(value)) {
       try {
         return new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       } catch {
@@ -443,7 +470,8 @@ export default function TrackerDetailPage() {
       conferenceBestPaperAward: { yes: 'Yes', no: 'No' },
     };
     
-    if (enumMappings[key] && typeof value === 'string') {
+    if (enumMappings[key] && typeof value ===
+   'string') {
       return enumMappings[key][value] || String(value);
     }
     
@@ -490,8 +518,36 @@ export default function TrackerDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
+        {/* Back button skeleton */}
+        <div className="h-9 w-32 bg-gray-200 rounded-lg animate-pulse" />
+        {/* Header card skeleton */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex-1">
+              <div className="h-7 w-2/3 bg-gray-200 rounded-lg animate-pulse mb-3" />
+              <div className="flex gap-3">
+                <div className="h-5 w-28 bg-gray-100 rounded-full animate-pulse" />
+                <div className="h-5 w-32 bg-gray-100 rounded-full animate-pulse" />
+              </div>
+            </div>
+            <div className="h-8 w-24 bg-gray-200 rounded-lg animate-pulse" />
+          </div>
+          <div className="h-2 w-full bg-gray-100 rounded-full animate-pulse" />
+        </div>
+        {/* Stages skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
+                <div className="h-5 w-48 bg-gray-200 rounded animate-pulse" />
+                <div className="ml-auto h-5 w-20 bg-gray-100 rounded-full animate-pulse" />
+              </div>
+              <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -510,7 +566,9 @@ export default function TrackerDetailPage() {
   }
 
   // Check if tracker is locked (cannot be edited after rejected or published)
-  const isLocked = tracker.currentStatus === 'rejected' || tracker.currentStatus === 'published';
+  const isLocked = tracker.currentStatus ===
+   'rejected' || tracker.currentStatus ===
+   'published';
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -553,7 +611,8 @@ export default function TrackerDetailPage() {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              {tracker.currentStatus === 'published' && !tracker.researchContributionId && (
+              {tracker.currentStatus ===
+   'published' && !tracker.researchContributionId && (
                 <Link
                   href={`/research/apply?type=${tracker.publicationType}&trackerId=${tracker.id}`}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-center"
@@ -581,13 +640,16 @@ export default function TrackerDetailPage() {
               const currentIndex = statusOrder.indexOf(tracker.currentStatus);
               const thisIndex = idx;
               const isComplete = thisIndex <= currentIndex && tracker.currentStatus !== 'rejected';
-              const isCurrent = status === tracker.currentStatus;
-              const isRejected = tracker.currentStatus === 'rejected';
+              const isCurrent = status ===
+   tracker.currentStatus;
+              const isRejected = tracker.currentStatus ===
+   'rejected';
               
               return (
                 <div 
                   key={status} 
-                  className={`text-center flex-1 ${isComplete ? 'text-indigo-600 font-medium' : ''} ${isCurrent ? 'font-bold text-indigo-700' : ''} ${isRejected && status === tracker.currentStatus ? 'text-red-600 font-bold' : ''}`}
+                  className={`text-center flex-1 ${isComplete ? 'text-indigo-600 font-medium' : ''} ${isCurrent ? 'font-bold text-indigo-700' : ''} ${isRejected && status ===
+   tracker.currentStatus ? 'text-red-600 font-bold' : ''}`}
                 >
                   {statusLabels[status as ResearchTrackerStatus]}
                 </div>
@@ -598,10 +660,12 @@ export default function TrackerDetailPage() {
             {(() => {
               const statusOrder = ['writing', 'communicated', 'submitted', 'accepted', 'published'];
               const currentIndex = statusOrder.indexOf(tracker.currentStatus);
-              const progress = tracker.currentStatus === 'rejected' ? 0 : ((currentIndex + 1) / statusOrder.length) * 100;
+              const progress = tracker.currentStatus ===
+   'rejected' ? 0 : ((currentIndex + 1) / statusOrder.length) * 100;
               return (
                 <div 
-                  className={`h-full ${tracker.currentStatus === 'rejected' ? 'bg-red-500' : 'bg-indigo-600'} transition-all duration-500`}
+                  className={`h-full ${tracker.currentStatus ===
+   'rejected' ? 'bg-red-500' : 'bg-indigo-600'} transition-all duration-500`}
                   style={{ width: `${Math.min(progress, 100)}%` }}
                 />
               );
@@ -756,12 +820,14 @@ export default function TrackerDetailPage() {
                           type="radio"
                           name="interdisciplinary"
                           value={v}
-                          checked={(formData.interdisciplinary as string) === v}
+                          checked={(formData.interdisciplinary as string) ===
+   v}
                           onChange={(e) => setFormData({ ...formData, interdisciplinary: e.target.value })}
                           disabled={isLocked}
                           className="w-4 h-4 text-purple-600 disabled:opacity-50"
                         />
-                        <span className="ml-1.5 capitalize text-gray-700">{v === 'yes' ? 'Yes' : 'No'}</span>
+                        <span className="ml-1.5 capitalize text-gray-700">{v ===
+   'yes' ? 'Yes' : 'No'}</span>
                       </label>
                     ))}
                   </div>
@@ -842,16 +908,20 @@ export default function TrackerDetailPage() {
                                 const remainingCategories = currentCategories.filter(c => c !== cat.value);
                                 // Clear conditional fields if category is deselected
                                 const stillNeedsQuartile = remainingCategories.some(c => 
-                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('quartile')
+                                  INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('quartile')
                                 );
                                 const stillNeedsIF = remainingCategories.some(c => 
-                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('impactFactor')
+                                  INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('impactFactor')
                                 );
                                 const stillNeedsSJR = remainingCategories.some(c => 
-                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('sjr')
+                                  INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('sjr')
                                 );
                                 const stillNeedsNAAS = remainingCategories.some(c => 
-                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('naasRating')
+                                  INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('naasRating')
                                 );
                                 const updates: Record<string, unknown> = { indexingCategories: remainingCategories };
                                 if (!stillNeedsQuartile) updates.quartile = '';
@@ -880,13 +950,15 @@ export default function TrackerDetailPage() {
                   const currentCategories = (formData.indexingCategories as string[]) || [];
                   const requiredFields = new Set<string>();
                   currentCategories.forEach(cat => {
-                    const category = INDEXING_CATEGORIES.find(c => c.value === cat);
+                    const category = INDEXING_CATEGORIES.find(c => c.value ===
+   cat);
                     if (category) {
                       category.requiredFields.forEach(f => requiredFields.add(f));
                     }
                   });
 
-                  if (requiredFields.size === 0) return null;
+                  if (requiredFields.size ===
+   0) return null;
 
                   return (
                     <div className="border-t border-gray-200 pt-4 mt-4">
@@ -999,7 +1071,8 @@ export default function TrackerDetailPage() {
                 <h3 className="text-lg font-semibold text-gray-900">
                   {statusLabels[formData.currentStatus as ResearchTrackerStatus]} Stage Details
                 </h3>
-                {formData.currentStatus === 'published' && <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Final Stage</span>}
+                {formData.currentStatus ===
+   'published' && <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Final Stage</span>}
               </div>
               <svg className={`w-5 h-5 text-gray-500 transition-transform ${expandedSections.statusFields ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -1008,7 +1081,8 @@ export default function TrackerDetailPage() {
             {expandedSections.statusFields && (
               <div className="p-4 bg-gray-50 space-y-4">
                 {/* Conference Sub-Type - For Conference Papers */}
-                {tracker.publicationType === 'conference_paper' && (
+                {tracker.publicationType ===
+   'conference_paper' && (
                   <div className="pb-4 border-b border-gray-200">
                     <h4 className="text-sm font-medium text-gray-700 mb-4">🎤 Conference Type</h4>
                     <div>
@@ -1032,28 +1106,32 @@ export default function TrackerDetailPage() {
                 )}
 
                 {/* Status-Specific Fields */}
-                {tracker.publicationType === 'research_paper' && (
+                {tracker.publicationType ===
+   'research_paper' && (
                   <ResearchPaperStatusForm
                     status={formData.currentStatus as ResearchTrackerStatus}
                     data={{ ...formData, indexingCategories: formData.indexingCategories }}
                     onChange={isLocked ? () => {} : setFormData}
                   />
                 )}
-                {tracker.publicationType === 'book' && (
+                {tracker.publicationType ===
+   'book' && (
                   <BookStatusForm
                     status={formData.currentStatus as ResearchTrackerStatus}
                     data={formData}
                     onChange={isLocked ? () => {} : setFormData}
                   />
                 )}
-                {tracker.publicationType === 'book_chapter' && (
+                {tracker.publicationType ===
+   'book_chapter' && (
                   <BookChapterStatusForm
                     status={formData.currentStatus as ResearchTrackerStatus}
                     data={formData}
                     onChange={isLocked ? () => {} : setFormData}
                   />
                 )}
-                {tracker.publicationType === 'conference_paper' && (
+                {tracker.publicationType ===
+   'conference_paper' && (
                   <ConferencePaperStatusForm
                     status={formData.currentStatus as ResearchTrackerStatus}
                     data={formData}
@@ -1310,7 +1388,8 @@ export default function TrackerDetailPage() {
             {tracker.statusHistory && tracker.statusHistory.length > 0 ? (
               <div className="space-y-4">
                 {tracker.statusHistory.map((entry: StatusHistoryEntry, index: number) => {
-                  const isMonthlyReport = entry.fromStatus === entry.toStatus;
+                  const isMonthlyReport = entry.fromStatus ===
+   entry.toStatus;
                   const totalEntries = tracker.statusHistory?.length || 0;
                   const reversedIndex = totalEntries - index; // Reverse numbering: newest = 1
                   
@@ -1324,13 +1403,17 @@ export default function TrackerDetailPage() {
                     {/* Timeline Dot */}
                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                       isMonthlyReport ? 'bg-blue-100 text-blue-700' :
-                      entry.toStatus === 'rejected' ? 'bg-red-100' :
-                      entry.toStatus === 'published' ? 'bg-green-100' :
+                      entry.toStatus ===
+   'rejected' ? 'bg-red-100' :
+                      entry.toStatus ===
+   'published' ? 'bg-green-100' :
                       'bg-indigo-100'
                     }`}>
                       {isMonthlyReport ? '📝' :
-                       entry.toStatus === 'rejected' ? '✗' :
-                       entry.toStatus === 'published' ? '✓' :
+                       entry.toStatus ===
+   'rejected' ? '✗' :
+                       entry.toStatus ===
+   'published' ? '✓' :
                        reversedIndex}
                     </div>
                     
@@ -1412,7 +1495,8 @@ export default function TrackerDetailPage() {
                                 {(() => {
                                   // Flatten initialData if it exists
                                   let dataToDisplay: Record<string, unknown> = { ...entry.statusData };
-                                  if (entry.statusData.initialData && typeof entry.statusData.initialData === 'object') {
+                                  if (entry.statusData.initialData && typeof entry.statusData.initialData ===
+   'object') {
                                     dataToDisplay = { ...entry.statusData.initialData };
                                   }
                                   
@@ -1445,7 +1529,8 @@ export default function TrackerDetailPage() {
                                   
                                   const renderFieldGroup = (title: string, fields: [string, unknown][], icon: string) => {
                                     const validFields = fields.filter(([key, value]) => formatDisplayValue(key, value) !== null);
-                                    if (validFields.length === 0) return null;
+                                    if (validFields.length ===
+   0) return null;
                                     
                                     return (
                                       <div key={title} className="space-y-2">

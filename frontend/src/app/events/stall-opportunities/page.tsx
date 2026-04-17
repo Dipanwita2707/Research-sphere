@@ -143,7 +143,8 @@ export default function StallOpportunitiesPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${activeTab === tab.id
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${activeTab ===
+   tab.id
                 ? 'border-ev-700 text-ev-700 bg-ev-50/50 dark:bg-ev-900/10'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -154,7 +155,8 @@ export default function StallOpportunitiesPage() {
         </div>
 
         {/* Empty State */}
-        {filtered.length === 0 && (
+        {filtered.length ===
+   0 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 p-12 text-center shadow-ev">
             <div className="bg-gray-50 dark:bg-gray-700/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <Filter className="w-8 h-8 text-gray-400" />
@@ -163,7 +165,8 @@ export default function StallOpportunitiesPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {search
                 ? `No results for "${search}" in ${activeTab} tab`
-                : `There are no ${activeTab === 'all' ? '' : activeTab} stall opportunities at the moment.`}
+                : `There are no ${activeTab ===
+   'all' ? '' : activeTab} stall opportunities at the moment.`}
             </p>
             {activeTab !== 'all' && (
               <button
@@ -181,8 +184,10 @@ export default function StallOpportunitiesPage() {
           {filtered.map((o) => {
             const hasApplied = !!o.myApplication;
             const status = o.myApplication?.status;
-            const isRejected = status === 'rejected';
-            const isApproved = status === 'approved';
+            const isRejected = status ===
+   'rejected';
+            const isApproved = status ===
+   'approved';
             const expired = deadlinePassed(o.applicationDeadline);
             // Can apply if NOT applied AND NOT expired
             // If rejected, user cannot re-apply immediately (usually) unless we allow it.
@@ -197,7 +202,8 @@ export default function StallOpportunitiesPage() {
                 {/* Card Header / Status */}
                 <div className="p-5 pb-3">
                   <div className="flex justify-between items-start gap-2 mb-2">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${o.status === 'published' ? 'bg-ev-100 text-ev-800' : 'bg-gray-100 text-gray-600'
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${o.status ===
+   'published' ? 'bg-ev-100 text-ev-800' : 'bg-gray-100 text-gray-600'
                       }`}>
                       {o.status}
                     </span>

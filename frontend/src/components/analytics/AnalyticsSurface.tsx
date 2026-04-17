@@ -28,7 +28,7 @@ const FLOATING_RESEARCH_ICONS = [
 /** Full-page shell — soft gradient background */
 export function AnalyticsShell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-[#f5f7fb] to-slate-100 ${className}`}>
+    <div className={`relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-[#f5f7fb] to-slate-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 ${className}`}>
       <style>{`
         @keyframes drd-drift-down {
           0%, 100% { transform: translateY(-18px); opacity: 0.12; }
@@ -46,7 +46,8 @@ export function AnalyticsShell({ children, className = '' }: { children: React.R
             key={index}
             className={`absolute ${iconClassName} ${size} rounded-full`}
             style={{
-              animation: `${drift === 'up' ? 'drd-drift-up' : 'drd-drift-down'} ${duration} ease-in-out infinite`,
+              animation: `${drift ===
+   'up' ? 'drd-drift-up' : 'drd-drift-down'} ${duration} ease-in-out infinite`,
               animationDelay: delay,
             }}
           >

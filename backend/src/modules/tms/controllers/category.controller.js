@@ -6,10 +6,9 @@ const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
 const categoryService = require('../services/category.service');
 
-// ============================================
+// =====================================
 // MASTER CATEGORY
-// ============================================
-
+// =====================================
 const listMasterCategories = asyncHandler(async (req, res) => {
   const result = await categoryService.listMasterCategories(true); // includeInactive for admin
   return ApiResponse.success(res, result, 'Master categories fetched successfully');
@@ -33,10 +32,9 @@ const deleteMasterCategory = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, null, 'Master category deleted successfully');
 });
 
-// ============================================
+// =====================================
 // CATEGORY
-// ============================================
-
+// =====================================
 const createCategory = asyncHandler(async (req, res) => {
   const { name, description, masterCategoryId, employeeId } = req.body;
   const result = await categoryService.createCategory({ name, description, masterCategoryId, employeeId });
@@ -55,10 +53,9 @@ const deleteCategory = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, null, 'Category deleted successfully');
 });
 
-// ============================================
+// =====================================
 // SUB-CATEGORY
-// ============================================
-
+// =====================================
 const createSubCategory = asyncHandler(async (req, res) => {
   const { name, description, categoryId, employeeId, priority, slaHours } = req.body;
   const result = await categoryService.createSubCategory({ name, description, categoryId, employeeId, priority, slaHours });
@@ -77,19 +74,17 @@ const deleteSubCategory = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, null, 'Sub-category deleted successfully');
 });
 
-// ============================================
+// =====================================
 // PUBLIC: Get categories for ticket submission
-// ============================================
-
+// =====================================
 const getActiveCategories = asyncHandler(async (req, res) => {
   const result = await categoryService.listMasterCategories(false); // activeOnly = exclude inactive
   return ApiResponse.success(res, result, 'Active categories fetched successfully');
 });
 
-// ============================================
+// =====================================
 // ROLE HANDLERS (Registrar, Dean, VC)
-// ============================================
-
+// =====================================
 const listRoleHandlers = asyncHandler(async (req, res) => {
   const result = await categoryService.listRoleHandlers();
   return ApiResponse.success(res, result, 'Role handlers fetched successfully');

@@ -128,7 +128,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
 
   // DRD (Development & Research Department) - Simplified 4 IPR Permission Model
   drd: [
-    // ========== IPR Permissions ==========
+    // ========== IPR Permissions ===
     // IPR Filing - Faculty/Student have this by default, Staff/Admin need explicit assignment
     {
       key: "ipr_file_new",
@@ -169,7 +169,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
         "DRD Head - Can assign schools to DRD member reviewers for IPR",
     },
 
-    // ========== Research Paper Permissions ==========
+    // ========== Research Paper Permissions ===
     // Research Filing - Faculty/Student have this by default, Staff/Admin need explicit assignment
     {
       key: "research_file_new",
@@ -210,7 +210,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
         "DRD Head - Can assign schools to DRD member reviewers for Research",
     },
 
-    // ========== Book/Book Chapter Permissions ==========
+    // ========== Book/Book Chapter Permissions ===
     // Book Filing - Faculty/Student have this by default, Staff/Admin need explicit assignment
     {
       key: "book_file_new",
@@ -251,7 +251,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
         "DRD Head - Can assign schools to DRD member reviewers for Book/Chapter",
     },
 
-    // ========== Conference Permissions ==========
+    // ========== Conference Permissions ===
     // Conference Filing - Faculty/Student have this by default, Staff/Admin need explicit assignment
     {
       key: "conference_file_new",
@@ -292,7 +292,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
         "DRD Head - Can assign schools to DRD member reviewers for Conference",
     },
 
-    // ========== Grant/Funding Permissions ==========
+    // ========== Grant/Funding Permissions ===
     // Grant Filing - Faculty/Student have this by default, Staff/Admin need explicit assignment
     {
       key: "grant_file_new",
@@ -333,7 +333,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
         "DRD Head - Can assign schools to DRD member reviewers for Grant/Funding",
     },
 
-    // ========== DRD Analytics Permissions ==========
+    // ========== DRD Analytics Permissions ===
     {
       key: "applicant_analytics",
       label: "Applicant Analytics",
@@ -725,7 +725,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
   
   // Gate Entry - Visitor Pass Management System (Role-Based Access Control)
   gateEntry: [
-    // ========== Pass Creation ==========
+    // ========== Pass Creation ===
     { 
       key: 'gate_entry.create', 
       label: 'Create Gate Pass', 
@@ -734,7 +734,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       roles: ['admin', 'superadmin', 'staff', 'faculty', 'student']
     },
     
-    // ========== Pass Viewing (Two levels) ==========
+    // ========== Pass Viewing (Two levels) ===
     { 
       key: 'gate_entry.view_all', 
       label: 'View All Passes', 
@@ -750,7 +750,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       roles: ['faculty', 'student']
     },
     
-    // ========== Pass Verification (Check-in/Check-out) ==========
+    // ========== Pass Verification (Check-in/Check-out) ===
     { 
       key: 'gate_entry.verify', 
       label: 'Verify Passes (Check-in/Check-out)', 
@@ -759,7 +759,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       roles: ['admin', 'superadmin', 'staff']
     },
     
-    // ========== Pass Cancellation (Context-Dependent) ==========
+    // ========== Pass Cancellation (Context-Dependent) ===
     { 
       key: 'gate_entry.cancel', 
       label: 'Cancel Pass', 
@@ -768,7 +768,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       roles: ['admin', 'superadmin', 'staff', 'faculty', 'student']
     },
     
-    // ========== Pass Extension ==========
+    // ========== Pass Extension ===
     { 
       key: 'gate_entry.extend', 
       label: 'Extend Pass Duration', 
@@ -777,7 +777,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       roles: ['admin', 'superadmin', 'faculty', 'student']
     },
     
-    // ========== Analytics & Reports ==========
+    // ========== Analytics & Reports ===
     { 
       key: 'gate_entry.analytics', 
       label: 'View Analytics Dashboard', 
@@ -786,7 +786,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       roles: ['admin', 'superadmin']
     },
     
-    // ========== Administration ==========
+    // ========== Administration ===
     { 
       key: 'gate_entry.admin', 
       label: 'Gate Entry Administration', 

@@ -31,8 +31,7 @@ function testFail(message, error) {
 
 async function runTests() {
   try {
-    // ==================== TEST 1: Backend Setup ====================
-    testSection('TEST 1: Backend Environment Setup');
+    // ==================== TEST 1: Backend Setup =============    testSection('TEST 1: Backend Environment Setup');
     
     try {
       const env = process.env;
@@ -45,8 +44,7 @@ async function runTests() {
       testFail('Environment check failed', error);
     }
 
-    // ==================== TEST 2: Permission Constants ====================
-    testSection('TEST 2: Permission Constants');
+    // ==================== TEST 2: Permission Constants =============    testSection('TEST 2: Permission Constants');
     
     try {
       const {
@@ -101,8 +99,7 @@ async function runTests() {
       testFail('Permission constants import failed', error);
     }
 
-    // ==================== TEST 3: Middleware ====================
-    testSection('TEST 3: Permission Middleware');
+    // ==================== TEST 3: Middleware =============    testSection('TEST 3: Permission Middleware');
     
     try {
       const {
@@ -128,8 +125,7 @@ async function runTests() {
       testFail('Middleware import failed', error);
     }
 
-    // ==================== TEST 4: Routes ====================
-    testSection('TEST 4: Gate Entry Routes');
+    // ==================== TEST 4: Routes =============    testSection('TEST 4: Gate Entry Routes');
     
     try {
       const routes = require('./src/modules/gate-entry/routes/gatePass.routes');
@@ -139,8 +135,7 @@ async function runTests() {
       testFail('Routes import failed', error);
     }
 
-    // ==================== TEST 5: Controller ====================
-    testSection('TEST 5: Gate Entry Controller');
+    // ==================== TEST 5: Controller =============    testSection('TEST 5: Gate Entry Controller');
     
     try {
       const controller = require('./src/modules/gate-entry/controllers/gatePass.controller');
@@ -155,8 +150,7 @@ async function runTests() {
       testFail('Controller import failed', error);
     }
 
-    // ==================== TEST 6: Service ====================
-    testSection('TEST 6: Gate Entry Service');
+    // ==================== TEST 6: Service =============    testSection('TEST 6: Gate Entry Service');
     
     try {
       const GatePassService = require('./src/modules/gate-entry/services/gatePass.service');
@@ -173,8 +167,7 @@ async function runTests() {
       testFail('Service import failed', error);
     }
 
-    // ==================== TEST 7: Database Connection ====================
-    testSection('TEST 7: Database Connection');
+    // ==================== TEST 7: Database Connection =============    testSection('TEST 7: Database Connection');
     
     try {
       const prisma = require('./src/shared/config/database');
@@ -219,8 +212,7 @@ async function runTests() {
       console.log('\n  ⚠️  Check your DATABASE_URL in .env file');
     }
 
-    // ==================== TEST 8: Integration Check ====================
-    testSection('TEST 8: Integration Verification');
+    // ==================== TEST 8: Integration Check =============    testSection('TEST 8: Integration Verification');
     
     try {
       // Check if all modules can work together
@@ -247,8 +239,7 @@ async function runTests() {
     testsFailed++;
   }
 
-  // ==================== SUMMARY ====================
-  console.log('\n' + '='.repeat(60));
+  // ==================== SUMMARY =============  console.log('\n' + '='.repeat(60));
   console.log('📊 TEST SUMMARY');
   console.log('='.repeat(60));
   console.log(`✅ Tests Passed: ${testsPassed}`);

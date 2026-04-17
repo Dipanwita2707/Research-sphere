@@ -86,12 +86,14 @@ export const calculateContributorIncentive = (
   const basePoints = policy.basePoints;
   
   // External contributors get no incentive or points
-  if (employeeCategory === 'external') {
+  if (employeeCategory ===
+   'external') {
     return { incentive: 0, points: 0 };
   }
   
   // Students get only incentives, no points
-  if (employeeType === 'student') {
+  if (employeeType ===
+   'student') {
     return { incentive: baseIncentive, points: 0 };
   }
   

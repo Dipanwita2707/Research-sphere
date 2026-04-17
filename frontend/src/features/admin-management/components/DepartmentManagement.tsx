@@ -152,7 +152,8 @@ export default function DepartmentManagement() {
 
   // Filter departments
   const filteredDepartments = departments.filter(dept => {
-    const matchesSchool = !selectedSchool || dept.facultyId === selectedSchool;
+    const matchesSchool = !selectedSchool || dept.facultyId ===
+   selectedSchool;
     const matchesSearch = !searchTerm || 
       dept.departmentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dept.departmentCode.toLowerCase().includes(searchTerm.toLowerCase());
@@ -379,7 +380,8 @@ export default function DepartmentManagement() {
           </div>
         ))}
 
-        {filteredDepartments.length === 0 && (
+        {filteredDepartments.length ===
+   0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No departments found</h3>

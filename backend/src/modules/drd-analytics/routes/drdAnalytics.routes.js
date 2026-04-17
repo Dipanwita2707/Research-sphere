@@ -7,6 +7,7 @@ router.use(protect);
 
 // Applicant analytics — requires applicant_analytics permission
 router.get('/applicant', checkPermission('applicant_analytics'), controller.getApplicantAnalytics);
+router.get('/applicant/category-breakdown', checkPermission('applicant_analytics'), controller.getCategoryBreakdown);
 router.get('/applicant/schools/:schoolId', checkPermission('applicant_analytics'), controller.getApplicantSchoolAnalytics);
 router.get('/applicant/departments/:departmentId', checkPermission('applicant_analytics'), controller.getApplicantDepartmentAnalytics);
 router.get('/applicant/people/:personId', checkPermission('applicant_analytics'), controller.getApplicantPersonAnalytics);

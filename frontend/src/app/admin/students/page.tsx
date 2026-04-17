@@ -319,12 +319,15 @@ export default function StudentManagement() {
       const errCode = (error as { response?: { data?: { error?: string; errors?: Record<string, string> } } })?.response?.data?.error;
       
       // Check if error response has validation errors
-      if (typeof error === 'object' && error !== null && 'response' in error) {
+      if (typeof error ===
+   'object' && error !== null && 'response' in error) {
         const response = (error as any).response;
-        if (response?.data?.errors && typeof response.data.errors === 'object') {
+        if (response?.data?.errors && typeof response.data.errors ===
+   'object') {
           setFormErrors(response.data.errors);
           const firstBackendError = Object.values(response.data.errors)[0];
-          if (typeof firstBackendError === 'string' && firstBackendError.trim()) {
+          if (typeof firstBackendError ===
+   'string' && firstBackendError.trim()) {
             toast({ type: 'error', message: firstBackendError });
             return;
           }
@@ -409,7 +412,8 @@ export default function StudentManagement() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => e.key ===
+   'Enter' && handleSearch()}
                   placeholder="Search by ID, name, email..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 />
@@ -457,7 +461,8 @@ export default function StudentManagement() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
             </div>
-          ) : students.length === 0 ? (
+          ) : students.length ===
+   0 ? (
             <div className="text-center py-12">
               <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No students found</p>
@@ -560,14 +565,16 @@ export default function StudentManagement() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-                  disabled={pagination.page === 1}
+                  disabled={pagination.page ===
+   1}
                   className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-                  disabled={pagination.page === pagination.totalPages}
+                  disabled={pagination.page ===
+   pagination.totalPages}
                   className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                 >
                   Next
@@ -824,7 +831,8 @@ export default function StudentManagement() {
                           Mentor assignment is optional. If assigned, mentor must be from the same department.
                         </p>
                       )}
-                      {formData.programId && mentors.length === 0 && !mentorError && (
+                      {formData.programId && mentors.length ===
+   0 && !mentorError && (
                         <p className="mt-1 text-sm text-amber-600">No faculty found in this department.</p>
                       )}
                     </div>

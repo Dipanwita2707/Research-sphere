@@ -92,8 +92,10 @@ export default function PermissionManagement() {
     let existingMonthlyReportSchools: string[] = [];
     let existingMonthlyReportDepartments: string[] = [];
     
-    if (selectedDepartmentType === 'central') {
-      const existingPerm = user.centralDeptPermissions.find(perm => perm.centralDeptId === selectedDepartmentId);
+    if (selectedDepartmentType ===
+   'central') {
+      const existingPerm = user.centralDeptPermissions.find(perm => perm.centralDeptId ===
+   selectedDepartmentId);
       if (existingPerm) {
         existingPermissions = existingPerm.permissions;
         isCurrentlyPrimary = existingPerm.isPrimary;
@@ -102,7 +104,8 @@ export default function PermissionManagement() {
         existingMonthlyReportDepartments = (existingPerm as any).assignedMonthlyReportDepartmentIds || [];
       }
     } else {
-      const existingPerm = user.schoolDeptPermissions.find(perm => perm.departmentId === selectedDepartmentId);
+      const existingPerm = user.schoolDeptPermissions.find(perm => perm.departmentId ===
+   selectedDepartmentId);
       if (existingPerm) {
         existingPermissions = existingPerm.permissions;
         isCurrentlyPrimary = existingPerm.isPrimary;
@@ -123,7 +126,8 @@ export default function PermissionManagement() {
       return;
     }
 
-    const role = roles.find(r => r.id === roleId);
+    const role = roles.find(r => r.id ===
+   roleId);
     if (!role) {
       toast({ type: 'error', message: 'Role not found' });
       return;
@@ -135,9 +139,11 @@ export default function PermissionManagement() {
     const rolePerms = role.permissions || {};
     let permissionsToApply: Record<string, boolean> = {};
 
-    if (selectedDepartmentType === 'central' && rolePerms.centralDeptPermissions) {
+    if (selectedDepartmentType ===
+   'central' && rolePerms.centralDeptPermissions) {
       permissionsToApply = { ...rolePerms.centralDeptPermissions };
-    } else if (selectedDepartmentType === 'school' && rolePerms.schoolDeptPermissions) {
+    } else if (selectedDepartmentType ===
+   'school' && rolePerms.schoolDeptPermissions) {
       permissionsToApply = { ...rolePerms.schoolDeptPermissions };
     }
 
@@ -166,13 +172,15 @@ export default function PermissionManagement() {
       return;
     }
 
-    if (Object.keys(selectedPermissions).filter(k => selectedPermissions[k]).length === 0) {
+    if (Object.keys(selectedPermissions).filter(k => selectedPermissions[k]).length ===
+   0) {
       toast({ type: 'warning', message: 'Please select at least one permission' });
       return;
     }
 
     try {
-      if (selectedDepartmentType === 'school') {
+      if (selectedDepartmentType ===
+   'school') {
         await permissionManagementService.grantSchoolDeptPermissions({
           userId: selectedUser.id,
           departmentId: selectedDepartmentId,
@@ -209,7 +217,8 @@ export default function PermissionManagement() {
     if (!confirmed) return;
 
     try {
-      if (type === 'school') {
+      if (type ===
+   'school') {
         await permissionManagementService.revokeSchoolDeptPermissions(userId, departmentId);
       } else {
         await permissionManagementService.revokeCentralDeptPermissions(userId, departmentId);
@@ -221,7 +230,8 @@ export default function PermissionManagement() {
   };
 
   const getSelectedDepartment = () => {
-    if (selectedDepartmentType === 'school') {
+    if (selectedDepartmentType ===
+   'school') {
       return schools.flatMap(school => 
         school.departments?.map(dept => ({
           id: dept.id,
@@ -229,9 +239,11 @@ export default function PermissionManagement() {
           code: dept.departmentCode,
           type: 'school'
         })) || []
-      ).find(dept => dept.id === selectedDepartmentId);
+      ).find(dept => dept.id ===
+   selectedDepartmentId);
     } else {
-      return centralDepts.find(dept => dept.id === selectedDepartmentId);
+      return centralDepts.find(dept => dept.id ===
+   selectedDepartmentId);
     }
   };
 
@@ -239,7 +251,8 @@ export default function PermissionManagement() {
     const dept = getSelectedDepartment();
     if (!dept) return '';
     
-    if (selectedDepartmentType === 'central') {
+    if (selectedDepartmentType ===
+   'central') {
       // For central departments, use departmentName property
       return (dept as CentralDepartment).departmentName;
     } else {
@@ -254,7 +267,8 @@ export default function PermissionManagement() {
     const selectedDept = getSelectedDepartment();
     if (!selectedDept) return [];
 
-    if (selectedDepartmentType === 'central') {
+    if (selectedDepartmentType ===
+   'central') {
       const centralDept = selectedDept as CentralDepartment;
       // Try to match department code with permission definitions from backend
       const deptCode = centralDept.departmentCode?.toLowerCase();
@@ -262,7 +276,9 @@ export default function PermissionManagement() {
       // centralDepartments is Record<string, Permission[]> keyed by lowercase dept type (drd, hr, finance, etc.)
       if (permissionDefs.centralDepartments) {
         // Check various possible matches for DRD department
-        if (deptCode === 'drd' || deptCode === 'drd123' || centralDept.departmentName?.toUpperCase().includes('DRD')) {
+        if (deptCode ===
+   'drd' || deptCode ===
+   'drd123' || centralDept.departmentName?.toUpperCase().includes('DRD')) {
           return permissionDefs.centralDepartments['drd'] || [];
         }
         
@@ -289,10 +305,13 @@ export default function PermissionManagement() {
     if (!selectedDepartmentId) return users;
     
     return users.filter(user => {
-      if (selectedDepartmentType === 'central') {
-        return user.centralDeptPermissions.some(perm => perm.centralDeptId === selectedDepartmentId);
+      if (selectedDepartmentType ===
+   'central') {
+        return user.centralDeptPermissions.some(perm => perm.centralDeptId ===
+   selectedDepartmentId);
       } else {
-        return user.schoolDeptPermissions.some(perm => perm.departmentId === selectedDepartmentId);
+        return user.schoolDeptPermissions.some(perm => perm.departmentId ===
+   selectedDepartmentId);
       }
     });
   };
@@ -397,7 +416,8 @@ export default function PermissionManagement() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">-- Select Department --</option>
-              {selectedDepartmentType === 'central' 
+              {selectedDepartmentType ===
+   'central' 
                 ? centralDepts.map((dept) => (
                     <option key={dept.id} value={dept.id}>
                       {dept.departmentName}
@@ -490,13 +510,19 @@ export default function PermissionManagement() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {users.map((user) => {
                   // Check if user has permissions for selected department
-                  const hasPermissions = selectedDepartmentType === 'central' 
-                    ? user.centralDeptPermissions.some(perm => perm.centralDeptId === selectedDepartmentId)
-                    : user.schoolDeptPermissions.some(perm => perm.departmentId === selectedDepartmentId);
+                  const hasPermissions = selectedDepartmentType ===
+   'central' 
+                    ? user.centralDeptPermissions.some(perm => perm.centralDeptId ===
+   selectedDepartmentId)
+                    : user.schoolDeptPermissions.some(perm => perm.departmentId ===
+   selectedDepartmentId);
                   
-                  const userPermissionCount = selectedDepartmentType === 'central'
-                    ? user.centralDeptPermissions.find(perm => perm.centralDeptId === selectedDepartmentId)?.permissions || {}
-                    : user.schoolDeptPermissions.find(perm => perm.departmentId === selectedDepartmentId)?.permissions || {};
+                  const userPermissionCount = selectedDepartmentType ===
+   'central'
+                    ? user.centralDeptPermissions.find(perm => perm.centralDeptId ===
+   selectedDepartmentId)?.permissions || {}
+                    : user.schoolDeptPermissions.find(perm => perm.departmentId ===
+   selectedDepartmentId)?.permissions || {};
                   
                   const activePermissions = Object.keys(userPermissionCount).filter(k => userPermissionCount[k]);
 
@@ -524,8 +550,10 @@ export default function PermissionManagement() {
                               <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                                 ✓ {activePermissions.length} permissions
                               </span>
-                              {selectedDepartmentType === 'central' && 
-                               user.centralDeptPermissions.find(perm => perm.centralDeptId === selectedDepartmentId)?.isPrimary && (
+                              {selectedDepartmentType ===
+   'central' && 
+                               user.centralDeptPermissions.find(perm => perm.centralDeptId ===
+   selectedDepartmentId)?.isPrimary && (
                                 <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                                   Primary
                                 </span>
@@ -619,7 +647,8 @@ export default function PermissionManagement() {
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
                   Department: {getSelectedDepartmentName()} • 
-                  Type: {selectedDepartmentType === 'central' ? 'Central Department' : 'School Department'}
+                  Type: {selectedDepartmentType ===
+   'central' ? 'Central Department' : 'School Department'}
                 </p>
               </div>
             </div>
@@ -644,10 +673,15 @@ export default function PermissionManagement() {
                         {roles
                           .filter(role => {
                             // Filter roles based on department type
-                            if (selectedDepartmentType === 'central') {
-                              return role.departmentType === 'CENTRAL' || role.departmentType === 'BOTH';
+                            if (selectedDepartmentType ===
+   'central') {
+                              return role.departmentType ===
+   'CENTRAL' || role.departmentType ===
+   'BOTH';
                             }
-                            return role.departmentType === 'SCHOOL' || role.departmentType === 'BOTH';
+                            return role.departmentType ===
+   'SCHOOL' || role.departmentType ===
+   'BOTH';
                           })
                           .map(role => (
                             <option key={role.id} value={role.id}>
@@ -841,7 +875,9 @@ export default function PermissionManagement() {
                       </p>
                     </div>
                     
-                    {selectedMonthlyReportSchools.length === 0 && selectedMonthlyReportDepartments.length === 0 && (
+                    {selectedMonthlyReportSchools.length ===
+   0 && selectedMonthlyReportDepartments.length ===
+   0 && (
                       <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <p className="text-xs text-yellow-700">
                           ⚠️ Please select at least one school or department to define the scope for monthly report viewing.
@@ -870,7 +906,8 @@ export default function PermissionManagement() {
                   </button>
                   <button
                     onClick={handleGrantPermissions}
-                    disabled={Object.values(selectedPermissions).filter(Boolean).length === 0}
+                    disabled={Object.values(selectedPermissions).filter(Boolean).length ===
+   0}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Save Permissions

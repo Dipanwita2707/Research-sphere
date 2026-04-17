@@ -116,7 +116,8 @@ export default function ConferencePolicyManagement() {
   const handleOpenModal = (policy?: ConferenceIncentivePolicy) => {
     if (policy) {
       setEditingPolicy(policy);
-      const isScopus = policy.conferenceSubType === 'paper_indexed_scopus';
+      const isScopus = policy.conferenceSubType ===
+   'paper_indexed_scopus';
       setFormData({
         policyName: policy.policyName,
         conferenceSubType: policy.conferenceSubType,
@@ -150,7 +151,8 @@ export default function ConferencePolicyManagement() {
   };
 
   const handleSubTypeChange = (subType: ConferenceSubType) => {
-    const isScopus = subType === 'paper_indexed_scopus';
+    const isScopus = subType ===
+   'paper_indexed_scopus';
     setFormData({
       ...formData,
       conferenceSubType: subType,
@@ -175,12 +177,15 @@ export default function ConferencePolicyManagement() {
         return;
       }
 
-      const isScopus = formData.conferenceSubType === 'paper_indexed_scopus';
+      const isScopus = formData.conferenceSubType ===
+   'paper_indexed_scopus';
 
       // Validate role percentages for Scopus type
       if (isScopus) {
-        const firstAuthorPct = formData.rolePercentages.find(rp => rp.role === 'first_author')?.percentage || 0;
-        const correspondingAuthorPct = formData.rolePercentages.find(rp => rp.role === 'corresponding_author')?.percentage || 0;
+        const firstAuthorPct = formData.rolePercentages.find(rp => rp.role ===
+   'first_author')?.percentage || 0;
+        const correspondingAuthorPct = formData.rolePercentages.find(rp => rp.role ===
+   'corresponding_author')?.percentage || 0;
         const totalDefinedPct = firstAuthorPct + correspondingAuthorPct;
         
         if (totalDefinedPct > 100) {
@@ -244,7 +249,8 @@ export default function ConferencePolicyManagement() {
   };
 
   const getSubTypeInfo = (subType: string) => {
-    return CONFERENCE_SUB_TYPES.find((t: any) => t.value === subType) || { value: subType, label: subType, description: '' };
+    return CONFERENCE_SUB_TYPES.find((t: any) => t.value ===
+   subType) || { value: subType, label: subType, description: '' };
   };
 
   const formatDate = (dateStr?: string) => {
@@ -257,7 +263,8 @@ export default function ConferencePolicyManagement() {
   };
 
   const formatCurrency = (amount: number | undefined) => {
-    if (amount === undefined) return '₹0';
+    if (amount ===
+   undefined) return '₹0';
     return `₹${Number(amount).toLocaleString('en-IN')}`;
   };
 
@@ -272,10 +279,13 @@ export default function ConferencePolicyManagement() {
     );
   }
 
-  const isScopus = formData.conferenceSubType === 'paper_indexed_scopus';
+  const isScopus = formData.conferenceSubType ===
+   'paper_indexed_scopus';
   const coAuthorPct = 100 - 
-    (formData.rolePercentages.find(rp => rp.role === 'first_author')?.percentage || 0) - 
-    (formData.rolePercentages.find(rp => rp.role === 'corresponding_author')?.percentage || 0);
+    (formData.rolePercentages.find(rp => rp.role ===
+   'first_author')?.percentage || 0) - 
+    (formData.rolePercentages.find(rp => rp.role ===
+   'corresponding_author')?.percentage || 0);
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -338,7 +348,8 @@ export default function ConferencePolicyManagement() {
 
       {/* Policies List */}
       <div className="space-y-4">
-        {policies.length === 0 ? (
+        {policies.length ===
+   0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
             <Mic className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">No conference policies configured yet.</p>
@@ -352,7 +363,8 @@ export default function ConferencePolicyManagement() {
         ) : (
           policies.map((policy) => {
             const subTypeInfo = getSubTypeInfo(policy.conferenceSubType);
-            const isScopusPolicy = policy.conferenceSubType === 'paper_indexed_scopus';
+            const isScopusPolicy = policy.conferenceSubType ===
+   'paper_indexed_scopus';
             
             return (
               <div
@@ -554,7 +566,8 @@ export default function ConferencePolicyManagement() {
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     {AUTHOR_ROLES.map((role) => {
-                      const currentRole = formData.rolePercentages.find(rp => rp.role === role.value);
+                      const currentRole = formData.rolePercentages.find(rp => rp.role ===
+   role.value);
                       return (
                         <div key={role.value} className="flex items-center gap-3">
                           <label className="text-sm text-gray-600 w-40">{role.label}</label>
@@ -567,7 +580,8 @@ export default function ConferencePolicyManagement() {
                               onChange={(e) => {
                                 const newPct = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
                                 const updated = formData.rolePercentages.map(rp =>
-                                  rp.role === role.value ? { ...rp, percentage: newPct } : rp
+                                  rp.role ===
+   role.value ? { ...rp, percentage: newPct } : rp
                                 );
                                 setFormData({ ...formData, rolePercentages: updated });
                               }}

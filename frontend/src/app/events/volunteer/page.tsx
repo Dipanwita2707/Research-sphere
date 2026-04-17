@@ -80,7 +80,8 @@ export default function VolunteerDashboardPage() {
         const data = await eventService.getMyVolunteerAssignments();
         setAssignments(data);
         // Access guard: if user has no volunteer assignments, send them back
-        if (!data || data.length === 0) {
+        if (!data || data.length ===
+   0) {
           router.replace('/events');
         }
       } catch (error: any) {
@@ -102,7 +103,9 @@ export default function VolunteerDashboardPage() {
         a.event.name.toLowerCase().includes(search.toLowerCase()) ||
         (a.event.venue && a.event.venue.toLowerCase().includes(search.toLowerCase())) ||
         (a.role && a.role.toLowerCase().includes(search.toLowerCase()));
-      const matchesStatus = statusFilter === 'all' || a.event.status === statusFilter;
+      const matchesStatus = statusFilter ===
+   'all' || a.event.status ===
+   statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [assignments, search, statusFilter]);
@@ -110,13 +113,16 @@ export default function VolunteerDashboardPage() {
   const stats = useMemo(() => {
     const now = new Date();
     const active = assignments.filter(
-      (a) => a.event && (a.event.status === 'published' || a.event.status === 'ongoing')
+      (a) => a.event && (a.event.status ===
+   'published' || a.event.status ===
+   'ongoing')
     ).length;
     const upcoming = assignments.filter(
       (a) => a.event && new Date(a.event.startDate) > now
     ).length;
     const completed = assignments.filter(
-      (a) => a.event && a.event.status === 'completed'
+      (a) => a.event && a.event.status ===
+   'completed'
     ).length;
     return { total: assignments.length, active, upcoming, completed };
   }, [assignments]);
@@ -141,7 +147,9 @@ export default function VolunteerDashboardPage() {
     const now = new Date();
     const start = new Date(event.startDate);
     const end = new Date(event.endDate);
-    if (event.status === 'completed' || event.status === 'cancelled') return event.status;
+    if (event.status ===
+   'completed' || event.status ===
+   'cancelled') return event.status;
     if (now >= start && now <= end) return 'ongoing';
     return event.status;
   };
@@ -225,9 +233,11 @@ export default function VolunteerDashboardPage() {
         </div>
 
         {/* Assignments Grid */}
-        {filteredAssignments.length === 0 ? (
+        {filteredAssignments.length ===
+   0 ? (
           <div className={CARD + ' p-12 text-center'}>
-            {assignments.length === 0 ? (
+            {assignments.length ===
+   0 ? (
               <>
                 <Shield className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-ev-900 dark:text-white mb-2">
@@ -261,7 +271,8 @@ export default function VolunteerDashboardPage() {
               if (!assignment.event) return null;
               const eventStatus = getEventStatus(assignment.event);
               const statusConf = STATUS_CONFIG[eventStatus] || STATUS_CONFIG.draft;
-              const isLive = eventStatus === 'ongoing';
+              const isLive = eventStatus ===
+   'ongoing';
               const isUpcoming = new Date(assignment.event.startDate) > new Date();
               const capacityPercent = assignment.event.maxCapacity
                 ? Math.round((assignment.event.currentRegistrations / assignment.event.maxCapacity) * 100)

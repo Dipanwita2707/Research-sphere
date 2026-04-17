@@ -14,13 +14,15 @@ function normalizeApiFieldErrors(
 
   const normalized: Record<string, string> = {};
   for (const [key, value] of Object.entries(errors)) {
-    if (typeof value === 'string' && value.trim()) {
+    if (typeof value ===
+   'string' && value.trim()) {
       normalized[key] = value;
       continue;
     }
 
     if (Array.isArray(value)) {
-      const first = value.find((item) => typeof item === 'string' && item.trim());
+      const first = value.find((item) => typeof item ===
+   'string' && item.trim());
       if (first) {
         normalized[key] = first;
       }
@@ -40,7 +42,8 @@ export function getErrorMessage(error: unknown): string {
   }
 
   // Handle string errors
-  if (typeof error === 'string') {
+  if (typeof error ===
+   'string') {
     return error;
   }
 
@@ -95,11 +98,13 @@ export function getErrorMessage(error: unknown): string {
     }
     
     // Handle network errors
-    if (axiosError.code === 'ECONNABORTED') {
+    if (axiosError.code ===
+   'ECONNABORTED') {
       return 'Request timed out. Please try again.';
     }
     
-    if (axiosError.code === 'ERR_NETWORK') {
+    if (axiosError.code ===
+   'ERR_NETWORK') {
       return 'Network error. Please check your connection.';
     }
     
@@ -115,7 +120,8 @@ export function getErrorMessage(error: unknown): string {
   }
 
   // Handle objects with message property
-  if (typeof error === 'object' && 'message' in error) {
+  if (typeof error ===
+   'object' && 'message' in error) {
     return String((error as { message: unknown }).message);
   }
 
@@ -127,7 +133,8 @@ export function getErrorMessage(error: unknown): string {
  * Check if error is an Axios error
  */
 export function isAxiosError(error: unknown): error is AxiosError {
-  return Boolean(error && typeof error === 'object' && 'isAxiosError' in error);
+  return Boolean(error && typeof error ===
+   'object' && 'isAxiosError' in error);
 }
 
 /**
@@ -151,7 +158,8 @@ export function getErrorStatusCode(error: unknown): number | undefined {
 export function isNetworkError(error: unknown): boolean {
   if (isAxiosError(error)) {
     const axiosError = error as AxiosError;
-    return axiosError.code === 'ERR_NETWORK' || !axiosError.response;
+    return axiosError.code ===
+   'ERR_NETWORK' || !axiosError.response;
   }
   return false;
 }
@@ -161,7 +169,8 @@ export function isNetworkError(error: unknown): boolean {
  */
 export function isAuthError(error: unknown): boolean {
   const statusCode = getErrorStatusCode(error);
-  return statusCode === 401;
+  return statusCode ===
+   401;
 }
 
 /**
@@ -169,7 +178,8 @@ export function isAuthError(error: unknown): boolean {
  */
 export function isPermissionError(error: unknown): boolean {
   const statusCode = getErrorStatusCode(error);
-  return statusCode === 403;
+  return statusCode ===
+   403;
 }
 
 /**
@@ -177,7 +187,9 @@ export function isPermissionError(error: unknown): boolean {
  */
 export function isValidationError(error: unknown): boolean {
   const statusCode = getErrorStatusCode(error);
-  return statusCode === 400 || statusCode === 422;
+  return statusCode ===
+   400 || statusCode ===
+   422;
 }
 
 /**
@@ -233,7 +245,8 @@ export function handleError(
 ): ApiError {
   const {
     showToast = true,
-    logToConsole = process.env.NODE_ENV === 'development',
+    logToConsole = process.env.NODE_ENV ===
+   'development',
     customMessage,
     context,
     onError,

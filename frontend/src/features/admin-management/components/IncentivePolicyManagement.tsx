@@ -117,7 +117,8 @@ export default function IncentivePolicyManagement() {
 
       const policyData = {
         ...formData,
-        primaryInventorShare: formData.splitPolicy === 'primary_inventor' ? formData.primaryInventorShare : undefined,
+        primaryInventorShare: formData.splitPolicy ===
+   'primary_inventor' ? formData.primaryInventorShare : undefined,
       };
 
       if (editingPolicy) {
@@ -153,7 +154,8 @@ export default function IncentivePolicyManagement() {
   };
 
   const getIprTypeInfo = (type: string) => {
-    return IPR_TYPES.find(t => t.value === type) || { value: type, label: type, icon: '📄' };
+    return IPR_TYPES.find(t => t.value ===
+   type) || { value: type, label: type, icon: '📄' };
   };
 
   if (loading) {
@@ -210,8 +212,10 @@ export default function IncentivePolicyManagement() {
       {/* Policy Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {IPR_TYPES.map(iprType => {
-          const activePolicy = policies.find(p => p.iprType === iprType.value && p.isActive);
-          const inactivePolicies = policies.filter(p => p.iprType === iprType.value && !p.isActive);
+          const activePolicy = policies.find(p => p.iprType ===
+   iprType.value && p.isActive);
+          const inactivePolicies = policies.filter(p => p.iprType ===
+   iprType.value && !p.isActive);
 
           return (
             <div key={iprType.value} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -275,7 +279,8 @@ export default function IncentivePolicyManagement() {
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
                     <Users className="w-4 h-4" />
                     <span>
-                      Split: {SPLIT_POLICIES.find(s => s.value === activePolicy.splitPolicy)?.label || activePolicy.splitPolicy}
+                      Split: {SPLIT_POLICIES.find(s => s.value ===
+   activePolicy.splitPolicy)?.label || activePolicy.splitPolicy}
                     </span>
                   </div>
 
@@ -303,7 +308,13 @@ export default function IncentivePolicyManagement() {
                   </div>
                   <p className="text-sm text-gray-500 mb-2">No custom policy</p>
                   <p className="text-xs text-gray-400">
-                    Using defaults: ₹{iprType.value === 'patent' ? '50,000' : iprType.value === 'design' ? '20,000' : iprType.value === 'copyright' ? '15,000' : '10,000'} / {iprType.value === 'patent' ? '50' : iprType.value === 'design' ? '25' : iprType.value === 'copyright' ? '20' : '15'} pts
+                    Using defaults: ₹{iprType.value ===
+   'patent' ? '50,000' : iprType.value ===
+   'design' ? '20,000' : iprType.value ===
+   'copyright' ? '15,000' : '10,000'} / {iprType.value ===
+   'patent' ? '50' : iprType.value ===
+   'design' ? '25' : iprType.value ===
+   'copyright' ? '20' : '15'} pts
                   </p>
                 </div>
               )}
@@ -390,7 +401,8 @@ export default function IncentivePolicyManagement() {
                     <label
                       key={policy.value}
                       className={`flex items-center p-3 border rounded-xl cursor-pointer transition-colors ${
-                        formData.splitPolicy === policy.value
+                        formData.splitPolicy ===
+   policy.value
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
@@ -399,7 +411,8 @@ export default function IncentivePolicyManagement() {
                         type="radio"
                         name="splitPolicy"
                         value={policy.value}
-                        checked={formData.splitPolicy === policy.value}
+                        checked={formData.splitPolicy ===
+   policy.value}
                         onChange={(e) => setFormData({ ...formData, splitPolicy: e.target.value as any })}
                         className="sr-only"
                       />
@@ -413,7 +426,8 @@ export default function IncentivePolicyManagement() {
               </div>
 
               {/* Primary Inventor Share */}
-              {formData.splitPolicy === 'primary_inventor' && (
+              {formData.splitPolicy ===
+   'primary_inventor' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Primary Inventor Share (%)

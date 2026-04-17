@@ -199,10 +199,25 @@ export default function ProgressTrackerListPage() {
 
       {/* Loading State */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="h-5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-3" />
+                  <div className="flex gap-3 mb-3">
+                    <div className="h-4 w-24 bg-gray-100 dark:bg-gray-600 rounded animate-pulse" />
+                    <div className="h-4 w-32 bg-gray-100 dark:bg-gray-600 rounded animate-pulse" />
+                  </div>
+                  <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse" />
+                </div>
+                <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse flex-shrink-0" />
+              </div>
+            </div>
+          ))}
         </div>
-      ) : trackers.length === 0 ? (
+      ) : trackers.length ===
+   0 ? (
         /* Empty State */
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center border border-gray-200 dark:border-gray-700 transition-colors">
           <div className="text-6xl mb-4">📝</div>
@@ -248,7 +263,8 @@ export default function ProgressTrackerListPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
-                    {tracker.currentStatus === 'published' && !tracker.researchContributionId && (
+                    {tracker.currentStatus ===
+   'published' && !tracker.researchContributionId && (
                       <Link
                         href={`/research/apply?type=${tracker.publicationType}&trackerId=${tracker.id}`}
                         onClick={(e) => e.stopPropagation()}
@@ -296,14 +312,19 @@ export default function ProgressTrackerListPage() {
                       const currentIndex = statusOrder.indexOf(tracker.currentStatus);
                       const thisIndex = statusOrder.indexOf(status);
                       const isComplete = thisIndex <= currentIndex && tracker.currentStatus !== 'rejected';
-                      const isCurrent = status === tracker.currentStatus;
+                      const isCurrent = status ===
+   tracker.currentStatus;
                       
                       return (
                         <div 
                           key={status} 
-                          className={`text-center ${isComplete ? 'text-indigo-600 font-medium' : ''} ${isCurrent ? 'font-bold' : ''} ${tracker.currentStatus === 'rejected' && status === 'submitted' ? 'text-red-600 font-bold' : ''}`}
+                          className={`text-center ${isComplete ? 'text-indigo-600 font-medium' : ''} ${isCurrent ? 'font-bold' : ''} ${tracker.currentStatus ===
+   'rejected' && status ===
+   'submitted' ? 'text-red-600 font-bold' : ''}`}
                         >
-                          {status === 'submitted' && tracker.currentStatus === 'rejected' ? 'Rejected' : statusLabels[status as ResearchTrackerStatus]}
+                          {status ===
+   'submitted' && tracker.currentStatus ===
+   'rejected' ? 'Rejected' : statusLabels[status as ResearchTrackerStatus]}
                         </div>
                       );
                     })}
@@ -313,12 +334,14 @@ export default function ProgressTrackerListPage() {
                       const statusOrder = ['writing', 'communicated', 'submitted', 'accepted', 'published'];
                       const currentIndex = statusOrder.indexOf(tracker.currentStatus);
                       // Rejected shows progress up to submitted (index 2) with red color
-                      const progress = tracker.currentStatus === 'rejected' 
+                      const progress = tracker.currentStatus ===
+   'rejected' 
                         ? ((2 + 1) / statusOrder.length) * 100 
                         : ((currentIndex + 1) / statusOrder.length) * 100;
                       return (
                         <div 
-                          className={`h-full ${tracker.currentStatus === 'rejected' ? 'bg-red-500' : 'bg-indigo-600'} transition-all duration-300`}
+                          className={`h-full ${tracker.currentStatus ===
+   'rejected' ? 'bg-red-500' : 'bg-indigo-600'} transition-all duration-300`}
                           style={{ width: `${Math.min(progress, 100)}%` }}
                         />
                       );
@@ -336,7 +359,8 @@ export default function ProgressTrackerListPage() {
         <div className="flex justify-center items-center gap-2 mt-8">
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
+            disabled={page ===
+   1}
             className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
@@ -346,7 +370,8 @@ export default function ProgressTrackerListPage() {
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
+            disabled={page ===
+   totalPages}
             className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next

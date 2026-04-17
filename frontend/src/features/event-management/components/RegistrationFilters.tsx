@@ -120,7 +120,8 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
   }, [local.limit, onFilterChange]);
 
   // Show UID or EMPID field based on selected role
-  const showUidField = !local.role || local.role === 'student';
+  const showUidField = !local.role || local.role ===
+   'student';
   const showEmpIdField = !local.role || ['faculty', 'staff', 'admin'].includes(local.role);
 
   if (optionsLoading) {
@@ -176,14 +177,17 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
               <button
                 key={s}
                 type="button"
-                onClick={() => update({ status: s === 'all' ? undefined : s })}
+                onClick={() => update({ status: s ===
+   'all' ? undefined : s })}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                  (local.status || 'all') === s
+                  (local.status || 'all') ===
+   s
                     ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
                     : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                 }`}
               >
-                {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s ===
+   'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
@@ -201,8 +205,10 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
                     <input
                       type="checkbox"
                       className={CHECKBOX_BASE}
-                      checked={local.role === r}
-                      onChange={() => update({ role: local.role === r ? undefined : r, uid: undefined, empId: undefined })}
+                      checked={local.role ===
+   r}
+                      onChange={() => update({ role: local.role ===
+   r ? undefined : r, uid: undefined, empId: undefined })}
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {ROLE_LABELS[r] || r}
@@ -263,8 +269,10 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
                     <input
                       type="checkbox"
                       className={CHECKBOX_BASE}
-                      checked={local.gender === g}
-                      onChange={() => update({ gender: local.gender === g ? undefined : g })}
+                      checked={local.gender ===
+   g}
+                      onChange={() => update({ gender: local.gender ===
+   g ? undefined : g })}
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300">{g}</span>
                   </label>

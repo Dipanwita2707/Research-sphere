@@ -18,6 +18,22 @@ const getISTDate = () => {
   return new Date(Date.now() + istOffset);
 };
 
+const getISTCalendarDateUtcMidnight = () => {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now);
+
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+
+  return new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+};
+
 const ACTIVATION_HOURS_BEFORE = 5; // QR activates 5 hours before entry time
 
 const activateQRCodes = async () => {
@@ -26,10 +42,10 @@ const activateQRCodes = async () => {
     
     console.log(`[QR Activation Job] Running at ${now.toISOString()}`);
 
-    // Get today's date in YYYY-MM-DD format (IST)
-    const todayIST = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Use IST calendar date represented as UTC midnight for date-only comparisons.
+    const todayIST = getISTCalendarDateUtcMidnight();
     
-    // ============ ACTIVATE NEW PASSES (status=created) ============
+    // ============ ACTIVATE NEW PASSES (status=created) =====
     const passesToActivate = await prisma.gate_pass.findMany({
       where: {
         qr_status: 'inactive',
@@ -108,7 +124,7 @@ const activateQRCodes = async () => {
       }
     }
 
-    // ============ RE-ACTIVATE CHECKED_OUT PASSES (all passes support unlimited in/out) ============
+    // ============ RE-ACTIVATE CHECKED_OUT PASSES (all passes support unlimited in/out) =====
     // Find checked_out passes that have inactive QR and today is within their date range
     const passesToReactivate = await prisma.gate_pass.findMany({
       where: {
@@ -153,7 +169,7 @@ const activateQRCodes = async () => {
       });
     }
 
-    // ============ EXPIRE PASSES ============
+    // ============ EXPIRE PASSES =====
     // Passes are valid for the entire end date (until 23:59).
     // Use { lt: todayIST } so a pass whose end_date IS today stays active
     // all day and is only expired on the first job run tomorrow.
@@ -199,6 +215,7 @@ const activateQRCodes = async () => {
           }
         },
         data: {
+          status: 'expired',
           qr_status: 'expired',
           pass_status: 'expired'
         }
@@ -278,10 +295,12 @@ const sendCheckoutReminders = async (options = {}) => {
     const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const todayEnd   = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    // Find confirmed bookings checking out today that haven't been reminded
+    // Find active bookings checking out today that haven't been reminded.
+    // Include pending as well because extension/payment flows can temporarily
+    // keep a valid booking in pending state on checkout day.
     const bookings = await prisma.hostelBooking.findMany({
       where: {
-        booking_status: 'confirmed',
+        booking_status: { in: ['confirmed', 'pending'] },
         checkout_reminder_sent: false,
         check_out_datetime: {
           gte: todayStart,
@@ -296,8 +315,7 @@ const sendCheckoutReminders = async (options = {}) => {
                 studentLogin: {
                   include: {
                     parents: {
-                      where: { isPrimaryContact: true },
-                      take: 1
+                      take: 5
                     }
                   }
                 }
@@ -325,7 +343,11 @@ const sendCheckoutReminders = async (options = {}) => {
     for (const booking of bookings) {
       const pass = booking.gate_pass;
       const studentId = pass?.created_by_id;
-      const parentDetails = pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
+      const parentCandidates = pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents || [];
+      const parentDetails =
+        parentCandidates.find((p) => p?.isPrimaryContact && p?.email) ||
+        parentCandidates.find((p) => p?.email) ||
+        null;
 
       // 1) Send notification to student's dashboard
       if (studentId) {
@@ -334,7 +356,7 @@ const sendCheckoutReminders = async (options = {}) => {
             userId: studentId,
             type: 'checkout_reminder',
             title: 'Checkout Reminder – 5 PM Deadline',
-            message: `Guest house checkout is at 5:00 PM today. Room: ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'}. Checkout after 5 PM will incur an extra day charge.`,
+            message: `Checkout before 5:00 PM or extra charge will apply. Room: ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'}.`,
             referenceType: 'hostel_booking',
             referenceId: booking.id,
             metadata: {
@@ -416,8 +438,7 @@ const applyCheckoutDeadlineCharges = async (options = {}) => {
                 studentLogin: {
                   include: {
                     parents: {
-                      where: { isPrimaryContact: true },
-                      take: 1
+                      take: 5
                     }
                   }
                 }
@@ -483,7 +504,11 @@ const applyCheckoutDeadlineCharges = async (options = {}) => {
         });
       }
 
-      const parentDetails = booking.gate_pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
+      const parentCandidates = booking.gate_pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents || [];
+      const parentDetails =
+        parentCandidates.find((p) => p?.isPrimaryContact && p?.email) ||
+        parentCandidates.find((p) => p?.email) ||
+        null;
       if (parentDetails?.email) {
         emailService.sendCheckoutPenaltyApplied({
           parentEmail: parentDetails.email,
@@ -524,8 +549,8 @@ const startQRActivationJob = () => {
   // Run every 15 minutes: */15 * * * *
   cron.schedule('*/15 * * * *', async () => {
     await activateQRCodes();
-    await sendCheckoutReminders();
-    await applyCheckoutDeadlineCharges();
+    await sendCheckoutReminders().catch(err => console.error('[Checkout Reminder] Error:', err.message));
+    await applyCheckoutDeadlineCharges().catch(err => console.error('[Checkout Charges] Error:', err.message));
   }, {
     timezone: 'Asia/Kolkata'
   });
@@ -534,8 +559,8 @@ const startQRActivationJob = () => {
   
   // Run immediately on startup
   activateQRCodes();
-  sendCheckoutReminders();
-  applyCheckoutDeadlineCharges();
+  sendCheckoutReminders().catch(err => console.error('[Checkout Reminder] Startup error:', err.message));
+  applyCheckoutDeadlineCharges().catch(err => console.error('[Checkout Charges] Startup error:', err.message));
 };
 
 module.exports = {

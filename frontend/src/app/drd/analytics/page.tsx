@@ -174,13 +174,16 @@ function countActiveFilters(filters: AnalyticsFiltersState) {
 }
 
 function serializeCsvValue(value: unknown) {
-  if (value === null || value === undefined) return '';
+  if (value ===
+   null || value ===
+   undefined) return '';
   const text = String(value).replace(/"/g, '""');
   return /[",\n]/.test(text) ? `"${text}"` : text;
 }
 
 function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
-  if (!rows.length || typeof window === 'undefined') return;
+  if (!rows.length || typeof window ===
+   'undefined') return;
 
   const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
   const csv = [
@@ -211,12 +214,12 @@ function DashboardCard({
   accent: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#d8e6ef] bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="rounded-2xl border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-[#6497b1]">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-[#011f4b]">{value}</p>
-          <p className="mt-2 text-xs text-gray-500">{subtitle}</p>
+          <p className="text-sm font-medium text-[#6497b1] dark:text-gray-400">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-[#011f4b] dark:text-white">{value}</p>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
         </div>
         <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg ${accent}`}>
           {icon}
@@ -236,10 +239,10 @@ function SectionHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-[#e3edf4] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-b border-[#e3edf4] dark:border-gray-700 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h2 className="text-lg font-semibold text-[#011f4b]">{title}</h2>
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
+        <h2 className="text-lg font-semibold text-[#011f4b] dark:text-white">{title}</h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
       </div>
       {action}
     </div>
@@ -282,7 +285,7 @@ function QuickFilterButton({
       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
         active
           ? 'border-[#005b96] bg-[#005b96] text-white'
-          : 'border-[#b3cde0] bg-white text-[#005b96] hover:border-[#005b96]'
+          : 'border-[#b3cde0] bg-white dark:bg-gray-800 dark:border-gray-600 text-[#005b96] dark:text-blue-400 hover:border-[#005b96]'
       }`}
     >
       {label}
@@ -298,8 +301,8 @@ function ScopeBadge({
   value: string;
 }) {
   return (
-    <div className="rounded-full border border-[#d8e6ef] bg-[#f7fbfe] px-3 py-1.5 text-xs font-medium text-[#005b96]">
-      <span className="text-[#6497b1]">{label}:</span> {value}
+    <div className="rounded-full border border-[#d8e6ef] dark:border-gray-600 bg-[#f7fbfe] dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-[#005b96] dark:text-blue-400">
+      <span className="text-[#6497b1] dark:text-gray-400">{label}:</span> {value}
     </div>
   );
 }
@@ -312,12 +315,12 @@ function EmptyPanel({
   description: string;
 }) {
   return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#b3cde0] bg-[#f7fbfe] px-6 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#005b96] shadow-sm">
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#b3cde0] dark:border-gray-600 bg-[#f7fbfe] dark:bg-gray-800 px-6 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-gray-700 text-[#005b96] dark:text-blue-400 shadow-sm">
         <Sparkles className="h-6 w-6" />
       </div>
-      <h3 className="mt-4 text-lg font-semibold text-[#011f4b]">{title}</h3>
-      <p className="mt-2 max-w-md text-sm text-gray-500">{description}</p>
+      <h3 className="mt-4 text-lg font-semibold text-[#011f4b] dark:text-white">{title}</h3>
+      <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">{description}</p>
     </div>
   );
 }
@@ -340,7 +343,7 @@ function MonthlyBarChart({
   );
 
   return (
-    <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+    <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
       <SectionHeader title={title} description={description} />
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap gap-2">
@@ -354,13 +357,14 @@ function MonthlyBarChart({
           ))}
         </div>
 
-        {visiblePoints.length === 0 ? (
-          <p className="text-sm text-gray-500">No trend points available for the selected period.</p>
+        {visiblePoints.length ===
+   0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400">No trend points available for the selected period.</p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-6">
             {visiblePoints.map((point) => (
               <div key={point.month} className="space-y-3">
-                <div className="flex h-40 items-end justify-center gap-2 rounded-2xl bg-[#f7fbfe] px-3 pb-3 pt-5">
+                <div className="flex h-40 items-end justify-center gap-2 rounded-2xl bg-[#f7fbfe] dark:bg-gray-700/50 px-3 pb-3 pt-5">
                   {series.map((item) => {
                     const height = Math.max(10, Math.round((Number(point[item.key] || 0) / maxValue) * 120));
                     return (
@@ -375,8 +379,8 @@ function MonthlyBarChart({
                   })}
                 </div>
                 <div className="text-center">
-                  <p className="text-xs font-semibold text-[#011f4b]">{point.label}</p>
-                  <p className="mt-1 text-[11px] text-gray-500">
+                  <p className="text-xs font-semibold text-[#011f4b] dark:text-white">{point.label}</p>
+                  <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                     {series
                       .map((item) => `${item.label.split(' ')[0]} ${formatNumber(Number(point[item.key] || 0))}`)
                       .join(' • ')}
@@ -401,10 +405,10 @@ function InsightCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#d8e6ef] bg-[#f7fbfe] p-4">
-      <p className="text-xs uppercase tracking-[0.22em] text-[#6497b1]">{title}</p>
-      <p className="mt-2 text-2xl font-semibold text-[#011f4b]">{value}</p>
-      <p className="mt-2 text-xs text-gray-500">{helper}</p>
+    <div className="rounded-2xl border border-[#d8e6ef] dark:border-gray-700 bg-[#f7fbfe] dark:bg-gray-800 p-4">
+      <p className="text-xs uppercase tracking-[0.22em] text-[#6497b1] dark:text-gray-400">{title}</p>
+      <p className="mt-2 text-2xl font-semibold text-[#011f4b] dark:text-white">{value}</p>
+      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
     </div>
   );
 }
@@ -427,18 +431,18 @@ function DrilldownDrawer({
   return (
     <div className="fixed inset-0 z-[70] flex justify-end bg-slate-950/40 backdrop-blur-sm">
       <button type="button" className="flex-1" onClick={onClose} aria-label="Close drilldown" />
-      <aside className="h-full w-full max-w-2xl overflow-y-auto border-l border-[#d8e6ef] bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 border-b border-[#e3edf4] bg-white px-6 py-5">
+      <aside className="h-full w-full max-w-2xl overflow-y-auto border-l border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl">
+        <div className="sticky top-0 z-10 border-b border-[#e3edf4] dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#6497b1]">Drilldown View</p>
-              <h2 className="mt-2 text-2xl font-semibold text-[#011f4b]">{panel.title}</h2>
-              <p className="mt-2 text-sm text-gray-500">{panel.subtitle}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#6497b1] dark:text-gray-400">Drilldown View</p>
+              <h2 className="mt-2 text-2xl font-semibold text-[#011f4b] dark:text-white">{panel.title}</h2>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{panel.subtitle}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-[#d8e6ef] p-2 text-[#005b96] transition-colors hover:border-[#005b96]"
+              className="rounded-2xl border border-[#d8e6ef] dark:border-gray-600 p-2 text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
             >
               <X className="h-5 w-5" />
             </button>
@@ -447,7 +451,7 @@ function DrilldownDrawer({
 
         <div className="space-y-6 p-6">
           {panel.loading || !panel.data ? (
-            <div className="flex min-h-[260px] items-center justify-center text-gray-500">
+            <div className="flex min-h-[260px] items-center justify-center text-gray-500 dark:text-gray-400">
               <div className="text-center">
                 <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#005b96]" />
                 <p className="mt-3 text-sm">Loading detail analytics...</p>
@@ -478,7 +482,8 @@ function DrilldownDrawer({
                 description="Trend view for just the selected entity."
                 points={trend}
                 series={
-                  panel.kind === 'reviewer'
+                  panel.kind ===
+   'reviewer'
                     ? [
                         { key: 'assigned', label: 'Assigned', color: 'bg-[#005b96]', text: 'bg-[#edf5fa] text-[#005b96]' },
                         { key: 'completed', label: 'Completed', color: 'bg-emerald-500', text: 'bg-[#edf8f4] text-emerald-700' },
@@ -491,14 +496,14 @@ function DrilldownDrawer({
               />
 
               {people.length > 0 ? (
-                <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                   <SectionHeader
                     title="Applicants in Focus"
                     description="People-level records inside the selected school, department, or applicant view."
                   />
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-[#f7fbfe] text-left text-[#6497b1]">
+                      <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
                         <tr>
                           {['Applicant', 'Department', 'Applications', 'Approved', 'Incentive'].map((label) => (
                             <th key={label} className="px-5 py-3 font-semibold">
@@ -509,12 +514,12 @@ function DrilldownDrawer({
                       </thead>
                       <tbody>
                         {people.map((person) => (
-                          <tr key={person.personId} className="border-t border-[#eef5f9]">
-                            <td className="px-5 py-4 font-semibold text-[#011f4b]">{person.applicantName}</td>
-                            <td className="px-5 py-4 text-gray-600">{person.departmentName}</td>
-                            <td className="px-5 py-4 text-gray-600">{formatNumber(person.totalApplications)}</td>
-                            <td className="px-5 py-4 text-gray-600">{formatNumber(person.approvedCount)}</td>
-                            <td className="px-5 py-4 font-semibold text-[#011f4b]">
+                          <tr key={person.personId} className="border-t border-[#eef5f9] dark:border-gray-700">
+                            <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">{person.applicantName}</td>
+                            <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{person.departmentName}</td>
+                            <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(person.totalApplications)}</td>
+                            <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(person.approvedCount)}</td>
+                            <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">
                               {formatNumber(person.totalIncentive)}
                             </td>
                           </tr>
@@ -526,32 +531,32 @@ function DrilldownDrawer({
               ) : null}
 
               {reviewers.length > 0 ? (
-                <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                   <SectionHeader
                     title="Reviewer in Focus"
                     description="Detailed reviewer performance for the selected DRD member."
                   />
                   <div className="space-y-4 p-5">
                     {reviewers.map((reviewer) => (
-                      <div key={reviewer.reviewerId} className="rounded-2xl border border-[#e3edf4] p-4">
+                      <div key={reviewer.reviewerId} className="rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="text-lg font-semibold text-[#011f4b]">{reviewer.reviewerName}</p>
-                            <p className="mt-1 text-sm text-gray-500">
+                            <p className="text-lg font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                               Completion {formatPercent(reviewer.completionRate)} • First response{' '}
                               {formatHours(reviewer.avgFirstResponseHours)}
                             </p>
                           </div>
                           <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div className="rounded-xl bg-[#f7fbfe] px-3 py-2">
-                              <p className="text-xs text-[#6497b1]">Assigned</p>
-                              <p className="mt-1 font-semibold text-[#011f4b]">
+                            <div className="rounded-xl bg-[#f7fbfe] dark:bg-gray-700/50 px-3 py-2">
+                              <p className="text-xs text-[#6497b1] dark:text-gray-400">Assigned</p>
+                              <p className="mt-1 font-semibold text-[#011f4b] dark:text-white">
                                 {formatNumber(reviewer.assignedCount)}
                               </p>
                             </div>
-                            <div className="rounded-xl bg-[#f7fbfe] px-3 py-2">
-                              <p className="text-xs text-[#6497b1]">Pending</p>
-                              <p className="mt-1 font-semibold text-[#011f4b]">
+                            <div className="rounded-xl bg-[#f7fbfe] dark:bg-gray-700/50 px-3 py-2">
+                              <p className="text-xs text-[#6497b1] dark:text-gray-400">Pending</p>
+                              <p className="mt-1 font-semibold text-[#011f4b] dark:text-white">
                                 {formatNumber(reviewer.pendingCount)}
                               </p>
                             </div>
@@ -588,8 +593,10 @@ export default function DrdAnalyticsPage() {
           drdAnalyticsService.getDrdMemberAnalytics({ category: 'all' }),
         ]);
         // If either succeeds (not 403), user has permission
-        const appOk = app.status === 'fulfilled';
-        const memOk = mem.status === 'fulfilled';
+        const appOk = app.status ===
+   'fulfilled';
+        const memOk = mem.status ===
+   'fulfilled';
         setPermStatus(appOk || memOk ? 'granted' : 'denied');
       } catch {
         setPermStatus('denied');
@@ -599,7 +606,8 @@ export default function DrdAnalyticsPage() {
   }, []);
 
   useEffect(() => {
-    if (permStatus === 'granted') void loadAnalytics(activeTab, filters);
+    if (permStatus ===
+   'granted') void loadAnalytics(activeTab, filters);
   }, [activeTab, filters, permStatus]);
 
   const loadAnalytics = async (
@@ -614,11 +622,13 @@ export default function DrdAnalyticsPage() {
         category: currentFilters.category,
         schoolId: currentFilters.schoolId || undefined,
         departmentId: currentFilters.departmentId || undefined,
-        reviewerId: tab === 'drd_member' ? currentFilters.reviewerId || undefined : undefined,
+        reviewerId: tab ===
+   'drd_member' ? currentFilters.reviewerId || undefined : undefined,
       };
 
       const response =
-        tab === 'applicant'
+        tab ===
+   'applicant'
           ? await drdAnalyticsService.getApplicantAnalytics(requestFilters)
           : await drdAnalyticsService.getDrdMemberAnalytics(requestFilters);
 
@@ -639,12 +649,15 @@ export default function DrdAnalyticsPage() {
 
   const departmentOptions = useMemo(() => {
     if (!draftFilters.schoolId) return departmentRows;
-    return departmentRows.filter((department) => department.schoolId === draftFilters.schoolId);
+    return departmentRows.filter((department) => department.schoolId ===
+   draftFilters.schoolId);
   }, [departmentRows, draftFilters.schoolId]);
 
   const quickRangeLabel = useMemo(() => {
     const defaults = getDefaultFilters();
-    if (filters.from === defaults.from && filters.to === defaults.to) return 'Last 90 days';
+    if (filters.from ===
+   defaults.from && filters.to ===
+   defaults.to) return 'Last 90 days';
     return buildRangeLabel(filters);
   }, [filters]);
 
@@ -727,7 +740,8 @@ export default function DrdAnalyticsPage() {
   const applyFilters = () => {
     setFilters({
       ...draftFilters,
-      reviewerId: activeTab === 'drd_member' ? draftFilters.reviewerId : '',
+      reviewerId: activeTab ===
+   'drd_member' ? draftFilters.reviewerId : '',
     });
   };
 
@@ -749,7 +763,8 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab ===
+   'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -764,7 +779,8 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab ===
+   'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -777,7 +793,8 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab ===
+   'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -790,7 +807,8 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab ===
+   'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -822,11 +840,14 @@ export default function DrdAnalyticsPage() {
       };
 
       let response;
-      if (kind === 'school') {
+      if (kind ===
+   'school') {
         response = await drdAnalyticsService.getApplicantSchoolAnalytics(id, requestFilters);
-      } else if (kind === 'department') {
+      } else if (kind ===
+   'department') {
         response = await drdAnalyticsService.getApplicantDepartmentAnalytics(id, requestFilters);
-      } else if (kind === 'person') {
+      } else if (kind ===
+   'person') {
         response = await drdAnalyticsService.getApplicantPersonAnalytics(id, requestFilters);
       } else {
         response = await drdAnalyticsService.getReviewerAnalytics(id, {
@@ -857,7 +878,8 @@ export default function DrdAnalyticsPage() {
   const exportCurrentView = () => {
     if (!data) return;
 
-    if (activeTab === 'applicant') {
+    if (activeTab ===
+   'applicant') {
       const rows = [
         ...schoolRows.map((school) => ({
           rowType: 'school',
@@ -918,7 +940,8 @@ export default function DrdAnalyticsPage() {
   const applicantTopPerson = peopleRows[0];
   const topReviewer = reviewerRows[0];
 
-  if (permStatus === 'checking') {
+  if (permStatus ===
+   'checking') {
     return (
       <ProtectedRoute>
         <div className="flex items-center justify-center min-h-screen">
@@ -928,16 +951,17 @@ export default function DrdAnalyticsPage() {
     );
   }
 
-  if (permStatus === 'denied') {
+  if (permStatus ===
+   'denied') {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center border">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+          <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border dark:border-gray-700">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <ShieldCheck className="w-8 h-8 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Denied</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               You do not have the required analytics permissions to view this page. Contact your administrator.
             </p>
           </div>
@@ -974,7 +998,8 @@ export default function DrdAnalyticsPage() {
                     type="button"
                     onClick={() => setActiveTab('applicant')}
                     className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
-                      activeTab === 'applicant' ? 'bg-white text-[#011f4b] shadow-lg' : 'text-white/85 hover:bg-white/10'
+                      activeTab ===
+   'applicant' ? 'bg-white text-[#011f4b] shadow-lg' : 'text-white/85 hover:bg-white/10'
                     }`}
                   >
                     Applicant Analytics
@@ -983,7 +1008,8 @@ export default function DrdAnalyticsPage() {
                     type="button"
                     onClick={() => setActiveTab('drd_member')}
                     className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
-                      activeTab === 'drd_member' ? 'bg-white text-[#011f4b] shadow-lg' : 'text-white/85 hover:bg-white/10'
+                      activeTab ===
+   'drd_member' ? 'bg-white text-[#011f4b] shadow-lg' : 'text-white/85 hover:bg-white/10'
                     }`}
                   >
                     DRD Member Analytics
@@ -1018,7 +1044,7 @@ export default function DrdAnalyticsPage() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+        <section className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
           <SectionHeader
             title="Filters and View Control"
             description="Apply focused filters without losing the scope restrictions already assigned to you."
@@ -1026,7 +1052,7 @@ export default function DrdAnalyticsPage() {
               <button
                 type="button"
                 onClick={() => void loadAnalytics(activeTab, filters)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#b3cde0] bg-white px-4 py-2 text-sm font-semibold text-[#005b96] transition-colors hover:border-[#005b96]"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -1038,17 +1064,20 @@ export default function DrdAnalyticsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <QuickFilterButton
                 label="Last 30 Days"
-                active={filters.from === toDateInputValue(new Date(new Date().setDate(new Date().getDate() - 30)))}
+                active={filters.from ===
+   toDateInputValue(new Date(new Date().setDate(new Date().getDate() - 30)))}
                 onClick={() => setQuickRange(30)}
               />
               <QuickFilterButton
                 label="Last 90 Days"
-                active={quickRangeLabel === 'Last 90 days'}
+                active={quickRangeLabel ===
+   'Last 90 days'}
                 onClick={() => setQuickRange(90)}
               />
               <QuickFilterButton
                 label="Year to Date"
-                active={filters.from === `${new Date().getFullYear()}-01-01`}
+                active={filters.from ===
+   `${new Date().getFullYear()}-01-01`}
                 onClick={setYearToDate}
               />
               <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -1060,31 +1089,31 @@ export default function DrdAnalyticsPage() {
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
               <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b]">From</label>
+                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">From</label>
                 <input
                   type="date"
                   value={draftFilters.from}
                   onChange={(e) => setDraftFilters((current) => ({ ...current, from: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] bg-white px-3 py-2.5 text-sm text-[#011f4b] outline-none transition-colors focus:border-[#005b96]"
+                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
                 />
               </div>
 
               <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b]">To</label>
+                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">To</label>
                 <input
                   type="date"
                   value={draftFilters.to}
                   onChange={(e) => setDraftFilters((current) => ({ ...current, to: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] bg-white px-3 py-2.5 text-sm text-[#011f4b] outline-none transition-colors focus:border-[#005b96]"
+                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
                 />
               </div>
 
               <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b]">Category</label>
+                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">Category</label>
                 <select
                   value={draftFilters.category}
                   onChange={(e) => setDraftFilters((current) => ({ ...current, category: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] bg-white px-3 py-2.5 text-sm text-[#011f4b] outline-none transition-colors focus:border-[#005b96]"
+                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
                 >
                   <option value="all">All Categories</option>
                   <option value="research">Research</option>
@@ -1096,7 +1125,7 @@ export default function DrdAnalyticsPage() {
               </div>
 
               <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b]">School</label>
+                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">School</label>
                 <select
                   value={draftFilters.schoolId}
                   onChange={(e) =>
@@ -1106,7 +1135,7 @@ export default function DrdAnalyticsPage() {
                       departmentId: '',
                     }))
                   }
-                  className="w-full rounded-xl border border-[#b3cde0] bg-white px-3 py-2.5 text-sm text-[#011f4b] outline-none transition-colors focus:border-[#005b96]"
+                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
                 >
                   <option value="">All Schools</option>
                   {schoolRows.map((school) => (
@@ -1118,11 +1147,11 @@ export default function DrdAnalyticsPage() {
               </div>
 
               <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b]">Department</label>
+                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">Department</label>
                 <select
                   value={draftFilters.departmentId}
                   onChange={(e) => setDraftFilters((current) => ({ ...current, departmentId: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] bg-white px-3 py-2.5 text-sm text-[#011f4b] outline-none transition-colors focus:border-[#005b96]"
+                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
                 >
                   <option value="">All Departments</option>
                   {departmentOptions.map((department) => (
@@ -1134,14 +1163,16 @@ export default function DrdAnalyticsPage() {
               </div>
 
               <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b]">
-                  {activeTab === 'drd_member' ? 'Reviewer' : 'Scope Hint'}
+                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">
+                  {activeTab ===
+   'drd_member' ? 'Reviewer' : 'Scope Hint'}
                 </label>
-                {activeTab === 'drd_member' ? (
+                {activeTab ===
+   'drd_member' ? (
                   <select
                     value={draftFilters.reviewerId}
                     onChange={(e) => setDraftFilters((current) => ({ ...current, reviewerId: e.target.value }))}
-                    className="w-full rounded-xl border border-[#b3cde0] bg-white px-3 py-2.5 text-sm text-[#011f4b] outline-none transition-colors focus:border-[#005b96]"
+                    className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
                   >
                     <option value="">{isSelfView ? 'My Analytics' : 'All Reviewers'}</option>
                     {reviewerRows.map((reviewer) => (
@@ -1151,22 +1182,23 @@ export default function DrdAnalyticsPage() {
                     ))}
                   </select>
                 ) : (
-                  <div className="flex h-[42px] items-center rounded-xl border border-dashed border-[#b3cde0] bg-[#f7fbfe] px-3 text-sm text-[#6497b1]">
+                  <div className="flex h-[42px] items-center rounded-xl border border-dashed border-[#b3cde0] dark:border-gray-600 bg-[#f7fbfe] dark:bg-gray-700 px-3 text-sm text-[#6497b1] dark:text-gray-400">
                     Department-only users stay within their assigned department
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-[#e3edf4] bg-[#f7fbfe] p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 rounded-2xl border border-[#e3edf4] dark:border-gray-700 bg-[#f7fbfe] dark:bg-gray-800 p-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-xl bg-white p-2 text-[#005b96] shadow-sm">
+                <div className="mt-0.5 rounded-xl bg-white dark:bg-gray-700 p-2 text-[#005b96] dark:text-blue-400 shadow-sm">
                   <Filter className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#011f4b]">Current view</p>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {activeTab === 'applicant'
+                  <p className="text-sm font-semibold text-[#011f4b] dark:text-white">Current view</p>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {activeTab ===
+   'applicant'
                       ? 'Monitor applicant submissions, approvals, and incentive impact in the chosen scope.'
                       : 'Track reviewer workload, response speed, completion efficiency, and pending load.'}
                   </p>
@@ -1177,7 +1209,7 @@ export default function DrdAnalyticsPage() {
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="rounded-xl border border-[#b3cde0] bg-white px-4 py-2 text-sm font-semibold text-[#005b96] transition-colors hover:border-[#005b96]"
+                  className="rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
                 >
                   Reset
                 </button>
@@ -1195,13 +1227,13 @@ export default function DrdAnalyticsPage() {
         </section>
 
         {loading ? (
-          <div className="flex min-h-[280px] items-center justify-center rounded-[28px] border border-[#d8e6ef] bg-white">
+          <div className="flex min-h-[280px] items-center justify-center rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f0f7fb] text-[#005b96]">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f0f7fb] dark:bg-gray-700 text-[#005b96]">
                 <RefreshCw className="h-6 w-6 animate-spin" />
               </div>
-              <p className="mt-4 text-sm font-medium text-[#011f4b]">Loading DRD analytics</p>
-              <p className="mt-1 text-sm text-gray-500">Preparing the latest scoped view for you.</p>
+              <p className="mt-4 text-sm font-medium text-[#011f4b] dark:text-white">Loading DRD analytics</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Preparing the latest scoped view for you.</p>
             </div>
           </div>
         ) : !data ? (
@@ -1212,7 +1244,8 @@ export default function DrdAnalyticsPage() {
         ) : (
           <>
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {(activeTab === 'applicant' ? applicantCards : reviewerCards).map((card) => (
+              {(activeTab ===
+   'applicant' ? applicantCards : reviewerCards).map((card) => (
                 <DashboardCard key={card.title} {...card} />
               ))}
             </section>
@@ -1224,20 +1257,24 @@ export default function DrdAnalyticsPage() {
                 label="Time Range"
                 value={`${formatDateLabel(data.meta.timeRange.from)} to ${formatDateLabel(data.meta.timeRange.to)}`}
               />
-              <ScopeBadge label="Category" value={filters.category === 'all' ? 'All' : filters.category} />
+              <ScopeBadge label="Category" value={filters.category ===
+   'all' ? 'All' : filters.category} />
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
               <MonthlyBarChart
-                title={activeTab === 'applicant' ? 'Monthly Filing Trend' : 'Monthly Review Trend'}
+                title={activeTab ===
+   'applicant' ? 'Monthly Filing Trend' : 'Monthly Review Trend'}
                 description={
-                  activeTab === 'applicant'
+                  activeTab ===
+   'applicant'
                     ? 'Applications and approvals over the selected months.'
                     : 'Assigned and completed work across the selected months.'
                 }
                 points={monthlyTrend}
                 series={
-                  activeTab === 'applicant'
+                  activeTab ===
+   'applicant'
                     ? [
                         { key: 'totalApplications', label: 'Applications', color: 'bg-[#005b96]', text: 'bg-[#edf5fa] text-[#005b96]' },
                         { key: 'approvedCount', label: 'Approved', color: 'bg-emerald-500', text: 'bg-[#edf8f4] text-emerald-700' },
@@ -1249,13 +1286,14 @@ export default function DrdAnalyticsPage() {
                 }
               />
 
-              <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+              <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                 <SectionHeader
                   title="Highlights"
                   description="The most important signals from the current scoped view."
                 />
                 <div className="grid gap-4 p-5">
-                  {activeTab === 'applicant' ? (
+                  {activeTab ===
+   'applicant' ? (
                     <>
                       <InsightCard
                         title="Top School"
@@ -1316,17 +1354,18 @@ export default function DrdAnalyticsPage() {
               </div>
             </section>
 
-            {activeTab === 'applicant' ? (
+            {activeTab ===
+   'applicant' ? (
               <>
                 <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                  <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                  <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                     <SectionHeader
                       title="School Performance"
                       description="See where filing volume and incentive impact are concentrated."
                     />
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
-                        <thead className="bg-[#f7fbfe] text-left text-[#6497b1]">
+                        <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
                           <tr>
                             {['School', 'Applications', 'Approved', 'Incentive', 'Actions'].map((label) => (
                               <th key={label} className="px-5 py-3 font-semibold">
@@ -1336,32 +1375,33 @@ export default function DrdAnalyticsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {schoolRows.length === 0 ? (
+                          {schoolRows.length ===
+   0 ? (
                             <tr>
-                              <td colSpan={5} className="px-5 py-8 text-center text-gray-500">
+                              <td colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                                 No school analytics available for the selected scope.
                               </td>
                             </tr>
                           ) : (
                             schoolRows.map((school) => (
-                              <tr key={school.schoolId} className="border-t border-[#eef5f9]">
+                              <tr key={school.schoolId} className="border-t border-[#eef5f9] dark:border-gray-700">
                                 <td className="px-5 py-4">
-                                  <p className="font-semibold text-[#011f4b]">{school.schoolName}</p>
-                                  <p className="mt-1 text-xs text-gray-500">
+                                  <p className="font-semibold text-[#011f4b] dark:text-white">{school.schoolName}</p>
+                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     {school.totalApplications > 0
                                       ? `${formatPercent((school.totalApproved / school.totalApplications) * 100)} approval rate`
                                       : 'No completed filings yet'}
                                   </p>
                                 </td>
-                                <td className="px-5 py-4 text-gray-600">{formatNumber(school.totalApplications)}</td>
-                                <td className="px-5 py-4 text-gray-600">{formatNumber(school.totalApproved)}</td>
-                                <td className="px-5 py-4 text-gray-600">{formatNumber(school.totalIncentive)}</td>
+                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(school.totalApplications)}</td>
+                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(school.totalApproved)}</td>
+                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(school.totalIncentive)}</td>
                                 <td className="px-5 py-4">
                                   <div className="flex flex-wrap gap-2">
                                     <button
                                       type="button"
                                       onClick={() => focusSchool(school.schoolId)}
-                                      className="rounded-full border border-[#b3cde0] px-3 py-1.5 text-xs font-semibold text-[#005b96] transition-colors hover:border-[#005b96]"
+                                      className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
                                     >
                                       Focus
                                     </button>
@@ -1375,7 +1415,7 @@ export default function DrdAnalyticsPage() {
                                           'Focused school analytics including people, departments, and month trend.'
                                         )
                                       }
-                                      className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] px-3 py-1.5 text-xs font-semibold text-[#011f4b] transition-colors hover:border-[#005b96]"
+                                      className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200 transition-colors hover:border-[#005b96]"
                                     >
                                       <Eye className="h-3.5 w-3.5" />
                                       Details
@@ -1390,14 +1430,15 @@ export default function DrdAnalyticsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                  <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                     <SectionHeader
                       title="Department Momentum"
                       description="Quickly spot active departments and incentive-heavy pockets."
                     />
                     <div className="space-y-4 p-5">
-                      {departmentRows.length === 0 ? (
-                        <p className="text-sm text-gray-500">No department analytics are available for this view.</p>
+                      {departmentRows.length ===
+   0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No department analytics are available for this view.</p>
                       ) : (
                         departmentRows.slice(0, 7).map((department) => {
                           const progressBase = departmentRows[0]?.totalApplications || 1;
@@ -1408,30 +1449,30 @@ export default function DrdAnalyticsPage() {
                           return (
                             <div
                               key={department.departmentId}
-                              className="rounded-2xl border border-[#e3edf4] p-4 transition-all hover:border-[#b3cde0] hover:shadow-sm"
+                              className="rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4 transition-all hover:border-[#b3cde0] hover:shadow-sm"
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div>
-                                  <p className="font-semibold text-[#011f4b]">{department.departmentName}</p>
-                                  <p className="mt-1 text-xs text-gray-500">
+                                  <p className="font-semibold text-[#011f4b] dark:text-white">{department.departmentName}</p>
+                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     {department.schoolName} • {formatNumber(department.totalApplicants)} applicants
                                   </p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-sm font-semibold text-[#011f4b]">
+                                  <p className="text-sm font-semibold text-[#011f4b] dark:text-white">
                                     {formatNumber(department.totalApplications)}
                                   </p>
-                                  <p className="text-xs text-gray-500">applications</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">applications</p>
                                 </div>
                               </div>
-                              <div className="mt-3 h-2 rounded-full bg-[#e8f1f7]">
+                              <div className="mt-3 h-2 rounded-full bg-[#e8f1f7] dark:bg-gray-700">
                                 <div
                                   className="h-2 rounded-full bg-gradient-to-r from-[#005b96] to-[#6497b1]"
                                   style={{ width: `${progress}%` }}
                                 />
                               </div>
                               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
                                   {formatNumber(department.totalApproved)} approved • Incentive{' '}
                                   {formatNumber(department.totalIncentive)}
                                 </div>
@@ -1439,7 +1480,7 @@ export default function DrdAnalyticsPage() {
                                   <button
                                     type="button"
                                     onClick={() => focusDepartment(department.departmentId, department.schoolId)}
-                                    className="rounded-full border border-[#b3cde0] px-3 py-1.5 text-xs font-semibold text-[#005b96]"
+                                    className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400"
                                   >
                                     Focus
                                   </button>
@@ -1453,7 +1494,7 @@ export default function DrdAnalyticsPage() {
                                         'Focused department analytics including people and month trend.'
                                       )
                                     }
-                                    className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] px-3 py-1.5 text-xs font-semibold text-[#011f4b]"
+                                    className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
                                   >
                                     <Eye className="h-3.5 w-3.5" />
                                     Details
@@ -1468,14 +1509,14 @@ export default function DrdAnalyticsPage() {
                   </div>
                 </section>
 
-                <section className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                <section className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                   <SectionHeader
                     title="Applicant Leaderboard"
                     description="People-level view for the currently visible scope. Use it to spot high-volume contributors and incentive distribution."
                   />
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-[#f7fbfe] text-left text-[#6497b1]">
+                      <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
                         <tr>
                           {['Applicant', 'Department', 'Category Split', 'Approved', 'Incentive', 'Actions'].map((label) => (
                             <th key={label} className="px-5 py-3 font-semibold">
@@ -1485,20 +1526,21 @@ export default function DrdAnalyticsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {peopleRows.length === 0 ? (
+                        {peopleRows.length ===
+   0 ? (
                           <tr>
-                            <td colSpan={6} className="px-5 py-8 text-center text-gray-500">
+                            <td colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                               No applicant records were found for the selected view.
                             </td>
                           </tr>
                         ) : (
                           peopleRows.map((person) => (
-                            <tr key={person.personId} className="border-t border-[#eef5f9]">
+                            <tr key={person.personId} className="border-t border-[#eef5f9] dark:border-gray-700">
                               <td className="px-5 py-4">
-                                <p className="font-semibold text-[#011f4b]">{person.applicantName}</p>
-                                <p className="mt-1 text-xs text-gray-500">{person.schoolName}</p>
+                                <p className="font-semibold text-[#011f4b] dark:text-white">{person.applicantName}</p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{person.schoolName}</p>
                               </td>
-                              <td className="px-5 py-4 text-gray-600">{person.departmentName}</td>
+                              <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{person.departmentName}</td>
                               <td className="px-5 py-4">
                                 <div className="flex flex-wrap gap-2">
                                   <span className="rounded-full bg-[#edf5fa] px-2.5 py-1 text-xs font-medium text-[#005b96]">
@@ -1518,8 +1560,8 @@ export default function DrdAnalyticsPage() {
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-5 py-4 text-gray-600">{formatNumber(person.approvedCount)}</td>
-                              <td className="px-5 py-4 font-semibold text-[#011f4b]">
+                              <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(person.approvedCount)}</td>
+                              <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">
                                 {formatNumber(person.totalIncentive)}
                               </td>
                               <td className="px-5 py-4">
@@ -1533,7 +1575,7 @@ export default function DrdAnalyticsPage() {
                                       'Focused applicant analytics including month trend and scoped submission summary.'
                                     )
                                   }
-                                  className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] px-3 py-1.5 text-xs font-semibold text-[#011f4b]"
+                                  className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
                                   Details
@@ -1550,14 +1592,14 @@ export default function DrdAnalyticsPage() {
             ) : (
               <>
                 <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                  <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                     <SectionHeader
                       title="Reviewer Performance"
                       description="Compare assignment load, response speed, and closure rate across the visible DRD team."
                     />
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
-                        <thead className="bg-[#f7fbfe] text-left text-[#6497b1]">
+                        <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
                           <tr>
                             {['Reviewer', 'Assigned', 'Pending', 'Completion', 'Actions'].map((label) => (
                               <th key={label} className="px-5 py-3 font-semibold">
@@ -1567,25 +1609,26 @@ export default function DrdAnalyticsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {reviewerRows.length === 0 ? (
+                          {reviewerRows.length ===
+   0 ? (
                             <tr>
-                              <td colSpan={5} className="px-5 py-8 text-center text-gray-500">
+                              <td colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                                 No reviewer activity is available for this period.
                               </td>
                             </tr>
                           ) : (
                             reviewerRows.map((reviewer) => (
-                              <tr key={reviewer.reviewerId} className="border-t border-[#eef5f9]">
+                              <tr key={reviewer.reviewerId} className="border-t border-[#eef5f9] dark:border-gray-700">
                                 <td className="px-5 py-4">
-                                  <p className="font-semibold text-[#011f4b]">{reviewer.reviewerName}</p>
-                                  <p className="mt-1 text-xs text-gray-500">
+                                  <p className="font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
+                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     Response {formatHours(reviewer.avgFirstResponseHours)} • Completion{' '}
                                     {formatHours(reviewer.avgCompletionHours)}
                                   </p>
                                 </td>
-                                <td className="px-5 py-4 text-gray-600">{formatNumber(reviewer.assignedCount)}</td>
-                                <td className="px-5 py-4 text-gray-600">{formatNumber(reviewer.pendingCount)}</td>
-                                <td className="px-5 py-4 font-semibold text-[#011f4b]">
+                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(reviewer.assignedCount)}</td>
+                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(reviewer.pendingCount)}</td>
+                                <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">
                                   {formatPercent(reviewer.completionRate)}
                                 </td>
                                 <td className="px-5 py-4">
@@ -1593,7 +1636,7 @@ export default function DrdAnalyticsPage() {
                                     <button
                                       type="button"
                                       onClick={() => focusReviewer(reviewer.reviewerId)}
-                                      className="rounded-full border border-[#b3cde0] px-3 py-1.5 text-xs font-semibold text-[#005b96]"
+                                      className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400"
                                     >
                                       Focus
                                     </button>
@@ -1607,7 +1650,7 @@ export default function DrdAnalyticsPage() {
                                           'Focused reviewer analytics including response, completion, and monthly trend.'
                                         )
                                       }
-                                      className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] px-3 py-1.5 text-xs font-semibold text-[#011f4b]"
+                                      className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
                                     >
                                       <Eye className="h-3.5 w-3.5" />
                                       Details
@@ -1623,7 +1666,7 @@ export default function DrdAnalyticsPage() {
                   </div>
 
                   <div className="space-y-6">
-                    <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                    <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                       <SectionHeader
                         title="Service Standards"
                         description="A compact status panel for speed, closure quality, and reviewer mode."
@@ -1652,7 +1695,7 @@ export default function DrdAnalyticsPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                    <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                       <SectionHeader
                         title="Top Reviewers"
                         description="Ordered by completed work, with response speed as the tie-breaker."
@@ -1661,15 +1704,15 @@ export default function DrdAnalyticsPage() {
                         {reviewerRows.slice(0, 5).map((reviewer, index) => (
                           <div
                             key={reviewer.reviewerId}
-                            className="flex items-center justify-between rounded-2xl border border-[#e3edf4] p-4"
+                            className="flex items-center justify-between rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4"
                           >
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#005b96] to-[#6497b1] text-sm font-bold text-white">
                                 {index + 1}
                               </div>
                               <div>
-                                <p className="font-semibold text-[#011f4b]">{reviewer.reviewerName}</p>
-                                <p className="mt-1 text-xs text-gray-500">
+                                <p className="font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                   Research {formatNumber(reviewer.categoryBreakdown.research)} • Book{' '}
                                   {formatNumber(reviewer.categoryBreakdown.book)} • Conference{' '}
                                   {formatNumber(reviewer.categoryBreakdown.conference)} • IPR{' '}
@@ -1679,10 +1722,10 @@ export default function DrdAnalyticsPage() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-semibold text-[#011f4b]">
+                              <p className="font-semibold text-[#011f4b] dark:text-white">
                                 {formatNumber(reviewer.completedCount)} completed
                               </p>
-                              <p className="mt-1 text-xs text-gray-500">
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 {formatHours(reviewer.avgCompletionHours)} avg completion
                               </p>
                             </div>
@@ -1693,14 +1736,15 @@ export default function DrdAnalyticsPage() {
                   </div>
                 </section>
 
-                <section className="rounded-[28px] border border-[#d8e6ef] bg-white shadow-sm">
+                <section className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
                   <SectionHeader
                     title="Reviewer Workload Board"
                     description="Use the workload bars to see pending pressure and overall handling capacity."
                   />
                   <div className="space-y-4 p-5">
-                    {reviewerRows.length === 0 ? (
-                      <p className="text-sm text-gray-500">No workload data is available for the selected range.</p>
+                    {reviewerRows.length ===
+   0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No workload data is available for the selected range.</p>
                     ) : (
                       reviewerRows.map((reviewer) => {
                         const progress = reviewer.assignedCount
@@ -1709,12 +1753,12 @@ export default function DrdAnalyticsPage() {
                         return (
                           <div
                             key={reviewer.reviewerId}
-                            className="rounded-2xl border border-[#e3edf4] p-4 transition-all hover:border-[#b3cde0] hover:shadow-sm"
+                            className="rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4 transition-all hover:border-[#b3cde0] hover:shadow-sm"
                           >
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                               <div>
-                                <p className="font-semibold text-[#011f4b]">{reviewer.reviewerName}</p>
-                                <p className="mt-1 text-sm text-gray-500">
+                                <p className="font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                   {formatNumber(reviewer.assignedCount)} assigned • {formatNumber(reviewer.pendingCount)} pending •{' '}
                                   {formatHours(reviewer.avgFirstResponseHours)} first response
                                 </p>
@@ -1723,7 +1767,7 @@ export default function DrdAnalyticsPage() {
                                 <button
                                   type="button"
                                   onClick={() => focusReviewer(reviewer.reviewerId)}
-                                  className="rounded-full border border-[#b3cde0] px-3 py-1.5 text-xs font-semibold text-[#005b96]"
+                                  className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400"
                                 >
                                   Focus
                                 </button>
@@ -1737,20 +1781,20 @@ export default function DrdAnalyticsPage() {
                                       'Focused reviewer analytics including response, completion, and monthly trend.'
                                     )
                                   }
-                                  className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] px-3 py-1.5 text-xs font-semibold text-[#011f4b]"
+                                  className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
                                   Details
                                 </button>
                               </div>
                             </div>
-                            <div className="mt-3 h-2.5 rounded-full bg-[#e8f1f7]">
+                            <div className="mt-3 h-2.5 rounded-full bg-[#e8f1f7] dark:bg-gray-700">
                               <div
                                 className="h-2.5 rounded-full bg-gradient-to-r from-[#005b96] to-emerald-500"
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
-                            <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                            <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                               <span>{formatPercent(reviewer.completionRate)} completion</span>
                               <span>{formatHours(reviewer.avgCompletionHours)} average completion</span>
                             </div>

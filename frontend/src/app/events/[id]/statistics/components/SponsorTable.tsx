@@ -37,17 +37,20 @@ export default function SponsorTable({ sponsors }: SponsorTableProps) {
                 ₹{Number(sponsor.contributionAmount || 0).toLocaleString('en-IN')}
               </td>
               <td className="px-4 py-3 capitalize text-gray-700 dark:text-gray-300">
-                {sponsor.source === 'noting' ? 'Noting' : 'Manual'}
+                {sponsor.source ===
+   'noting' ? 'Noting' : 'Manual'}
               </td>
               <td className="px-4 py-3">
                 <span
                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    sponsor.statusBucket === 'confirmed'
+                    sponsor.statusBucket ===
+   'confirmed'
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                       : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
                   }`}
                 >
-                  {sponsor.statusBucket === 'confirmed' ? 'Confirmed' : 'Pending'}
+                  {sponsor.statusBucket ===
+   'confirmed' ? 'Confirmed' : 'Pending'}
                 </span>
               </td>
             </tr>

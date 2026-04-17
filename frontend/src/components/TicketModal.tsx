@@ -130,7 +130,8 @@ export default function TicketModal({ registration, onClose }: TicketModalProps)
                   <h1 className="text-xl font-black text-black dark:text-white tracking-tight">SGT UNIVERSITY</h1>
                 </div>
               </div>
-              <div className={`px-4 py-1.5 border-2 rounded-lg text-xs font-bold uppercase tracking-wider ${registration.status === 'confirmed' ? 'border-black text-black dark:border-white dark:text-white' : 'border-gray-400 text-gray-400'
+              <div className={`px-4 py-1.5 border-2 rounded-lg text-xs font-bold uppercase tracking-wider ${registration.status ===
+   'confirmed' ? 'border-black text-black dark:border-white dark:text-white' : 'border-gray-400 text-gray-400'
                 }`}>
                 {registration.status}
               </div>

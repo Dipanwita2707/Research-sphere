@@ -72,7 +72,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
     }
 
     // Skip API call for external authors
-    if (newAuthor.authorCategory === 'External') {
+    if (newAuthor.authorCategory ===
+   'External') {
       setSearchSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -89,7 +90,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
 
   const selectUser = async (userData: any) => {
     try {
-      const authorType = userData.type === 'employee' ? 'Faculty' : 'Student';
+      const authorType = userData.type ===
+   'employee' ? 'Faculty' : 'Student';
       const userName = userData.displayName || userData.name;
       
       const fullData = await researchService.lookupByRegistration(userData.uid);
@@ -119,7 +121,9 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
     }
 
     // Check for duplicate
-    if (editingIndex === null && coAuthors.some(a => a.name.toLowerCase() === newAuthor.name.toLowerCase())) {
+    if (editingIndex ===
+   null && coAuthors.some(a => a.name.toLowerCase() ===
+   newAuthor.name.toLowerCase())) {
       return 'This author has already been added';
     }
 
@@ -127,35 +131,46 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
     const sgtAuthors = (data.sgtAuthors as number) || 1;
     const internalCoAuthors = (data.internalCoAuthors as number) || 0;
 
-    if (newAuthor.authorCategory === 'Internal') {
-      const internalAdded = coAuthors.filter(a => a.authorCategory === 'Internal').length;
+    if (newAuthor.authorCategory ===
+   'Internal') {
+      const internalAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal').length;
       const maxInternal = sgtAuthors - 1; // Exclude current user
       
-      if (editingIndex === null && internalAdded >= maxInternal) {
+      if (editingIndex ===
+   null && internalAdded >= maxInternal) {
         return `You can only add ${maxInternal} internal author(s). You've already added ${internalAdded}.`;
       }
 
       // Check internal co-author limit
-      if (newAuthor.authorRole === 'co_author') {
-        const internalCoAuthorsAdded = coAuthors.filter(a => a.authorCategory === 'Internal' && a.authorRole === 'co_author').length;
-        if (editingIndex === null && internalCoAuthorsAdded >= internalCoAuthors) {
+      if (newAuthor.authorRole ===
+   'co_author') {
+        const internalCoAuthorsAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal' && a.authorRole ===
+   'co_author').length;
+        if (editingIndex ===
+   null && internalCoAuthorsAdded >= internalCoAuthors) {
           return `You can only add ${internalCoAuthors} internal co-author(s). You've already added ${internalCoAuthorsAdded}.`;
         }
       }
     } else {
-      const externalAdded = coAuthors.filter(a => a.authorCategory === 'External').length;
+      const externalAdded = coAuthors.filter(a => a.authorCategory ===
+   'External').length;
       const maxExternal = totalAuthors - sgtAuthors;
       
-      if (editingIndex === null && externalAdded >= maxExternal) {
+      if (editingIndex ===
+   null && externalAdded >= maxExternal) {
         return `You can only add ${maxExternal} external author(s). You've already added ${externalAdded}.`;
       }
     }
 
-    if (newAuthor.authorCategory === 'Internal' && !newAuthor.uid) {
+    if (newAuthor.authorCategory ===
+   'Internal' && !newAuthor.uid) {
       return 'Please select an internal author from the search results';
     }
 
-    if (newAuthor.authorCategory === 'External' && !newAuthor.email) {
+    if (newAuthor.authorCategory ===
+   'External' && !newAuthor.email) {
       return 'Email is required for external authors';
     }
 
@@ -219,7 +234,9 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
     ];
 
     // For Internal authors, check if they can be first or corresponding
-    if (newAuthor.authorCategory === 'Internal' && internalCoAuthors === 0 && sgtAuthors > 1) {
+    if (newAuthor.authorCategory ===
+   'Internal' && internalCoAuthors ===
+   0 && sgtAuthors > 1) {
       roles.unshift(
         { value: 'first', label: 'First Author' },
         { value: 'corresponding', label: 'Corresponding Author' }
@@ -233,7 +250,9 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
   const AuthorsSummary = () => {
     const totalAuthors = (data.totalAuthors as number) || 1;
     const sgtAuthors = (data.sgtAuthors as number) || 1;
-    if (totalAuthors === 0 && coAuthors.length === 0) return null;
+    if (totalAuthors ===
+   0 && coAuthors.length ===
+   0) return null;
     
     const handleEditAuthor = (realIndex: number) => {
       const author = coAuthors[realIndex];
@@ -288,7 +307,9 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                     <div className="flex-1">
                       <div className="font-medium text-sm text-gray-900">{author.name}</div>
                       <div className="text-xs text-gray-600">
-                        {author.authorCategory} • {author.authorType} • {author.authorRole === 'first' ? 'First' : author.authorRole === 'corresponding' ? 'Corresponding' : 'Co-Author'}
+                        {author.authorCategory} • {author.authorType} • {author.authorRole ===
+   'first' ? 'First' : author.authorRole ===
+   'corresponding' ? 'Corresponding' : 'Co-Author'}
                         {author.uid && ` • ${author.uid}`}
                       </div>
                       <div className="text-xs text-gray-500">{author.affiliation}</div>
@@ -345,8 +366,10 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
           {(() => {
             const totalAuthors = (data.totalAuthors as number) || 1;
             const sgtAuthors = (data.sgtAuthors as number) || 1;
-            const internalAdded = coAuthors.filter(a => a.authorCategory === 'Internal').length;
-            const externalAdded = coAuthors.filter(a => a.authorCategory === 'External').length;
+            const internalAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal').length;
+            const externalAdded = coAuthors.filter(a => a.authorCategory ===
+   'External').length;
             const maxInternal = sgtAuthors - 1;
             const maxExternal = totalAuthors - sgtAuthors;
 
@@ -358,7 +381,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
               parts.push(`${maxExternal} external author(s) [${externalAdded} added]`);
             }
 
-            if (parts.length === 0) {
+            if (parts.length ===
+   0) {
               return 'You are the only author.';
             }
 
@@ -384,13 +408,16 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                   {(() => {
                     const totalAuthors = (data.totalAuthors as number) || 1;
                     const sgtAuthors = (data.sgtAuthors as number) || 1;
-                    const internalAdded = coAuthors.filter(a => a.authorCategory === 'Internal').length;
-                    const externalAdded = coAuthors.filter(a => a.authorCategory === 'External').length;
+                    const internalAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal').length;
+                    const externalAdded = coAuthors.filter(a => a.authorCategory ===
+   'External').length;
                     const maxInternal = sgtAuthors - 1;
                     const maxExternal = totalAuthors - sgtAuthors;
                     const internalSlotsFull = internalAdded >= maxInternal;
                     const externalSlotsFull = externalAdded >= maxExternal;
-                    const allInternal = totalAuthors === sgtAuthors;
+                    const allInternal = totalAuthors ===
+   sgtAuthors;
 
                     return (
                       <>
@@ -399,7 +426,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                             <input
                               type="radio"
                               value="Internal"
-                              checked={newAuthor.authorCategory === 'Internal'}
+                              checked={newAuthor.authorCategory ===
+   'Internal'}
                               onChange={(e) => {
                                 setNewAuthor({
                                   ...newAuthor,
@@ -420,7 +448,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                             <input
                               type="radio"
                               value="External"
-                              checked={newAuthor.authorCategory === 'External'}
+                              checked={newAuthor.authorCategory ===
+   'External'}
                               onChange={(e) => {
                                 setNewAuthor({
                                   ...newAuthor,
@@ -451,7 +480,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                   onChange={(e) => setNewAuthor(prev => ({ ...prev, authorType: e.target.value as any }))}
                   className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-purple-500"
                 >
-                  {newAuthor.authorCategory === 'Internal' ? (
+                  {newAuthor.authorCategory ===
+   'Internal' ? (
                     <>
                       <option value="Faculty">Faculty</option>
                       <option value="Student">Student</option>
@@ -471,7 +501,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
             <div className="relative">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Name <span className="text-red-500">*</span>
-                {newAuthor.authorCategory === 'Internal' && <span className="text-xs text-gray-500 ml-1">(Search by name or UID)</span>}
+                {newAuthor.authorCategory ===
+   'Internal' && <span className="text-xs text-gray-500 ml-1">(Search by name or UID)</span>}
               </label>
               <div className="relative">
                 <input
@@ -479,9 +510,11 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full px-2 py-1.5 pr-8 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500"
-                  placeholder={newAuthor.authorCategory === 'Internal' ? 'Type to search SGT users...' : 'Enter full name'}
+                  placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'Type to search SGT users...' : 'Enter full name'}
                 />
-                {newAuthor.authorCategory === 'Internal' && <Search className="absolute right-2 top-2 w-4 h-4 text-gray-400" />}
+                {newAuthor.authorCategory ===
+   'Internal' && <Search className="absolute right-2 top-2 w-4 h-4 text-gray-400" />}
               </div>
               
               {/* Search Suggestions */}
@@ -503,7 +536,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
             </div>
 
             {/* Email - For External Authors */}
-            {newAuthor.authorCategory === 'External' && (
+            {newAuthor.authorCategory ===
+   'External' && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
                 <input
@@ -517,7 +551,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
             )}
 
             {/* Affiliation */}
-            {newAuthor.authorCategory === 'External' && (
+            {newAuthor.authorCategory ===
+   'External' && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Organization/Institute <span className="text-red-500">*</span></label>
                 <input
@@ -531,7 +566,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
             )}
 
             {/* Designation - For External Authors */}
-            {newAuthor.authorCategory === 'External' && (
+            {newAuthor.authorCategory ===
+   'External' && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
                 <input
@@ -587,7 +623,9 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                 <div className="flex-1">
                   <div className="font-medium text-sm text-gray-900">{author.name}</div>
                   <div className="text-xs text-gray-600">
-                    {author.authorCategory} • {author.authorType} • {author.authorRole === 'first' ? 'First Author' : author.authorRole === 'corresponding' ? 'Corresponding' : 'Co-Author'}
+                    {author.authorCategory} • {author.authorType} • {author.authorRole ===
+   'first' ? 'First Author' : author.authorRole ===
+   'corresponding' ? 'Corresponding' : 'Co-Author'}
                     {author.uid && ` • ${author.uid}`}
                   </div>
                   <div className="text-xs text-gray-500">{author.affiliation}</div>
@@ -703,7 +741,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                     type="radio"
                     name="isInterdisciplinary"
                     value={v}
-                    checked={(data.isInterdisciplinary as string) === v}
+                    checked={(data.isInterdisciplinary as string) ===
+   v}
                     onChange={(e) => handleChange('isInterdisciplinary', e.target.value)}
                     className="w-4 h-4 text-purple-600"
                   />
@@ -724,7 +763,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                     type="radio"
                     name="communicatedWithOfficialId"
                     value={v}
-                    checked={(data.communicatedWithOfficialId as string) === v}
+                    checked={(data.communicatedWithOfficialId as string) ===
+   v}
                     onChange={(e) => handleChange('communicatedWithOfficialId', e.target.value)}
                     className="w-4 h-4 text-purple-600"
                   />
@@ -734,7 +774,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
             </div>
           </div>
 
-          {(data.communicatedWithOfficialId as string) === 'no' && (
+          {(data.communicatedWithOfficialId as string) ===
+   'no' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Personal Email Used <span className="text-red-500">*</span>
@@ -998,7 +1039,8 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                     type="radio"
                     name="planToResubmit"
                     value={v}
-                    checked={(data.planToResubmit as string) === v}
+                    checked={(data.planToResubmit as string) ===
+   v}
                     onChange={(e) => handleChange('planToResubmit', e.target.value)}
                     className="w-4 h-4 text-red-600"
                   />

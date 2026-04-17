@@ -11,7 +11,8 @@ interface ClubStatusBadgeProps {
 
 export function ClubStatusBadge({ status, size = 'sm' }: ClubStatusBadgeProps) {
   const config = CLUB_STATUS_CONFIG[status] || CLUB_STATUS_CONFIG.active;
-  const sizeClass = size === 'sm' ? 'px-2.5 py-0.5 text-xs' : 'px-3 py-1 text-sm';
+  const sizeClass = size ===
+   'sm' ? 'px-2.5 py-0.5 text-xs' : 'px-3 py-1 text-sm';
 
   return (
     <span

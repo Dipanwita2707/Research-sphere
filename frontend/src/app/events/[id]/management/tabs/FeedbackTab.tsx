@@ -46,7 +46,8 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
   }, [eventId, toast]);
 
   const handleShowFeedbackQR = async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window ===
+   'undefined') return;
     const url = `${window.location.origin}/events/${eventId}/feedback`;
     try {
       const QRCodeGenerator = (await import('qrcode')).default;
@@ -105,7 +106,8 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
               </ShimmerCard>
             ))}
           </div>
-        ) : feedbackList.length === 0 ? (
+        ) : feedbackList.length ===
+   0 ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="text-sm">No feedback yet. Share the QR code with attendees to collect responses.</p>

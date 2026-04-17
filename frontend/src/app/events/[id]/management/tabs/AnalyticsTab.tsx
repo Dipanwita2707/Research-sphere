@@ -262,7 +262,9 @@ export default function AnalyticsTab({
                 <div className="space-y-2">
                   {emailAnalytics.recentCampaigns.map((c) => {
                     const rate = c.recipientCount > 0 ? Math.round((c.sentCount / c.recipientCount) * 100) : 0;
-                    const sc = c.status === 'sent' ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : c.status === 'partial' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/30' : 'text-red-600 bg-red-50 dark:bg-red-900/30';
+                    const sc = c.status ===
+   'sent' ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : c.status ===
+   'partial' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/30' : 'text-red-600 bg-red-50 dark:bg-red-900/30';
                     return (
                       <div key={c.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-700/40">
                         <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />

@@ -31,9 +31,12 @@ export default function AdminRouteGuard({ children }: AdminRouteGuardProps) {
   }, [checkAuth, isAuthenticated, isInitialized, isLoading, user]);
 
   const roleName = String(
-    user?.role?.name || (typeof user?.role === 'string' ? user.role : '') || user?.userType || '',
+    user?.role?.name || (typeof user?.role ===
+   'string' ? user.role : '') || user?.userType || '',
   ).toLowerCase();
-  const isAdmin = roleName === 'admin' || roleName === 'superadmin';
+  const isAdmin = roleName ===
+   'admin' || roleName ===
+   'superadmin';
 
   useEffect(() => {
     if (!isInitialized || isLoading || hasRedirectedRef.current) {

@@ -128,6 +128,11 @@ function parsePaginationQuery(query = {}) {
   };
 }
 
+// Module-level TTL cache for DRD department permission lookups (per-user).
+// Avoids redundant DB round-trips on every hot review-queue request.
+const _drdPermCache = new Map(); // key: `drd:${userId}` → { data, expiresAt }
+const DRD_PERM_CACHE_TTL_MS = 60_000; // 1 minute
+
 class ReviewService {
   /**
    * @param {object} reviewRepository       - ReviewRepository instance
@@ -143,6 +148,38 @@ class ReviewService {
     this.prisma = prisma;
     this.auditLogger = auditLogger;
     this.workflowQueue = workflowQueue;
+  }
+
+  /**
+   * Cached DRD department permission lookup for a user.
+   * Returns { permissions, assignedResearchSchoolIds, assignedBookSchoolIds,
+   *           assignedConferenceSchoolIds, assignedGrantSchoolIds } or null if
+   * the user has no DRD permission record.
+   */
+  async _getDrdPermissions(userId) {
+    const key = `drd:${userId}`;
+    const cached = _drdPermCache.get(key);
+    if (cached && Date.now() < cached.expiresAt) return cached.data;
+
+    let data = null;
+    const drdDept = await this.prisma.centralDepartment.findFirst({
+      where: { OR: [{ departmentCode: 'DRD' }, { departmentCode: 'drd' }, { shortName: 'DRD' }] },
+      select: { id: true },
+    });
+    if (drdDept) {
+      data = await this.prisma.centralDepartmentPermission.findFirst({
+        where: { userId, isActive: true, centralDeptId: drdDept.id },
+        select: {
+          permissions: true,
+          assignedResearchSchoolIds: true,
+          assignedBookSchoolIds: true,
+          assignedConferenceSchoolIds: true,
+          assignedGrantSchoolIds: true,
+        },
+      });
+    }
+    _drdPermCache.set(key, { data, expiresAt: Date.now() + DRD_PERM_CACHE_TTL_MS });
+    return data;
   }
 
   // ─── Reviewer assignment ─────────────────────────────────────────────────
@@ -193,6 +230,11 @@ class ReviewService {
 
       return tx.researchContribution.findUnique({ where: { id: contributionId } });
     });
+
+    // Audit: log reviewer assignment
+    this._dispatchStatusAudit(result, contribution.status, 'under_review', reviewerId, null, 'Reviewer assigned').catch(() => {});
+
+    return result;
   }
 
   // ─── Review submission ───────────────────────────────────────────────────
@@ -285,6 +327,9 @@ class ReviewService {
         `Your publication "${contribution.title}" requires changes. Please review the feedback and resubmit.`
       );
     }
+
+    // Audit: log review decision
+    this._dispatchStatusAudit(updated, contribution.status, newStatus, reviewerId, null, comments || `Review decision: ${decision}`).catch(() => {});
 
     return updated;
   }
@@ -997,21 +1042,13 @@ class ReviewService {
     let assignedConferenceSchoolIds = [];
 
     try {
-      const drdDept = await this.prisma.centralDepartment.findFirst({
-        where: { OR: [{ departmentCode: 'DRD' }, { departmentCode: 'drd' }, { shortName: 'DRD' }] }
-      });
-      if (drdDept) {
-        const userDrdPermission = await this.prisma.centralDepartmentPermission.findFirst({
-          where: { userId, isActive: true, centralDeptId: drdDept.id },
-          select: { permissions: true, assignedResearchSchoolIds: true, assignedBookSchoolIds: true, assignedConferenceSchoolIds: true }
-        });
-        assignedResearchSchoolIds = userDrdPermission?.assignedResearchSchoolIds || [];
-        assignedBookSchoolIds = userDrdPermission?.assignedBookSchoolIds || [];
-        assignedConferenceSchoolIds = userDrdPermission?.assignedConferenceSchoolIds || [];
-        mergedPermissions = { ...(userDrdPermission?.permissions || {}) };
-        if (Array.isArray(userCentralDeptPermissions)) {
-          userCentralDeptPermissions.forEach(p => { if (p.permissions) Object.assign(mergedPermissions, p.permissions); });
-        }
+      const userDrdPermission = await this._getDrdPermissions(userId);
+      assignedResearchSchoolIds = userDrdPermission?.assignedResearchSchoolIds || [];
+      assignedBookSchoolIds = userDrdPermission?.assignedBookSchoolIds || [];
+      assignedConferenceSchoolIds = userDrdPermission?.assignedConferenceSchoolIds || [];
+      mergedPermissions = { ...(userDrdPermission?.permissions || {}) };
+      if (Array.isArray(userCentralDeptPermissions)) {
+        userCentralDeptPermissions.forEach(p => { if (p.permissions) Object.assign(mergedPermissions, p.permissions); });
       }
     } catch (e) { /* ignore permission fetch errors */ }
 
@@ -1129,10 +1166,7 @@ class ReviewService {
     const pagination = parsePaginationQuery(query);
     let userDrdPermission = null;
     try {
-      const drdDept = await this.prisma.centralDepartment.findFirst({ where: { OR: [{ departmentCode: 'DRD' }, { departmentCode: 'drd' }, { shortName: 'DRD' }] } });
-      if (drdDept) {
-        userDrdPermission = await this.prisma.centralDepartmentPermission.findFirst({ where: { userId, isActive: true, centralDeptId: drdDept.id }, select: { permissions: true, assignedGrantSchoolIds: true } });
-      }
+      userDrdPermission = await this._getDrdPermissions(userId);
     } catch (e) { /* ignore */ }
 
     const permissions = userDrdPermission?.permissions || {};

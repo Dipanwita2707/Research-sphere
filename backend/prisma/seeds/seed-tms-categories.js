@@ -8,10 +8,8 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// ============================================================
-// Category data: Master → Category → Sub-Category[]
-// ============================================================
-const CATEGORY_TREE = [
+// =====================================================// Category data: Master → Category → Sub-Category[]
+// =====================================================const CATEGORY_TREE = [
   {
     name: 'Academics',
     isAcademic: true,

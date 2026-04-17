@@ -18,10 +18,9 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// =============================================
+// ======================================
 // Ticket Validators
-// =============================================
-
+// ======================================
 const createTicketValidation = [
   body('messageType')
     .notEmpty().withMessage('Message type is required')
@@ -146,10 +145,9 @@ const listTicketsValidation = [
   handleValidationErrors,
 ];
 
-// =============================================
+// ======================================
 // Category Admin Validators
-// =============================================
-
+// ======================================
 const createMasterCategoryValidation = [
   body('name')
     .notEmpty().withMessage('Name is required')

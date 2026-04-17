@@ -178,7 +178,8 @@ export default function VolunteersTab({
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
                   <span className="ml-2 text-sm text-gray-500">Loading…</span>
                 </div>
-              ) : clubMembers.length === 0 ? (
+              ) : clubMembers.length ===
+   0 ? (
                 <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">No active club members found</p>
               ) : (
                 <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
@@ -197,13 +198,15 @@ export default function VolunteersTab({
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all ${
                         member.alreadyAssigned
                           ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-50 cursor-not-allowed'
-                          : selectedUserId === member.id
+                          : selectedUserId ===
+   member.id
                             ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-600 ring-1 ring-emerald-400'
                             : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/10'
                       }`}
                     >
                       <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                        selectedUserId === member.id
+                        selectedUserId ===
+   member.id
                           ? 'bg-emerald-500 text-white'
                           : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                       }`}>
@@ -219,7 +222,8 @@ export default function VolunteersTab({
                       <div className="flex-shrink-0">
                         {member.alreadyAssigned ? (
                           <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full">Added</span>
-                        ) : selectedUserId === member.id ? (
+                        ) : selectedUserId ===
+   member.id ? (
                           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                         ) : (
                           <Plus className="w-4 h-4 text-gray-400" />
@@ -392,7 +396,8 @@ export default function VolunteersTab({
             )}
           </div>
 
-          {volunteers.length === 0 ? (
+          {volunteers.length ===
+   0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
                 <Users className="w-7 h-7 text-gray-400 dark:text-gray-500" />
@@ -404,7 +409,8 @@ export default function VolunteersTab({
             <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
               {volunteers.map((volunteer) => {
                 const initials = (volunteer.user?.name || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-                const isManager = volunteer.role === 'event_manager';
+                const isManager = volunteer.role ===
+   'event_manager';
                 return (
                   <div key={volunteer.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/70 dark:hover:bg-gray-700/30 transition-colors group">
                     <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${

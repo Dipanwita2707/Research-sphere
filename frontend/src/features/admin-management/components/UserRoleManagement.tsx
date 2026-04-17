@@ -191,7 +191,8 @@ export default function UserRoleManagement() {
   // Get departments filtered by selected school
   const filteredDepartmentsBySchool = useMemo(() => {
     if (!roleSelectedSchoolId) return [];
-    return departments.filter(dept => dept.facultyId === roleSelectedSchoolId);
+    return departments.filter(dept => dept.facultyId ===
+   roleSelectedSchoolId);
   }, [departments, roleSelectedSchoolId]);
 
   // Get permissions for selected department
@@ -199,7 +200,8 @@ export default function UserRoleManagement() {
     if (!roleSelectedDepartmentId || !permissionDefs?.schoolDepartments) return [];
     
     // Get the selected department details
-    const selectedDept = departments.find(d => d.id === roleSelectedDepartmentId);
+    const selectedDept = departments.find(d => d.id ===
+   roleSelectedDepartmentId);
     if (!selectedDept) return [];
 
     // Return all school permissions (we'll rely on the user to select appropriate ones)
@@ -210,14 +212,14 @@ export default function UserRoleManagement() {
   // Get departments filtered by selected school for user permission assignment
   const userFilteredDepartmentsBySchool = useMemo(() => {
     if (!userSelectedSchoolId) return [];
-    return departments.filter(dept => dept.facultyId === userSelectedSchoolId);
+    return departments.filter(dept => dept.facultyId ===
+   userSelectedSchoolId);
   }, [departments, userSelectedSchoolId]);
 
-  // ============================================
-  // ROLE MANAGEMENT FUNCTIONS
-  // ============================================
-
-  const openRoleModal = (role?: Role) => {
+  // =====================================
+    // ROLE MANAGEMENT FUNCTIONS
+  // ==============================
+    const openRoleModal = (role?: Role) => {
     if (role) {
       setEditingRole(role);
       setRoleFormData({
@@ -340,11 +342,10 @@ export default function UserRoleManagement() {
     }
   };
 
-  // ============================================
-  // USER PERMISSION FUNCTIONS
-  // ============================================
-
-  // When role is selected FIRST, auto-set department type and apply permissions
+  // =====================================
+    // USER PERMISSION FUNCTIONS
+  // ==============================
+    // When role is selected FIRST, auto-set department type and apply permissions
   const handleRoleSelection = (roleId: string, checked: boolean) => {
     let updatedRoleIds: string[];
     
@@ -356,7 +357,8 @@ export default function UserRoleManagement() {
     
     setSelectedRoleIds(updatedRoleIds);
 
-    if (updatedRoleIds.length === 0) {
+    if (updatedRoleIds.length ===
+   0) {
       setDepartmentsInRole([]);
       setUserPermissions({});
       return;
@@ -407,7 +409,8 @@ export default function UserRoleManagement() {
                 }
                 // Only add permission if it belongs to this department type
                 const deptTypePerms = permissionDefs?.centralDepartments[dept.departmentType];
-                if (deptTypePerms?.some((p: { key: string }) => p.key === key)) {
+                if (deptTypePerms?.some((p: { key: string }) => p.key ===
+   key)) {
                   centralDeptMap.get(dept.id)!.permissions.add(key);
                 }
               }
@@ -481,7 +484,8 @@ export default function UserRoleManagement() {
     setUserPermissions(mergedPerms);
     
     // Auto-select the first department if only one department has permissions
-    if (deptsInRole.length === 1) {
+    if (deptsInRole.length ===
+   1) {
       const firstDept = deptsInRole[0];
       setSelectedDepartmentType(firstDept.type);
       setSelectedDepartmentId(firstDept.deptId);
@@ -527,19 +531,25 @@ export default function UserRoleManagement() {
     if (assignedRoles.length > 0) {
       // Process all roles first to collect departments
       assignedRoles.forEach(roleId => {
-        const role = roles.find(r => r.id === roleId);
+        const role = roles.find(r => r.id ===
+   roleId);
         if (role) {
-          if (role.departmentType === 'CENTRAL' || role.departmentType === 'BOTH') {
+          if (role.departmentType ===
+   'CENTRAL' || role.departmentType ===
+   'BOTH') {
             hasCentral = true;
           }
-          if (role.departmentType === 'SCHOOL' || role.departmentType === 'BOTH') {
+          if (role.departmentType ===
+   'SCHOOL' || role.departmentType ===
+   'BOTH') {
             hasSchool = true;
           }
         }
         handleRoleSelection(roleId, true);
       });
       
-      const roleNames = assignedRoles.map(id => roles.find(r => r.id === id)?.name).filter(Boolean).join(', ');
+      const roleNames = assignedRoles.map(id => roles.find(r => r.id ===
+   id)?.name).filter(Boolean).join(', ');
       toast({ type: 'info', message: `User has ${assignedRoles.length} role(s): ${roleNames}` });
       
       // Wait a bit for state to update, then auto-select first department with permissions
@@ -578,7 +588,8 @@ export default function UserRoleManagement() {
                 }
                 const deptTypePerms = permissionDefs?.centralDepartments[dept.departmentType];
                 centralPermKeys.forEach(key => {
-                  if (deptTypePerms?.some((p: { key: string }) => p.key === key)) {
+                  if (deptTypePerms?.some((p: { key: string }) => p.key ===
+   key)) {
                     centralDeptMap.get(dept.id)!.permissions.add(key);
                   }
                 });
@@ -639,7 +650,8 @@ export default function UserRoleManagement() {
     }
     
     // Set department type checkboxes
-    setShowCentralDepts(hasCentral || assignedRoles.length === 0); // Default to central if no roles
+    setShowCentralDepts(hasCentral || assignedRoles.length ===
+   0); // Default to central if no roles
     setShowSchoolDepts(hasSchool);
     
     // Reset school/department selection
@@ -691,8 +703,10 @@ export default function UserRoleManagement() {
       let existingPermissions: Record<string, boolean> = {};
 
       // Load existing user permissions for this department
-      if (dept.type === 'central') {
-        const existing = selectedUser.centralDeptPermissions.find(p => p.centralDeptId === dept.deptId);
+      if (dept.type ===
+   'central') {
+        const existing = selectedUser.centralDeptPermissions.find(p => p.centralDeptId ===
+   dept.deptId);
         if (existing) {
           existingPermissions = { ...(existing.permissions || {}) };
           // Populate analytics scope from existing record
@@ -710,7 +724,8 @@ export default function UserRoleManagement() {
           };
         }
       } else {
-        const existing = selectedUser.schoolDeptPermissions.find(p => p.departmentId === dept.deptId);
+        const existing = selectedUser.schoolDeptPermissions.find(p => p.departmentId ===
+   dept.deptId);
         if (existing) {
           existingPermissions = { ...(existing.permissions || {}) };
         }
@@ -736,14 +751,17 @@ export default function UserRoleManagement() {
     let existingPermissions: Record<string, boolean> = {};
     let isPrimary = false;
 
-    if (deptType === 'central') {
-      const existing = selectedUser.centralDeptPermissions.find(p => p.centralDeptId === deptId);
+    if (deptType ===
+   'central') {
+      const existing = selectedUser.centralDeptPermissions.find(p => p.centralDeptId ===
+   deptId);
       if (existing) {
         existingPermissions = existing.permissions || {};
         isPrimary = existing.isPrimary;
       }
     } else {
-      const existing = selectedUser.schoolDeptPermissions.find(p => p.departmentId === deptId);
+      const existing = selectedUser.schoolDeptPermissions.find(p => p.departmentId ===
+   deptId);
       if (existing) {
         existingPermissions = existing.permissions || {};
         isPrimary = existing.isPrimary;
@@ -752,7 +770,9 @@ export default function UserRoleManagement() {
 
     // Merge with role permissions for this specific department (deduplicated)
     if (selectedRoleIds.length > 0) {
-      const deptInRole = departmentsInRole.find(d => d.deptId === deptId && d.type === deptType);
+      const deptInRole = departmentsInRole.find(d => d.deptId ===
+   deptId && d.type ===
+   deptType);
       if (deptInRole && deptInRole.permissions) {
         // Auto-tick permissions from roles for this department
         deptInRole.permissions.forEach(permKey => {
@@ -773,12 +793,14 @@ export default function UserRoleManagement() {
 
     // Save permissions for all departments
     const deptEntries = Object.entries(allDepartmentPermissions);
-    if (deptEntries.length === 0) {
+    if (deptEntries.length ===
+   0) {
       toast({ type: 'warning', message: 'No departments with permissions' });
       return;
     }
 
     try {
+      // Save each department's permissions (including when all are unchecked)
       let savedCount = 0;
       // Save each department's permissions
       for (const [deptKey, permissions] of deptEntries) {
@@ -791,7 +813,8 @@ export default function UserRoleManagement() {
         if (!hasPermissions) {
           // User unticked all permissions → revoke access for this department
           try {
-            if (deptType === 'school') {
+            if (deptType ===
+   'school') {
               await permissionManagementService.revokeSchoolDeptPermissions(selectedUser.id, deptId);
             } else {
               await permissionManagementService.revokeCentralDeptPermissions(selectedUser.id, deptId);
@@ -802,7 +825,8 @@ export default function UserRoleManagement() {
           continue;
         }
         
-        if (deptType === 'school') {
+        if (deptType ===
+   'school') {
           await permissionManagementService.grantSchoolDeptPermissions({
             userId: selectedUser.id,
             departmentId: deptId,
@@ -851,7 +875,8 @@ export default function UserRoleManagement() {
     if (!confirmed) return;
 
     try {
-      if (type === 'school') {
+      if (type ===
+   'school') {
         await permissionManagementService.revokeSchoolDeptPermissions(userId, deptId);
       } else {
         await permissionManagementService.revokeCentralDeptPermissions(userId, deptId);
@@ -863,11 +888,10 @@ export default function UserRoleManagement() {
     }
   };
 
-  // ============================================
-  // HELPER FUNCTIONS
-  // ============================================
-
-  const toggleCategory = (category: string) => {
+  // =====================================
+    // HELPER FUNCTIONS
+  // ==============================
+    const toggleCategory = (category: string) => {
     setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
   };
 
@@ -890,13 +914,15 @@ export default function UserRoleManagement() {
   const getAvailablePermissionsForUser = (): Permission[] => {
     if (!permissionDefs) return [];
 
-    if (selectedDepartmentType === 'school') {
+    if (selectedDepartmentType ===
+   'school') {
       return permissionDefs.schoolDepartments || [];
     } else {
       // For central, get permissions based on selected department type
       if (!selectedDepartmentId) return [];
       
-      const dept = centralDepts.find(d => d.id === selectedDepartmentId);
+      const dept = centralDepts.find(d => d.id ===
+   selectedDepartmentId);
       if (!dept || !dept.departmentType) {
         console.warn('Department not found or missing departmentType:', selectedDepartmentId);
         return [];
@@ -918,7 +944,8 @@ export default function UserRoleManagement() {
   const getFilteredCentralPermissions = (): { deptType: string; permissions: Permission[] }[] => {
     if (!permissionDefs?.centralDepartments) return [];
 
-    if (roleCentralDeptFilter === 'all') {
+    if (roleCentralDeptFilter ===
+   'all') {
       return Object.entries(permissionDefs.centralDepartments).map(([deptType, permissions]) => ({
         deptType,
         permissions,
@@ -969,7 +996,8 @@ export default function UserRoleManagement() {
           <button
             onClick={() => setActiveTab('users')}
             className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'users'
+              activeTab ===
+   'users'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
@@ -980,7 +1008,8 @@ export default function UserRoleManagement() {
           <button
             onClick={() => setActiveTab('roles')}
             className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'roles'
+              activeTab ===
+   'roles'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
@@ -991,10 +1020,13 @@ export default function UserRoleManagement() {
         </nav>
       </div>
 
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {/* USER PERMISSIONS TAB */}
-      {/* ============================================ */}
-      {activeTab === 'users' && (
+      {/* ============================================
+   */}
+      {activeTab ===
+   'users' && (
         <div className="space-y-6">
           {/* Search and Filter */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
@@ -1066,13 +1098,18 @@ export default function UserRoleManagement() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.role === 'admin' 
+                          (typeof (user.role as any) ===
+   'object' ? (user.role as any)?.name : user.role) ===
+   'admin' 
                             ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                            : user.role === 'faculty'
+                            : (typeof (user.role as any) ===
+   'object' ? (user.role as any)?.name : user.role) ===
+   'faculty'
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                         }`}>
-                          {user.role}
+                          {typeof (user.role as any) ===
+   'object' ? (user.role as any)?.name : user.role}
                         </span>
                         {user.employeeDetails?.designation && (
                           <div className="text-xs text-gray-500 mt-1">
@@ -1085,7 +1122,8 @@ export default function UserRoleManagement() {
                           {user.assignedRoleIds && user.assignedRoleIds.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {user.assignedRoleIds.slice(0, 2).map((roleId: string) => {
-                                const role = roles.find(r => r.id === roleId);
+                                const role = roles.find(r => r.id ===
+   roleId);
                                 return role ? (
                                   <span key={roleId} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 rounded text-xs">
                                     <Shield className="h-3 w-3" />
@@ -1114,7 +1152,9 @@ export default function UserRoleManagement() {
                               {totalSchoolPerms} School
                             </span>
                           )}
-                          {totalCentralPerms === 0 && totalSchoolPerms === 0 && (
+                          {totalCentralPerms ===
+   0 && totalSchoolPerms ===
+   0 && (
                             <span className="text-xs text-gray-400">No permissions</span>
                           )}
                         </div>
@@ -1146,10 +1186,13 @@ export default function UserRoleManagement() {
         </div>
       )}
 
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {/* ROLE TEMPLATES TAB */}
-      {/* ============================================ */}
-      {activeTab === 'roles' && (
+      {/* ============================================
+   */}
+      {activeTab ===
+   'roles' && (
         <div className="space-y-6">
           {/* Create Role Button */}
           <div className="flex justify-end">
@@ -1163,7 +1206,8 @@ export default function UserRoleManagement() {
           </div>
 
           {/* Role Cards */}
-          {roles.length === 0 ? (
+          {roles.length ===
+   0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
               <Layers className="h-16 w-16 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Role Templates</h3>
@@ -1272,9 +1316,11 @@ export default function UserRoleManagement() {
         </div>
       )}
 
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {/* USER PERMISSION MODAL - FULL WIDTH */}
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {showUserPermissionModal && selectedUser && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-start justify-center min-h-screen p-4">
@@ -1445,10 +1491,17 @@ export default function UserRoleManagement() {
                             <div className="flex items-center gap-2">
                               <Building2 className="h-4 w-4 text-purple-600" />
                               <span className="text-xs font-medium text-purple-900 dark:text-purple-200">
-                                Central Departments ({centralDepts.filter(d => userCentralDeptFilter === 'all' || d.departmentType === userCentralDeptFilter).length})
-                                {departmentsInRole.filter(d => d.type === 'central').length > 0 && (
+                                Central Departments ({centralDepts.filter(d => userCentralDeptFilter ===
+   'all' || d.departmentType ===
+   userCentralDeptFilter).length})
+                                {departmentsInRole.filter(d => d.type ===
+   'central').length > 0 && (
                                   <span className="ml-1 text-[10px] text-purple-600">
-                                    ({departmentsInRole.filter(d => d.type === 'central' && (userCentralDeptFilter === 'all' || centralDepts.find(cd => cd.id === d.deptId)?.departmentType === userCentralDeptFilter)).length} from roles)
+                                    ({departmentsInRole.filter(d => d.type ===
+   'central' && (userCentralDeptFilter ===
+   'all' || centralDepts.find(cd => cd.id ===
+   d.deptId)?.departmentType ===
+   userCentralDeptFilter)).length} from roles)
                                   </span>
                                 )}
                               </span>
@@ -1457,10 +1510,15 @@ export default function UserRoleManagement() {
                           </summary>
                           <div className="mt-2 space-y-1.5 max-h-64 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800 rounded">
                             {centralDepts
-                              .filter(dept => userCentralDeptFilter === 'all' || dept.departmentType === userCentralDeptFilter)
+                              .filter(dept => userCentralDeptFilter ===
+   'all' || dept.departmentType ===
+   userCentralDeptFilter)
                               .map(dept => {
-                                const deptInRole = departmentsInRole.find(d => d.deptId === dept.id && d.type === 'central');
-                                const isSelected = selectedDepartmentId === dept.id;
+                                const deptInRole = departmentsInRole.find(d => d.deptId ===
+   dept.id && d.type ===
+   'central');
+                                const isSelected = selectedDepartmentId ===
+   dept.id;
                                 
                                 return (
                                   <label
@@ -1517,9 +1575,11 @@ export default function UserRoleManagement() {
                               <Briefcase className="h-4 w-4 text-blue-600" />
                               <span className="text-xs font-medium text-blue-900 dark:text-blue-200">
                                 School Departments ({departments.length})
-                                {departmentsInRole.filter(d => d.type === 'school').length > 0 && (
+                                {departmentsInRole.filter(d => d.type ===
+   'school').length > 0 && (
                                   <span className="ml-1 text-[10px] text-blue-600">
-                                    ({departmentsInRole.filter(d => d.type === 'school').length} from roles)
+                                    ({departmentsInRole.filter(d => d.type ===
+   'school').length} from roles)
                                   </span>
                                 )}
                               </span>
@@ -1595,11 +1655,13 @@ export default function UserRoleManagement() {
                                 <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                 <div className="text-xs">
                                   <span className="font-medium text-blue-900 dark:text-blue-200">
-                                    {schools.find(s => s.id === userSelectedSchoolId)?.facultyName}
+                                    {schools.find(s => s.id ===
+   userSelectedSchoolId)?.facultyName}
                                   </span>
                                   <span className="text-blue-700 dark:text-blue-300"> / </span>
                                   <span className="font-medium text-blue-900 dark:text-blue-200">
-                                    {userFilteredDepartmentsBySchool.find(d => d.id === userSelectedDepartmentId)?.departmentName}
+                                    {userFilteredDepartmentsBySchool.find(d => d.id ===
+   userSelectedDepartmentId)?.departmentName}
                                   </span>
                                 </div>
                               </div>
@@ -1663,7 +1725,9 @@ export default function UserRoleManagement() {
                           </button>
                         </div>
                       ))}
-                      {selectedUser.centralDeptPermissions.length === 0 && selectedUser.schoolDeptPermissions.length === 0 && (
+                      {selectedUser.centralDeptPermissions.length ===
+   0 && selectedUser.schoolDeptPermissions.length ===
+   0 && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">No existing access</p>
                       )}
                     </div>
@@ -1692,7 +1756,9 @@ export default function UserRoleManagement() {
                           >
                             <option value="all">All Departments</option>
                             {showCentralDepts && centralDepts
-                              .filter(d => userCentralDeptFilter === 'all' || d.departmentType === userCentralDeptFilter)
+                              .filter(d => userCentralDeptFilter ===
+   'all' || d.departmentType ===
+   userCentralDeptFilter)
                               .map(dept => (
                                 <option key={dept.id} value={`central_${dept.id}`}>{dept.departmentName}</option>
                               ))}
@@ -1706,7 +1772,8 @@ export default function UserRoleManagement() {
                       </div>
                     </div>
 
-                    {Object.keys(allDepartmentPermissions).length === 0 && !showCentralDepts && !showSchoolDepts ? (
+                    {Object.keys(allDepartmentPermissions).length ===
+   0 && !showCentralDepts && !showSchoolDepts ? (
                       <div className="flex flex-col items-center justify-center py-16 text-gray-500">
                         <Shield className="h-16 w-16 mb-4 opacity-30" />
                         <p>Select department type (Central/School) to view permissions</p>
@@ -1726,7 +1793,8 @@ export default function UserRoleManagement() {
                           const hasDeptInState = Object.prototype.hasOwnProperty.call(allDepartmentPermissions, deptKey);
                           
                           // Get existing user permissions for this department
-                          const existingPerm = selectedUser?.centralDeptPermissions.find(p => p.centralDeptId === dept.id);
+                          const existingPerm = selectedUser?.centralDeptPermissions.find(p => p.centralDeptId ===
+   dept.id);
                           const mergedPerms = { ...deptPerms };
                           if (existingPerm && !hasDeptInState) {
                             // Only use DB values as display fallback if user hasn't touched this dept yet
@@ -1749,10 +1817,13 @@ export default function UserRoleManagement() {
                             ? permissionDefs.centralDepartments[dept.departmentType] || []
                             : [];
 
-                          if (availablePerms.length === 0) return null;
+                          if (availablePerms.length ===
+   0) return null;
 
                           const selectedCount = Object.values(mergedPerms).filter(v => v).length;
-                          const fromRole = departmentsInRole.find(d => d.deptId === dept.id && d.type === 'central');
+                          const fromRole = departmentsInRole.find(d => d.deptId ===
+   dept.id && d.type ===
+   'central');
 
                           return (
                             <div key={deptKey} className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
@@ -1876,7 +1947,8 @@ export default function UserRoleManagement() {
                                           </div>
 
                                           {/* DRD Analytics Scope — Compact Dropdowns */}
-                                          {category === 'DRD Analytics' && (() => {
+                                          {category ===
+   'DRD Analytics' && (() => {
                                             const scope = analyticsScope[deptKey] || emptyScope();
                                             const applicantEnabled = !!(allDepartmentPermissions[deptKey]?.applicant_analytics ?? mergedPerms.applicant_analytics);
                                             if (!applicantEnabled) return null;
@@ -1935,8 +2007,10 @@ export default function UserRoleManagement() {
                                                                 style={{ minHeight: '56px', maxHeight: '80px' }}
                                                               >
                                                                 {schools.map(s => {
-                                                                  const schoolDepts = departments.filter(d => d.facultyId === s.id);
-                                                                  if (schoolDepts.length === 0) return null;
+                                                                  const schoolDepts = departments.filter(d => d.facultyId ===
+   s.id);
+                                                                  if (schoolDepts.length ===
+   0) return null;
                                                                   return (
                                                                     <optgroup key={s.id} label={s.facultyCode || s.facultyName}>
                                                                       {schoolDepts.map(d => (
@@ -1982,7 +2056,8 @@ export default function UserRoleManagement() {
                             const hasDeptInState = Object.prototype.hasOwnProperty.call(allDepartmentPermissions, deptKey);
                             
                             // Get existing user permissions for this department
-                            const existingPerm = selectedUser?.schoolDeptPermissions.find(p => p.departmentId === dept.id);
+                            const existingPerm = selectedUser?.schoolDeptPermissions.find(p => p.departmentId ===
+   dept.id);
                             const mergedPerms = { ...deptPerms };
                             if (existingPerm && !hasDeptInState) {
                               // Only use DB values as display fallback if user hasn't touched this dept yet
@@ -2002,10 +2077,13 @@ export default function UserRoleManagement() {
 
                             const availablePerms: Permission[] = permissionDefs?.schoolDepartments || [];
 
-                            if (availablePerms.length === 0) return null;
+                            if (availablePerms.length ===
+   0) return null;
 
                             const selectedCount = Object.values(mergedPerms).filter(v => v).length;
-                            const fromRole = departmentsInRole.find(d => d.deptId === dept.id && d.type === 'school');
+                            const fromRole = departmentsInRole.find(d => d.deptId ===
+   dept.id && d.type ===
+   'school');
 
                             return (
                               <div key={deptKey} className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
@@ -2152,7 +2230,8 @@ export default function UserRoleManagement() {
                 </button>
                 <button
                   onClick={handleSaveUserPermissions}
-                  disabled={Object.keys(allDepartmentPermissions).length === 0}
+                  disabled={Object.keys(allDepartmentPermissions).length ===
+   0}
                   className="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
                 >
                   <Check className="h-5 w-5" />
@@ -2164,9 +2243,11 @@ export default function UserRoleManagement() {
         </div>
       )}
 
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {/* ROLE TEMPLATE MODAL - LARGER WITH DEPT FILTER */}
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {showRoleModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-start justify-center min-h-screen p-4">
@@ -2310,7 +2391,8 @@ export default function UserRoleManagement() {
                             type="button"
                             onClick={() => setRolePermissionTab('central')}
                             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                              rolePermissionTab === 'central'
+                              rolePermissionTab ===
+   'central'
                                 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200'
                                 : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
@@ -2322,7 +2404,8 @@ export default function UserRoleManagement() {
                             type="button"
                             onClick={() => setRolePermissionTab('school')}
                             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                              rolePermissionTab === 'school'
+                              rolePermissionTab ===
+   'school'
                                 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
                                 : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
@@ -2337,7 +2420,8 @@ export default function UserRoleManagement() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (rolePermissionTab === 'central' && permissionDefs?.centralDepartments) {
+                              if (rolePermissionTab ===
+   'central' && permissionDefs?.centralDepartments) {
                                 const allPerms: Record<string, boolean> = {};
                                 getFilteredCentralPermissions().forEach(({ permissions }) => {
                                   permissions.forEach(perm => {
@@ -2360,7 +2444,8 @@ export default function UserRoleManagement() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (rolePermissionTab === 'central') {
+                              if (rolePermissionTab ===
+   'central') {
                                 setRoleCentralPermissions({});
                               } else {
                                 setRoleSchoolPermissions({});
@@ -2372,7 +2457,8 @@ export default function UserRoleManagement() {
                           </button>
 
                           {/* Department Type Filter (for Central) */}
-                          {rolePermissionTab === 'central' && centralDeptTypes.length > 1 && (
+                          {rolePermissionTab ===
+   'central' && centralDeptTypes.length > 1 && (
                             <>
                               <div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
                               <Filter className="h-4 w-4 text-gray-500" />
@@ -2392,7 +2478,8 @@ export default function UserRoleManagement() {
                           )}
 
                           {/* Category Filter (for School) */}
-                          {rolePermissionTab === 'school' && permissionDefs?.schoolDepartments && (
+                          {rolePermissionTab ===
+   'school' && permissionDefs?.schoolDepartments && (
                             <>
                               <div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
                               <Filter className="h-4 w-4 text-gray-500" />
@@ -2414,7 +2501,8 @@ export default function UserRoleManagement() {
                       </div>
 
                       {/* School and Department Selector (for School tab) */}
-                      {rolePermissionTab === 'school' && (
+                      {rolePermissionTab ===
+   'school' && (
                         <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/10 border-b border-gray-200 dark:border-gray-600">
                           <div className="grid grid-cols-2 gap-3">
                             <div>
@@ -2470,13 +2558,15 @@ export default function UserRoleManagement() {
                       )}
 
                       {/* Permission Categories */}
-                      <div className="p-4 max-h-[450px] overflow-y-auto">{rolePermissionTab === 'central' && permissionDefs?.centralDepartments && (
+                      <div className="p-4 max-h-[450px] overflow-y-auto">{rolePermissionTab ===
+   'central' && permissionDefs?.centralDepartments && (
                           <div className="space-y-3">
                             {getFilteredCentralPermissions().map(({ deptType, permissions }) => {
                               const grouped = groupPermissionsByCategory(permissions);
                               return (
                                 <div key={deptType} className="mb-4">
-                                  {roleCentralDeptFilter === 'all' && (
+                                  {roleCentralDeptFilter ===
+   'all' && (
                                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
                                       <Building2 className="h-4 w-4 text-purple-600" />
                                       <h4 className="font-semibold text-purple-700 dark:text-purple-300 uppercase text-sm">
@@ -2552,7 +2642,8 @@ export default function UserRoleManagement() {
                                           </div>
 
                                           {/* Analytics Scope — Compact Dropdowns for DRD Analytics */}
-                                          {category === 'DRD Analytics' && (() => {
+                                          {category ===
+   'DRD Analytics' && (() => {
                                             const applicantOn = roleCentralPermissions['applicant_analytics'];
                                             if (!applicantOn) return null;
 
@@ -2619,8 +2710,10 @@ export default function UserRoleManagement() {
                                                                 style={{ minHeight: '56px', maxHeight: '80px' }}
                                                               >
                                                                 {schools.map(s => {
-                                                                  const schoolDepts = departments.filter(d => d.facultyId === s.id);
-                                                                  if (schoolDepts.length === 0) return null;
+                                                                  const schoolDepts = departments.filter(d => d.facultyId ===
+   s.id);
+                                                                  if (schoolDepts.length ===
+   0) return null;
                                                                   return (
                                                                     <optgroup key={s.id} label={s.facultyCode || s.facultyName}>
                                                                       {schoolDepts.map(d => (
@@ -2655,7 +2748,8 @@ export default function UserRoleManagement() {
                           </div>
                         )}
 
-                        {rolePermissionTab === 'school' && permissionDefs?.schoolDepartments && (
+                        {rolePermissionTab ===
+   'school' && permissionDefs?.schoolDepartments && (
                           <>
                             {!roleSelectedSchoolId || !roleSelectedDepartmentId ? (
                               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -2674,16 +2768,20 @@ export default function UserRoleManagement() {
                                     <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                                     <div>
                                       <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                                        {schools.find(s => s.id === roleSelectedSchoolId)?.facultyName}
+                                        {schools.find(s => s.id ===
+   roleSelectedSchoolId)?.facultyName}
                                       </p>
                                       <p className="text-xs text-blue-700 dark:text-blue-300">
-                                        {filteredDepartmentsBySchool.find(d => d.id === roleSelectedDepartmentId)?.departmentName}
+                                        {filteredDepartmentsBySchool.find(d => d.id ===
+   roleSelectedDepartmentId)?.departmentName}
                                       </p>
                                     </div>
                                   </div>
                                 </div>
                                 {Object.entries(groupPermissionsByCategory(departmentPermissions))
-                                  .filter(([category]) => roleSchoolCategoryFilter === 'all' || category === roleSchoolCategoryFilter)
+                                  .filter(([category]) => roleSchoolCategoryFilter ===
+   'all' || category ===
+   roleSchoolCategoryFilter)
                                   .map(([category, perms]) => {
                               const categoryKey = `role-school-${category}`;
                               const isExpanded = expandedCategories[categoryKey] !== false;
@@ -2787,9 +2885,11 @@ export default function UserRoleManagement() {
         </div>
       )}
 
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {/* ROLE ASSIGNMENT MODAL */}
-      {/* ============================================ */}
+      {/* ============================================
+   */}
       {showRoleAssignmentModal && selectedUser && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-start justify-center min-h-screen p-4">
@@ -2870,7 +2970,8 @@ export default function UserRoleManagement() {
                             )}
                             <div className="flex items-center gap-3 mt-2 text-xs">
                               <span className="text-gray-500 dark:text-gray-400">
-                                {role.departmentType === 'BOTH' ? 'All Departments' : role.departmentType}
+                                {role.departmentType ===
+   'BOTH' ? 'All Departments' : role.departmentType}
                               </span>
                               {permCount.central > 0 && (
                                 <span className="flex items-center gap-1 text-purple-600">

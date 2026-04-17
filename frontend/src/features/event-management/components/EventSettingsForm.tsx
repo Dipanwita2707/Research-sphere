@@ -53,10 +53,16 @@ export const ToggleSwitch = memo(({
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }) => {
-  const dims = size === 'lg' ? 'w-14 h-7' : size === 'sm' ? 'w-9 h-5' : 'w-11 h-6';
-  const dot = size === 'lg' ? 'w-6 h-6' : size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
+  const dims = size ===
+   'lg' ? 'w-14 h-7' : size ===
+   'sm' ? 'w-9 h-5' : 'w-11 h-6';
+  const dot = size ===
+   'lg' ? 'w-6 h-6' : size ===
+   'sm' ? 'w-4 h-4' : 'w-5 h-5';
   const translate = enabled
-    ? size === 'lg' ? 'translate-x-7' : size === 'sm' ? 'translate-x-4' : 'translate-x-5'
+    ? size ===
+   'lg' ? 'translate-x-7' : size ===
+   'sm' ? 'translate-x-4' : 'translate-x-5'
     : 'translate-x-0.5';
 
   return (
@@ -173,7 +179,8 @@ const CheckboxList = memo(({
   emptyMessage?: string;
   disabled?: boolean;
 }) => {
-  if (items.length === 0) {
+  if (items.length ===
+   0) {
     return <p className="text-sm text-gray-400 italic py-2">{emptyMessage}</p>;
   }
 
@@ -226,7 +233,8 @@ const BatchYearSelector = memo(({
   onToggle: (year: number) => void;
   disabled?: boolean;
 }) => {
-  if (batchYears.length === 0) {
+  if (batchYears.length ===
+   0) {
     return <p className="text-sm text-gray-400 italic py-2">No batch years available</p>;
   }
 
@@ -270,7 +278,8 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
     const newRoles = data.visibleToRoles.includes(role)
       ? data.visibleToRoles.filter((r) => r !== role)
       : [...data.visibleToRoles, role];
-    if (newRoles.length === 0) return;
+    if (newRoles.length ===
+   0) return;
     onChange({ ...data, visibleToRoles: newRoles });
   }, [data, onChange]);
 
@@ -328,13 +337,16 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
   // ── Filtered hierarchy ──────────────────────────────────────
   const filteredDepartments = useMemo(() => {
     if (!hierarchy?.departments) return [];
-    if (data.allowedSchoolIds.length === 0) return hierarchy.departments;
+    if (data.allowedSchoolIds.length ===
+   0) return hierarchy.departments;
     return hierarchy.departments.filter((d: any) => data.allowedSchoolIds.includes(d.facultyId));
   }, [hierarchy?.departments, data.allowedSchoolIds]);
 
   const filteredPrograms = useMemo(() => {
     if (!hierarchy?.programs) return [];
-    if (data.allowedDepartmentIds.length === 0 && data.allowedSchoolIds.length === 0) return hierarchy.programs;
+    if (data.allowedDepartmentIds.length ===
+   0 && data.allowedSchoolIds.length ===
+   0) return hierarchy.programs;
     if (data.allowedDepartmentIds.length > 0)
       return hierarchy.programs.filter((p: any) => data.allowedDepartmentIds.includes(p.departmentId));
     return hierarchy.programs;
@@ -399,7 +411,8 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
       </div>
 
       {/* ── Audience Visibility ────────────────────────────────── */}
-      <div className={`${CARD} ${data.visibleToRoles.length === 0 ? 'border-red-300 dark:border-red-700/50' : ''}`}>
+      <div className={`${CARD} ${data.visibleToRoles.length ===
+   0 ? 'border-red-300 dark:border-red-700/50' : ''}`}>
         <div className={CARD_HEADER}>
           <div className="flex items-center gap-2.5">
             <Eye className="w-5 h-5 text-ev-700 dark:text-ev-400" />
@@ -424,7 +437,8 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
             ))}
           </div>
 
-          {data.visibleToRoles.length === 0 && (
+          {data.visibleToRoles.length ===
+   0 && (
             <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400">
               <AlertTriangle className="w-4 h-4" />
               <p className="text-xs font-medium">At least one role must be selected</p>
@@ -455,7 +469,8 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
                 onClick={() => handleFilterTypeChange('all')}
                 disabled={disabled}
                 className={`flex-1 px-4 py-3 rounded-lg border-2 text-sm font-medium text-center transition-all
-                  ${data.studentFilterType === 'all'
+                  ${data.studentFilterType ===
+   'all'
                     ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
                     : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-500 hover:border-gray-300'
                   } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
@@ -468,7 +483,8 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
                 onClick={() => handleFilterTypeChange('custom')}
                 disabled={disabled}
                 className={`flex-1 px-4 py-3 rounded-lg border-2 text-sm font-medium text-center transition-all
-                  ${data.studentFilterType === 'custom'
+                  ${data.studentFilterType ===
+   'custom'
                     ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
                     : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-500 hover:border-gray-300'
                   } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
@@ -478,7 +494,8 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
               </button>
             </div>
 
-            {data.studentFilterType === 'all' && (
+            {data.studentFilterType ===
+   'all' && (
               <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg">
                 <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <p className="text-sm text-emerald-700 dark:text-emerald-300">All students across the university can see this event.</p>
@@ -486,7 +503,8 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
             )}
 
             {/* Custom Filter Hierarchy */}
-            {data.studentFilterType === 'custom' && (
+            {data.studentFilterType ===
+   'custom' && (
               <div className="space-y-3">
                 {hierarchyLoading ? (
                   <div className="flex items-center justify-center py-8">
@@ -573,9 +591,14 @@ export const EventSettingsForm: React.FC<EventSettingsFormProps> = ({ data, onCh
                       />
                     </CollapsibleSection>
 
-                    {data.allowedSchoolIds.length === 0 && data.allowedDepartmentIds.length === 0 &&
-                     data.allowedProgramIds.length === 0 && data.allowedBatchYears.length === 0 &&
-                     data.allowedSectionIds.length === 0 && (
+                    {data.allowedSchoolIds.length ===
+   0 && data.allowedDepartmentIds.length ===
+   0 &&
+                     data.allowedProgramIds.length ===
+   0 && data.allowedBatchYears.length ===
+   0 &&
+                     data.allowedSectionIds.length ===
+   0 && (
                       <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg">
                         <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                         <p className="text-xs text-amber-700 dark:text-amber-300">

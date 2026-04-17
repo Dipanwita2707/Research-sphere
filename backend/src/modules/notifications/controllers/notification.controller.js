@@ -174,8 +174,8 @@ const getUnreadCount = async (req, res) => {
       where: { userId, isRead: false },
     });
 
-    // Cache for 30 seconds — short TTL so count stays roughly accurate
-    await cache.set(cacheKey, count, 30);
+    // Cache for 2 minutes — cache is busted on create/mark-as-read so count stays accurate
+    await cache.set(cacheKey, count, 120);
 
     res.json({
       success: true,

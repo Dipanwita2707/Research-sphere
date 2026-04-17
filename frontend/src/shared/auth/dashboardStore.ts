@@ -32,7 +32,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     const { permissions } = get();
     return Object.values(permissions)
       .flat()
-      .some((perm) => perm.key === permissionKey);
+      .some((perm) => perm.key ===
+   permissionKey);
   },
 
   getModulePermissions: (moduleSlug: string) => {

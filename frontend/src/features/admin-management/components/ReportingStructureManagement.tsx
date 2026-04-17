@@ -103,11 +103,13 @@ export default function ReportingStructureManagement({
   }, [lockedDepartmentKey]);
 
   const selectedDepartmentOption = departmentOptions.find(
-    (department) => `${department.scope}:${department.id}` === selectedDepartmentKey
+    (department) => `${department.scope}:${department.id}` ===
+   selectedDepartmentKey
   );
 
   const selectedDepartmentContext: ReportingDepartmentContext | null = useMemo(() => {
-    if (selectedDepartmentKey === 'all') return null;
+    if (selectedDepartmentKey ===
+   'all') return null;
     const [scope, id] = selectedDepartmentKey.split(':');
     if (!scope || !id) return null;
     if (scope !== 'school' && scope !== 'central') return null;
@@ -118,7 +120,8 @@ export default function ReportingStructureManagement({
   }, [selectedDepartmentKey]);
 
   const selectedDepartmentLabel = selectedDepartmentOption
-    ? `${selectedDepartmentOption.scope === 'school' ? 'School' : 'Central'} - ${selectedDepartmentOption.displayLabel}`
+    ? `${selectedDepartmentOption.scope ===
+   'school' ? 'School' : 'Central'} - ${selectedDepartmentOption.displayLabel}`
     : null;
 
   const getUserDepartmentKey = (user?: Pick<UserOption, 'departmentId' | 'departmentScope'> | null) => {
@@ -145,10 +148,12 @@ export default function ReportingStructureManagement({
     const q = query.toLowerCase().trim();
     return allUsers
       .filter((user) => {
-        if (!options.limitToSelectedDepartment || selectedDepartmentKey === 'all') {
+        if (!options.limitToSelectedDepartment || selectedDepartmentKey ===
+   'all') {
           return true;
         }
-        return getUserDepartmentKey(user) === selectedDepartmentKey;
+        return getUserDepartmentKey(user) ===
+   selectedDepartmentKey;
       })
       .filter((user) => !excludeIds.includes(user.id))
       .filter((user) => {
@@ -193,7 +198,8 @@ export default function ReportingStructureManagement({
 
   // Get selected user display
   const getSelectedUserDisplay = (userId: string) => {
-    const user = allUsers.find((u) => u.id === userId);
+    const user = allUsers.find((u) => u.id ===
+   userId);
     if (!user) return '';
     const ids = [user.uid, user.empId].filter(Boolean).join(' | ');
     return `${user.displayName} (${ids})`;
@@ -266,11 +272,13 @@ export default function ReportingStructureManagement({
           departmentType: centralDepartment?.departmentType || null,
           school: user.employeeDetails?.primarySchool?.facultyName,
           designation:
-            typeof user.employeeDetails?.designation === 'string'
+            typeof user.employeeDetails?.designation ===
+   'string'
               ? user.employeeDetails.designation
               : user.employeeDetails?.designation?.designationName,
           roleCode:
-            typeof user.employeeDetails?.designation === 'object'
+            typeof user.employeeDetails?.designation ===
+   'object'
               ? user.employeeDetails?.designation?.roleCode
               : undefined,
         };
@@ -290,7 +298,8 @@ export default function ReportingStructureManagement({
   };
 
   const handleAssign = async () => {
-    if (selectedDepartmentKey === 'all') {
+    if (selectedDepartmentKey ===
+   'all') {
       toast({ type: 'warning', message: 'Please select a department first, then assign reporting managers.' });
       return;
     }
@@ -325,9 +334,11 @@ export default function ReportingStructureManagement({
       return;
     }
 
-    const selectedEmployee = allUsers.find((u) => u.id === selectedUserId);
+    const selectedEmployee = allUsers.find((u) => u.id ===
+   selectedUserId);
     const crossDepartmentManagers = filledManagers
-      .map((id) => allUsers.find((u) => u.id === id))
+      .map((id) => allUsers.find((u) => u.id ===
+   id))
       .filter((manager): manager is UserOption =>
         !!manager && isCrossDepartmentPair(selectedEmployee, manager)
       );
@@ -406,8 +417,10 @@ export default function ReportingStructureManagement({
   };
 
   const openMoveDialog = (userId: string, userName: string) => {
-    if (selectedDepartmentKey === 'all') {
-      const user = allUsers.find((u) => u.id === userId);
+    if (selectedDepartmentKey ===
+   'all') {
+      const user = allUsers.find((u) => u.id ===
+   userId);
       const userDepartmentKey = getUserDepartmentKey(user);
 
       if (!userDepartmentKey) {
@@ -432,7 +445,8 @@ export default function ReportingStructureManagement({
       return;
     }
 
-    if (moveUserId === moveNewManagerId) {
+    if (moveUserId ===
+   moveNewManagerId) {
       toast({ type: 'error', message: 'A user cannot report to themselves' });
       return;
     }
@@ -442,8 +456,10 @@ export default function ReportingStructureManagement({
       return;
     }
 
-    const selectedUser = allUsers.find((u) => u.id === moveUserId);
-    const targetManager = allUsers.find((u) => u.id === moveNewManagerId);
+    const selectedUser = allUsers.find((u) => u.id ===
+   moveUserId);
+    const targetManager = allUsers.find((u) => u.id ===
+   moveNewManagerId);
 
     if (isCrossDepartmentPair(selectedUser, targetManager)) {
       const confirmed = await confirm({
@@ -479,13 +495,15 @@ export default function ReportingStructureManagement({
   };
 
   const openAssignDialog = (userId?: string) => {
-    if (selectedDepartmentKey === 'all') {
+    if (selectedDepartmentKey ===
+   'all') {
       if (!userId) {
         toast({ type: 'warning', message: 'Please select a department first, then assign reporting managers.' });
         return;
       }
 
-      const user = allUsers.find((u) => u.id === userId);
+      const user = allUsers.find((u) => u.id ===
+   userId);
       const userDepartmentKey = getUserDepartmentKey(user);
       if (!userDepartmentKey) {
         toast({ type: 'warning', message: 'Selected employee has no mapped department. Please pick a valid department first.' });
@@ -554,7 +572,8 @@ export default function ReportingStructureManagement({
       for (const node of nodes) {
         // Look up manager details from allUsers list
         const manager = node.managerId 
-          ? allUsers.find(u => u.id === node.managerId)
+          ? allUsers.find(u => u.id ===
+   node.managerId)
           : undefined;
 
         result.push({
@@ -585,7 +604,8 @@ export default function ReportingStructureManagement({
   };
 
   const flattenHierarchyByDepartment = (nodes: HierarchyNode[]): HierarchyNode[] => {
-    if (selectedDepartmentKey === 'all') return nodes;
+    if (selectedDepartmentKey ===
+   'all') return nodes;
 
     const filteredNodes: HierarchyNode[] = [];
     for (const node of nodes) {
@@ -593,7 +613,8 @@ export default function ReportingStructureManagement({
       const nodeKey = node.departmentId && node.departmentScope
         ? `${node.departmentScope}:${node.departmentId}`
         : null;
-      if (nodeKey === selectedDepartmentKey || children.length > 0) {
+      if (nodeKey ===
+   selectedDepartmentKey || children.length > 0) {
         filteredNodes.push({ ...node, children });
       }
     }
@@ -602,7 +623,9 @@ export default function ReportingStructureManagement({
   };
 
   const departmentScopedUsers = flattenHierarchy().filter((user) =>
-    selectedDepartmentKey === 'all' ? true : user.departmentKey === selectedDepartmentKey
+    selectedDepartmentKey ===
+   'all' ? true : user.departmentKey ===
+   selectedDepartmentKey
   );
 
   const filteredUsers = departmentScopedUsers.filter((user) =>
@@ -803,7 +826,8 @@ export default function ReportingStructureManagement({
             <button
               onClick={() => setViewMode('table')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                viewMode === 'table'
+                viewMode ===
+   'table'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
@@ -813,7 +837,8 @@ export default function ReportingStructureManagement({
             <button
               onClick={() => setViewMode('tree')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                viewMode === 'tree'
+                viewMode ===
+   'tree'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
@@ -822,7 +847,8 @@ export default function ReportingStructureManagement({
             </button>
             <button
               onClick={() => openAssignDialog()}
-              disabled={selectedDepartmentKey === 'all'}
+              disabled={selectedDepartmentKey ===
+   'all'}
               className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <UserPlus size={20} />
@@ -841,7 +867,8 @@ export default function ReportingStructureManagement({
       </div>
 
       {/* Table View */}
-      {viewMode === 'table' && (
+      {viewMode ===
+   'table' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-auto max-h-[68vh]">
             <table className="w-full">
@@ -868,10 +895,12 @@ export default function ReportingStructureManagement({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.length === 0 ? (
+                {filteredUsers.length ===
+   0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      {selectedDepartmentKey === 'all'
+                      {selectedDepartmentKey ===
+   'all'
                         ? 'No reporting relationships found. Click "Assign Manager" to get started.'
                         : 'No reporting relationships found for the selected department.'}
                     </td>
@@ -949,7 +978,8 @@ export default function ReportingStructureManagement({
       )}
 
       {/* Tree View */}
-      {viewMode === 'tree' && (
+      {viewMode ===
+   'tree' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3">
             <p className="text-sm text-slate-600">
@@ -958,7 +988,8 @@ export default function ReportingStructureManagement({
             <div className="flex items-center gap-2">
               <button
                 onClick={expandAllVisibleNodes}
-                disabled={treeStats.nodeCount === 0}
+                disabled={treeStats.nodeCount ===
+   0}
                 className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Maximize2 size={14} />
@@ -966,7 +997,8 @@ export default function ReportingStructureManagement({
               </button>
               <button
                 onClick={collapseAllNodes}
-                disabled={expandedNodes.size === 0}
+                disabled={expandedNodes.size ===
+   0}
                 className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Minimize2 size={14} />
@@ -975,9 +1007,11 @@ export default function ReportingStructureManagement({
             </div>
           </div>
 
-          {filteredHierarchyTree.length === 0 ? (
+          {filteredHierarchyTree.length ===
+   0 ? (
             <div className="px-6 py-12 text-center text-gray-500">
-              {selectedDepartmentKey === 'all'
+              {selectedDepartmentKey ===
+   'all'
                 ? 'No reporting structure defined. Click "Assign Manager" to build the hierarchy.'
                 : 'No reporting structure found for the selected department.'}
             </div>
@@ -1048,16 +1082,19 @@ export default function ReportingStructureManagement({
                     if (ids.length) fetchHierarchyInfo(ids);
                     return (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                      {results.length === 0 ? (
+                      {results.length ===
+   0 ? (
                         <div className="px-4 py-2 text-gray-500 text-sm">
-                          {selectedDepartmentKey === 'all'
+                          {selectedDepartmentKey ===
+   'all'
                             ? 'No employees found'
                             : 'No employees found in selected department'}
                         </div>
                       ) : (
                         results.map((user) => {
                           const hInfo = hierarchyInfoMap[user.id];
-                          const isInHierarchy = hInfo?.isInHierarchy === true;
+                          const isInHierarchy = hInfo?.isInHierarchy ===
+   true;
                           return (
                             <button
                               key={user.id}
@@ -1148,7 +1185,8 @@ export default function ReportingStructureManagement({
                   return (
                     <div key={levelNumber} className="relative search-dropdown-container">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Level {levelNumber} Manager {levelNumber === 1 ? '(Direct Manager)' : `(Manager of Level ${levelNumber - 1})`}
+                        Level {levelNumber} Manager {levelNumber ===
+   1 ? '(Direct Manager)' : `(Manager of Level ${levelNumber - 1})`}
                       </label>
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1187,12 +1225,14 @@ export default function ReportingStructureManagement({
                         if (ids.length) fetchHierarchyInfo(ids);
                         return (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                          {results.length === 0 ? (
+                          {results.length ===
+   0 ? (
                             <div className="px-4 py-2 text-gray-500 text-sm">No managers found</div>
                           ) : (
                             results.map((user) => {
                               const hInfo = hierarchyInfoMap[user.id];
-                              const isInHierarchy = hInfo?.isInHierarchy === true;
+                              const isInHierarchy = hInfo?.isInHierarchy ===
+   true;
                               return (
                                 <button
                                   key={user.id}
@@ -1243,7 +1283,8 @@ export default function ReportingStructureManagement({
                     <div className="space-y-1">
                       <div>Employee (bottom)</div>
                       {Array.from({ length: hierarchyLevels }, (_, i) => (
-                        <div key={i}>↑ Level {i + 1} Manager {i === hierarchyLevels - 1 && '(top)'}</div>
+                        <div key={i}>↑ Level {i + 1} Manager {i ===
+   hierarchyLevels - 1 && '(top)'}</div>
                       ))}
                     </div>
                   </div>
@@ -1348,12 +1389,14 @@ export default function ReportingStructureManagement({
                   if (ids.length) fetchHierarchyInfo(ids);
                   return (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                    {results.length === 0 ? (
+                    {results.length ===
+   0 ? (
                       <div className="px-4 py-2 text-gray-500 text-sm">No users found</div>
                     ) : (
                       results.map((user) => {
                         const hInfo = hierarchyInfoMap[user.id];
-                        const isInHierarchy = hInfo?.isInHierarchy === true;
+                        const isInHierarchy = hInfo?.isInHierarchy ===
+   true;
                         return (
                           <button
                             key={user.id}

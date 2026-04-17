@@ -266,7 +266,8 @@ export default function ManageEventPage() {
 
   useEffect(() => {
     const data = eventData;
-    if (!data || populatedForEventIdRef.current === eventId) return;
+    if (!data || populatedForEventIdRef.current ===
+   eventId) return;
 
     if (!(data as any).canManage) {
       toast({ type: 'error', message: 'You do not have permission to manage this event' });
@@ -354,7 +355,8 @@ export default function ManageEventPage() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      if (type === 'banner') { setBannerPreview(result); setBannerImageUrl(result); }
+      if (type ===
+   'banner') { setBannerPreview(result); setBannerImageUrl(result); }
       else { setLogoPreview(result); setLogoImageUrl(result); }
     };
     reader.readAsDataURL(file);
@@ -377,9 +379,11 @@ export default function ManageEventPage() {
         if (resourceIndex !== index) return resource;
 
         const nextValue =
-          typeof value === 'string'
+          typeof value ===
+   'string'
             ? sanitizePlainTextInput(value, {
-                maxLength: field === 'description' ? 300 : 120,
+                maxLength: field ===
+   'description' ? 300 : 120,
               })
             : value;
         const nextResource = { ...resource, [field]: nextValue };
@@ -405,7 +409,8 @@ export default function ManageEventPage() {
   };
 
   const handleRemoveImage = (type: 'banner' | 'logo') => {
-    if (type === 'banner') { setBannerPreview(''); setBannerImageUrl(''); }
+    if (type ===
+   'banner') { setBannerPreview(''); setBannerImageUrl(''); }
     else { setLogoPreview(''); setLogoImageUrl(''); }
   };
 
@@ -499,7 +504,8 @@ export default function ManageEventPage() {
   const updateFAQ = (i: number, field: 'question' | 'answer', v: string) => {
     const u = [...faqs];
     u[i][field] = sanitizePlainTextInput(v, {
-      maxLength: field === 'question' ? 200 : 500,
+      maxLength: field ===
+   'question' ? 200 : 500,
     });
     setFaqs(u);
   };
@@ -515,7 +521,10 @@ export default function ManageEventPage() {
     }
     setEditingPrize({
       position: prizes.length + 1,
-      rank: prizes.length === 0 ? 'Winner' : prizes.length === 1 ? 'First Runner Up' : prizes.length === 2 ? 'Second Runner Up' : `Position ${prizes.length + 1}`,
+      rank: prizes.length ===
+   0 ? 'Winner' : prizes.length ===
+   1 ? 'First Runner Up' : prizes.length ===
+   2 ? 'Second Runner Up' : `Position ${prizes.length + 1}`,
       title: '',
       prizeType: 'certificate',
       sortOrder: prizes.length,
@@ -544,7 +553,8 @@ export default function ManageEventPage() {
       return;
     }
     if (editingPrize.id) {
-      setPrizes(prizes.map(p => p.id === editingPrize.id ? editingPrize : p));
+      setPrizes(prizes.map(p => p.id ===
+   editingPrize.id ? editingPrize : p));
     } else {
       setPrizes([...prizes, { ...editingPrize, id: `temp-${Date.now()}` }]);
     }
@@ -590,7 +600,8 @@ export default function ManageEventPage() {
     try {
       if (editingField.id) {
         const updated = await eventService.updateCustomField(eventId, editingField.id, editingField);
-        setCustomFields(customFields.map(f => f.id === editingField.id ? updated : f));
+        setCustomFields(customFields.map(f => f.id ===
+   editingField.id ? updated : f));
       } else {
         const created = await eventService.createCustomField(eventId, {
           ...editingField,
@@ -659,15 +670,24 @@ export default function ManageEventPage() {
       // Step 2: Participation & Team Settings
       opportunityMode: opportunityMode as OpportunityMode,
       participationType,
-      minTeamSize: participationType === 'team' ? (Number(minTeamSize) || null) : null,
-      maxTeamSize: participationType === 'team' ? (Number(maxTeamSize) || null) : null,
-      maxTeamLimit: participationType === 'team' ? (maxTeamLimit ? Number(maxTeamLimit) : null) : null,
-      interCollegeAllowed: participationType === 'team' ? interCollegeAllowed : null,
-      interSpecializationAllowed: participationType === 'team' ? interSpecializationAllowed : null,
-      allowCrossInstituteTeams: participationType === 'team' ? allowCrossInstituteTeams : null,
-      allowTeamEditAfterSubmission: participationType === 'team' ? allowTeamEditAfterSubmission : null,
-      autoApproveTeams: participationType === 'team' ? autoApproveTeams : null,
-      teamRegistrationDeadline: participationType === 'team' && teamRegistrationDeadline ? teamRegistrationDeadline : null,
+      minTeamSize: participationType ===
+   'team' ? (Number(minTeamSize) || null) : null,
+      maxTeamSize: participationType ===
+   'team' ? (Number(maxTeamSize) || null) : null,
+      maxTeamLimit: participationType ===
+   'team' ? (maxTeamLimit ? Number(maxTeamLimit) : null) : null,
+      interCollegeAllowed: participationType ===
+   'team' ? interCollegeAllowed : null,
+      interSpecializationAllowed: participationType ===
+   'team' ? interSpecializationAllowed : null,
+      allowCrossInstituteTeams: participationType ===
+   'team' ? allowCrossInstituteTeams : null,
+      allowTeamEditAfterSubmission: participationType ===
+   'team' ? allowTeamEditAfterSubmission : null,
+      autoApproveTeams: participationType ===
+   'team' ? autoApproveTeams : null,
+      teamRegistrationDeadline: participationType ===
+   'team' && teamRegistrationDeadline ? teamRegistrationDeadline : null,
 
       // Registration Control Settings
       autoApproveRegistration,
@@ -675,13 +695,18 @@ export default function ManageEventPage() {
       showParticipantsPublicly,
       allowWithdrawRegistration,
       allowEditAfterSubmission,
-      lockTeamAfterDeadline: participationType === 'team' ? lockTeamAfterDeadline : null,
+      lockTeamAfterDeadline: participationType ===
+   'team' ? lockTeamAfterDeadline : null,
 
       // Team Discovery Settings
-      lookingForTeammatesEnabled: participationType === 'team' ? lookingForTeammatesEnabled : null,
-      allowPublicTeamListing: participationType === 'team' ? allowPublicTeamListing : null,
-      allowJoinRequests: participationType === 'team' ? allowJoinRequests : null,
-      allowInviteSystem: participationType === 'team' ? allowInviteSystem : null,
+      lookingForTeammatesEnabled: participationType ===
+   'team' ? lookingForTeammatesEnabled : null,
+      allowPublicTeamListing: participationType ===
+   'team' ? allowPublicTeamListing : null,
+      allowJoinRequests: participationType ===
+   'team' ? allowJoinRequests : null,
+      allowInviteSystem: participationType ===
+   'team' ? allowInviteSystem : null,
 
       // Step 3: Prizes
       prizesEnabled,
@@ -699,8 +724,10 @@ export default function ManageEventPage() {
       resources: hasResources && sanitizedResources.length > 0 ? sanitizedResources : null,
     };
     // Fee is locked when from noting — do NOT override it via update payload
-    if (event?.paymentType === 'paid' && !event?.notingId) {
-      if (participationType === 'team') {
+    if (event?.paymentType ===
+   'paid' && !event?.notingId) {
+      if (participationType ===
+   'team') {
         updateData.teamRegistrationFee = teamRegistrationFee ? Number(teamRegistrationFee) : null;
       } else {
         updateData.registrationFee = registrationFee ? Number(registrationFee) : null;
@@ -721,8 +748,10 @@ export default function ManageEventPage() {
       }
       return false;
     }
-    if (event?.paymentType === 'paid') {
-      if (participationType === 'team') {
+    if (event?.paymentType ===
+   'paid') {
+      if (participationType ===
+   'team') {
         const fee = Number(teamRegistrationFee);
         if (!teamRegistrationFee && teamRegistrationFee !== 0) { toast({ type: 'error', message: 'Participation fee must be at least ₹1.' }); return false; }
         if (isNaN(fee) || fee < 1) { toast({ type: 'error', message: 'Participation fee must be at least ₹1.' }); return false; }
@@ -737,9 +766,11 @@ export default function ManageEventPage() {
 
   const handleNextStep = async () => {
     const errors = runValidation(false);
-    const stepFields = currentStep === 1
+    const stepFields = currentStep ===
+   1
       ? ['description', 'longDescription', 'registrationFee', 'teamRegistrationFee', 'registrationStartDate', 'registrationEndDate', 'contactPersonName', 'contactEmail', 'contactMobile']
-      : currentStep === 2
+      : currentStep ===
+   2
         ? ['opportunityMode', 'minTeamSize', 'maxTeamSize']
         : [];
     const stepErrors = Object.fromEntries(
@@ -761,10 +792,12 @@ export default function ManageEventPage() {
       return;
     }
 
-    if (currentStep === 1) {
+    if (currentStep ===
+   1) {
       try {
         const rounds = await eventService.getRounds(eventId);
-        if (!rounds || rounds.length === 0) {
+        if (!rounds || rounds.length ===
+   0) {
           toast({ type: 'error', message: 'Please add at least one Event Round before proceeding.' });
           document.getElementById('section-rounds')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
@@ -811,7 +844,8 @@ export default function ManageEventPage() {
 
       // Check at least 1 round exists
       const rounds = await eventService.getRounds(eventId);
-      if (!rounds || rounds.length === 0) {
+      if (!rounds || rounds.length ===
+   0) {
         toast({ type: 'error', message: 'Please add at least one Event Round before publishing.' });
         document.getElementById('section-rounds')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setPublishing(false);
@@ -911,7 +945,9 @@ export default function ManageEventPage() {
           Back to My Events
         </Link>
 
-        {/* ===== A4 Document Sheet ===== */}
+        {/* =====
+   A4 Document Sheet =====
+   */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#b3cde0] dark:border-gray-700 shadow-ev overflow-hidden">
 
           {/* ── Document Header ── */}
@@ -938,7 +974,8 @@ export default function ManageEventPage() {
             <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide">
               {STEPS.map((step, idx) => {
                 const Icon = step.icon;
-                const isActive = currentStep === step.id;
+                const isActive = currentStep ===
+   step.id;
                 const isCompleted = currentStep > step.id;
                 return (
                   <React.Fragment key={step.id}>
@@ -961,10 +998,15 @@ export default function ManageEventPage() {
           {/* ── Document Body ── */}
           <div className="px-4 sm:px-8 lg:px-10 py-6 space-y-0">
 
-            {/* ====== STEP 1: Basic Information ====== */}
-            {currentStep === 1 && (
+            {/* ======
+   STEP 1: Basic Information ======
+   */}
+            {currentStep ===
+   1 && (
               <>
-            {/* ====== Locked Fields (from Noting) ====== */}
+            {/* ======
+   Locked Fields (from Noting) ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Locked Fields (from Noting)</SectionLabel>
               <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md border border-[#b3cde0] dark:border-gray-700 p-4">
@@ -998,7 +1040,8 @@ export default function ManageEventPage() {
                   <div className="flex gap-2 items-center">
                     <span className="text-gray-400 font-medium min-w-[80px]">Payment:</span>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      event.paymentType === 'free'
+                      event.paymentType ===
+   'free'
                         ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
                         : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
                     }`}>
@@ -1021,7 +1064,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Event Branding & Description ====== */}
+            {/* ======
+   Event Branding & Description ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Event Logo & Short Description</SectionLabel>
               <div className="grid md:grid-cols-2 gap-6">
@@ -1084,7 +1129,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Event Banner ====== */}
+            {/* ======
+   Event Banner ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Event Banner</SectionLabel>
               <div className="space-y-4">
@@ -1121,7 +1168,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Rounds ====== */}
+            {/* ======
+   Rounds ======
+   */}
             <section id="section-rounds" className={sectionClass}>
               <SectionLabel>Event Rounds <span className="text-red-500">*</span></SectionLabel>
               {event && (
@@ -1134,7 +1183,9 @@ export default function ManageEventPage() {
               )}
             </section>
 
-            {/* ====== Description ====== */}
+            {/* ======
+   Description ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Detailed Description</SectionLabel>
               <div className="space-y-4">
@@ -1161,7 +1212,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Venue & Capacity ====== */}
+            {/* ======
+   Venue & Capacity ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Venue & Capacity</SectionLabel>
               <div className="space-y-4">
@@ -1211,7 +1264,9 @@ export default function ManageEventPage() {
                       placeholder="Informational only"
                     />
                   </div>
-                  {event.paymentType === 'paid' && participationType === 'individual' && (
+                  {event.paymentType ===
+   'paid' && participationType ===
+   'individual' && (
                     <div id="field-registrationFee">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Registration Fee (₹) <span className="text-red-500">*</span>
@@ -1239,7 +1294,9 @@ export default function ManageEventPage() {
                       )}
                     </div>
                   )}
-                  {event.paymentType === 'paid' && participationType === 'team' && (
+                  {event.paymentType ===
+   'paid' && participationType ===
+   'team' && (
                     <div id="field-teamRegistrationFee">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Team Registration Fee (₹) <span className="text-red-500">*</span>
@@ -1271,7 +1328,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Additional Details (from Noting) ====== */}
+            {/* ======
+   Additional Details (from Noting) ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Additional Details (from Noting)</SectionLabel>
               {event.notingId && (
@@ -1287,12 +1346,16 @@ export default function ManageEventPage() {
                 <div className={event.notingId ? 'opacity-90' : ''}>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Duty Leave</label>
                   <div className="flex gap-4">
-                    <label className={`${checkboxClass(dutyLeaveAvailable === true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
-                      <input type="radio" checked={dutyLeaveAvailable === true} onChange={() => !event.notingId && setDutyLeaveAvailable(true)} disabled={!!event.notingId} className="sr-only" />
+                    <label className={`${checkboxClass(dutyLeaveAvailable ===
+   true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={dutyLeaveAvailable ===
+   true} onChange={() => !event.notingId && setDutyLeaveAvailable(true)} disabled={!!event.notingId} className="sr-only" />
                       <span>Yes</span>
                     </label>
-                    <label className={`${checkboxClass(dutyLeaveAvailable === false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
-                      <input type="radio" checked={dutyLeaveAvailable === false} onChange={() => { if (!event.notingId) { setDutyLeaveAvailable(false); setDutyLeaveEligibility([]); setDutyLeaveRoleType(null); } }} disabled={!!event.notingId} className="sr-only" />
+                    <label className={`${checkboxClass(dutyLeaveAvailable ===
+   false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={dutyLeaveAvailable ===
+   false} onChange={() => { if (!event.notingId) { setDutyLeaveAvailable(false); setDutyLeaveEligibility([]); setDutyLeaveRoleType(null); } }} disabled={!!event.notingId} className="sr-only" />
                       <span>No</span>
                     </label>
                   </div>
@@ -1322,7 +1385,8 @@ export default function ManageEventPage() {
                             <label key={opt.value} className={`flex items-center gap-1.5 text-sm ${event.notingId ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                               <input
                                 type="radio"
-                                checked={dutyLeaveRoleType === opt.value}
+                                checked={dutyLeaveRoleType ===
+   opt.value}
                                 onChange={() => !event.notingId && setDutyLeaveRoleType(opt.value)}
                                 disabled={!!event.notingId}
                                 className="w-4 h-4 text-ev-700 disabled:cursor-not-allowed"
@@ -1340,12 +1404,16 @@ export default function ManageEventPage() {
                 <div className={event.notingId ? 'opacity-90' : ''}>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sponsorship</label>
                   <div className="flex gap-4">
-                    <label className={`${checkboxClass(hasSponsorship === true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
-                      <input type="radio" checked={hasSponsorship === true} onChange={() => !event.notingId && setHasSponsorship(true)} disabled={!!event.notingId} className="sr-only" />
+                    <label className={`${checkboxClass(hasSponsorship ===
+   true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasSponsorship ===
+   true} onChange={() => !event.notingId && setHasSponsorship(true)} disabled={!!event.notingId} className="sr-only" />
                       <span>Yes</span>
                     </label>
-                    <label className={`${checkboxClass(hasSponsorship === false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
-                      <input type="radio" checked={hasSponsorship === false} onChange={() => { if (!event.notingId) { setHasSponsorship(false); setSponsors([]); } }} disabled={!!event.notingId} className="sr-only" />
+                    <label className={`${checkboxClass(hasSponsorship ===
+   false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasSponsorship ===
+   false} onChange={() => { if (!event.notingId) { setHasSponsorship(false); setSponsors([]); } }} disabled={!!event.notingId} className="sr-only" />
                       <span>No</span>
                     </label>
                   </div>
@@ -1376,12 +1444,16 @@ export default function ManageEventPage() {
                 <div className={event.notingId ? 'opacity-90' : ''}>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Resources</label>
                   <div className="flex gap-4">
-                    <label className={`${checkboxClass(hasResources === true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
-                      <input type="radio" checked={hasResources === true} onChange={() => !event.notingId && setHasResources(true)} disabled={!!event.notingId} className="sr-only" />
+                    <label className={`${checkboxClass(hasResources ===
+   true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasResources ===
+   true} onChange={() => !event.notingId && setHasResources(true)} disabled={!!event.notingId} className="sr-only" />
                       <span>Yes</span>
                     </label>
-                    <label className={`${checkboxClass(hasResources === false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
-                      <input type="radio" checked={hasResources === false} onChange={() => { if (!event.notingId) { setHasResources(false); setResources([]); } }} disabled={!!event.notingId} className="sr-only" />
+                    <label className={`${checkboxClass(hasResources ===
+   false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasResources ===
+   false} onChange={() => { if (!event.notingId) { setHasResources(false); setResources([]); } }} disabled={!!event.notingId} className="sr-only" />
                       <span>No</span>
                     </label>
                   </div>
@@ -1432,7 +1504,8 @@ export default function ManageEventPage() {
                                           type="number"
                                           min={0}
                                           value={resource.pricePerPiece ?? ''}
-                                          onChange={(e) => updateResourceField(index, 'pricePerPiece', e.target.value === '' ? undefined : Number(e.target.value))}
+                                          onChange={(e) => updateResourceField(index, 'pricePerPiece', e.target.value ===
+   '' ? undefined : Number(e.target.value))}
                                           placeholder="0"
                                           disabled={!!event.notingId}
                                           className={`${inputClass} pl-8 disabled:cursor-not-allowed`}
@@ -1444,7 +1517,8 @@ export default function ManageEventPage() {
                                         type="number"
                                         min={1}
                                         value={resource.quantity ?? ''}
-                                        onChange={(e) => updateResourceField(index, 'quantity', e.target.value === '' ? undefined : Number(e.target.value))}
+                                        onChange={(e) => updateResourceField(index, 'quantity', e.target.value ===
+   '' ? undefined : Number(e.target.value))}
                                         placeholder="1"
                                         disabled={!!event.notingId}
                                         className={`${inputClass} disabled:cursor-not-allowed`}
@@ -1468,7 +1542,8 @@ export default function ManageEventPage() {
                                   </tr>
                                 );
                               })}
-                              {resources.length === 0 && (
+                              {resources.length ===
+   0 && (
                                 <tr>
                                   <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No resources added yet.
@@ -1506,7 +1581,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Registration Period ====== */}
+            {/* ======
+   Registration Period ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Registration Period</SectionLabel>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1539,7 +1616,9 @@ export default function ManageEventPage() {
               <p className="text-xs text-gray-400 mt-1.5">Registration must close before event starts ({new Date(event.startDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}).</p>
             </section>
 
-            {/* ====== Contact & Communication ====== */}
+            {/* ======
+   Contact & Communication ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Contact & Communication</SectionLabel>
               <div className="space-y-4">
@@ -1591,7 +1670,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Additional Details ====== */}
+            {/* ======
+   Additional Details ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Additional Details</SectionLabel>
               <div className="space-y-4">
@@ -1611,7 +1692,9 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== FAQs (Step 1) ====== */}
+            {/* ======
+   FAQs (Step 1) ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>FAQs (Optional)</SectionLabel>
               {faqs.length > 0 && (
@@ -1630,11 +1713,17 @@ export default function ManageEventPage() {
               </>
             )}
 
-            {/* ====== STEP 2: Participation & Team Settings ====== */}
-            {currentStep === 2 && (
+            {/* ======
+   STEP 2: Participation & Team Settings ======
+   */}
+            {currentStep ===
+   2 && (
               <>
-            {/* ====== Participation & Capacity ====== */}
-            {event.paymentType === 'paid' && (
+            {/* ======
+   Participation & Capacity ======
+   */}
+            {event.paymentType ===
+   'paid' && (
               <section className={sectionClass}>
                 <SectionLabel>Participation &amp; Capacity</SectionLabel>
                 <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
@@ -1642,10 +1731,12 @@ export default function ManageEventPage() {
                     <div className="flex items-center gap-2">
                       <IndianRupee className="w-4 h-4 text-ev-700" />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {participationType === 'team' ? 'Fee per Team (₹)' : 'Participation Fee (₹)'}
+                        {participationType ===
+   'team' ? 'Fee per Team (₹)' : 'Participation Fee (₹)'}
                       </span>
                       <span className="text-sm font-bold text-ev-900 dark:text-white">
-                        ₹{participationType === 'team' ? (teamRegistrationFee || '—') : (registrationFee || '—')}
+                        ₹{participationType ===
+   'team' ? (teamRegistrationFee || '—') : (registrationFee || '—')}
                       </span>
                     </div>
                     {event.notingId && (
@@ -1655,7 +1746,8 @@ export default function ManageEventPage() {
                       </div>
                     )}
                   </div>
-                  {participationType === 'team' && teamRegistrationFee !== '' && maxTeamSize !== '' && Number(maxTeamSize) > 0 && (
+                  {participationType ===
+   'team' && teamRegistrationFee !== '' && maxTeamSize !== '' && Number(maxTeamSize) > 0 && (
                     <div className="px-4 py-3 bg-ev-50 dark:bg-ev-900/10 border-b border-ev-200 dark:border-ev-800">
                       <p className="text-xs text-ev-800 dark:text-ev-200 flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 shrink-0" />
@@ -1665,7 +1757,8 @@ export default function ManageEventPage() {
                       </p>
                     </div>
                   )}
-                  {participationType === 'team' && event.notingId && (
+                  {participationType ===
+   'team' && event.notingId && (
                     <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/10">
                       <p className="text-xs text-amber-600 dark:text-amber-400">
                         The system will not exceed the approved total team fee of ₹{teamRegistrationFee} under any condition.
@@ -1676,7 +1769,9 @@ export default function ManageEventPage() {
               </section>
             )}
 
-            {/* ====== Participation & Mode ====== */}
+            {/* ======
+   Participation & Mode ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Participation & Mode</SectionLabel>
               {event.notingId && (
@@ -1694,15 +1789,19 @@ export default function ManageEventPage() {
                   <div className={`bg-white dark:bg-gray-800 p-4 ${event.notingId ? 'opacity-90' : ''}`}>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Participation Type</label>
                     <div className="flex flex-col gap-2">
-                      <label className={`${radioClass(participationType === 'individual')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
-                        <input type="radio" name="participationType" checked={participationType === 'individual'} onChange={() => !event.notingId && setParticipationType('individual')} disabled={!!event.notingId} className="w-4 h-4 text-ev-700 focus:ring-ev-700 disabled:cursor-not-allowed" />
+                      <label className={`${radioClass(participationType ===
+   'individual')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
+                        <input type="radio" name="participationType" checked={participationType ===
+   'individual'} onChange={() => !event.notingId && setParticipationType('individual')} disabled={!!event.notingId} className="w-4 h-4 text-ev-700 focus:ring-ev-700 disabled:cursor-not-allowed" />
                         <div className="flex items-center gap-1.5">
                           <User className="w-4 h-4 text-gray-400" />
                           <span className="text-sm font-medium">Individual</span>
                         </div>
                       </label>
-                      <label className={`${radioClass(participationType === 'team')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
-                        <input type="radio" name="participationType" checked={participationType === 'team'} onChange={() => !event.notingId && setParticipationType('team')} disabled={!!event.notingId} className="w-4 h-4 text-ev-700 focus:ring-ev-700 disabled:cursor-not-allowed" />
+                      <label className={`${radioClass(participationType ===
+   'team')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
+                        <input type="radio" name="participationType" checked={participationType ===
+   'team'} onChange={() => !event.notingId && setParticipationType('team')} disabled={!!event.notingId} className="w-4 h-4 text-ev-700 focus:ring-ev-700 disabled:cursor-not-allowed" />
                         <div className="flex items-center gap-1.5">
                           <Users className="w-4 h-4 text-gray-400" />
                           <span className="text-sm font-medium">Team</span>
@@ -1718,8 +1817,10 @@ export default function ManageEventPage() {
                     </label>
                     <div className={`flex flex-col gap-2 rounded-md ${fieldErrors.opportunityMode ? 'ring-1 ring-red-400 rounded-md p-1' : ''}`}>
                       {(['online', 'offline', 'hybrid'] as OpportunityMode[]).map((mode) => (
-                        <label key={mode} className={radioClass(opportunityMode === mode)}>
-                          <input type="radio" name="opportunityMode" checked={opportunityMode === mode}
+                        <label key={mode} className={radioClass(opportunityMode ===
+   mode)}>
+                          <input type="radio" name="opportunityMode" checked={opportunityMode ===
+   mode}
                             onChange={() => { setOpportunityMode(mode); setFieldErrors(p => { const n = {...p}; delete n.opportunityMode; return n; }); }}
                             className="w-4 h-4 text-ev-700 focus:ring-ev-700" />
                           <span className="text-sm font-medium capitalize">{mode}</span>
@@ -1731,7 +1832,8 @@ export default function ManageEventPage() {
                 </div>
 
                 {/* Team Configuration (Conditional) */}
-                {participationType === 'team' && (
+                {participationType ===
+   'team' && (
                   <div className="p-4 border-t border-[#b3cde0] dark:border-gray-700">
                     <p className="text-xs font-medium text-gray-500 mb-3 flex items-center gap-1.5">
                       <Users className="w-3.5 h-3.5" />
@@ -1755,7 +1857,8 @@ export default function ManageEventPage() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Team Registration Deadline</label>
                       <input type="date" value={teamRegistrationDeadline} onChange={(e) => setTeamRegistrationDeadline(e.target.value)} className={inputClass} />
                     </div>
-                    {event.paymentType === 'paid' && teamRegistrationFee !== '' && maxTeamSize !== '' && Number(maxTeamSize) > 0 && (
+                    {event.paymentType ===
+   'paid' && teamRegistrationFee !== '' && maxTeamSize !== '' && Number(maxTeamSize) > 0 && (
                       <div className="mt-3 px-3 py-2 rounded-md bg-ev-50 dark:bg-ev-900/20 border border-ev-200 dark:border-ev-800">
                         <p className="text-xs text-ev-800 dark:text-ev-200 flex items-center gap-1.5">
                           <IndianRupee className="w-3.5 h-3.5 shrink-0" />
@@ -1869,10 +1972,15 @@ export default function ManageEventPage() {
               </>
             )}
 
-            {/* ====== STEP 3: Prizes & Custom Questions ====== */}
-            {currentStep === 3 && (
+            {/* ======
+   STEP 3: Prizes & Custom Questions ======
+   */}
+            {currentStep ===
+   3 && (
               <>
-            {/* ====== Prize Configuration ====== */}
+            {/* ======
+   Prize Configuration ======
+   */}
             <section className={sectionClass}>
               <div className="flex items-center justify-between mb-3">
                 <SectionLabel>Prize Configuration</SectionLabel>
@@ -1899,11 +2007,15 @@ export default function ManageEventPage() {
                     {prizes.map((prize, idx) => (
                       <div key={prize.id || idx} className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-[#b3cde0] dark:border-gray-600">
                         <div className="w-14 h-14 rounded-lg bg-ev-100 dark:bg-ev-900/30 flex items-center justify-center shrink-0">
-                          {prize.prizeType === 'trophy' ? <Trophy className="w-6 h-6 text-ev-700" /> : prize.prizeType === 'cash' ? <IndianRupee className="w-6 h-6 text-ev-700" /> : <Award className="w-6 h-6 text-ev-700" />}
+                          {prize.prizeType ===
+   'trophy' ? <Trophy className="w-6 h-6 text-ev-700" /> : prize.prizeType ===
+   'cash' ? <IndianRupee className="w-6 h-6 text-ev-700" /> : <Award className="w-6 h-6 text-ev-700" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-ev-900 dark:text-white">{prize.rank}</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{prize.prizeType === 'cash' && prize.prizeAmount ? `₹${prize.prizeAmount.toLocaleString()}` : prize.title || PRIZE_TYPE_OPTIONS.find(p => p.value === prize.prizeType)?.label || 'Prize'}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{prize.prizeType ===
+   'cash' && prize.prizeAmount ? `₹${prize.prizeAmount.toLocaleString()}` : prize.title || PRIZE_TYPE_OPTIONS.find(p => p.value ===
+   prize.prizeType)?.label || 'Prize'}</p>
                           {prize.additionalPerks && prize.additionalPerks.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {prize.additionalPerks.map((perk, i) => <span key={i} className="px-2 py-0.5 bg-ev-50 dark:bg-ev-900/20 text-ev-800 dark:text-ev-200 text-xs rounded-full">{perk}</span>)}
@@ -1925,7 +2037,9 @@ export default function ManageEventPage() {
               )}
             </section>
 
-            {/* ====== Custom Registration Questions ====== */}
+            {/* ======
+   Custom Registration Questions ======
+   */}
             <section className={sectionClass}>
               <SectionLabel>Custom Registration Questions</SectionLabel>
               <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
@@ -1943,7 +2057,8 @@ export default function ManageEventPage() {
                         <GripVertical className="w-4 h-4 text-gray-300 cursor-grab" />
                         <div>
                           <h4 className="font-medium text-ev-900 dark:text-white">{field.fieldLabel}</h4>
-                          <p className="text-xs text-gray-500">{FIELD_TYPE_OPTIONS.find(t => t.value === field.fieldType)?.label || field.fieldType}{field.isRequired && <span className="ml-1 text-red-500">• Required</span>}</p>
+                          <p className="text-xs text-gray-500">{FIELD_TYPE_OPTIONS.find(t => t.value ===
+   field.fieldType)?.label || field.fieldType}{field.isRequired && <span className="ml-1 text-red-500">• Required</span>}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1979,14 +2094,16 @@ export default function ManageEventPage() {
                   </button>
                 )}
               </div>
-              {currentStep === STEPS.length && (
+              {currentStep ===
+   STEPS.length && (
                 <div className="flex items-center gap-2 sm:gap-3">
                   <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-ev-700 text-white text-sm font-medium rounded-md hover:bg-ev-800 disabled:opacity-50 flex items-center gap-2 transition-colors">
                     {saving ? <Skeleton className="w-4 h-4 rounded-sm" /> : <Save className="w-4 h-4" />}<span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Save</span>
                   </button>
                   <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
                     {publishing ? <Skeleton className="w-4 h-4 rounded-sm" /> : <CheckCircle className="w-4 h-4" />}
-                    <span className="hidden sm:inline">{event.status === 'published' ? 'Update & Republish' : 'Save & Publish'}</span><span className="sm:hidden">Publish</span>
+                    <span className="hidden sm:inline">{event.status ===
+   'published' ? 'Update & Republish' : 'Save & Publish'}</span><span className="sm:hidden">Publish</span>
                   </button>
                 </div>
               )}
@@ -1995,7 +2112,9 @@ export default function ManageEventPage() {
         </div>
       </div>
 
-      {/* ===== Prize Modal ===== */}
+      {/* =====
+   Prize Modal =====
+   */}
       {showPrizeModal && editingPrize && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -2013,14 +2132,16 @@ export default function ManageEventPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prize Type</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PRIZE_TYPE_OPTIONS.map(opt => (
-                    <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize, prizeType: opt.value })} disabled={isPrizeConfigLocked} className={`flex flex-col items-center gap-1 p-3 rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${editingPrize.prizeType === opt.value ? 'border-ev-700 bg-ev-50 dark:bg-ev-900/20 text-ev-800' : 'border-[#b3cde0] dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
+                    <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize, prizeType: opt.value })} disabled={isPrizeConfigLocked} className={`flex flex-col items-center gap-1 p-3 rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${editingPrize.prizeType ===
+   opt.value ? 'border-ev-700 bg-ev-50 dark:bg-ev-900/20 text-ev-800' : 'border-[#b3cde0] dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
                       {opt.icon}<span className="text-xs font-medium">{opt.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {editingPrize.prizeType === 'cash' && (
+              {editingPrize.prizeType ===
+   'cash' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prize Amount (₹)</label>
                   <input type="number" value={editingPrize.prizeAmount || ''} onChange={(e) => setEditingPrize({ ...editingPrize, prizeAmount: e.target.value ? Number(e.target.value) : undefined })} disabled={isPrizeConfigLocked} className={inputClass} placeholder="Enter amount" />
@@ -2049,7 +2170,9 @@ export default function ManageEventPage() {
         </div>
       )}
 
-      {/* ===== Custom Field Modal ===== */}
+      {/* =====
+   Custom Field Modal =====
+   */}
       {showFieldModal && editingField && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">

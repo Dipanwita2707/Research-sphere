@@ -80,7 +80,9 @@ export function useMyClubs(options: { enabled?: boolean } = {}) {
     queryKey: DSW_QUERY_KEYS.myClubs(),
     queryFn: () => dswAPI.clubs.getMyClubs(),
     enabled,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes — club membership rarely changes mid-session
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     select: (data) => data, // Referential stability — only re-render when data changes
   });
 }
@@ -376,10 +378,13 @@ export function useClubPermissions(club?: Club, currentUserId?: string) {
     if (!club || !currentUserId) return empty;
 
     // chairpersonId is the student who created and leads the club.
-    const isChairperson = club.chairpersonId === currentUserId;
-    const isFacultyFacilitator = club.facultyFacilitatorId === currentUserId;
+    const isChairperson = club.chairpersonId ===
+   currentUserId;
+    const isFacultyFacilitator = club.facultyFacilitatorId ===
+   currentUserId;
     const isMember = !!club.members?.some(
-      (m) => m.studentId === currentUserId && m.isActive,
+      (m) => m.studentId ===
+   currentUserId && m.isActive,
     );
 
     return {

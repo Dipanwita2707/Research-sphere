@@ -139,7 +139,8 @@ export function sanitizeClubFormPatch(
     case "clubName":
     case "purpose":
       return sanitizePlainTextInput(String(value ?? ""), {
-        maxLength: field === "clubName" ? 100 : 2000,
+        maxLength: field ===
+   "clubName" ? 100 : 2000,
       }) as ClubFormData[keyof ClubFormData];
     case "academicSession":
       return normalizeAcademicSession(String(value ?? "")) as ClubFormData[keyof ClubFormData];

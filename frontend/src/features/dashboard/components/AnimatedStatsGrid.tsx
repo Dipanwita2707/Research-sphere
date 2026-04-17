@@ -31,7 +31,8 @@ function StatCard({ title, value, icon: Icon, color, change, changeType, progres
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    if (inView && typeof value === 'number') {
+    if (inView && typeof value ===
+   'number') {
       let start = 0;
       const end = value;
       const duration = 2000;
@@ -93,7 +94,8 @@ function StatCard({ title, value, icon: Icon, color, change, changeType, progres
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3"
           >
-            {typeof displayValue === 'number' ? displayValue : displayValue}
+            {typeof displayValue ===
+   'number' ? displayValue : displayValue}
           </motion.div>
 
           {/* Change Indicator */}
@@ -106,10 +108,12 @@ function StatCard({ title, value, icon: Icon, color, change, changeType, progres
             >
               <span
                 className={`text-sm font-medium ${
-                  changeType === 'increase' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  changeType ===
+   'increase' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`}
               >
-                {changeType === 'increase' ? '↑' : '↓'} {change}
+                {changeType ===
+   'increase' ? '↑' : '↓'} {change}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400">vs last month</span>
             </motion.div>

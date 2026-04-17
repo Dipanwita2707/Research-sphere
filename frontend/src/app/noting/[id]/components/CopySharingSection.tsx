@@ -95,8 +95,10 @@ export default function CopySharingSection({
   } = useNoteCopies(note?.id ?? "", {
     enabled:
       !!note?.id &&
-      note?.status === "approved" &&
-      note?.createdById === currentUserId,
+      note?.status ===
+   "approved" &&
+      note?.createdById ===
+   currentUserId,
   });
 
   // Derive filtered search results — exclude already-selected and existing copy recipients
@@ -106,7 +108,8 @@ export default function CopySharingSection({
     );
     return rawCopySearchResults.filter(
       (r) =>
-        !selectedCopyUsers.some((s) => s.id === r.id) &&
+        !selectedCopyUsers.some((s) => s.id ===
+   r.id) &&
         !existingCopyUserIds.has(r.id),
     );
   }, [rawCopySearchResults, selectedCopyUsers, copies]);
@@ -114,7 +117,8 @@ export default function CopySharingSection({
   // ── Handler functions ──
   const doSendCopy = async () => {
     if (!note) return;
-    if (selectedCopyUsers.length === 0) {
+    if (selectedCopyUsers.length ===
+   0) {
       toast({ type: "error", message: "Please select at least one user" });
       return;
     }
@@ -244,13 +248,15 @@ export default function CopySharingSection({
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length ===
+   0) return;
     const FILE_MAX_BYTES = 5 * 1024 * 1024; // 5MB
     const oversized = Array.from(files).filter((f) => f.size > FILE_MAX_BYTES);
     if (oversized.length > 0) {
       toast({
         type: "error",
-        message: `File size must not exceed 5MB. ${oversized.map((f) => f.name).join(", ")} ${oversized.length === 1 ? "is" : "are"} too large.`,
+        message: `File size must not exceed 5MB. ${oversized.map((f) => f.name).join(", ")} ${oversized.length ===
+   1 ? "is" : "are"} too large.`,
       });
       e.target.value = "";
       return;
@@ -345,7 +351,8 @@ export default function CopySharingSection({
           {/* Search Results */}
           {copySearchQuery.trim().length >= 2 && (
             <div className="max-h-40 overflow-y-auto rounded-xl border border-[#b3cde0]/45 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-[#b3cde0]/15 dark:divide-gray-700">
-              {copySearchResults.length === 0 &&
+              {copySearchResults.length ===
+   0 &&
                 !copySearchLoading && (
                   <p className="px-3 py-3 text-sm text-[#6497b1] text-center">
                     No users found
@@ -397,7 +404,8 @@ export default function CopySharingSection({
             onClick={doSendCopy}
             disabled={
               copySendLoading ||
-              selectedCopyUsers.length === 0 ||
+              selectedCopyUsers.length ===
+   0 ||
               !copyRemarks.trim()
             }
             className="w-full px-4 py-3 text-base bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-md shadow-[#005b96]/20"
@@ -434,7 +442,8 @@ export default function CopySharingSection({
                 ([rootId, groupCopies]) => {
                   const rootCopy =
                     rootById.get(rootId) ||
-                    groupCopies.find((c) => c.id === rootId) ||
+                    groupCopies.find((c) => c.id ===
+   rootId) ||
                     groupCopies[0];
                   const assigneeName =
                     rootCopy.assignedTo?.employeeDetails
@@ -452,24 +461,30 @@ export default function CopySharingSection({
                       new Date(b.createdAt).getTime(),
                   );
                   const latestStatus = groupCopies.some(
-                    (c) => c.status === "completed",
+                    (c) => c.status ===
+   "completed",
                   )
                     ? "completed"
                     : groupCopies.some(
-                          (c) => c.status === "replied",
+                          (c) => c.status ===
+   "replied",
                         )
                       ? "replied"
                       : groupCopies.some(
-                            (c) => c.status === "forwarded",
+                            (c) => c.status ===
+   "forwarded",
                           )
                         ? "forwarded"
                         : "pending";
                   const statusColor =
-                    latestStatus === "completed"
+                    latestStatus ===
+   "completed"
                       ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                      : latestStatus === "replied"
+                      : latestStatus ===
+   "replied"
                         ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                        : latestStatus === "forwarded"
+                        : latestStatus ===
+   "forwarded"
                           ? "text-amber-600 bg-amber-50 border-amber-200"
                           : "text-[#03396c] bg-[#b3cde0]/10 border-[#b3cde0]/40";
                   const maxLevel = Math.max(
@@ -478,15 +493,19 @@ export default function CopySharingSection({
                     ),
                     0,
                   );
-                  const isExpanded = expandedCopyId === rootId;
+                  const isExpanded = expandedCopyId ===
+   rootId;
                   const actionCopy = groupCopies.find(
-                    (c) => c.status === "replied",
+                    (c) => c.status ===
+   "replied",
                   );
                   // One reply per level — only show Reply when status is pending (not yet replied)
                   const replyCopy = groupCopies.find(
                     (c) =>
-                      c.assignedToId === currentUserId &&
-                      c.status === "pending",
+                      c.assignedToId ===
+   currentUserId &&
+                      c.status ===
+   "pending",
                   );
 
                   const getRemarksPreview = (r: string) => {
@@ -495,7 +514,8 @@ export default function CopySharingSection({
                       return (
                         p.senderRemarks ||
                         p.systemWarning ||
-                        (typeof p === "string" ? p : r)
+                        (typeof p ===
+   "string" ? p : r)
                       );
                     } catch {
                       return r;
@@ -609,8 +629,10 @@ export default function CopySharingSection({
                                 rootAssigneeId,
                             );
                             const isDone =
-                              latestStatus === "completed" ||
-                              latestStatus === "replied";
+                              latestStatus ===
+   "completed" ||
+                              latestStatus ===
+   "replied";
 
                             const escalationCopies = sorted
                               .filter(
@@ -727,7 +749,8 @@ export default function CopySharingSection({
                                 timeline[timeline.length - 1];
                               if (
                                 lastItem &&
-                                lastItem.type === "escalation-group"
+                                lastItem.type ===
+   "escalation-group"
                               ) {
                                 const lastTime = new Date(
                                   lastItem.copies[0].createdAt,
@@ -758,11 +781,14 @@ export default function CopySharingSection({
                               );
 
                             const ordinal = (n: number) =>
-                              n === 1
+                              n ===
+   1
                                 ? "1st"
-                                : n === 2
+                                : n ===
+   2
                                   ? "2nd"
-                                  : n === 3
+                                  : n ===
+   3
                                     ? "3rd"
                                     : `${n}th`;
 
@@ -866,7 +892,8 @@ export default function CopySharingSection({
                                 {timeline.length > 0 ? (
                                   timeline.map((item, idx) => {
                                     if (
-                                      item.type === "worker-reply"
+                                      item.type ===
+   "worker-reply"
                                     ) {
                                       const r = item.reply;
                                       return (
@@ -1309,13 +1336,15 @@ export default function CopySharingSection({
                                       c.rootCopy?.assignedToId ===
                                         currentUserId) ||
                                     (!creatorEscalated &&
-                                      c.sentById === currentUserId)
+                                      c.sentById ===
+   currentUserId)
                                   );
                                 });
                               return hasOrderForMe;
                             })() && (
                               <div>
-                                {replyingCopyId === replyCopy.id ? (
+                                {replyingCopyId ===
+   replyCopy.id ? (
                                   <div className="space-y-2">
                                     <textarea
                                       value={replyRemarks}

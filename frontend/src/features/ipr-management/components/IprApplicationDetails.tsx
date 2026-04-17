@@ -210,12 +210,14 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
   const getDrdReview = () => {
     if (!application?.reviews) return null;
-    return application.reviews.find((r: any) => r.reviewerRole === 'drd_member');
+    return application.reviews.find((r: any) => r.reviewerRole ===
+   'drd_member');
   };
 
   const getDeanReview = () => {
     if (!application?.reviews) return null;
-    return application.reviews.find((r: any) => r.reviewerRole === 'drd_dean');
+    return application.reviews.find((r: any) => r.reviewerRole ===
+   'drd_dean');
   };
 
   const getFinanceReview = () => {
@@ -231,7 +233,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
     const policy = INCENTIVE_POLICY[iprType as keyof typeof INCENTIVE_POLICY] || INCENTIVE_POLICY.patent;
     
     // Count inventors (from contributors or default to 1)
-    const inventorCount = application.contributors?.filter((c: any) => c.contributorType === 'inventor')?.length || 1;
+    const inventorCount = application.contributors?.filter((c: any) => c.contributorType ===
+   'inventor')?.length || 1;
     
     // Calculate per-person share (equal split)
     const pointsPerPerson = Math.floor(policy.basePoints / inventorCount);
@@ -250,10 +253,10 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading application details...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading application details...</p>
         </div>
       </div>
     );
@@ -261,11 +264,11 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-center">
+      <div className="max-w-4xl mx-auto p-6 dark:bg-gray-900 min-h-screen">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 text-center">
           <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-red-900 mb-2">Error Loading Application</h2>
-          <p className="text-red-700 mb-4">{error}</p>
+          <h2 className="text-lg font-semibold text-red-900 dark:text-red-200 mb-2">Error Loading Application</h2>
+          <p className="text-red-700 dark:text-red-300 mb-4">{error}</p>
           <button
             onClick={() => router.back()}
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
@@ -279,10 +282,10 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
   if (!application) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-6 dark:bg-gray-900 min-h-screen">
         <div className="text-center py-12">
-          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">Application not found</p>
+          <FileText className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 text-lg">Application not found</p>
         </div>
       </div>
     );
@@ -293,17 +296,17 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
   const financeReview = getFinanceReview();
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 dark:bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => router.back()}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 dark:text-gray-400" />
         </button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-gray-900">{application.title}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{application.title}</h1>
           <div className="flex items-center gap-4 mt-2">
             {getStatusBadge(application.status)}
             <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded font-medium">
@@ -320,24 +323,24 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Application Details */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Application Details</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Application Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">IPR Type</label>
-                <p className="mt-1 text-gray-900">{application.iprType.toUpperCase()}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">IPR Type</label>
+                <p className="mt-1 text-gray-900 dark:text-white">{application.iprType.toUpperCase()}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Project Type</label>
-                <p className="mt-1 text-gray-900">{application.projectType.replace(/_/g, ' ')}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Project Type</label>
+                <p className="mt-1 text-gray-900 dark:text-white">{application.projectType.replace(/_/g, ' ')}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Filing Type</label>
-                <p className="mt-1 text-gray-900">{application.filingType}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Filing Type</label>
+                <p className="mt-1 text-gray-900 dark:text-white">{application.filingType}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Submitted Date</label>
-                <p className="mt-1 text-gray-900">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Submitted Date</label>
+                <p className="mt-1 text-gray-900 dark:text-white">
                   {application.submittedAt 
                     ? new Date(application.submittedAt).toLocaleDateString()
                     : 'Not submitted'}
@@ -346,14 +349,14 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
             </div>
             
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700">Description</label>
-              <p className="mt-1 text-gray-900">{application.description}</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Description</label>
+              <p className="mt-1 text-gray-900 dark:text-white">{application.description}</p>
             </div>
 
             {application.remarks && (
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">Remarks</label>
-                <p className="mt-1 text-gray-900">{application.remarks}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Remarks</label>
+                <p className="mt-1 text-gray-900 dark:text-white">{application.remarks}</p>
               </div>
             )}
 
@@ -373,8 +376,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
           {/* Documents Section */}
           {(application.annexureFilePath || (application.supportingDocsFilePaths && application.supportingDocsFilePaths.length > 0) || application.prototypeFilePath) && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Download className="w-5 h-5 text-blue-600" />
                 Documents & Attachments
               </h2>
@@ -382,7 +385,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
               {/* Main Annexure Document */}
               {application.annexureFilePath && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Main Document (Annexure)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">Main Document (Annexure)</label>
                   <a
                     href={getUploadUrl(application.annexureFilePath)}
                     target="_blank"
@@ -397,7 +400,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
               {/* Prototype ZIP for Complete Filing */}
               {application.prototypeFilePath && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prototype Package (ZIP)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">Prototype Package (ZIP)</label>
                   <a
                     href={getUploadUrl(application.prototypeFilePath)}
                     target="_blank"
@@ -413,7 +416,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
               {/* Supporting Documents */}
               {application.supportingDocsFilePaths && application.supportingDocsFilePaths.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Supporting Documents</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">Supporting Documents</label>
                   <div className="space-y-2">
                     {application.supportingDocsFilePaths.map((filePath: string, index: number) => (
                       <a
@@ -421,7 +424,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                         href={getUploadUrl(filePath)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors w-fit"
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors w-fit"
                       >
                         <FileText className="w-4 h-4" />
                         Supporting Document {index + 1}
@@ -434,15 +437,15 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
           )}
 
           {/* Applicant Information */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Applicant Information</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Applicant Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {application.applicantUser ? (
                 // Internal Applicant - from UserLogin with employeeDetails or studentLogin
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                    <p className="mt-1 text-gray-900">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Name</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">
                       {application.applicantUser.employeeDetails?.displayName ||
                        `${application.applicantUser.employeeDetails?.firstName || ''} ${application.applicantUser.employeeDetails?.lastName || ''}`.trim() ||
                        application.applicantUser.studentLogin?.displayName ||
@@ -451,39 +454,39 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                    <p className="mt-1 text-gray-900">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Email</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">
                       {application.applicantUser.email || 
                        application.applicantUser.employeeDetails?.email ||
                        application.applicantUser.studentLogin?.email || 'N/A'}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">UID</label>
-                    <p className="mt-1 text-gray-900">{application.applicantUser.uid || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">UID</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantUser.uid || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Type</label>
-                    <p className="mt-1 text-gray-900 capitalize">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Type</label>
+                    <p className="mt-1 text-gray-900 dark:text-white capitalize">
                       {application.applicantUser.role || application.applicantType?.replace('internal_', '') || 'N/A'}
                     </p>
                   </div>
                   {application.applicantUser.employeeDetails?.empId && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Employee ID</label>
-                      <p className="mt-1 text-gray-900">{application.applicantUser.employeeDetails.empId}</p>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Employee ID</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">{application.applicantUser.employeeDetails.empId}</p>
                     </div>
                   )}
                   {application.applicantUser.studentLogin?.studentId && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Student ID</label>
-                      <p className="mt-1 text-gray-900">{application.applicantUser.studentLogin.studentId}</p>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Student ID</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">{application.applicantUser.studentLogin.studentId}</p>
                     </div>
                   )}
                   {application.applicantDetails?.phone && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Phone</label>
-                      <p className="mt-1 text-gray-900">{application.applicantDetails.phone}</p>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Phone</label>
+                      <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails.phone}</p>
                     </div>
                   )}
                 </>
@@ -491,40 +494,40 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 // External Applicant
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                    <p className="mt-1 text-gray-900">{application.applicantDetails?.externalName || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Name</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails?.externalName || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                    <p className="mt-1 text-gray-900">{application.applicantDetails?.externalEmail || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Email</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails?.externalEmail || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Organization</label>
-                    <p className="mt-1 text-gray-900">{application.applicantDetails?.companyUniversityName || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Organization</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails?.companyUniversityName || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Applicant Type</label>
-                    <p className="mt-1 text-gray-900 capitalize">{application.applicantDetails?.externalOption?.replace(/_/g, ' ') || application.applicantType?.replace(/_/g, ' ') || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Applicant Type</label>
+                    <p className="mt-1 text-gray-900 dark:text-white capitalize">{application.applicantDetails?.externalOption?.replace(/_/g, ' ') || application.applicantType?.replace(/_/g, ' ') || 'N/A'}</p>
                   </div>
                 </>
               ) : (
                 // Fallback - show whatever data we have from applicantDetails
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">UID</label>
-                    <p className="mt-1 text-gray-900">{application.applicantDetails?.uid || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">UID</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails?.uid || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                    <p className="mt-1 text-gray-900">{application.applicantDetails?.email || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Email</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails?.email || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Phone</label>
-                    <p className="mt-1 text-gray-900">{application.applicantDetails?.phone || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Phone</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails?.phone || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Department</label>
-                    <p className="mt-1 text-gray-900">{application.applicantDetails?.universityDeptName || 'N/A'}</p>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Department</label>
+                    <p className="mt-1 text-gray-900 dark:text-white">{application.applicantDetails?.universityDeptName || 'N/A'}</p>
                   </div>
                 </>
               )}
@@ -533,20 +536,22 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
           {/* DRD Review Section */}
           {drdReview && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-blue-600" />
                 DRD Review
               </h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Decision</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Decision</label>
                   <p className="mt-1">
                     <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      drdReview.decision === 'approved' 
+                      drdReview.decision ===
+   'approved' 
                         ? 'bg-green-100 text-green-800'
-                        : drdReview.decision === 'rejected'
+                        : drdReview.decision ===
+   'rejected'
                         ? 'bg-red-100 text-red-800'
                         : 'bg-orange-100 text-orange-800'
                     }`}>
@@ -556,8 +561,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Comments</label>
-                  <p className="mt-1 text-gray-900 bg-gray-50 p-3 rounded-md">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Comments</label>
+                  <p className="mt-1 text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
                     {drdReview.comments || 'No comments provided'}
                   </p>
                 </div>
@@ -574,15 +579,15 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Reviewed By</label>
-                  <p className="mt-1 text-gray-900">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Reviewed By</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {drdReview.reviewer?.employeeDetails?.displayName || 'Unknown Reviewer'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Review Date</label>
-                  <p className="mt-1 text-gray-900">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Review Date</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {drdReview.reviewedAt 
                       ? new Date(drdReview.reviewedAt).toLocaleString()
                       : 'Not reviewed yet'}
@@ -591,7 +596,9 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
               </div>
 
               {/* Action Buttons for Changes Required */}
-              {application.status === 'changes_required' && drdReview.decision === 'changes_required' && (
+              {application.status ===
+   'changes_required' && drdReview.decision ===
+   'changes_required' && (
                 <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-md">
                   <h3 className="text-lg font-semibold text-orange-900 mb-2">Action Required</h3>
                   <p className="text-orange-800 mb-4">
@@ -612,18 +619,19 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
           {/* Dean Review Section */}
           {deanReview && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 Dean Review
               </h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Decision</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Decision</label>
                   <p className="mt-1">
                     <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      deanReview.decision === 'approved' 
+                      deanReview.decision ===
+   'approved' 
                         ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
@@ -633,22 +641,22 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Comments</label>
-                  <p className="mt-1 text-gray-900 bg-gray-50 p-3 rounded-md">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Comments</label>
+                  <p className="mt-1 text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
                     {deanReview.comments || 'No comments provided'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Reviewed By</label>
-                  <p className="mt-1 text-gray-900">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Reviewed By</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {deanReview.reviewer?.employeeDetails?.displayName || 'Unknown Dean'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Review Date</label>
-                  <p className="mt-1 text-gray-900">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Review Date</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {deanReview.reviewedAt 
                       ? new Date(deanReview.reviewedAt).toLocaleString()
                       : 'Not reviewed yet'}
@@ -660,18 +668,19 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
           {/* Finance Review Section */}
           {financeReview && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-purple-600" />
                 Finance Review
               </h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Audit Status</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Audit Status</label>
                   <p className="mt-1">
                     <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      financeReview.auditStatus === 'approved' 
+                      financeReview.auditStatus ===
+   'approved' 
                         ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
@@ -680,10 +689,11 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                   </p>
                 </div>
 
-                {financeReview.auditStatus === 'approved' && (
+                {financeReview.auditStatus ===
+   'approved' && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Incentive Amount</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Incentive Amount</label>
                       <p className="mt-1 text-2xl font-bold text-green-600">
                         ₹{financeReview.incentiveAmount?.toLocaleString()}
                       </p>
@@ -691,7 +701,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
                     {financeReview.pointsAwarded && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Points Awarded</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Points Awarded</label>
                         <p className="mt-1 text-xl font-semibold text-blue-600">
                           {financeReview.pointsAwarded} points
                         </p>
@@ -700,8 +710,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
                     {financeReview.paymentReference && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Payment Reference</label>
-                        <p className="mt-1 text-gray-900 bg-gray-50 p-3 rounded-md font-mono">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Payment Reference</label>
+                        <p className="mt-1 text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md font-mono">
                           {financeReview.paymentReference}
                         </p>
                       </div>
@@ -709,8 +719,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
                     {financeReview.creditedAt && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Credited Date</label>
-                        <p className="mt-1 text-gray-900">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Credited Date</label>
+                        <p className="mt-1 text-gray-900 dark:text-white">
                           {new Date(financeReview.creditedAt).toLocaleString()}
                         </p>
                       </div>
@@ -719,15 +729,15 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Comments</label>
-                  <p className="mt-1 text-gray-900 bg-gray-50 p-3 rounded-md">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Comments</label>
+                  <p className="mt-1 text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
                     {financeReview.auditComments || 'No comments provided'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Processed By</label>
-                  <p className="mt-1 text-gray-900">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Processed By</label>
+                  <p className="mt-1 text-gray-900 dark:text-white">
                     {financeReview.financeReviewer?.employeeDetails?.displayName || 'Unknown Finance Officer'}
                   </p>
                 </div>
@@ -739,18 +749,22 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Status Timeline */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Status History</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Status History</h2>
             
             {/* Merged Timeline: Status Changes + DRD Updates - Scrollable */}
             <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-              {(!application?.statusHistory || application.statusHistory.length === 0) && (statusUpdates.length === 0) && (
-                <p className="text-gray-500 text-sm">No status history available</p>
+              {(!application?.statusHistory || application.statusHistory.length ===
+   0) && (statusUpdates.length ===
+   0) && (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">No status history available</p>
               )}
 
               {buildTimeline().map((item: any, idx: number, arr: any[]) => {
-                const isLast = idx === arr.length - 1;
-                if (item.kind === 'status') {
+                const isLast = idx ===
+   arr.length - 1;
+                if (item.kind ===
+   'status') {
                   return (
                     <div key={item.id} className="relative">
                       {!isLast && <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-blue-200"></div>}
@@ -761,13 +775,13 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                           </div>
                         </div>
                                 <div className="flex-1 min-w-0 pb-4">
-                          <p className="text-sm font-bold text-gray-900">{item.title}</p>
-                          <p className="text-xs text-gray-500 mt-1">{new Date(item.time).toLocaleString()}</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{item.title}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{new Date(item.time).toLocaleString()}</p>
                           {item.message && (
-                            <p className="text-xs text-gray-700 mt-2 bg-gray-50 p-2 rounded">{item.message}</p>
+                            <p className="text-xs text-gray-700 dark:text-gray-300 mt-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">{item.message}</p>
                           )}
                                   {item.changedBy && (
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                       By {item.changedBy.employeeDetails?.displayName || item.changedBy.uid || item.changedBy}
                                       {item.changedBy.employeeDetails?.displayName && item.changedBy.uid && (
                                         <span>{` (${item.changedBy.uid})`}</span>
@@ -794,17 +808,18 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                         </div>
                       </div>
                       <div className="flex-1 min-w-0 pb-4">
-                        <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
                           {cfg.label}
-                          {item.priority === 'urgent' && (
+                          {item.priority ===
+   'urgent' && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 border border-red-300 rounded-full">Urgent</span>
                           )}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">{new Date(item.time).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{new Date(item.time).toLocaleString()}</p>
                         {item.message && (
-                          <p className="text-xs text-gray-700 mt-2 bg-gray-50 p-2 rounded">{item.message}</p>
+                          <p className="text-xs text-gray-700 dark:text-gray-300 mt-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">{item.message}</p>
                         )}
-                        <p className="text-xs text-gray-500 mt-1">By {Creator}{item.createdBy?.uid ? ` (${item.createdBy.uid})` : ''}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">By {Creator}{item.createdBy?.uid ? ` (${item.createdBy.uid})` : ''}</p>
                       </div>
                     </div>
                   </div>
@@ -814,26 +829,26 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
           </div>
 
           {/* Application Info */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Application Info</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Application Info</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500">School</label>
-                <p className="text-sm text-gray-900">{application.school?.facultyName || 'N/A'}</p>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">School</label>
+                <p className="text-sm text-gray-900 dark:text-white">{application.school?.facultyName || 'N/A'}</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500">Department</label>
-                <p className="text-sm text-gray-900">{application.department?.departmentName || 'N/A'}</p>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Department</label>
+                <p className="text-sm text-gray-900 dark:text-white">{application.department?.departmentName || 'N/A'}</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500">Created Date</label>
-                <p className="text-sm text-gray-900">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Created Date</label>
+                <p className="text-sm text-gray-900 dark:text-white">
                   {new Date(application.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500">Last Updated</label>
-                <p className="text-sm text-gray-900">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Last Updated</label>
+                <p className="text-sm text-gray-900 dark:text-white">
                   {new Date(application.updatedAt).toLocaleDateString()}
                 </p>
               </div>
@@ -841,10 +856,11 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
           </div>
 
           {/* Actions */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Actions</h2>
             <div className="space-y-3">
-              {application.status === 'draft' && (
+              {application.status ===
+   'draft' && (
                 <button
                   onClick={() => router.push(`/ipr/applications/${application.id}/edit`)}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
@@ -853,7 +869,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 </button>
               )}
               
-              {application.status === 'changes_required' && (
+              {application.status ===
+   'changes_required' && (
                 <button
                   onClick={() => router.push(`/ipr/applications/${application.id}/edit`)}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
@@ -862,10 +879,12 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 </button>
               )}
 
-              {(application.status === 'completed' || application.status === 'finance_approved') && application.incentiveAmount && (
-                <div className="text-center p-4 bg-green-50 rounded-md">
+              {(application.status ===
+   'completed' || application.status ===
+   'finance_approved') && application.incentiveAmount && (
+                <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-md">
                   <CreditCard className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-green-900">Incentive Credited</p>
+                  <p className="text-sm font-medium text-green-900 dark:text-green-200">Incentive Credited</p>
                   <p className="text-2xl font-bold text-green-600 mt-1">
                     ₹{application.incentiveAmount.toLocaleString()}
                   </p>

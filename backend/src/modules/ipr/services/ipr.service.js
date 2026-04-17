@@ -212,16 +212,18 @@ class IprService {
   async createContributors(iprApplicationId, iprTitle, iprType, applicantUserId, contributors) {
     if (!contributors || contributors.length === 0) return;
 
-    for (const contributor of contributors) {
-      let contributorUserId = null;
-      if (contributor.uid) {
-        const userLogin = await this.repo.findUserByUid(contributor.uid, { id: true });
-        if (userLogin) contributorUserId = userLogin.id;
-      }
+    // Batch-resolve contributor UIDs in one query
+    const uids = contributors.map(c => c.uid).filter(Boolean);
+    const resolvedUsers = uids.length
+      ? await this.repo.prisma.userLogin.findMany({ where: { uid: { in: uids } }, select: { id: true, uid: true } })
+      : [];
+    const uidToUserId = Object.fromEntries(resolvedUsers.map(u => [u.uid, u.id]));
 
-      await this.repo.createContributor({
+    // Batch insert contributor records (single DB round-trip)
+    await this.repo.prisma.iprContributor.createMany({
+      data: contributors.map(contributor => ({
         iprApplicationId,
-        userId: contributorUserId,
+        userId: (contributor.uid && uidToUserId[contributor.uid]) || null,
         uid: contributor.uid || null,
         name: contributor.name || 'Unknown',
         email: contributor.email || null,
@@ -232,17 +234,23 @@ class IprService {
         role: 'inventor',
         canView: true,
         canEdit: false,
-      });
+      })),
+      skipDuplicates: true,
+    });
 
-      if (contributorUserId) {
-        await this.repo.createNotification({
-          userId: contributorUserId,
-          type: 'ipr_contributor_added',
-          title: 'Added as Inventor/Contributor',
-          message: `You have been added as an inventor/contributor to IPR application: "${iprTitle}"`,
-          metadata: { iprApplicationId, iprTitle, iprType, addedBy: applicantUserId },
-        });
-      }
+    // Batch insert notifications for contributors who have accounts (single DB round-trip)
+    const notificationRows = contributors
+      .filter(c => c.uid && uidToUserId[c.uid])
+      .map(c => ({
+        userId: uidToUserId[c.uid],
+        type: 'ipr_contributor_added',
+        title: 'Added as Inventor/Contributor',
+        message: `You have been added as an inventor/contributor to IPR application: "${iprTitle}"`,
+        metadata: { iprApplicationId, iprTitle, iprType, addedBy: applicantUserId },
+      }));
+
+    if (notificationRows.length) {
+      await this.repo.prisma.notification.createMany({ data: notificationRows });
     }
   }
 
@@ -549,19 +557,33 @@ class IprService {
 
   async _notifyContributors(application, applicantName, iprTypeLabel, iprApplicationId, applicantUserId) {
     const contributors = application.applicantDetails?.metadata?.contributors || [];
-    for (const contributor of contributors) {
-      if (!contributor.uid) continue;
-      const contributorUser = await this.repo.findUserByUid(contributor.uid);
-      if (!contributorUser || contributorUser.id === applicantUserId) continue;
-      await this.repo.createNotification({
-        userId: contributorUser.id,
+    const eligibleUids = [...new Set(
+      contributors.map(c => c.uid).filter(Boolean)
+    )];
+    if (!eligibleUids.length) return;
+
+    // Batch-resolve UIDs in one query
+    const resolvedUsers = await this.repo.prisma.userLogin.findMany({
+      where: { uid: { in: eligibleUids } },
+      select: { id: true, uid: true },
+    });
+    const uidToUserId = Object.fromEntries(resolvedUsers.map(u => [u.uid, u.id]));
+
+    // Batch insert contributor-submit notifications (single DB round-trip)
+    const notificationRows = contributors
+      .filter(c => c.uid && uidToUserId[c.uid] && uidToUserId[c.uid] !== applicantUserId)
+      .map(c => ({
+        userId: uidToUserId[c.uid],
         type: 'ipr_contributor',
         title: `You've been added as an inventor/contributor`,
         message: `${applicantName} has submitted a ${iprTypeLabel} application titled "${application.title}" and listed you as an inventor/contributor. Application ID: ${application.applicationNumber}`,
         referenceType: 'ipr_application',
         referenceId: iprApplicationId,
-        metadata: { iprType: application.iprType, applicantUserId, applicantName, contributorRole: contributor.employeeType || 'contributor' },
-      });
+        metadata: { iprType: application.iprType, applicantUserId, applicantName, contributorRole: c.employeeType || 'contributor' },
+      }));
+
+    if (notificationRows.length) {
+      await this.repo.prisma.notification.createMany({ data: notificationRows });
     }
   }
 
@@ -746,7 +768,7 @@ class IprService {
     const [applications, groupedCounts, total] = await Promise.all([
       this.repo.findByApplicant(userId, filters, {
         include: IPR_LIST_INCLUDE,
-        ...(pagination.usePagination ? { skip: pagination.skip, take: pagination.limit } : {}),
+        ...(pagination.usePagination ? { skip: pagination.skip, take: pagination.limit } : { take: 500 }),
       }),
       this.repo.groupBy({
         by: ['status'],
@@ -911,16 +933,22 @@ class IprService {
     if (departmentId) where.departmentId = departmentId;
     if (userId) where.applicantUserId = userId;
 
-    const [total, submitted, underReview, approved, rejected, completed, byType, byStatus] = await Promise.all([
-      this.repo.count(where),
-      this.repo.count({ ...where, status: 'submitted' }),
-      this.repo.count({ ...where, status: { in: ['under_drd_review', 'recommended_to_head', 'under_finance_review'] } }),
-      this.repo.count({ ...where, status: { in: ['drd_head_approved', 'finance_approved', 'submitted_to_govt', 'govt_application_filed', 'published'] } }),
-      this.repo.count({ ...where, status: { in: ['drd_rejected', 'finance_rejected', 'cancelled'] } }),
-      this.repo.count({ ...where, status: 'completed' }),
+    // Single groupBy replaces 6 separate status count() calls
+    const [statusGroups, byType, byStatus] = await Promise.all([
+      this.repo.groupBy({ by: ['status'], where, _count: { id: true } }),
       this.repo.groupBy({ by: ['iprType'], where, _count: true }),
       this.repo.groupBy({ by: ['status'], where, _count: true }),
     ]);
+
+    // Derive counts from status groups in Node.js (zero extra DB queries)
+    const countByStatus = Object.fromEntries(statusGroups.map(g => [g.status, g._count.id]));
+    const sum = (...statuses) => statuses.reduce((acc, s) => acc + (countByStatus[s] || 0), 0);
+    const total = statusGroups.reduce((acc, g) => acc + g._count.id, 0);
+    const submitted = countByStatus['submitted'] || 0;
+    const underReview = sum('under_drd_review', 'recommended_to_head', 'under_finance_review');
+    const approved = sum('drd_head_approved', 'finance_approved', 'submitted_to_govt', 'govt_application_filed', 'published');
+    const rejected = sum('drd_rejected', 'finance_rejected', 'cancelled');
+    const completed = countByStatus['completed'] || 0;
 
     let myApplications = 0;
     if (userId) myApplications = await this.repo.count({ applicantUserId: userId });
@@ -1087,7 +1115,7 @@ class IprService {
       },
     };
 
-    const applications = await this.repo.findAll({ where: { applicantDetails: { mentorUid: userUid } }, include, orderBy: { updatedAt: 'desc' } });
+    const applications = await this.repo.findAll({ where: { applicantDetails: { mentorUid: userUid } }, include, orderBy: { updatedAt: 'desc' }, take: 300 });
 
     const pending = applications.filter(a => a.status === 'pending_mentor_approval');
     const changesRequired = applications.filter(a => a.status === 'changes_required');

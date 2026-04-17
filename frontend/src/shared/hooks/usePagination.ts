@@ -80,8 +80,10 @@ export function usePagination(options: UsePaginationOptions = {}): UsePagination
   const offset = useMemo(() => (page - 1) * limit, [page, limit]);
   const hasNextPage = useMemo(() => page < totalPages, [page, totalPages]);
   const hasPrevPage = useMemo(() => page > 1, [page]);
-  const isFirstPage = useMemo(() => page === 1, [page]);
-  const isLastPage = useMemo(() => page === totalPages, [page, totalPages]);
+  const isFirstPage = useMemo(() => page ===
+   1, [page]);
+  const isLastPage = useMemo(() => page ===
+   totalPages, [page, totalPages]);
 
   // Generate page range for pagination UI
   const pageRange = useMemo(() => {

@@ -175,7 +175,8 @@ function SponsorList({ sponsors, onZoom }: { sponsors: any[]; onZoom?: (url: str
   };
 
   const DetailBlock = ({ label, value, className = '' }: { label: string; value?: React.ReactNode; className?: string }) => {
-    if (value == null || value === '') return null;
+    if (value == null || value ===
+   '') return null;
     return (
       <div className={className}>
         <p className="text-xs font-semibold uppercase tracking-wider text-[#6497b1] dark:text-[#b3cde0]">{label}</p>
@@ -196,18 +197,25 @@ function SponsorList({ sponsors, onZoom }: { sponsors: any[]; onZoom?: (url: str
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{s.name}</p>
               </div>
               <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DetailBlock label="Contribution Type" value={s.type === 'cash' ? 'Cash' : 'In-Kind'} />
-                <DetailBlock label="Amount / Details" value={s.type === 'cash' ? formatCurrency(Number(s.amount || 0)) : (s.notes || 'Not provided')} />
+                <DetailBlock label="Contribution Type" value={s.type ===
+   'cash' ? 'Cash' : 'In-Kind'} />
+                <DetailBlock label="Amount / Details" value={s.type ===
+   'cash' ? formatCurrency(Number(s.amount || 0)) : (s.notes || 'Not provided')} />
               </div>
             </div>
           );
         }
 
-        const showCash = s.contributionType === 'cash' || s.contributionType === 'both';
-        const showInKind = s.contributionType === 'in_kind' || s.contributionType === 'both';
+        const showCash = s.contributionType ===
+   'cash' || s.contributionType ===
+   'both';
+        const showInKind = s.contributionType ===
+   'in_kind' || s.contributionType ===
+   'both';
         const paymentInfo = PAYMENT_STATUS_LABELS[s.paymentStatus] || PAYMENT_STATUS_LABELS.pending;
         const contributionInfo = CONTRIBUTION_LABELS[s.contributionType] || CONTRIBUTION_LABELS.cash;
-        const paymentMethodLabel = s.paymentMethod === 'other' && s.paymentMethodOtherLabel
+        const paymentMethodLabel = s.paymentMethod ===
+   'other' && s.paymentMethodOtherLabel
           ? s.paymentMethodOtherLabel
           : PAYMENT_METHOD_LABELS[s.paymentMethod] || s.paymentMethod;
 
@@ -312,7 +320,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
   return (
     <>
       {/* DSW Club Creation Details */}
-      {note.subcategory === "dsw_club_creation" && note.clubName && (
+      {note.subcategory ===
+   "dsw_club_creation" && note.clubName && (
         <section>
           <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
             <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
@@ -327,7 +336,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
       )}
 
       {/* Event Details */}
-      {note.subcategory === "events" && (
+      {note.subcategory ===
+   "events" && (
         <section>
           <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
             <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
@@ -335,7 +345,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
           </h3>
 
           {/* ── FESTIVAL ── */}
-          {note.notingEventType === "festival" ? (
+          {note.notingEventType ===
+   "festival" ? (
             <div className="space-y-4">
               {/* Festival Meta Card */}
               {note.festivalMeta && (
@@ -411,7 +422,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                       </div>
                     )}
                   </div>
-                  {note.status === "pending" && (
+                  {note.status ===
+   "pending" && (
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border-t border-blue-100 dark:border-blue-900">
                       <p className="text-xs text-blue-700 dark:text-blue-400">
                         <span className="font-medium">
@@ -423,7 +435,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                       </p>
                     </div>
                   )}
-                  {note.status === "approved" && (
+                  {note.status ===
+   "approved" && (
                     <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 border-t border-emerald-100 dark:border-emerald-900">
                       <p className="text-xs text-emerald-700 dark:text-emerald-400">
                         <span className="font-medium">
@@ -467,9 +480,11 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                                 {v.eventName || "(Unnamed)"}
                               </span>
                               <span
-                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${se.eventType === "stall" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"}`}
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${se.eventType ===
+   "stall" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"}`}
                               >
-                                {se.eventType === "stall"
+                                {se.eventType ===
+   "stall"
                                   ? "🪄 Stall-Based"
                                   : "🏛️ Venue"}
                               </span>
@@ -515,10 +530,12 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                                     Payment
                                   </label>
                                   <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${v.eventPaymentType === "free" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-blue-50 text-blue-700 border border-blue-200"}`}
+                                    className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${v.eventPaymentType ===
+   "free" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-blue-50 text-blue-700 border border-blue-200"}`}
                                   >
                                     {v.eventPaymentType.toUpperCase()}
-                                    {v.eventPaymentType === "paid" &&
+                                    {v.eventPaymentType ===
+   "paid" &&
                                       (v.eventRegistrationFeeIndividual !=
                                         null ||
                                         v.eventRegistrationFeeTeam !=
@@ -651,7 +668,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                                               {p.rank}
                                             </span>
                                             <span>
-                                              {p.prizeType === "cash" &&
+                                              {p.prizeType ===
+   "cash" &&
                                               p.prizeAmount
                                                 ? `₹${Number(p.prizeAmount).toLocaleString()}`
                                                 : p.title || p.prizeType}
@@ -676,7 +694,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                                 )}
                             </div>
                             {/* Stall config for stall-type sub-events */}
-                            {se.eventType === "stall" &&
+                            {se.eventType ===
+   "stall" &&
                               se.stallConfig && (
                                 <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 bg-amber-50/30 dark:bg-amber-900/10 p-3">
                                   <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">
@@ -802,7 +821,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                         Payment Type
                       </label>
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${note.eventPaymentType === "free" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-blue-50 text-blue-700 border border-blue-200"}`}
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${note.eventPaymentType ===
+   "free" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-blue-50 text-blue-700 border border-blue-200"}`}
                       >
                         {note.eventPaymentType.toUpperCase()}
                       </span>
@@ -818,7 +838,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                       </p>
                     </div>
                   )}
-                  {note.eventPaymentType === "paid" &&
+                  {note.eventPaymentType ===
+   "paid" &&
                     (note.eventRegistrationFeeIndividual != null ||
                       note.eventRegistrationFeeTeam != null) && (
                       <div className="bg-white dark:bg-gray-800 p-3">
@@ -826,7 +847,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                           Fee
                         </label>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {note.eventParticipationType === "team"
+                          {note.eventParticipationType ===
+   "team"
                             ? `₹ ${Number(note.eventRegistrationFeeTeam || 0).toLocaleString()} per team`
                             : `₹ ${Number(note.eventRegistrationFeeIndividual || 0).toLocaleString()} per person`}
                         </p>
@@ -855,7 +877,10 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                           {Array.isArray(
                             note.eventDutyLeaveEligibility,
                           ) && note.eventDutyLeaveEligibility.length > 0
-                            ? `Eligible: ${(note.eventDutyLeaveEligibility as string[]).map((e) => (e === "ug" ? "UG" : e === "pg" ? "PG" : e === "phd" ? "PhD" : e)).join(", ")}`
+                            ? `Eligible: ${(note.eventDutyLeaveEligibility as string[]).map((e) => (e ===
+   "ug" ? "UG" : e ===
+   "pg" ? "PG" : e ===
+   "phd" ? "PhD" : e)).join(", ")}`
                             : "Students (UG, PG, PhD)"}
                           {note.eventDutyLeaveRoleType
                             ? ` • For: ${note.eventDutyLeaveRoleType}`
@@ -926,7 +951,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                                 {p.rank}
                               </span>
                               <span>
-                                {p.prizeType === "cash" && p.prizeAmount
+                                {p.prizeType ===
+   "cash" && p.prizeAmount
                                   ? `₹${Number(p.prizeAmount).toLocaleString()}`
                                   : p.title || p.prizeType}
                               </span>
@@ -945,7 +971,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
               )}
 
               {/* Stall Config (for stall events) */}
-              {note.notingEventType === "stall" && note.stallConfig && (
+              {note.notingEventType ===
+   "stall" && note.stallConfig && (
                 <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 bg-amber-50/30 dark:bg-amber-900/10 p-3">
                   <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">
                     🪄 Stall Configuration
@@ -979,7 +1006,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                 </div>
               )}
 
-              {note.eventName && note.status === "pending" && (
+              {note.eventName && note.status ===
+   "pending" && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border-t border-blue-100 dark:border-blue-900">
                   <p className="text-xs text-blue-700 dark:text-blue-400">
                     <span className="font-medium">Auto-Creation:</span>{" "}
@@ -988,7 +1016,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                   </p>
                 </div>
               )}
-              {note.eventName && note.status === "approved" && (
+              {note.eventName && note.status ===
+   "approved" && (
                 <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 border-t border-emerald-100 dark:border-emerald-900">
                   <p className="text-xs text-emerald-700 dark:text-emerald-400">
                     <span className="font-medium">Event Created.</span>{" "}
@@ -1040,7 +1069,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                   </div>
 
                   {/* Student Filter */}
-                  {note.eventVisibilitySettings.studentFilterType === 'custom' && (
+                  {note.eventVisibilitySettings.studentFilterType ===
+   'custom' && (
                     <div className="bg-white dark:bg-gray-800 p-3 sm:col-span-2">
                       <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
                         Student Visibility Filter

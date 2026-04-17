@@ -34,10 +34,9 @@ const employeeSelect = {
   },
 };
 
-// =============================================
+// ======================================
 // Master Categories
-// =============================================
-
+// ======================================
 async function listMasterCategories(includeInactive = false) {
   const where = includeInactive ? {} : { isActive: true };
 
@@ -129,10 +128,9 @@ async function deleteMasterCategory(id) {
   await prisma.tmsMasterCategory.delete({ where: { id } });
 }
 
-// =============================================
+// ======================================
 // Categories
-// =============================================
-
+// ======================================
 async function createCategory(data) {
   const master = await prisma.tmsMasterCategory.findUnique({ where: { id: data.masterCategoryId } });
   if (!master) throw new Error(ERROR_MESSAGES.MASTER_CATEGORY_NOT_FOUND);
@@ -202,10 +200,9 @@ async function deleteCategory(id) {
   await prisma.tmsCategory.delete({ where: { id } });
 }
 
-// =============================================
+// ======================================
 // Sub-Categories
-// =============================================
-
+// ======================================
 async function createSubCategory(data) {
   const category = await prisma.tmsCategory.findUnique({ where: { id: data.categoryId } });
   if (!category) throw new Error(ERROR_MESSAGES.CATEGORY_NOT_FOUND);
@@ -279,10 +276,9 @@ async function deleteSubCategory(id) {
   await prisma.tmsSubCategory.delete({ where: { id } });
 }
 
-// =============================================
+// ======================================
 // Role Handlers (Registrar, Dean, VC)
-// =============================================
-
+// ======================================
 const ROLE_HANDLER_LEVELS = ['registrar', 'dean_academics', 'vice_chancellor'];
 
 async function listRoleHandlers() {

@@ -86,7 +86,8 @@ export default function ProfilePage() {
         updateData.email = formData.email;
       }
 
-      if (Object.keys(updateData).length === 0) {
+      if (Object.keys(updateData).length ===
+   0) {
         setMessage({ type: 'error', text: 'No changes to save' });
         setIsEditing(false);
         return;
@@ -164,11 +165,13 @@ export default function ProfilePage() {
         {/* Message Alert */}
         {message && (
           <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
-            message.type === 'success' 
+            message.type ===
+   'success' 
               ? 'bg-green-50 text-green-800 border border-green-200' 
               : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
-            {message.type === 'success' ? (
+            {message.type ===
+   'success' ? (
               <CheckCircle className="w-5 h-5 text-green-600" />
             ) : (
               <AlertCircle className="w-5 h-5 text-red-600" />

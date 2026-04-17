@@ -234,7 +234,7 @@ exports.getMyResearchContributions = async (req, res) => {
     }
 
     const [myContributions, coAuthorContributions] = await Promise.all([
-      contributionRepo.findAll({ where, select: RESEARCH_LIST_SELECT, orderBy: { createdAt: 'desc' } }),
+      contributionRepo.findAll({ where, select: RESEARCH_LIST_SELECT, orderBy: { createdAt: 'desc' }, take: 500 }),
       contributionRepo.findAll({
         where: {
           authors: { some: { userId } },
@@ -242,6 +242,7 @@ exports.getMyResearchContributions = async (req, res) => {
         },
         select: RESEARCH_LIST_SELECT,
         orderBy: { createdAt: 'desc' },
+        take: 500,
       }),
     ]);
 

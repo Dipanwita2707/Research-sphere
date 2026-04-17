@@ -5,9 +5,11 @@ export { default as ReviewerLeaderboardTable } from './ReviewerLeaderboardTable'
 export { default as ReviewerDetailDrawer } from './ReviewerDetailDrawer';
 export { default as TrendChartPanel } from './TrendChartPanel';
 export { default as AnalyticsBarChart } from './AnalyticsBarChart';
+export { default as AnalyticsPieChart } from './AnalyticsPieChart';
 export { default as AnalyticsPipelineChart } from './AnalyticsPipelineChart';
 export { default as RadarComparisonChart } from './RadarComparisonChart';
 export type { BarChartDataPoint, BarChartSeries } from './AnalyticsBarChart';
+export type { PieChartSlice } from './AnalyticsPieChart';
 export type { PipelineStageData } from './AnalyticsPipelineChart';
 export type { RadarAxis, RadarDataSet } from './RadarComparisonChart';
 export { default as ExportActions } from './ExportActions';

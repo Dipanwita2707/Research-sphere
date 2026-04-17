@@ -117,16 +117,21 @@ export default function DRDDashboardPage() {
   };
 
   const extractDRDPermissions = (perms: string[]): DRDPermissions => {
-    const isFacultyOrStudent = user?.role?.name === 'faculty' || user?.role?.name === 'student';
+    const isFacultyOrStudent = user?.role?.name ===
+   'faculty' || user?.role?.name ===
+   'student';
     
     const hasIprFile = perms.includes('ipr_file_new') || 
                        perms.some(p => p.toLowerCase().includes('ipr_file') || p.toLowerCase().includes('file') && p.toLowerCase().includes('ipr'));
     const hasIprReview = perms.includes('ipr_review') || 
-                         perms.some(p => p.toLowerCase() === 'ipr_review');
+                         perms.some(p => p.toLowerCase() ===
+   'ipr_review');
     const hasIprApprove = perms.includes('ipr_approve') || 
-                          perms.some(p => p.toLowerCase() === 'ipr_approve');
+                          perms.some(p => p.toLowerCase() ===
+   'ipr_approve');
     const hasIprAssignSchool = perms.includes('ipr_assign_school') || 
-                               perms.some(p => p.toLowerCase() === 'ipr_assign_school');
+                               perms.some(p => p.toLowerCase() ===
+   'ipr_assign_school');
     
     return {
       canViewAllIPR: hasIprReview || hasIprApprove || hasIprAssignSchool,

@@ -208,7 +208,8 @@ export default function NotingAdminPage() {
     { key: 'activity' as const, label: 'Activity', icon: Activity },
   ];
   const rawTab = searchParams.get('tab') as AdminTab | null;
-  const tab = rawTab && tabOptions.some((item) => item.key === rawTab) ? rawTab : 'overview';
+  const tab = rawTab && tabOptions.some((item) => item.key ===
+   rawTab) ? rawTab : 'overview';
 
   const setActiveTab = useCallback(
     (nextTab: AdminTab) => {
@@ -219,9 +220,13 @@ export default function NotingAdminPage() {
     [router, searchParams],
   );
 
-  const isStudent = !!user && (user.role?.name === 'student' || user.userType === 'student');
+  const isStudent = !!user && (user.role?.name ===
+   'student' || user.userType ===
+   'student');
   const roleName = user?.role?.name || user?.userType || '';
-  const canViewAnalytics = roleName === 'admin' || roleName === 'superadmin';
+  const canViewAnalytics = roleName ===
+   'admin' || roleName ===
+   'superadmin';
 
   const handleStatusFilterChange = useCallback((v: string) => {
     setStatusFilter(v);
@@ -259,17 +264,21 @@ export default function NotingAdminPage() {
   );
 
   const { data: config } = useNotingConfig({
-    enabled: canViewAnalytics && tab === 'notings',
+    enabled: canViewAnalytics && tab ===
+   'notings',
   });
   const { data: overview, isLoading: overviewLoading } = useNotingAdminOverview(sharedFilters, {
-    enabled: canViewAnalytics && tab === 'overview',
+    enabled: canViewAnalytics && tab ===
+   'overview',
   });
   const { data: userAnalytics, isLoading: usersLoading } = useNotingAdminUsers(sharedFilters, {
-    enabled: canViewAnalytics && tab === 'users',
+    enabled: canViewAnalytics && tab ===
+   'users',
   });
   const { data: activityAnalytics, isLoading: activityLoading } = useNotingAdminActivity(
     { ...sharedFilters, page: activityPage, limit: PAGE_SIZE },
-    { enabled: canViewAnalytics && tab === 'activity' },
+    { enabled: canViewAnalytics && tab ===
+   'activity' },
   );
   const { data: notesResult, isLoading: notesLoading } = useNotingList({
     filter: 'all',
@@ -282,7 +291,8 @@ export default function NotingAdminPage() {
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     includeCounts: false,
-    enabled: canViewAnalytics && tab === 'notings',
+    enabled: canViewAnalytics && tab ===
+   'notings',
   });
 
   const notes = notesResult?.data || [];
@@ -349,7 +359,8 @@ export default function NotingAdminPage() {
                 key={item.key}
                 onClick={() => setActiveTab(item.key)}
                 className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
-                  tab === item.key
+                  tab ===
+   item.key
                     ? 'border-[#005b96] text-[#005b96]'
                     : 'border-transparent text-[#6497b1] hover:text-[#005b96] hover:border-[#b3cde0]'
                 }`}
@@ -361,7 +372,8 @@ export default function NotingAdminPage() {
           })}
         </div>
 
-        {tab === 'overview' && (
+        {tab ===
+   'overview' && (
           <div className="space-y-6">
             {overviewLoading ? (
               <div className="space-y-6">
@@ -404,7 +416,8 @@ export default function NotingAdminPage() {
                       <div className="w-1.5 h-5 rounded-full bg-[#005b96]" />
                       <h3 className="text-sm font-bold text-[#011f4b]">Creation Trend</h3>
                     </div>
-                    {overview.createdTimeline.length === 0 ? (
+                    {overview.createdTimeline.length ===
+   0 ? (
                       <p className="text-sm text-[#6497b1]">No note creations for the selected date range.</p>
                     ) : (
                       <div className="grid grid-cols-7 gap-3">
@@ -450,7 +463,8 @@ export default function NotingAdminPage() {
                       <div className="w-1.5 h-5 rounded-full bg-[#d1495b]" />
                       <h3 className="text-sm font-bold text-[#011f4b]">Moderation Queue</h3>
                     </div>
-                    {overview.moderationQueue.length === 0 ? (
+                    {overview.moderationQueue.length ===
+   0 ? (
                       <p className="text-sm text-[#6497b1]">No rejected, reverted, or pending notes in the selected range.</p>
                     ) : (
                       <div className="space-y-3">
@@ -485,7 +499,8 @@ export default function NotingAdminPage() {
                       View all
                     </button>
                   </div>
-                  {overview.recentNotes.length === 0 ? (
+                  {overview.recentNotes.length ===
+   0 ? (
                     <p className="text-sm text-[#6497b1]">No notings found for the current filters.</p>
                   ) : (
                     <div className="overflow-x-auto">
@@ -534,7 +549,8 @@ export default function NotingAdminPage() {
           </div>
         )}
 
-        {tab === 'notings' && (
+        {tab ===
+   'notings' && (
           <div className="space-y-5">
             <div className="bg-white rounded-2xl border border-[#b3cde0]/40 p-4">
               <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px_220px] gap-3">
@@ -632,7 +648,8 @@ export default function NotingAdminPage() {
                             <td className="px-4 py-3 text-[#03396c]">{note._count?.attachments ?? 0} files</td>
                             <td className="px-4 py-3 text-[#6497b1]">
                               <div className="flex flex-col gap-1">
-                                <span>{note.approvalPeriod === 'recurring' ? 'Recurring' : 'One-time'}</span>
+                                <span>{note.approvalPeriod ===
+   'recurring' ? 'Recurring' : 'One-time'}</span>
                                 {note.amountRequired && note.amount != null && (
                                   <span className="text-[#03396c] font-medium">₹{Number(note.amount).toLocaleString()}</span>
                                 )}
@@ -673,7 +690,8 @@ export default function NotingAdminPage() {
           </div>
         )}
 
-        {tab === 'users' && (
+        {tab ===
+   'users' && (
           <div className="space-y-6">
             {usersLoading ? (
               <div className="space-y-6">
@@ -698,7 +716,8 @@ export default function NotingAdminPage() {
                   <StatCard label="Most Recent Creation" value={userAnalytics.summary.mostRecentCreatedAt ? formatDay(userAnalytics.summary.mostRecentCreatedAt) : '—'} helper="Latest note creation date" icon={Clock3} color="bg-violet-500" />
                 </div>
 
-                {userAnalytics.creators.length === 0 ? (
+                {userAnalytics.creators.length ===
+   0 ? (
                   <EmptyState title="No creator activity" description="No notes were created in the selected date range." />
                 ) : (
                   <div className="bg-white rounded-2xl border border-[#b3cde0]/40 overflow-hidden">
@@ -766,7 +785,8 @@ export default function NotingAdminPage() {
           </div>
         )}
 
-        {tab === 'activity' && (
+        {tab ===
+   'activity' && (
           <div className="space-y-6">
             {activityLoading ? (
               <div className="space-y-6">
@@ -792,7 +812,8 @@ export default function NotingAdminPage() {
                   <StatCard label="Forwarded" value={activityAnalytics.summary.byAction.forwarded || 0} helper="Routing changes in workflow" icon={AlertTriangle} color="bg-amber-500" />
                 </div>
 
-                {activityAnalytics.items.length === 0 ? (
+                {activityAnalytics.items.length ===
+   0 ? (
                   <EmptyState title="No activity history" description="No note history entries were recorded in the selected date range." />
                 ) : (
                   <>

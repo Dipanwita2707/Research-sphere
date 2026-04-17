@@ -100,19 +100,23 @@ export default function DrdIprDashboard() {
               const permLower = perm.toLowerCase().replace(/\s+/g, '_');
               
               // Map to NEW simplified 4-permission model
-              if (permLower === 'ipr_file_new' || permLower.includes('file') && permLower.includes('ipr')) {
+              if (permLower ===
+   'ipr_file_new' || permLower.includes('file') && permLower.includes('ipr')) {
                 allPermissions['ipr_file_new'] = true;
                 allPermissions['drd_ipr_file'] = true;  // backward compat
               }
-              if (permLower === 'ipr_review' || permLower.includes('review') && permLower.includes('ipr')) {
+              if (permLower ===
+   'ipr_review' || permLower.includes('review') && permLower.includes('ipr')) {
                 allPermissions['ipr_review'] = true;
                 allPermissions['drd_ipr_review'] = true;  // backward compat
               }
-              if (permLower === 'ipr_approve' || permLower.includes('approve') && permLower.includes('ipr')) {
+              if (permLower ===
+   'ipr_approve' || permLower.includes('approve') && permLower.includes('ipr')) {
                 allPermissions['ipr_approve'] = true;
                 allPermissions['drd_ipr_approve'] = true;  // backward compat
               }
-              if (permLower === 'ipr_assign_school' || permLower.includes('assign') && permLower.includes('school')) {
+              if (permLower ===
+   'ipr_assign_school' || permLower.includes('assign') && permLower.includes('school')) {
                 allPermissions['ipr_assign_school'] = true;
               }
               // Also handle recommend as part of review
@@ -136,14 +140,18 @@ export default function DrdIprDashboard() {
     try {
       setLoading(true);
       
-      if (activeTab === 'pending') {
+      if (activeTab ===
+   'pending') {
         const response = await drdReviewService.getPendingReviews({ limit: 50 });
         setApplications(response.data || []);
       } else {
         // Fetch all applications based on tab
-        const statusFilter = activeTab === 'all' ? undefined : 
-          (activeTab === 'approved' ? 'drd_approved' as const :
-           activeTab === 'rejected' ? 'drd_rejected' as const :
+        const statusFilter = activeTab ===
+   'all' ? undefined : 
+          (activeTab ===
+   'approved' ? 'drd_approved' as const :
+           activeTab ===
+   'rejected' ? 'drd_rejected' as const :
            activeTab as any);
         const response = await iprService.getAllApplications({ 
           status: statusFilter
@@ -290,8 +298,11 @@ export default function DrdIprDashboard() {
 
   // Permission checks using simplified 4 permissions
   // Faculty/Student can file IPR by default, Staff/Admin need explicit permission
-  const isFacultyOrStudent = user?.role?.name === 'faculty' || user?.role?.name === 'student';
-  const isAdmin = user?.role?.name === 'admin';
+  const isFacultyOrStudent = user?.role?.name ===
+   'faculty' || user?.role?.name ===
+   'student';
+  const isAdmin = user?.role?.name ===
+   'admin';
   
   // Simplified permission checks - only 4 core permissions now
   const canFile = isFacultyOrStudent || userPermissions.ipr_file_new;  // Faculty/Student default, others need checkbox
@@ -640,8 +651,10 @@ export default function DrdIprDashboard() {
               {[
                 { key: 'all', label: 'All', count: applications.length, color: 'sgt' },
                 { key: 'pending_drd', label: 'DRD Queue', count: applications.filter(app => ['submitted', 'resubmitted'].includes(app.status)).length, color: 'amber' },
-                { key: 'changes_required', label: 'Changes', count: applications.filter(app => app.status === 'changes_required').length, color: 'orange' },
-                { key: 'pending_head', label: 'Head Queue', count: applications.filter(app => app.status === 'under_dean_review').length, color: 'purple' },
+                { key: 'changes_required', label: 'Changes', count: applications.filter(app => app.status ===
+   'changes_required').length, color: 'orange' },
+                { key: 'pending_head', label: 'Head Queue', count: applications.filter(app => app.status ===
+   'under_dean_review').length, color: 'purple' },
                 { key: 'completed', label: 'Completed', count: applications.filter(app => ['completed', 'incentives_processed'].includes(app.status)).length, color: 'emerald' },
                 { key: 'rejected', label: 'Rejected', count: applications.filter(app => app.status.includes('rejected')).length, color: 'red' }
               ].map((tab) => (
@@ -649,7 +662,8 @@ export default function DrdIprDashboard() {
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all duration-200 ${
-                    activeTab === tab.key
+                    activeTab ===
+   tab.key
                       ? 'bg-sgt-gradient text-white shadow-sgt'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
@@ -657,7 +671,8 @@ export default function DrdIprDashboard() {
                   <span>{tab.label}</span>
                   {tab.count > 0 && (
                     <span className={`px-2 py-0.5 text-xs rounded-full font-semibold ${
-                      activeTab === tab.key 
+                      activeTab ===
+   tab.key 
                         ? 'bg-white/20 text-white' 
                         : 'bg-gray-200 text-gray-600'
                     }`}>
@@ -704,7 +719,8 @@ export default function DrdIprDashboard() {
               <p className="mt-4 text-gray-600 font-medium">Loading applications...</p>
             </div>
           </div>
-        ) : applications.length === 0 ? (
+        ) : applications.length ===
+   0 ? (
           <div className="p-16 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <FileText className="w-10 h-10 text-gray-400" />
@@ -834,7 +850,8 @@ export default function DrdIprDashboard() {
                     )}
 
                     {/* DRD Approval Actions - Permission: drd_ipr_approve */}
-                    {canDrdApproval && app.status === 'under_dean_review' && (
+                    {canDrdApproval && app.status ===
+   'under_dean_review' && (
                       <>
                         <button
                           onClick={() => handleQuickAction(app, 'dean_approve')}
@@ -854,7 +871,8 @@ export default function DrdIprDashboard() {
                     )}
 
                     {/* Legacy Finance Review Actions - kept for backward compatibility with old records */}
-                    {canFinanceReview && app.status === 'under_finance_review' && (
+                    {canFinanceReview && app.status ===
+   'under_finance_review' && (
                       <>
                         <button
                           onClick={() => handleQuickAction(app, 'finance_approve')}
@@ -918,14 +936,22 @@ export default function DrdIprDashboard() {
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp">
             <div className="bg-sgt-gradient p-6 text-white">
               <h3 className="text-xl font-bold">
-                {actionType === 'approve' ? 'DRD Approve & Send to Head' :
-                 actionType === 'changes' ? 'Request Changes from Applicant' :
-                 actionType === 'reject' ? 'Reject Application' :
-                 actionType === 'dean_approve' ? 'DRD Head Approval' :
-                 actionType === 'dean_reject' ? 'DRD Head Rejection' :
-                 actionType === 'finance_approve' ? 'Process Incentives' :
-                 actionType === 'finance_audit' ? 'Request Audit' :
-                 actionType === 'system_override' ? 'System Override' : 'Process'}
+                {actionType ===
+   'approve' ? 'DRD Approve & Send to Head' :
+                 actionType ===
+   'changes' ? 'Request Changes from Applicant' :
+                 actionType ===
+   'reject' ? 'Reject Application' :
+                 actionType ===
+   'dean_approve' ? 'DRD Head Approval' :
+                 actionType ===
+   'dean_reject' ? 'DRD Head Rejection' :
+                 actionType ===
+   'finance_approve' ? 'Process Incentives' :
+                 actionType ===
+   'finance_audit' ? 'Request Audit' :
+                 actionType ===
+   'system_override' ? 'System Override' : 'Process'}
               </h3>
             </div>
             
@@ -960,23 +986,39 @@ export default function DrdIprDashboard() {
                   onClick={handleSubmitAction}
                   disabled={submitting || !actionComments.trim()}
                   className={`flex-1 px-4 py-3 rounded-xl text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                    actionType === 'approve' || actionType === 'dean_approve' || actionType === 'finance_approve' ? 'bg-emerald-600 hover:bg-emerald-700' :
-                    actionType === 'reject' || actionType === 'dean_reject' ? 'bg-red-600 hover:bg-red-700' :
-                    actionType === 'changes' ? 'bg-orange-600 hover:bg-orange-700' :
-                    actionType === 'finance_audit' ? 'bg-blue-600 hover:bg-blue-700' :
-                    actionType === 'system_override' ? 'bg-gray-600 hover:bg-gray-700' :
+                    actionType ===
+   'approve' || actionType ===
+   'dean_approve' || actionType ===
+   'finance_approve' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                    actionType ===
+   'reject' || actionType ===
+   'dean_reject' ? 'bg-red-600 hover:bg-red-700' :
+                    actionType ===
+   'changes' ? 'bg-orange-600 hover:bg-orange-700' :
+                    actionType ===
+   'finance_audit' ? 'bg-blue-600 hover:bg-blue-700' :
+                    actionType ===
+   'system_override' ? 'bg-gray-600 hover:bg-gray-700' :
                     'bg-amber-600 hover:bg-amber-700'
                   }`}
                 >
                   {submitting ? 'Processing...' : 
-                   actionType === 'approve' ? 'Approve & Send' :
-                   actionType === 'changes' ? 'Request Changes' :
-                   actionType === 'reject' ? 'Reject' :
-                   actionType === 'dean_approve' ? 'Head Approve' :
-                   actionType === 'dean_reject' ? 'Head Reject' :
-                   actionType === 'finance_approve' ? 'Process Incentives' :
-                   actionType === 'finance_audit' ? 'Request Audit' :
-                   actionType === 'system_override' ? 'Apply Override' : 'Process'}
+                   actionType ===
+   'approve' ? 'Approve & Send' :
+                   actionType ===
+   'changes' ? 'Request Changes' :
+                   actionType ===
+   'reject' ? 'Reject' :
+                   actionType ===
+   'dean_approve' ? 'Head Approve' :
+                   actionType ===
+   'dean_reject' ? 'Head Reject' :
+                   actionType ===
+   'finance_approve' ? 'Process Incentives' :
+                   actionType ===
+   'finance_audit' ? 'Request Audit' :
+                   actionType ===
+   'system_override' ? 'Apply Override' : 'Process'}
                 </button>
               </div>
             </div>

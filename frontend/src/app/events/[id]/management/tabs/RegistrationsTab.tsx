@@ -112,7 +112,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
 
   const toggleSelectAll = useCallback(() => {
     setSelectedRegIds(prev =>
-      prev.size === regData.length ? new Set() : new Set(regData.map(r => r.id))
+      prev.size ===
+   regData.length ? new Set() : new Set(regData.map(r => r.id))
     );
   }, [regData]);
 
@@ -166,9 +167,11 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
     const discount = reg.discountAmount ?? 0;
     const originalAmt = reg.originalAmount ?? event?.registrationFee ?? 0;
     const paidViaGateway = reg.amountPaid ?? 0;
-    const isPaid = reg.paymentStatus === 'completed' || !!reg.latestPayment?.razorpayPaymentId;
+    const isPaid = reg.paymentStatus ===
+   'completed' || !!reg.latestPayment?.razorpayPaymentId;
 
-    if (isPaid && hasCoupon && paidViaGateway === 0) {
+    if (isPaid && hasCoupon && paidViaGateway ===
+   0) {
       return (
         <div className="group relative">
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 cursor-default">
@@ -345,7 +348,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             type="button"
             onClick={() => setRegViewMode('table')}
             title="Table view"
-            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium transition-all ${regViewMode === 'table' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium transition-all ${regViewMode ===
+   'table' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <LayoutList className="w-4 h-4" />
             <span className="hidden sm:inline">Table</span>
@@ -354,7 +358,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             type="button"
             onClick={() => setRegViewMode('teams')}
             title="Team groups view"
-            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode === 'teams' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode ===
+   'teams' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <LayoutGrid className="w-4 h-4" />
             <span className="hidden sm:inline">Teams</span>
@@ -363,7 +368,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             type="button"
             onClick={() => setRegViewMode('guests')}
             title="Guest passes view"
-            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode === 'guests' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode ===
+   'guests' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">Guests</span>
@@ -409,12 +415,14 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
           { value: 'pending', label: 'Pending', color: '#f59e0b' },
           { value: 'failed', label: 'Failed', color: '#ef4444' },
         ] as const).map((ps) => {
-          const active = (regFilters.paymentStatus || 'all') === ps.value;
+          const active = (regFilters.paymentStatus || 'all') ===
+   ps.value;
           return (
             <button
               key={ps.value}
               type="button"
-              onClick={() => setRegFilters(prev => ({ ...prev, paymentStatus: ps.value === 'all' ? undefined : ps.value, page: 1 }))}
+              onClick={() => setRegFilters(prev => ({ ...prev, paymentStatus: ps.value ===
+   'all' ? undefined : ps.value, page: 1 }))}
               className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
               style={active
                 ? { backgroundColor: ps.color, color: 'white', borderColor: ps.color }
@@ -500,7 +508,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
         {/* Content Area */}
         <div className="flex-1 min-w-0">
           {/* ── TEAM GROUPS VIEW ─────────────────────────────────── */}
-          {regViewMode === 'teams' && (() => {
+          {regViewMode ===
+   'teams' && (() => {
             const teamMap = new Map<string, typeof regData>();
             const soloRegs: typeof regData = [];
             regData.forEach(r => {
@@ -530,7 +539,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                 {teamEntries.map(([teamId, members], idx) => {
                   const color = teamColorMap.get(teamId)!;
                   const teamInfo = members[0]?.team;
-                  const paidCount = members.filter(m => m.paymentStatus === 'completed' || m.latestPayment?.razorpayPaymentId).length;
+                  const paidCount = members.filter(m => m.paymentStatus ===
+   'completed' || m.latestPayment?.razorpayPaymentId).length;
                   const txId = members.find(m => m.latestPayment?.razorpayPaymentId)?.latestPayment?.razorpayPaymentId;
                   return (
                     <div key={teamId} className={`${CARD} overflow-hidden border-l-4 ${color.border}`}>
@@ -559,7 +569,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                           {txId && <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 hidden lg:inline">TXN: {txId}</span>}
                         </div>
                       </div>
-                      <div>{members.map((reg, mIdx) => renderMemberRow(reg, color, mIdx === members.length - 1))}</div>
+                      <div>{members.map((reg, mIdx) => renderMemberRow(reg, color, mIdx ===
+   members.length - 1))}</div>
                     </div>
                   );
                 })}
@@ -569,10 +580,12 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                       <Users className="w-4 h-4 text-gray-500" />
                       <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Individual Registrations ({soloRegs.length})</p>
                     </div>
-                    {soloRegs.map((reg, idx) => renderMemberRow(reg, TEAM_PALETTE[7], idx === soloRegs.length - 1))}
+                    {soloRegs.map((reg, idx) => renderMemberRow(reg, TEAM_PALETTE[7], idx ===
+   soloRegs.length - 1))}
                   </div>
                 )}
-                {!regLoading && regData.length === 0 && (
+                {!regLoading && regData.length ===
+   0 && (
                   <div className={`${CARD} px-5 py-12 text-center`}>
                     <p className="text-gray-500 dark:text-gray-400">No registrations found</p>
                   </div>
@@ -593,7 +606,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
           })()}
 
           {/* ── TABLE VIEW ───────────────────────────────────────── */}
-          {regViewMode === 'table' && (
+          {regViewMode ===
+   'table' && (
             <div className={CARD}>
               <div className={`${CARD_HEADER} flex items-center justify-between`}>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">
@@ -609,7 +623,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                         <input
                           type="checkbox"
                           className="w-4 h-4 rounded border-gray-300 text-ev-700 focus:ring-ev-700 cursor-pointer"
-                          checked={regData.length > 0 && selectedRegIds.size === regData.length}
+                          checked={regData.length > 0 && selectedRegIds.size ===
+   regData.length}
                           ref={(el) => { if (el) el.indeterminate = selectedRegIds.size > 0 && selectedRegIds.size < regData.length; }}
                           onChange={toggleSelectAll}
                         />
@@ -708,7 +723,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                       else if (regPagination.page >= regPagination.totalPages - 2) { pageNum = regPagination.totalPages - 4 + i; }
                       else { pageNum = regPagination.page - 2 + i; }
                       return (
-                        <button key={pageNum} type="button" onClick={() => handleRegPageChange(pageNum)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${regPagination.page === pageNum ? 'bg-ev-700 text-white' : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>{pageNum}</button>
+                        <button key={pageNum} type="button" onClick={() => handleRegPageChange(pageNum)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${regPagination.page ===
+   pageNum ? 'bg-ev-700 text-white' : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>{pageNum}</button>
                       );
                     })}
                     <button type="button" disabled={regPagination.page >= regPagination.totalPages} onClick={() => handleRegPageChange(regPagination.page + 1)} className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Next</button>
@@ -719,7 +735,8 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
           )}
 
           {/* ── GUESTS VIEW ─────────────────────────────────────── */}
-          {regViewMode === 'guests' && (
+          {regViewMode ===
+   'guests' && (
             <div className={CARD}>
               <div className={`${CARD_HEADER} flex items-center justify-between`}>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">

@@ -143,7 +143,8 @@ export default function GrantDetailPage() {
     const totalPoints = Number(activePolicy.basePoints);
 
     // Add international bonus
-    if (grant.projectType === 'international' && activePolicy.internationalBonus) {
+    if (grant.projectType ===
+   'international' && activePolicy.internationalBonus) {
       totalIncentive += Number(activePolicy.internationalBonus);
     }
 
@@ -154,21 +155,26 @@ export default function GrantDetailPage() {
 
     // Count internal investigators (applicant + team)
     // The applicant is always internal unless they are external AND the PI
-    const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+    const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
     const internalTeamMembers = grant.investigators?.filter(
       (inv: any) => inv.isInternal !== false && 
-                    (inv.investigatorCategory === 'Internal' || inv.isInternal === true)
+                    (inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true)
     ) || [];
     
     // Count total internal investigators (including applicant if internal)
     const totalInternalCount = (applicantIsInternal ? 1 : 0) + internalTeamMembers.length;
     
-    if (totalInternalCount === 0) {
+    if (totalInternalCount ===
+   0) {
       return { incentive: 0, points: 0 };
     }
 
     // Calculate based on split policy
-    if (activePolicy.splitPolicy === 'equal') {
+    if (activePolicy.splitPolicy ===
+   'equal') {
       // Equal split among all internal investigators (use floor to prevent exceeding total)
       const perPersonIncentive = Math.floor(totalIncentive / totalInternalCount);
       const perPersonPoints = Math.floor(totalPoints / totalInternalCount);
@@ -180,8 +186,10 @@ export default function GrantDetailPage() {
         { role: 'co_pi', percentage: 55 }
       ];
 
-      const piPercentage = rolePercentages.find(r => r.role === 'pi')?.percentage || 45;
-      const coPiTotalPercentage = rolePercentages.find(r => r.role === 'co_pi')?.percentage || 55;
+      const piPercentage = rolePercentages.find(r => r.role ===
+   'pi')?.percentage || 45;
+      const coPiTotalPercentage = rolePercentages.find(r => r.role ===
+   'co_pi')?.percentage || 55;
 
       // Count PIs and Co-PIs among ALL internal investigators (including applicant if internal)
       const allInternalInvestigators = [
@@ -189,17 +197,22 @@ export default function GrantDetailPage() {
         ...internalTeamMembers.map((inv: any) => ({ roleType: inv.roleType }))
       ];
       
-      const piCount = allInternalInvestigators.filter(inv => inv.roleType === 'pi').length;
-      const coPiCount = allInternalInvestigators.filter(inv => inv.roleType === 'co_pi').length;
+      const piCount = allInternalInvestigators.filter(inv => inv.roleType ===
+   'pi').length;
+      const coPiCount = allInternalInvestigators.filter(inv => inv.roleType ===
+   'co_pi').length;
 
-      if (roleType === 'pi') {
-        if (piCount === 0) return { incentive: 0, points: 0 };
+      if (roleType ===
+   'pi') {
+        if (piCount ===
+   0) return { incentive: 0, points: 0 };
         // PIs share the PI percentage equally (use floor to prevent exceeding total)
         const piIncentive = Math.floor((totalIncentive * piPercentage) / 100 / piCount);
         const piPoints = Math.floor((totalPoints * piPercentage) / 100 / piCount);
         return { incentive: piIncentive, points: piPoints };
       } else {
-        if (coPiCount === 0) return { incentive: 0, points: 0 };
+        if (coPiCount ===
+   0) return { incentive: 0, points: 0 };
         // Co-PIs share the Co-PI percentage equally (use floor to prevent exceeding total)
         const coPiIncentive = Math.floor((totalIncentive * coPiTotalPercentage) / 100 / coPiCount);
         const coPiPoints = Math.floor((totalPoints * coPiTotalPercentage) / 100 / coPiCount);
@@ -235,14 +248,15 @@ export default function GrantDetailPage() {
     }
   };
 
-  const pendingSuggestions = editSuggestions.filter(s => s.status === 'pending');
+  const pendingSuggestions = editSuggestions.filter(s => s.status ===
+   'pending');
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-500">Loading grant application...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading grant application...</p>
         </div>
       </div>
     );
@@ -276,25 +290,29 @@ export default function GrantDetailPage() {
       <div className="flex items-center justify-between">
         <Link
           href="/research/my-contributions"
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 font-medium"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-medium"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to My Contributions
         </Link>
         
-        {(grant.status === 'draft' || grant.status === 'changes_required') && (
+        {(grant.status ===
+   'draft' || grant.status ===
+   'changes_required') && (
           <Link
             href={`/research/apply-grant?edit=${grant.id}`}
             className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
           >
             <Edit className="w-4 h-4 mr-2" />
-            {grant.status === 'changes_required' ? 'Edit & Resubmit' : 'Edit Draft'}
+            {grant.status ===
+   'changes_required' ? 'Edit & Resubmit' : 'Edit Draft'}
           </Link>
         )}
       </div>
 
       {/* Suggestions Summary */}
-      {grant.status === 'changes_required' && pendingSuggestions.length > 0 && (
+      {grant.status ===
+   'changes_required' && pendingSuggestions.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
           <div className="flex items-start space-x-3">
             <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
@@ -318,27 +336,27 @@ export default function GrantDetailPage() {
                         </div>
                         <div className="space-y-2 text-sm">
                           <div className="flex items-start">
-                            <span className="text-gray-500 w-24 flex-shrink-0 font-medium">Current:</span>
+                              <span className="text-gray-500 dark:text-gray-400 w-24 flex-shrink-0 font-medium">Current:</span>
                             <span className="text-red-600 line-through bg-red-50 px-2 py-0.5 rounded flex-1">
                               {suggestion.originalValue || '(empty)'}
                             </span>
                           </div>
                           <div className="flex items-start">
-                            <span className="text-gray-500 w-24 flex-shrink-0 font-medium">Suggested:</span>
+                              <span className="text-gray-500 dark:text-gray-400 w-24 flex-shrink-0 font-medium">Suggested:</span>
                             <span className="text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded flex-1">
                               {suggestion.suggestedValue || '(empty)'}
                             </span>
                           </div>
                         </div>
                         {suggestion.suggestionNote && (
-                          <div className="mt-2 p-2 bg-gray-50 rounded-lg">
-                            <p className="text-xs text-gray-600">
+                          <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
                               <span className="font-medium">Note:</span> {suggestion.suggestionNote}
                             </p>
                           </div>
                         )}
                         {suggestion.reviewer?.employeeDetails?.displayName && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             Suggested by: {suggestion.reviewer.employeeDetails.displayName}
                           </p>
                         )}
@@ -346,11 +364,13 @@ export default function GrantDetailPage() {
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleAcceptSuggestion(suggestion)}
-                          disabled={suggestionLoading === suggestion.id}
+                          disabled={suggestionLoading ===
+   suggestion.id}
                           className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                           title="Accept and apply this suggestion"
                         >
-                          {suggestionLoading === suggestion.id ? (
+                          {suggestionLoading ===
+   suggestion.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <>
@@ -361,7 +381,8 @@ export default function GrantDetailPage() {
                         </button>
                         <button
                           onClick={() => handleRejectSuggestion(suggestion)}
-                          disabled={suggestionLoading === suggestion.id}
+                          disabled={suggestionLoading ===
+   suggestion.id}
                           className="flex items-center px-3 py-1.5 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors"
                           title="Reject this suggestion"
                         >
@@ -378,7 +399,9 @@ export default function GrantDetailPage() {
         </div>
       )}
 
-      {grant.status === 'changes_required' && editSuggestions.length > 0 && pendingSuggestions.length === 0 && (
+      {grant.status ===
+   'changes_required' && editSuggestions.length > 0 && pendingSuggestions.length ===
+   0 && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
           <div className="flex items-start space-x-3">
             <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
@@ -393,20 +416,20 @@ export default function GrantDetailPage() {
       )}
 
       {/* Main Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Header Section */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-sm text-gray-600">Application #{grant.applicationNumber || 'Draft'}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Application #{grant.applicationNumber || 'Draft'}</span>
                 <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.borderColor} ${statusConfig.bgColor} ${statusConfig.color}`}>
                   <StatusIcon className="w-3.5 h-3.5 mr-1.5" />
                   {statusConfig.label}
                 </div>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">{grant.title}</h1>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{grant.title}</h1>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                 {grant.agencyName && (
                   <span className="inline-flex items-center">
                     <Building2 className="w-4 h-4 mr-1.5" />
@@ -431,23 +454,26 @@ export default function GrantDetailPage() {
           {/* Incentives Summary */}
           {activePolicy && grant && (
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border-2 border-green-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <Award className="w-5 h-5 mr-2 text-emerald-600" />
                 Estimated Incentives & Points
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-green-200">
-                  <label className="text-sm text-gray-600 block mb-2">Total Incentive</label>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-green-200">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-2">Total Incentive</label>
                   <p className="text-2xl font-bold text-green-600 flex items-center">
                     <Coins className="w-6 h-6 mr-2" />
                     ₹{(() => {
-                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                       const applicantCalc = calculateInvestigatorIncentive(
                         grant.myRole,
                         applicantIsInternal ? 'Internal' : 'External'
                       );
                       const teamTotal = grant.investigators?.filter(
-                        (inv: any) => inv.investigatorCategory === 'Internal' || inv.isInternal === true
+                        (inv: any) => inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true
                       ).reduce((sum: number, inv: any) => {
                         const calc = calculateInvestigatorIncentive(inv.roleType, inv.investigatorCategory || (inv.isInternal ? 'Internal' : 'External'));
                         return sum + calc.incentive;
@@ -455,20 +481,23 @@ export default function GrantDetailPage() {
                       return (applicantCalc.incentive + teamTotal).toLocaleString();
                     })()}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">For all internal investigators</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">For all internal investigators</p>
                 </div>
-                <div className="bg-white rounded-lg p-4 border border-blue-200">
-                  <label className="text-sm text-gray-600 block mb-2">Total Points</label>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-blue-200">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-2">Total Points</label>
                   <p className="text-2xl font-bold text-blue-600 flex items-center">
                     <Award className="w-6 h-6 mr-2" />
                     {(() => {
-                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                       const applicantCalc = calculateInvestigatorIncentive(
                         grant.myRole,
                         applicantIsInternal ? 'Internal' : 'External'
                       );
                       const teamTotal = grant.investigators?.filter(
-                        (inv: any) => inv.investigatorCategory === 'Internal' || inv.isInternal === true
+                        (inv: any) => inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true
                       ).reduce((sum: number, inv: any) => {
                         const calc = calculateInvestigatorIncentive(inv.roleType, inv.investigatorCategory || (inv.isInternal ? 'Internal' : 'External'));
                         return sum + calc.points;
@@ -476,7 +505,7 @@ export default function GrantDetailPage() {
                       return applicantCalc.points + teamTotal;
                     })()} pts
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Research points earned</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Research points earned</p>
                 </div>
               </div>
             </div>
@@ -484,12 +513,12 @@ export default function GrantDetailPage() {
 
           {/* Basic Information */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {grant.submittedAmount && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="text-sm text-gray-600 block mb-1">Submitted Amount</label>
-                  <p className="font-semibold text-gray-900 flex items-center">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">Submitted Amount</label>
+                  <p className="font-semibold text-gray-900 dark:text-white flex items-center">
                     <DollarSign className="w-4 h-4 mr-1" />
                     ₹{Number(grant.submittedAmount).toLocaleString()}
                   </p>
@@ -497,47 +526,49 @@ export default function GrantDetailPage() {
               )}
               
               {grant.projectType && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="text-sm text-gray-600 block mb-1">Project Type</label>
-                  <p className="font-semibold text-gray-900">
-                    {grant.projectType === 'indian' ? 'Indian Project' : 'International Project'}
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">Project Type</label>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {grant.projectType ===
+   'indian' ? 'Indian Project' : 'International Project'}
                   </p>
                 </div>
               )}
               
               {grant.projectStatus && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="text-sm text-gray-600 block mb-1">Project Status</label>
-                  <p className="font-semibold text-gray-900 capitalize">{grant.projectStatus}</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">Project Status</label>
+                  <p className="font-semibold text-gray-900 dark:text-white capitalize">{grant.projectStatus}</p>
                 </div>
               )}
               
               {grant.projectCategory && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="text-sm text-gray-600 block mb-1">Project Category</label>
-                  <p className="font-semibold text-gray-900 capitalize">{grant.projectCategory}</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">Project Category</label>
+                  <p className="font-semibold text-gray-900 dark:text-white capitalize">{grant.projectCategory}</p>
                 </div>
               )}
               
               {grant.fundingAgencyType && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="text-sm text-gray-600 block mb-1">Funding Agency Type</label>
-                  <p className="font-semibold text-gray-900 uppercase">{grant.fundingAgencyType}</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">Funding Agency Type</label>
+                  <p className="font-semibold text-gray-900 dark:text-white uppercase">{grant.fundingAgencyType}</p>
                 </div>
               )}
 
               {grant.fundingAgencyName && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="text-sm text-gray-600 block mb-1">Funding Agency Name</label>
-                  <p className="font-semibold text-gray-900">{grant.fundingAgencyName}</p>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">Funding Agency Name</label>
+                  <p className="font-semibold text-gray-900 dark:text-white">{grant.fundingAgencyName}</p>
                 </div>
               )}
               
               {grant.myRole && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="text-sm text-gray-600 block mb-1">My Role in Project</label>
-                  <p className="font-semibold text-gray-900 capitalize">
-                    {grant.myRole === 'pi' ? 'Principal Investigator (PI)' : 'Co-Principal Investigator (Co-PI)'}
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">My Role in Project</label>
+                  <p className="font-semibold text-gray-900 dark:text-white capitalize">
+                    {grant.myRole ===
+   'pi' ? 'Principal Investigator (PI)' : 'Co-Principal Investigator (Co-PI)'}
                   </p>
                 </div>
               )}
@@ -547,7 +578,7 @@ export default function GrantDetailPage() {
           {/* SDGs */}
           {grant.sdgGoals && grant.sdgGoals.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Sustainable Development Goals</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Sustainable Development Goals</h3>
               <div className="flex flex-wrap gap-2">
                 {grant.sdgGoals.map((sdg: string, index: number) => (
                   <span
@@ -564,25 +595,25 @@ export default function GrantDetailPage() {
           {/* Consortium Organizations */}
           {grant.consortiumOrganizations && grant.consortiumOrganizations.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
                 <Users className="w-5 h-5 mr-2" />
                 Consortium Organizations
               </h3>
               <div className="space-y-3">
                 {grant.consortiumOrganizations.map((org, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-4">
+                  <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Organization Name</label>
-                        <p className="font-medium text-gray-900">{org.organizationName}</p>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Organization Name</label>
+                        <p className="font-medium text-gray-900 dark:text-white">{org.organizationName}</p>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Country</label>
-                        <p className="font-medium text-gray-900">{org.country}</p>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Country</label>
+                        <p className="font-medium text-gray-900 dark:text-white">{org.country}</p>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Members</label>
-                        <p className="font-medium text-gray-900">{org.numberOfMembers}</p>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Members</label>
+                        <p className="font-medium text-gray-900 dark:text-white">{org.numberOfMembers}</p>
                       </div>
                     </div>
                   </div>
@@ -594,7 +625,7 @@ export default function GrantDetailPage() {
           {/* Investigators */}
           {grant.investigators && grant.investigators.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
                 <Users className="w-5 h-5 mr-2" />
                 Project Team ({grant.investigators.length + 1})
               </h3>
@@ -603,13 +634,14 @@ export default function GrantDetailPage() {
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-200">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Name</label>
-                      <p className="font-semibold text-gray-900">You (Applicant)</p>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Name</label>
+                      <p className="font-semibold text-gray-900 dark:text-white">You (Applicant)</p>
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Role</label>
+                      <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Role</label>
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
-                        grant.myRole === 'pi' 
+                        grant.myRole ===
+   'pi' 
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-purple-100 text-purple-800'
                       }`}>
@@ -619,11 +651,12 @@ export default function GrantDetailPage() {
                     {activePolicy && (
                       <>
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">Est. Incentive</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Est. Incentive</label>
                           <p className="font-semibold text-green-600 flex items-center">
                             <Coins className="w-4 h-4 mr-1" />
                             ₹{(() => {
-                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                               const calc = calculateInvestigatorIncentive(
                                 grant.myRole,
                                 applicantIsInternal ? 'Internal' : 'External'
@@ -633,11 +666,12 @@ export default function GrantDetailPage() {
                           </p>
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">Est. Points</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Est. Points</label>
                           <p className="font-semibold text-blue-600 flex items-center">
                             <Award className="w-4 h-4 mr-1" />
                             {(() => {
-                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                               const calc = calculateInvestigatorIncentive(
                                 grant.myRole,
                                 applicantIsInternal ? 'Internal' : 'External'
@@ -653,24 +687,27 @@ export default function GrantDetailPage() {
                 
                 {/* Team Members */}
                 {grant.investigators.map((inv, index) => {
-                  const isInternal = inv.investigatorType === 'Internal' || inv.isInternal === true;
+                  const isInternal = inv.investigatorType ===
+   'Internal' || inv.isInternal ===
+   true;
                   const calc = activePolicy ? calculateInvestigatorIncentive(
                     inv.roleType,
                     isInternal ? 'Internal' : 'External'
                   ) : { incentive: 0, points: 0 };
                   
                   return (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div key={index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">Name</label>
-                          <p className="font-medium text-gray-900">{inv.name}</p>
+                          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Name</label>
+                          <p className="font-medium text-gray-900 dark:text-white">{inv.name}</p>
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">Role</label>
+                          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Role</label>
                           <div className="flex items-center gap-2">
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
-                              inv.roleType === 'pi' 
+                              inv.roleType ===
+   'pi' 
                                 ? 'bg-blue-100 text-blue-800' 
                                 : 'bg-purple-100 text-purple-800'
                             }`}>
@@ -686,7 +723,7 @@ export default function GrantDetailPage() {
                         {activePolicy && (
                           <>
                             <div>
-                              <label className="text-xs text-gray-500 block mb-1">Est. Incentive</label>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Est. Incentive</label>
                               <p className={`font-semibold flex items-center ${
                                 calc.incentive > 0 ? 'text-green-600' : 'text-gray-400'
                               }`}>
@@ -695,7 +732,7 @@ export default function GrantDetailPage() {
                               </p>
                             </div>
                             <div>
-                              <label className="text-xs text-gray-500 block mb-1">Est. Points</label>
+                              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Est. Points</label>
                               <p className={`font-semibold flex items-center ${
                                 calc.points > 0 ? 'text-blue-600' : 'text-gray-400'
                               }`}>
@@ -715,23 +752,23 @@ export default function GrantDetailPage() {
 
           {/* Status History */}
           {grant.statusHistory && grant.statusHistory.length > 0 && (
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <Clock className="w-5 h-5 mr-2" />
                 Status History
               </h3>
               <div className="space-y-3">
                 {grant.statusHistory.map((history: any, index: number) => (
-                  <div key={index} className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div key={index} className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <Clock className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-gray-900 dark:text-white">
                           {history.fromStatus} → {history.toStatus}
                         </span>
-                        <span className="text-sm text-gray-500 whitespace-nowrap ml-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">
                           {new Date(history.changedAt).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
@@ -742,10 +779,10 @@ export default function GrantDetailPage() {
                         </span>
                       </div>
                       {history.comments && (
-                        <p className="text-sm text-gray-600 mb-1">{history.comments}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{history.comments}</p>
                       )}
                       {history.changedBy && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           By: {history.changedBy.employeeDetails?.displayName || history.changedBy.uid}
                         </p>
                       )}
@@ -757,8 +794,8 @@ export default function GrantDetailPage() {
           )}
 
           {/* Timestamps */}
-          <div className="pt-6 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
               <div>
                 <span className="font-medium">Created:</span>{' '}
                 {new Date(grant.createdAt).toLocaleString('en-US', {

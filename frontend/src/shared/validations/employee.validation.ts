@@ -280,6 +280,45 @@ export const updateEmployeeSchema = z.object({
     .or(z.literal(''))
     .or(z.literal(null) as any),
 
+  dateOfBirth: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val),
+      'Date of birth must be in YYYY-MM-DD format'
+    ),
+
+  alternateNumber: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^\d{10}$/.test(val),
+      'Alternate number must be exactly 10 digits (numbers only)'
+    ),
+
+  personalEmail: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
+      'Personal email format is invalid - Use format: name@example.com'
+    ),
+
+  currentAddress: z
+    .string()
+    .max(500, 'Current address must not exceed 500 characters')
+    .optional()
+    .or(z.literal('')),
+
+  permanentAddress: z
+    .string()
+    .max(500, 'Permanent address must not exceed 500 characters')
+    .optional()
+    .or(z.literal('')),
+
   isActive: z
     .boolean()
     .optional(),

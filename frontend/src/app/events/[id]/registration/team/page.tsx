@@ -115,7 +115,9 @@ const MemberCard: React.FC<MemberCardProps> = ({
     }
 
     const memberStatus = status || member?.status;
-    if (memberStatus === 'confirmed' || memberStatus === 'verified') {
+    if (memberStatus ===
+   'confirmed' || memberStatus ===
+   'verified') {
       return (
         <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30">
           <CheckCircle2 className="w-3 h-3" />
@@ -123,7 +125,8 @@ const MemberCard: React.FC<MemberCardProps> = ({
         </span>
       );
     }
-    if (memberStatus === 'pending') {
+    if (memberStatus ===
+   'pending') {
       return (
         <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30">
           <Clock className="w-3 h-3" />
@@ -169,7 +172,8 @@ const MemberCard: React.FC<MemberCardProps> = ({
       <div className="flex items-center gap-3">
         {getStatusBadge()}
 
-        {variant === 'search' && onInvite && (
+        {variant ===
+   'search' && onInvite && (
           <button
             onClick={onInvite}
             className="px-4 py-2 text-sm font-medium bg-ev-700 text-white rounded-lg hover:bg-ev-800 active:scale-95 transition-all shadow-ev flex items-center gap-2"
@@ -208,12 +212,14 @@ const InvitationCard: React.FC<InvitationCardProps> = ({
   onDecline,
   onCancel
 }) => {
-  const user = type === 'sent' ? invitation.invitee : invitation.inviter;
+  const user = type ===
+   'sent' ? invitation.invitee : invitation.inviter;
 
   return (
     <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 shadow-ev transition-all hover:shadow-md">
       <div className="flex items-center gap-4">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${type === 'sent'
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${type ===
+   'sent'
           ? 'bg-ev-100 text-ev-700 dark:bg-ev-900/30 dark:text-ev-400'
           : 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
           }`}>
@@ -221,13 +227,15 @@ const InvitationCard: React.FC<InvitationCardProps> = ({
         </div>
         <div>
           <p className="font-medium text-ev-900 dark:text-white">
-            {type === 'sent'
+            {type ===
+   'sent'
               ? `${user?.firstName} ${user?.lastName}`
               : `${user?.firstName} ${user?.lastName}`
             }
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
-            {type === 'sent' ? 'Invited to team' : 'Invited you to join'}
+            {type ===
+   'sent' ? 'Invited to team' : 'Invited you to join'}
             <span className="font-medium text-gray-700 dark:text-gray-300">
               {invitation.team?.name}
             </span>
@@ -236,7 +244,9 @@ const InvitationCard: React.FC<InvitationCardProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
-        {invitation.status === 'pending' && type === 'received' && (
+        {invitation.status ===
+   'pending' && type ===
+   'received' && (
           <>
             <button
               onClick={onAccept}
@@ -254,7 +264,9 @@ const InvitationCard: React.FC<InvitationCardProps> = ({
           </>
         )}
 
-        {invitation.status === 'pending' && type === 'sent' && onCancel && (
+        {invitation.status ===
+   'pending' && type ===
+   'sent' && onCancel && (
           <button
             onClick={onCancel}
             className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -265,11 +277,13 @@ const InvitationCard: React.FC<InvitationCardProps> = ({
         )}
 
         {invitation.status !== 'pending' && (
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${invitation.status === 'accepted'
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${invitation.status ===
+   'accepted'
             ? 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30'
             : 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30'
             }`}>
-            {invitation.status === 'accepted' ? 'Accepted' : 'Declined'}
+            {invitation.status ===
+   'accepted' ? 'Accepted' : 'Declined'}
           </span>
         )}
       </div>
@@ -299,8 +313,10 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, onRequestJoin, hasRequested }
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700/50">
               <Users className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
               <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                {(typeof team.memberCount === 'object' ? (team.memberCount as any).current : team.memberCount)}
-                {team.maxSize ? `/${team.maxSize}` : (typeof team.memberCount === 'object' && (team.memberCount as any).max ? `/${(team.memberCount as any).max}` : '')} Members
+                {(typeof team.memberCount ===
+   'object' ? (team.memberCount as any).current : team.memberCount)}
+                {team.maxSize ? `/${team.maxSize}` : (typeof team.memberCount ===
+   'object' && (team.memberCount as any).max ? `/${(team.memberCount as any).max}` : '')} Members
               </span>
             </div>
           </div>
@@ -482,11 +498,13 @@ export default function TeamManagementPage() {
         eventService.getTeamsLookingForMembers(eventId),
       ]);
 
-      const team = teamResult.status === 'fulfilled' ? teamResult.value : null;
+      const team = teamResult.status ===
+   'fulfilled' ? teamResult.value : null;
       applyTeamState(team);
       await refreshPaymentStatus(team);
 
-      if (invitationsResult.status === 'fulfilled') {
+      if (invitationsResult.status ===
+   'fulfilled') {
         setInvitations(invitationsResult.value.received || []);
         setSentInvitations(invitationsResult.value.sent || []);
       } else {
@@ -494,7 +512,8 @@ export default function TeamManagementPage() {
         setSentInvitations([]);
       }
 
-      if (requestsResult.status === 'fulfilled') {
+      if (requestsResult.status ===
+   'fulfilled') {
         setRequests(requestsResult.value.received || []);
         setSentRequests(requestsResult.value.sent || []);
       } else {
@@ -502,7 +521,8 @@ export default function TeamManagementPage() {
         setSentRequests([]);
       }
 
-      if (teamsResult.status === 'fulfilled') {
+      if (teamsResult.status ===
+   'fulfilled') {
         setAvailableTeams(teamsResult.value);
       } else {
         setAvailableTeams([]);
@@ -630,7 +650,8 @@ export default function TeamManagementPage() {
   };
 
   // Payment hook for team payments
-  const isPaidEvent = eventSettings?.paymentType === 'paid';
+  const isPaidEvent = eventSettings?.paymentType ===
+   'paid';
   const teamFee = eventSettings?.teamRegistrationFee || eventSettings?.registrationFee || 0;
   const isTeamPaid = paymentStatus?.isPaid;
 
@@ -764,8 +785,10 @@ export default function TeamManagementPage() {
     );
   }
 
-  const pendingInvitationsCount = invitations.filter(i => i.status === 'pending').length;
-  const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
+  const pendingInvitationsCount = invitations.filter(i => i.status ===
+   'pending').length;
+  const pendingRequestsCount = requests.filter(r => r.status ===
+   'pending').length;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 font-sans">
@@ -815,7 +838,8 @@ export default function TeamManagementPage() {
             <div className="bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-[#b3cde0] dark:border-gray-700 shadow-ev flex gap-1">
               <button
                 onClick={() => setActiveTab('create')}
-                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'create'
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${activeTab ===
+   'create'
                   ? 'bg-ev-700 text-white shadow-md shadow-ev-200 dark:shadow-none'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
@@ -825,7 +849,8 @@ export default function TeamManagementPage() {
               </button>
               <button
                 onClick={() => setActiveTab('join')}
-                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'join'
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${activeTab ===
+   'join'
                   ? 'bg-ev-700 text-white shadow-md shadow-ev-200 dark:shadow-none'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
@@ -836,7 +861,8 @@ export default function TeamManagementPage() {
             </div>
 
             {/* Create Team Tab Content */}
-            {activeTab === 'create' && (
+            {activeTab ===
+   'create' && (
               <div className="space-y-6">
                 {!myTeam ? (
                   // Empty State - Create Team Form
@@ -897,7 +923,8 @@ export default function TeamManagementPage() {
                             <div className="flex items-center gap-2 mt-1">
                               <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 border border-ev-200 dark:border-ev-900/30">
                                 <Crown className="w-3 h-3" />
-                                {myTeam.members?.find(m => m.role === 'leader')?.user?.firstName || 'Leader'}
+                                {myTeam.members?.find(m => m.role ===
+   'leader')?.user?.firstName || 'Leader'}
                               </span>
                               <span className="text-xs text-gray-500 dark:text-gray-400">
                                 • Created Just Now
@@ -1050,14 +1077,16 @@ export default function TeamManagementPage() {
                         <div className="grid grid-cols-1 gap-3">
                           {myTeam.members?.map((member) => {
                             const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
-                            const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
+                            const isRegistrationConfirmed = myTeam?.status ===
+   'confirmed' && (isTeamPaid || !isPaidEvent);
                             const isLocked = isRegistrationConfirmed; // Don't lock removal at max capacity, only when confirmed
                             
                             return (
                               <MemberCard
                                 key={member.id}
                                 member={member}
-                                isLeader={member.role === 'leader'}
+                                isLeader={member.role ===
+   'leader'}
                                 showRemove={member.role !== 'leader' && !isLocked}
                                 onRemove={() => handleRemoveMember(member.id)}
                               />
@@ -1072,7 +1101,8 @@ export default function TeamManagementPage() {
                       const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
                       const currentSize = myTeam?.members?.length || 0;
                       const isAtMaxCapacity = maxSize && currentSize >= maxSize;
-                      const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
+                      const isRegistrationConfirmed = myTeam?.status ===
+   'confirmed' && (isTeamPaid || !isPaidEvent);
                       const isLocked = isAtMaxCapacity || isRegistrationConfirmed;
 
                       if (isLocked) {
@@ -1109,7 +1139,8 @@ export default function TeamManagementPage() {
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                                onKeyDown={(e) => e.key ===
+   'Enter' && handleSearchUsers()}
                                 className="w-full pl-10 pr-4 py-3 border border-[#b3cde0] dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 text-ev-900 dark:text-white outline-none focus:ring-2 focus:ring-ev-200 focus:border-ev-700 transition-all font-medium"
                                 placeholder="Search by name or email..."
                               />
@@ -1136,7 +1167,8 @@ export default function TeamManagementPage() {
                             </div>
                           )}
 
-                          {searchQuery && searchResults.length === 0 && !searching && (
+                          {searchQuery && searchResults.length ===
+   0 && !searching && (
                             <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-[#b3cde0] dark:border-gray-700">
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 No users found matching &ldquo;{searchQuery}&rdquo;
@@ -1152,7 +1184,8 @@ export default function TeamManagementPage() {
             )}
 
             {/* Join Team Tab Content */}
-            {activeTab === 'join' && (
+            {activeTab ===
+   'join' && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 shadow-ev min-h-[400px]">
                 <div className="p-6 border-b border-[#b3cde0]/30 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
@@ -1195,12 +1228,15 @@ export default function TeamManagementPage() {
                           key={team.id}
                           team={team}
                           onRequestJoin={() => !myTeam && handleRequestJoinTeam(team.id)}
-                          hasRequested={!!myTeam || sentRequests.some(r => r.teamId === team.id && r.status === 'pending')}
+                          hasRequested={!!myTeam || sentRequests.some(r => r.teamId ===
+   team.id && r.status ===
+   'pending')}
                         />
                       ))}
                   </div>
 
-                  {availableTeams.length === 0 && (
+                  {availableTeams.length ===
+   0 && (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                         <Users className="w-8 h-8 text-gray-300 dark:text-gray-600" />
@@ -1278,7 +1314,8 @@ export default function TeamManagementPage() {
                       type="text"
                       value={couponInput}
                       onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleValidateCoupon(); } }}
+                      onKeyDown={(e) => { if (e.key ===
+   'Enter') { e.preventDefault(); handleValidateCoupon(); } }}
                       placeholder="Coupon code (optional)"
                       className="flex-1 px-3 py-2 rounded-lg bg-white/20 text-white placeholder-ev-200 border border-white/30 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-white/40"
                     />
@@ -1328,7 +1365,8 @@ export default function TeamManagementPage() {
                       <Loader2 className="w-5 h-5 animate-spin" />
                       Processing...
                     </>
-                  ) : payableAmount === 0 ? (
+                  ) : payableAmount ===
+   0 ? (
                     <>
                       <CheckCircle2 className="w-5 h-5" />
                       Register Free
@@ -1415,7 +1453,8 @@ export default function TeamManagementPage() {
               <div className="p-1.5 flex gap-1 border-b border-[#b3cde0]/30 dark:border-gray-700">
                 <button
                   onClick={() => setActiveSection('invitations')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors relative ${activeSection === 'invitations'
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors relative ${activeSection ===
+   'invitations'
                     ? 'bg-ev-50 text-ev-700 dark:bg-ev-900/20 dark:text-ev-400'
                     : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
@@ -1429,7 +1468,8 @@ export default function TeamManagementPage() {
                 </button>
                 <button
                   onClick={() => setActiveSection('requests')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors relative ${activeSection === 'requests'
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors relative ${activeSection ===
+   'requests'
                     ? 'bg-ev-50 text-ev-700 dark:bg-ev-900/20 dark:text-ev-400'
                     : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
@@ -1450,7 +1490,8 @@ export default function TeamManagementPage() {
                   const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
                   const currentSize = myTeam?.members?.length || 0;
                   const isAtMaxCapacity = maxSize && currentSize >= maxSize;
-                  const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
+                  const isRegistrationConfirmed = myTeam?.status ===
+   'confirmed' && (isTeamPaid || !isPaidEvent);
                   const isLocked = isAtMaxCapacity || isRegistrationConfirmed;
 
                   if (isLocked) {
@@ -1477,10 +1518,12 @@ export default function TeamManagementPage() {
                   return null;
                 })() || (
                 <>
-                {activeSection === 'invitations' && (
+                {activeSection ===
+   'invitations' && (
                   <div className="space-y-6">
                     {/* Warning if user already has a team and received an invitation */}
-                    {myTeam && invitations.filter(i => i.status === 'pending').length > 0 && (
+                    {myTeam && invitations.filter(i => i.status ===
+   'pending').length > 0 && (
                       <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                         <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                         <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -1488,13 +1531,15 @@ export default function TeamManagementPage() {
                         </p>
                       </div>
                     )}
-                    {invitations.filter(i => i.status === 'pending').length > 0 && (
+                    {invitations.filter(i => i.status ===
+   'pending').length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-ev-700" />
                           Inbound
                         </p>
-                        {invitations.filter(i => i.status === 'pending').map((inv) => (
+                        {invitations.filter(i => i.status ===
+   'pending').map((inv) => (
                           <InvitationCard
                             key={inv.id}
                             invitation={inv}
@@ -1507,13 +1552,15 @@ export default function TeamManagementPage() {
                     )}
 
                     {/* Sent Invitations */}
-                    {sentInvitations.filter(i => i.status === 'pending').length > 0 && (
+                    {sentInvitations.filter(i => i.status ===
+   'pending').length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                           Outbound (Sent)
                         </p>
-                        {sentInvitations.filter(i => i.status === 'pending').map((inv) => (
+                        {sentInvitations.filter(i => i.status ===
+   'pending').map((inv) => (
                           <InvitationCard
                             key={inv.id}
                             invitation={inv}
@@ -1527,7 +1574,9 @@ export default function TeamManagementPage() {
                       </div>
                     )}
 
-                    {invitations.length === 0 && sentInvitations.length === 0 && (
+                    {invitations.length ===
+   0 && sentInvitations.length ===
+   0 && (
                       <div className="flex flex-col items-center justify-center h-48 text-center opacity-60">
                         <Mail className="w-10 h-10 text-gray-300 mb-2" />
                         <p className="text-sm font-medium text-gray-500">No active invitations</p>
@@ -1536,16 +1585,19 @@ export default function TeamManagementPage() {
                   </div>
                 )}
 
-                {activeSection === 'requests' && (
+                {activeSection ===
+   'requests' && (
                   <div className="space-y-6">
                     {/* Received Requests */}
-                    {requests.filter(r => r.status === 'pending').length > 0 && (
+                    {requests.filter(r => r.status ===
+   'pending').length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-ev-700" />
                           Needs Approval
                         </p>
-                        {requests.filter(r => r.status === 'pending').map((req) => {
+                        {requests.filter(r => r.status ===
+   'pending').map((req) => {
                           const requester = req.requester || req.user;
                           const displayName = requester?.firstName
                             ? `${requester.firstName} ${requester.lastName || ''}`
@@ -1586,13 +1638,15 @@ export default function TeamManagementPage() {
                     )}
 
                     {/* Sent Requests */}
-                    {sentRequests.filter(r => r.status === 'pending').length > 0 && (
+                    {sentRequests.filter(r => r.status ===
+   'pending').length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                           Pending Approval
                         </p>
-                        {sentRequests.filter(r => r.status === 'pending').map((req) => (
+                        {sentRequests.filter(r => r.status ===
+   'pending').map((req) => (
                           <div key={req.id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-[#b3cde0] dark:border-gray-700 shadow-ev flex items-center justify-between opacity-80">
                             <div>
                               <p className="text-xs font-semibold text-ev-900 dark:text-white">Joining {req.team?.name}</p>
@@ -1604,7 +1658,9 @@ export default function TeamManagementPage() {
                       </div>
                     )}
 
-                    {requests.length === 0 && sentRequests.length === 0 && (
+                    {requests.length ===
+   0 && sentRequests.length ===
+   0 && (
                       <div className="flex flex-col items-center justify-center h-48 text-center opacity-60">
                         <UserPlus className="w-10 h-10 text-gray-300 mb-2" />
                         <p className="text-sm font-medium text-gray-500">No active requests</p>

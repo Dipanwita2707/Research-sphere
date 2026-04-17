@@ -102,11 +102,10 @@ export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
-// ============================================================================
-// Error Handling Utilities
-// ============================================================================
-
-/**
+// =====================================================================
+  // Error Handling Utilities
+// ==============================================================
+  /**
  * Type for error objects from catch blocks (safer than any)
  */
 export interface UnknownError {
@@ -125,7 +124,8 @@ export interface UnknownError {
  * Normalize backend validation errors into a flat map for form rendering.
  */
 export function extractFieldErrors(error: unknown): Record<string, string> | undefined {
-  if (typeof error !== 'object' || error === null) {
+  if (typeof error !== 'object' || error ===
+   null) {
     return undefined;
   }
 
@@ -137,13 +137,15 @@ export function extractFieldErrors(error: unknown): Record<string, string> | und
 
   const normalized: Record<string, string> = {};
   for (const [field, value] of Object.entries(rawErrors)) {
-    if (typeof value === 'string' && value.trim()) {
+    if (typeof value ===
+   'string' && value.trim()) {
       normalized[field] = value;
       continue;
     }
 
     if (Array.isArray(value)) {
-      const first = value.find((item) => typeof item === 'string' && item.trim());
+      const first = value.find((item) => typeof item ===
+   'string' && item.trim());
       if (first) {
         normalized[field] = first;
       }
@@ -158,7 +160,8 @@ export function extractFieldErrors(error: unknown): Record<string, string> | und
  */
 export function isAxiosLikeError(error: unknown): error is UnknownError & { isAxiosError: true } {
   return (
-    typeof error === 'object' &&
+    typeof error ===
+   'object' &&
     error !== null &&
     'isAxiosError' in error
   );
@@ -170,13 +173,15 @@ export function isAxiosLikeError(error: unknown): error is UnknownError & { isAx
  * @param fallback - Optional fallback message if no message can be extracted
  */
 export function extractErrorMessage(error: unknown, fallback?: string): string {
-  if (typeof error === 'string') {
+  if (typeof error ===
+   'string') {
     return error;
   }
   
   // Check for axios-style error response FIRST (before generic Error check)
   // so we get the server's actual message instead of "Request failed with status code 400"
-  if (typeof error === 'object' && error !== null) {
+  if (typeof error ===
+   'object' && error !== null) {
     const err = error as UnknownError;
     const fieldErrors = extractFieldErrors(error);
     if (fieldErrors) {
@@ -197,7 +202,8 @@ export function extractErrorMessage(error: unknown, fallback?: string): string {
     return error.message;
   }
   
-  if (typeof error === 'object' && error !== null) {
+  if (typeof error ===
+   'object' && error !== null) {
     const err = error as UnknownError;
     if (err.message) {
       return err.message;

@@ -165,7 +165,8 @@ export default function IPRStatusUpdates({ applicationId, isDRD = false, timelin
   if (timelineMode) {
     return (
       <>
-        {updates.length === 0 ? (
+        {updates.length ===
+   0 ? (
           <div className="py-4 text-center text-gray-500 text-sm">
             No DRD updates yet
           </div>
@@ -193,12 +194,14 @@ export default function IPRStatusUpdates({ applicationId, isDRD = false, timelin
                   <div className="flex-1 min-w-0 pb-4">
                     <p className="text-sm font-bold text-gray-900 flex items-center gap-2 flex-wrap">
                       {typeConfig.label}
-                      {update.priority === 'urgent' && (
+                      {update.priority ===
+   'urgent' && (
                         <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 border border-red-300 rounded-full">
                           Urgent
                         </span>
                       )}
-                      {update.priority === 'high' && (
+                      {update.priority ===
+   'high' && (
                         <span className="px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-700 border border-orange-300 rounded-full">
                           High
                         </span>
@@ -333,7 +336,8 @@ export default function IPRStatusUpdates({ applicationId, isDRD = false, timelin
         </div>
 
         <div className="p-6">
-          {updates.length === 0 ? (
+          {updates.length ===
+   0 ? (
             <div className="py-12 text-center text-gray-500">
               <Info className="w-16 h-16 mx-auto mb-3 text-gray-300" />
               <p className="text-lg font-medium text-gray-600">No status updates yet</p>

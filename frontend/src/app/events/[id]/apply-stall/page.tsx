@@ -165,7 +165,8 @@ export default function ApplyStallPage() {
       withdrawn: { label: 'Withdrawn', color: 'text-gray-600', bg: 'bg-gray-50 border-[#b3cde0]', dot: 'bg-gray-400' },
     };
     const s = statusConfig[existingApplication.status] ?? statusConfig.pending;
-    const isApproved = existingApplication.status === 'approved';
+    const isApproved = existingApplication.status ===
+   'approved';
 
     // ─── Non-approved: simple status card ───────────────────
     if (!isApproved) {
@@ -212,8 +213,10 @@ export default function ApplyStallPage() {
 
     const handleTabChange = (tab: StallDashTab) => {
       setActiveTab(tab);
-      if (tab === 'qr') generateQr(existingApplication);
-      if (tab === 'feedback' && existingApplication.stallId) fetchFeedback(existingApplication.stallId);
+      if (tab ===
+   'qr') generateQr(existingApplication);
+      if (tab ===
+   'feedback' && existingApplication.stallId) fetchFeedback(existingApplication.stallId);
     };
 
     return (
@@ -271,7 +274,8 @@ export default function ApplyStallPage() {
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-medium transition-colors ${
-                    activeTab === tab.id
+                    activeTab ===
+   tab.id
                       ? 'text-violet-600 border-b-2 border-violet-600 bg-violet-50/50 dark:bg-violet-900/10'
                       : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
@@ -283,7 +287,8 @@ export default function ApplyStallPage() {
             </div>
 
             {/* ─── Tab: My Stall Details ─── */}
-            {activeTab === 'details' && (
+            {activeTab ===
+   'details' && (
               <div className="p-5 space-y-5">
                 {/* Basic Info */}
                 <div>
@@ -292,7 +297,8 @@ export default function ApplyStallPage() {
                     {[
                       { icon: <Store className="w-4 h-4 text-violet-500" />, label: 'Stall Name', value: existingApplication.stallName },
                       { icon: <Hash className="w-4 h-4 text-violet-500" />, label: 'Stall ID', value: existingApplication.stallId || '(pending assignment)' },
-                      { icon: <Package className="w-4 h-4 text-violet-500" />, label: 'Stall Type', value: STALL_TYPES.find(t => t.value === existingApplication.stallType)?.label },
+                      { icon: <Package className="w-4 h-4 text-violet-500" />, label: 'Stall Type', value: STALL_TYPES.find(t => t.value ===
+   existingApplication.stallType)?.label },
                       { icon: <Badge className="w-4 h-4 text-violet-500" />, label: 'Category', value: existingApplication.category || '—' },
                     ].map(({ icon, label, value }) => (
                       <div key={label} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
@@ -391,7 +397,8 @@ export default function ApplyStallPage() {
             )}
 
             {/* ─── Tab: QR Code ─── */}
-            {activeTab === 'qr' && (
+            {activeTab ===
+   'qr' && (
               <div className="p-6 flex flex-col items-center text-center">
                 <div className="mb-4">
                   <h3 className="text-base font-semibold text-ev-900 dark:text-white mb-1">Customer Feedback QR Code</h3>
@@ -429,7 +436,8 @@ export default function ApplyStallPage() {
             )}
 
             {/* ─── Tab: Feedback ─── */}
-            {activeTab === 'feedback' && (
+            {activeTab ===
+   'feedback' && (
               <div className="p-5">
                 {feedbackLoading ? (
                   <div className="space-y-3 py-4">
@@ -571,7 +579,8 @@ export default function ApplyStallPage() {
               <button
                 type="button"
                 onClick={() => s.id < step && setStep(s.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${step === s.id
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${step ===
+   s.id
                     ? 'bg-ev-700 text-white'
                     : s.id < step
                       ? 'bg-ev-100 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 cursor-pointer'
@@ -590,7 +599,8 @@ export default function ApplyStallPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 p-6 space-y-6">
 
           {/* ─── Step 1: Stall Info ─── */}
-          {step === 1 && (
+          {step ===
+   1 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Stall Information</h2>
 
@@ -615,7 +625,8 @@ export default function ApplyStallPage() {
                   {STALL_TYPES.map((t) => (
                     <label
                       key={t.value}
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.stallType === t.value
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.stallType ===
+   t.value
                           ? 'border-[#b3cde0] bg-ev-50/50 dark:bg-ev-900/10'
                           : 'border-[#b3cde0] dark:border-gray-600 hover:border-gray-300'
                         }`}
@@ -624,7 +635,8 @@ export default function ApplyStallPage() {
                         type="radio"
                         name="stallType"
                         value={t.value}
-                        checked={form.stallType === t.value}
+                        checked={form.stallType ===
+   t.value}
                         onChange={() => update({ stallType: t.value })}
                         className="mt-0.5 w-4 h-4 text-ev-700"
                       />
@@ -651,7 +663,8 @@ export default function ApplyStallPage() {
           )}
 
           {/* ─── Step 2: Business Details ─── */}
-          {step === 2 && (
+          {step ===
+   2 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Business Details</h2>
 
@@ -709,7 +722,8 @@ export default function ApplyStallPage() {
           )}
 
           {/* ─── Step 3: Infrastructure ─── */}
-          {step === 3 && (
+          {step ===
+   3 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Infrastructure Requirements</h2>
 
@@ -767,14 +781,16 @@ export default function ApplyStallPage() {
           )}
 
           {/* ─── Step 4: Documents ─── */}
-          {step === 4 && (
+          {step ===
+   4 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Documents & Compliance</h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 These are optional but may be required depending on event organizer requirements.
               </p>
 
-              {form.stallType === 'food' && (
+              {form.stallType ===
+   'food' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                     FSSAI / Food License Number
@@ -815,7 +831,8 @@ export default function ApplyStallPage() {
           )}
 
           {/* ─── Step 5: Review & Submit ─── */}
-          {step === 5 && (
+          {step ===
+   5 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Review & Submit</h2>
 
@@ -823,7 +840,8 @@ export default function ApplyStallPage() {
                 {/* Summary Cards */}
                 {[
                   { label: 'Stall Name', value: form.stallName },
-                  { label: 'Stall Type', value: STALL_TYPES.find(t => t.value === form.stallType)?.label },
+                  { label: 'Stall Type', value: STALL_TYPES.find(t => t.value ===
+   form.stallType)?.label },
                   { label: 'Category', value: form.category || '—' },
                   { label: 'Business Name', value: form.businessName || '—' },
                   { label: 'Space Required', value: form.spaceRequired ? `${form.spaceRequired} sq ft` : '—' },
@@ -867,7 +885,8 @@ export default function ApplyStallPage() {
           <button
             type="button"
             onClick={() => setStep((s) => Math.max(1, s - 1))}
-            disabled={step === 1}
+            disabled={step ===
+   1}
             className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#b3cde0] dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-white dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -879,7 +898,8 @@ export default function ApplyStallPage() {
               type="button"
               onClick={() => {
                 // Basic validation per step
-                if (step === 1 && !form.stallName.trim()) {
+                if (step ===
+   1 && !form.stallName.trim()) {
                   toast({ type: 'error', message: 'Please enter a stall name' });
                   return;
                 }

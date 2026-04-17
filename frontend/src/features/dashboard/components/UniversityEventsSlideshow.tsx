@@ -209,7 +209,8 @@ export default function UniversityEventsSlideshow() {
                     key={index}
                     onClick={() => setCurrentSlide(index)}
                     className={`h-1.5 rounded-full transition-all ${
-                      index === currentSlide
+                      index ===
+   currentSlide
                         ? 'bg-white w-8'
                         : 'bg-white/50 hover:bg-white/75 w-1.5'
                     }`}
@@ -227,7 +228,8 @@ export default function UniversityEventsSlideshow() {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                   className={`w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                    index === currentSlide 
+                    index ===
+   currentSlide 
                       ? 'border-blue-500 shadow-lg' 
                       : 'border-gray-200 dark:border-gray-600 opacity-60 hover:opacity-100'
                   }`}

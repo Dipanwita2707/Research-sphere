@@ -63,7 +63,8 @@ export default function DeanApprovalDashboard() {
     try {
       setSubmitting(true);
       
-      if (decision === 'approve') {
+      if (decision ===
+   'approve') {
         await deanApprovalService.approve(selectedApp.id, comments);
         toast({ type: 'success', message: 'Application approved successfully!' });
       } else {
@@ -184,7 +185,8 @@ export default function DeanApprovalDashboard() {
           <h2 className="text-lg font-semibold text-gray-900">Applications Awaiting Dean Approval</h2>
         </div>
         
-        {applications.length === 0 ? (
+        {applications.length ===
+   0 ? (
           <div className="p-16 text-center">
             <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-10 h-10 text-emerald-500" />
@@ -356,13 +358,15 @@ export default function DeanApprovalDashboard() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Comments {decision === 'reject' && <span className="text-red-500">*</span>}
+                      Comments {decision ===
+   'reject' && <span className="text-red-500">*</span>}
                     </label>
                     <textarea
                       value={comments}
                       onChange={(e) => setComments(e.target.value)}
                       rows={4}
-                      required={decision === 'reject'}
+                      required={decision ===
+   'reject'}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all resize-none"
                       placeholder="Provide your decision comments..."
                     />
@@ -381,14 +385,17 @@ export default function DeanApprovalDashboard() {
               </button>
               <button
                 onClick={handleSubmitDecision}
-                disabled={submitting || (decision === 'reject' && !comments)}
+                disabled={submitting || (decision ===
+   'reject' && !comments)}
                 className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                  decision === 'approve' 
+                  decision ===
+   'approve' 
                     ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-500/25' 
                     : 'bg-red-600 hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/25'
                 }`}
               >
-                {submitting ? 'Submitting...' : `${decision === 'approve' ? 'Approve' : 'Reject'} Application`}
+                {submitting ? 'Submitting...' : `${decision ===
+   'approve' ? 'Approve' : 'Reject'} Application`}
               </button>
             </div>
           </div>

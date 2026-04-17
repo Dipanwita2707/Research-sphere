@@ -41,12 +41,16 @@ type AdminTab = 'overview' | 'events' | 'users' | 'activity';
 
 function hasEventAnalyticsAccess(user: any) {
   const roleName = user?.role?.name || user?.userType || '';
-  if (roleName === 'admin' || roleName === 'superadmin') return true;
+  if (roleName ===
+   'admin' || roleName ===
+   'superadmin') return true;
 
   const permissionBuckets = Array.isArray(user?.permissions) ? user.permissions : [];
   return permissionBuckets.some((bucket: any) => {
     const permissions = bucket?.permissions || bucket || {};
-    return permissions.event_view_reports === true || permissions.event_manage_all === true;
+    return permissions.event_view_reports ===
+   true || permissions.event_manage_all ===
+   true;
   });
 }
 
@@ -88,10 +92,14 @@ function noteStatusLabel(value?: string | null) {
 }
 
 function lifecycleClasses(stage: string) {
-  if (stage === 'upcoming') return 'bg-sky-50 text-sky-700 border-sky-200/70';
-  if (stage === 'ongoing') return 'bg-emerald-50 text-emerald-700 border-emerald-200/70';
-  if (stage === 'completed') return 'bg-violet-50 text-violet-700 border-violet-200/70';
-  if (stage === 'cancelled') return 'bg-red-50 text-red-700 border-red-200/70';
+  if (stage ===
+   'upcoming') return 'bg-sky-50 text-sky-700 border-sky-200/70';
+  if (stage ===
+   'ongoing') return 'bg-emerald-50 text-emerald-700 border-emerald-200/70';
+  if (stage ===
+   'completed') return 'bg-violet-50 text-violet-700 border-violet-200/70';
+  if (stage ===
+   'cancelled') return 'bg-red-50 text-red-700 border-red-200/70';
   return 'bg-slate-100 text-slate-700 border-slate-200';
 }
 
@@ -402,7 +410,8 @@ export default function EventAdminPage() {
     { key: 'activity' as const, label: 'Approval Activity', icon: Activity },
   ];
   const rawTab = searchParams.get('tab') as AdminTab | null;
-  const tab = rawTab && tabOptions.some((item) => item.key === rawTab) ? rawTab : 'overview';
+  const tab = rawTab && tabOptions.some((item) => item.key ===
+   rawTab) ? rawTab : 'overview';
 
   const setActiveTab = useCallback(
     (nextTab: AdminTab) => {
@@ -444,20 +453,25 @@ export default function EventAdminPage() {
   );
 
   const { data: overview, isLoading: overviewLoading } = useEventAdminOverview(sharedFilters, {
-    enabled: canViewAnalytics && tab === 'overview',
+    enabled: canViewAnalytics && tab ===
+   'overview',
   });
   const { data: usersData, isLoading: usersLoading } = useEventAdminUsers(sharedFilters, {
-    enabled: canViewAnalytics && (tab === 'users' || tab === 'events'),
+    enabled: canViewAnalytics && (tab ===
+   'users' || tab ===
+   'events'),
   });
   const { data: eventsData, isLoading: eventsLoading } = useEventAdminEvents(
     eventFilters,
     eventPage,
     PAGE_SIZE,
-    { enabled: canViewAnalytics && tab === 'events' },
+    { enabled: canViewAnalytics && tab ===
+   'events' },
   );
   const { data: activityData, isLoading: activityLoading } = useEventAdminActivity(
     { ...sharedFilters, page: activityPage, limit: PAGE_SIZE },
-    { enabled: canViewAnalytics && tab === 'activity' },
+    { enabled: canViewAnalytics && tab ===
+   'activity' },
   );
 
   const creatorOptions = usersData?.creators || [];
@@ -526,7 +540,8 @@ export default function EventAdminPage() {
                     key={item.key}
                     onClick={() => setActiveTab(item.key)}
                     className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
-                      tab === item.key
+                      tab ===
+   item.key
                         ? 'border-[#005b96] text-[#005b96]'
                         : 'border-transparent text-[#6497b1] hover:text-[#005b96] hover:border-[#b3cde0]'
                     }`}
@@ -538,7 +553,8 @@ export default function EventAdminPage() {
               })}
             </div>
 
-            {tab === 'overview' ? (
+            {tab ===
+   'overview' ? (
               <div className="space-y-6">
                 {overviewLoading ? (
                   <div className="space-y-6">
@@ -586,7 +602,10 @@ export default function EventAdminPage() {
                               label={noteStatusLabel(key)}
                               value={value}
                               total={overview.totalEvents}
-                              color={key === 'ongoing' ? 'bg-emerald-500' : key === 'upcoming' ? 'bg-sky-500' : key === 'cancelled' ? 'bg-red-500' : 'bg-violet-500'}
+                              color={key ===
+   'ongoing' ? 'bg-emerald-500' : key ===
+   'upcoming' ? 'bg-sky-500' : key ===
+   'cancelled' ? 'bg-red-500' : 'bg-violet-500'}
                             />
                           ))}
                         </div>
@@ -666,7 +685,8 @@ export default function EventAdminPage() {
               </div>
             ) : null}
 
-            {tab === 'events' ? (
+            {tab ===
+   'events' ? (
               <div className="space-y-6">
                 <div className="bg-white rounded-2xl border border-[#b3cde0]/40 p-5">
                   <div className="flex items-center justify-between gap-3 mb-4">
@@ -731,7 +751,8 @@ export default function EventAdminPage() {
                         <EventCard
                           key={event.id}
                           event={event}
-                          canManage={!!user?.id && event.createdBy?.id === user.id}
+                          canManage={!!user?.id && event.createdBy?.id ===
+   user.id}
                         />
                       ))}
                     </div>
@@ -767,7 +788,8 @@ export default function EventAdminPage() {
               </div>
             ) : null}
 
-            {tab === 'users' ? (
+            {tab ===
+   'users' ? (
               <div className="space-y-6">
                 {usersLoading ? (
                   <ShimmerCard className="overflow-hidden">
@@ -812,7 +834,8 @@ export default function EventAdminPage() {
               </div>
             ) : null}
 
-            {tab === 'activity' ? (
+            {tab ===
+   'activity' ? (
               <div className="space-y-6">
                 {activityLoading ? (
                   <div className="space-y-4">

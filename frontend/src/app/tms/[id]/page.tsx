@@ -72,7 +72,10 @@ function TimelineItem({ entry, isLast }: { entry: TmsTimelineEntry; isLast: bool
 
       {/* Content */}
       <div className={`flex-1 ml-3 mb-6 ${isLast ? '' : ''}`}>
-        <div className={`rounded-xl border ${config.lineColor}/20 ${config.bgColor} p-4`} style={{ boxShadow: `0 1px 8px 0 ${config.dotColor === 'bg-orange-500' ? 'rgba(249,115,22,0.08)' : config.dotColor === 'bg-red-500' ? 'rgba(239,68,68,0.08)' : config.dotColor === 'bg-emerald-500' ? 'rgba(16,185,129,0.08)' : 'rgba(0,91,150,0.06)'}` }}>
+        <div className={`rounded-xl border ${config.lineColor}/20 ${config.bgColor} p-4`} style={{ boxShadow: `0 1px 8px 0 ${config.dotColor ===
+   'bg-orange-500' ? 'rgba(249,115,22,0.08)' : config.dotColor ===
+   'bg-red-500' ? 'rgba(239,68,68,0.08)' : config.dotColor ===
+   'bg-emerald-500' ? 'rgba(16,185,129,0.08)' : 'rgba(0,91,150,0.06)'}` }}>
           <div className="flex items-center gap-2 mb-1.5">
             <span className={`text-sm font-bold ${config.textColor}`}>{config.label}</span>
             {entry.isAutomatic && (
@@ -148,10 +151,13 @@ export default function TicketDetailPage() {
     );
   }
 
-  const isCreator = ticket.createdBy?.id === user?.id;
-  const isAssignee = ticket.assignedTo?.id === user?.id;
+  const isCreator = ticket.createdBy?.id ===
+   user?.id;
+  const isAssignee = ticket.assignedTo?.id ===
+   user?.id;
   const isActive = ['open', 'in_progress', 'escalated'].includes(ticket.status);
-  const isResolved = ticket.status === 'resolved';
+  const isResolved = ticket.status ===
+   'resolved';
   const canRate = isCreator && isResolved && !ticket.rating;
 
   const statusConfig = STATUS_CONFIG[ticket.status];
@@ -169,11 +175,14 @@ export default function TicketDetailPage() {
     if (!showActionModal) return;
     setActionError('');
     try {
-      if (showActionModal === 'escalate') {
+      if (showActionModal ===
+   'escalate') {
         await escalateMutation.mutateAsync({ id, payload: { remarks: actionRemarks || undefined } });
-      } else if (showActionModal === 'resolve') {
+      } else if (showActionModal ===
+   'resolve') {
         await resolveMutation.mutateAsync({ id, payload: { remarks: actionRemarks } });
-      } else if (showActionModal === 'close') {
+      } else if (showActionModal ===
+   'close') {
         await closeMutation.mutateAsync({ id, payload: { remarks: actionRemarks || undefined } });
       }
       setShowActionModal(null);
@@ -306,7 +315,8 @@ export default function TicketDetailPage() {
               </h2>
               <div className="pl-1">
                 {ticket.timeline?.map((entry, idx) => (
-                  <TimelineItem key={entry.id} entry={entry} isLast={idx === (ticket.timeline?.length ?? 0) - 1} />
+                  <TimelineItem key={entry.id} entry={entry} isLast={idx ===
+   (ticket.timeline?.length ?? 0) - 1} />
                 ))}
               </div>
             </div>
@@ -528,9 +538,11 @@ export default function TicketDetailPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#011f4b]/40 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl p-7 w-full max-w-md mx-4 border border-[#b3cde0]/30">
               <h3 className="text-lg font-bold text-[#011f4b] mb-4">
-                {showActionModal === 'escalate'
+                {showActionModal ===
+   'escalate'
                   ? 'Forward / Escalate Ticket'
-                  : showActionModal === 'resolve'
+                  : showActionModal ===
+   'resolve'
                     ? 'Resolve Ticket'
                     : 'Close Ticket with Remarks'}
               </h3>
@@ -545,9 +557,11 @@ export default function TicketDetailPage() {
                 onChange={(e) => setActionRemarks(e.target.value)}
                 rows={3}
                 placeholder={
-                  showActionModal === 'resolve'
+                  showActionModal ===
+   'resolve'
                     ? 'Resolution details (required)...'
-                    : showActionModal === 'close'
+                    : showActionModal ===
+   'close'
                       ? 'Closure remarks (required)...'
                       : 'Reason for forwarding / escalation (optional)...'
                 }
@@ -563,12 +577,16 @@ export default function TicketDetailPage() {
                 <button
                   onClick={handleAction}
                   disabled={
-                    ((showActionModal === 'resolve' || showActionModal === 'close') && !actionRemarks.trim()) ||
+                    ((showActionModal ===
+   'resolve' || showActionModal ===
+   'close') && !actionRemarks.trim()) ||
                     escalateMutation.isPending || resolveMutation.isPending || closeMutation.isPending
                   }
                   className="px-5 py-2.5 bg-[#005b96] hover:bg-[#03396c] text-white rounded-xl text-sm font-medium disabled:opacity-40 transition-colors shadow-md shadow-[#005b96]/15"
                 >
-                  {showActionModal === 'escalate' ? 'Forward' : showActionModal === 'resolve' ? 'Resolve' : 'Close'}
+                  {showActionModal ===
+   'escalate' ? 'Forward' : showActionModal ===
+   'resolve' ? 'Resolve' : 'Close'}
                 </button>
               </div>
             </div>

@@ -155,7 +155,8 @@ export default function EmployeeManagement() {
 
   useEffect(() => {
     if (formData.schoolId) {
-      const school = schools.find((s) => s.id === formData.schoolId);
+      const school = schools.find((s) => s.id ===
+   formData.schoolId);
       setDepartments(school?.departments || []);
       // Clear central department selection when school is selected
       setFormData(prev => ({ ...prev, centralDepartmentId: '' }));
@@ -174,7 +175,8 @@ export default function EmployeeManagement() {
   // Auto-populate Employee ID with UID during creation
   useEffect(() => {
     if (!editingEmployee) {
-      setFormData(prev => (prev.empId === formData.uid ? prev : { ...prev, empId: formData.uid }));
+      setFormData(prev => (prev.empId ===
+   formData.uid ? prev : { ...prev, empId: formData.uid }));
     }
   }, [formData.uid, editingEmployee]);
 
@@ -196,7 +198,6 @@ export default function EmployeeManagement() {
         alternateNumber: '',
         personalEmail: '',
         designation: employee.employeeDetails.designation || '',
-        officerLevel: '',
         employeeCategory: employee.employeeDetails.employeeCategory,
         employeeType: employee.employeeDetails.employeeType,
         dateOfJoining: employee.employeeDetails.dateOfJoining,
@@ -205,6 +206,7 @@ export default function EmployeeManagement() {
         centralDepartmentId: employee.employeeDetails.centralDepartmentId || '',
         currentAddress: '',
         permanentAddress: '',
+        officerLevel: (employee.employeeDetails as Record<string, unknown>).officerLevel as string || '',
       });
     } else {
       setEditingEmployee(null);
@@ -306,12 +308,15 @@ export default function EmployeeManagement() {
     } catch (error: unknown) {
       let errorMsg = extractErrorMessage(error);
       // Check if error response has validation errors
-      if (typeof error === 'object' && error !== null && 'response' in error) {
+      if (typeof error ===
+   'object' && error !== null && 'response' in error) {
         const response = (error as any).response;
-        if (response?.data?.errors && typeof response.data.errors === 'object') {
+        if (response?.data?.errors && typeof response.data.errors ===
+   'object') {
           setFormErrors(response.data.errors);
           const firstBackendError = Object.values(response.data.errors)[0];
-          if (typeof firstBackendError === 'string' && firstBackendError.trim()) {
+          if (typeof firstBackendError ===
+   'string' && firstBackendError.trim()) {
             errorMsg = firstBackendError;
           }
         }
@@ -384,15 +389,15 @@ export default function EmployeeManagement() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
           <Users className="mr-3 text-blue-600" />
           Employee Management
         </h1>
-        <p className="text-gray-600 mt-2">Manage faculty and staff members</p>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Manage faculty and staff members</p>
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
@@ -401,13 +406,13 @@ export default function EmployeeManagement() {
               placeholder="Search by name, UID, or empID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
             />
           </div>
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           >
             <option value="all">All Roles</option>
             <option value="faculty">Faculty</option>
@@ -416,7 +421,7 @@ export default function EmployeeManagement() {
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           >
             <option value="all">All Categories</option>
             <option value="teaching">Teaching</option>
@@ -425,7 +430,7 @@ export default function EmployeeManagement() {
           <select
             value={filterDesignation}
             onChange={(e) => setFilterDesignation(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           >
             <option value="all">All Designations</option>
             {designations.map((d) => (
@@ -443,58 +448,58 @@ export default function EmployeeManagement() {
       </div>
 
       {/* Employee List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Emp ID
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 UID
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Email
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Designation
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Category
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Type
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Department
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 School
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Joined
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {employees.map((employee) => (
               <tr
                 key={employee.id}
-                className="hover:bg-blue-50 cursor-pointer"
+                className="hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer"
                 onClick={() => handleOpenDetailsModal(employee)}
                 title="Click to view full employee details"
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                   {employee.employeeDetails.empId}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -504,42 +509,43 @@ export default function EmployeeManagement() {
                       e.stopPropagation();
                       handleOpenDetailsModal(employee);
                     }}
-                    className="text-sm font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                    className="text-sm font-semibold text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 hover:underline"
                   >
                     {employee.employeeDetails.displayName}
                   </button>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     {employee.employeeDetails.mobileNumber}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {employee.uid}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {employee.email}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {employee.employeeDetails.designation}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    employee.employeeDetails.employeeCategory === 'teaching'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-gray-100 text-gray-800'
+                    employee.employeeDetails.employeeCategory ===
+   'teaching'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
                   }`}>
                     {employee.employeeDetails.employeeCategory}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {employee.employeeDetails.employeeType || 'N/A'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {employee.employeeDetails.departmentName || employee.employeeDetails.department?.departmentName || employee.employeeDetails.centralDepartmentName || 'N/A'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {employee.employeeDetails.schoolName || employee.employeeDetails.school?.facultyName || 'N/A'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {formatDate(employee.employeeDetails.dateOfJoining)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -547,8 +553,8 @@ export default function EmployeeManagement() {
                     onClick={() => handleToggleStatus(employee)}
                     className={`flex items-center px-2 py-1 text-xs rounded-full ${
                       employee.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                     }`}
                   >
                     {employee.isActive ? (
@@ -580,11 +586,13 @@ export default function EmployeeManagement() {
                       e.stopPropagation();
                       handleDelete(employee);
                     }}
-                    disabled={deletingId === employee.id}
+                    disabled={deletingId ===
+   employee.id}
                     className="text-red-600 hover:text-red-900 disabled:opacity-50"
                     title="Delete"
                   >
-                    {deletingId === employee.id ? (
+                    {deletingId ===
+   employee.id ? (
                       <span className="inline-block w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <Trash2 className="w-4 h-4" />
@@ -597,10 +605,11 @@ export default function EmployeeManagement() {
         </table>
         </div>
 
-        {employees.length === 0 && (
+        {employees.length ===
+   0 && (
           <div className="text-center py-12">
-            <Users className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-500">No employees found</p>
+            <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No employees found</p>
           </div>
         )}
       </div>
@@ -608,9 +617,9 @@ export default function EmployeeManagement() {
       {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white z-10">
-              <h2 className="text-2xl font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
               </h2>
             </div>
@@ -618,10 +627,10 @@ export default function EmployeeManagement() {
             <form onSubmit={handleSubmit} noValidate className="p-6 space-y-6">
               {/* Login Credentials */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Login Credentials</h3>
+                <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Login Credentials</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       UID <span className="text-red-500">*</span>
                       <span className="text-gray-500 text-xs ml-1">(4-5 digits only)</span>
                     </label>
@@ -653,7 +662,7 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Email <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -661,8 +670,8 @@ export default function EmployeeManagement() {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.email ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.email && (
@@ -674,7 +683,7 @@ export default function EmployeeManagement() {
                   </div>
                   {!editingEmployee && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Password <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -682,8 +691,8 @@ export default function EmployeeManagement() {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required={!editingEmployee}
-                        className={`w-full px-3 py-2 border rounded-md ${
-                          formErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                          formErrors.password ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                         }`}
                       />
                       {formErrors.password && (
@@ -695,15 +704,15 @@ export default function EmployeeManagement() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Role <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                       required
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.role ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.role ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     >
                       <option value="faculty">Faculty</option>
@@ -721,12 +730,12 @@ export default function EmployeeManagement() {
 
               {/* Personal Details */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Personal Details</h3>
+                <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Personal Details</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Employee ID <span className="text-red-500">*</span>
-                      <span className="text-gray-500 text-xs ml-1">(auto-filled from UID, 4-5 digits)</span>
+                      <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">(auto-filled from UID, 4-5 digits)</span>
                     </label>
                     <input
                       type="text"
@@ -736,9 +745,9 @@ export default function EmployeeManagement() {
                       disabled={!editingEmployee}
                       maxLength={5}
                       placeholder="4-5 digits"
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.empId ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                      } ${!editingEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.empId ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
+                      } ${!editingEmployee ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''}`}
                     />
                     {formErrors.empId && (
                       <div className="flex items-center mt-1 text-red-600 text-xs">
@@ -748,7 +757,7 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       First Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -756,8 +765,8 @@ export default function EmployeeManagement() {
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       required
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.firstName ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.firstName && (
@@ -768,15 +777,15 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Middle Name
                     </label>
                     <input
                       type="text"
                       value={formData.middleName}
                       onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.middleName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.middleName ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.middleName && (
@@ -787,7 +796,7 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -795,8 +804,8 @@ export default function EmployeeManagement() {
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       required
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.lastName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.lastName ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.lastName && (
@@ -807,14 +816,14 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Gender <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.gender ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.gender ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     >
                       <option value="">Select Gender</option>
@@ -830,7 +839,7 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Mobile Number <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -840,8 +849,8 @@ export default function EmployeeManagement() {
                       placeholder="10 digit number"
                       maxLength={10}
                       required
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.mobileNumber ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.mobileNumber ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.mobileNumber && (
@@ -854,9 +863,9 @@ export default function EmployeeManagement() {
                 </div>
 
                 {/* Additional Contact Details */}
-                <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t">
+                <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t dark:border-gray-700">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Alternate Number
                     </label>
                     <input
@@ -865,8 +874,8 @@ export default function EmployeeManagement() {
                       onChange={(e) => setFormData({ ...formData, alternateNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                       placeholder="10 digit number (optional)"
                       maxLength={10}
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.alternateNumber ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.alternateNumber ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.alternateNumber && (
@@ -877,7 +886,7 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Personal Email
                     </label>
                     <input
@@ -885,8 +894,8 @@ export default function EmployeeManagement() {
                       value={formData.personalEmail}
                       onChange={(e) => setFormData({ ...formData, personalEmail: e.target.value })}
                       placeholder="Personal email (optional)"
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.personalEmail ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.personalEmail ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.personalEmail && (
@@ -897,15 +906,15 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Date of Birth
                     </label>
                     <input
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.dateOfBirth ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.dateOfBirth ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.dateOfBirth && (
@@ -920,10 +929,10 @@ export default function EmployeeManagement() {
 
               {/* Professional Details */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Professional Details</h3>
+                <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Professional Details</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Designation <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -932,8 +941,8 @@ export default function EmployeeManagement() {
                       onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
                       required
                       placeholder="Professor, Assistant Professor, etc."
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.designation ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.designation ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.designation && (
@@ -944,14 +953,14 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Officer Level
                     </label>
                     <select
                       value={formData.officerLevel}
                       onChange={(e) => setFormData({ ...formData, officerLevel: e.target.value })}
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.officerLevel ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.officerLevel ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     >
                       <option value="">Select Officer Level</option>
@@ -974,15 +983,15 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Employee Category <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.employeeCategory}
                       onChange={(e) => setFormData({ ...formData, employeeCategory: e.target.value })}
                       required
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.employeeCategory ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.employeeCategory ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     >
                       <option value="">Select Employee Category</option>
@@ -997,14 +1006,14 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Employee Type
                     </label>
                     <select
                       value={formData.employeeType}
                       onChange={(e) => setFormData({ ...formData, employeeType: e.target.value })}
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.employeeType ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.employeeType ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     >
                       <option value="">Select Employee Type</option>
@@ -1021,15 +1030,15 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Date of Joining
                     </label>
                     <input
                       type="date"
                       value={formData.dateOfJoining}
                       onChange={(e) => setFormData({ ...formData, dateOfJoining: e.target.value })}
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        formErrors.dateOfJoining ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.dateOfJoining ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
                     />
                     {formErrors.dateOfJoining && (
@@ -1040,23 +1049,23 @@ export default function EmployeeManagement() {
                     )}
                   </div>
                   <div className="col-span-2">
-                    <div className="mb-4 p-4 bg-gray-50 rounded-md">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">Department Assignment</h4>
-                      <p className="text-xs text-gray-500 mb-3">
+                    <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Department Assignment</h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                         Choose either a School Department (for faculty/academic staff) or Central Department (for administrative staff like DRD, HR, Finance).
                       </p>
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             School/Faculty
                           </label>
                           <select
                             value={formData.schoolId}
                             onChange={(e) => setFormData({ ...formData, schoolId: e.target.value, departmentId: '' })}
                             disabled={!!formData.centralDepartmentId}
-                            className={`w-full px-3 py-2 border rounded-md ${
-                              formData.centralDepartmentId ? 'bg-gray-100 text-gray-500' : ''
+                            className={`w-full px-3 py-2 border rounded-md dark:text-white dark:bg-gray-700 dark:border-gray-600 ${
+                              formData.centralDepartmentId ? 'bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-400' : ''
                             }`}
                           >
                             <option value="">Select School</option>
@@ -1069,15 +1078,15 @@ export default function EmployeeManagement() {
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             School Department
                           </label>
                           <select
                             value={formData.departmentId}
                             onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                             disabled={!formData.schoolId || !!formData.centralDepartmentId}
-                            className={`w-full px-3 py-2 border rounded-md ${
-                              (!formData.schoolId || formData.centralDepartmentId) ? 'bg-gray-100 text-gray-500' : ''
+                            className={`w-full px-3 py-2 border rounded-md dark:text-white dark:bg-gray-700 dark:border-gray-600 ${
+                              (!formData.schoolId || formData.centralDepartmentId) ? 'bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-400' : ''
                             }`}
                           >
                             <option value="">Select Department</option>
@@ -1096,21 +1105,21 @@ export default function EmployeeManagement() {
                             <div className="w-full border-t border-gray-300" />
                           </div>
                           <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-gray-50 text-gray-500">OR</span>
+                            <span className="px-2 bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400">OR</span>
                           </div>
                         </div>
                       </div>
                       
                       <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Central Department
                         </label>
                         <select
                           value={formData.centralDepartmentId}
                           onChange={(e) => setFormData({ ...formData, centralDepartmentId: e.target.value })}
                           disabled={!!formData.schoolId || !!formData.departmentId}
-                          className={`w-full px-3 py-2 border rounded-md ${
-                            (formData.schoolId || formData.departmentId) ? 'bg-gray-100 text-gray-500' : ''
+                          className={`w-full px-3 py-2 border rounded-md dark:text-white dark:bg-gray-700 dark:border-gray-600 ${
+                            (formData.schoolId || formData.departmentId) ? 'bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-400' : ''
                           }`}
                         >
                           <option value="">Select Central Department</option>
@@ -1120,7 +1129,7 @@ export default function EmployeeManagement() {
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           For DRD, HR, Finance, Admin, and other administrative departments
                         </p>
                       </div>
@@ -1130,7 +1139,7 @@ export default function EmployeeManagement() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-4 pt-4 border-t">
+              <div className="flex gap-4 pt-4 border-t dark:border-gray-700">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -1153,16 +1162,16 @@ export default function EmployeeManagement() {
       {/* Employee Details Modal */}
       {showDetailsModal && selectedEmployee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white z-10 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10 flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Employee Details</h2>
-                <p className="text-sm text-gray-500 mt-1">Complete profile information</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Employee Details</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Complete profile information</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowDetailsModal(false)}
-                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
                 title="Close"
               >
                 <X className="w-5 h-5" />
@@ -1184,9 +1193,9 @@ export default function EmployeeManagement() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Login & Identity</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-gray-500">UID:</span> <span className="font-medium">{selectedEmployee.uid || 'N/A'}</span></div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Login & Identity</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm dark:text-gray-300">
+                  <div><span className="text-gray-500 dark:text-gray-400">UID:</span> <span className="font-medium">{selectedEmployee.uid || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Employee ID:</span> <span className="font-medium">{selectedEmployee.employeeDetails.empId || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Role:</span> <span className="font-medium capitalize">{selectedEmployee.role || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Email:</span> <span className="font-medium">{selectedEmployee.email || 'N/A'}</span></div>
@@ -1194,9 +1203,9 @@ export default function EmployeeManagement() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-gray-500">Mobile:</span> <span className="font-medium">{selectedEmployee.employeeDetails.mobileNumber || 'N/A'}</span></div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Contact Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm dark:text-gray-300">
+                  <div><span className="text-gray-500 dark:text-gray-400">Mobile:</span> <span className="font-medium">{selectedEmployee.employeeDetails.mobileNumber || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Alternate:</span> <span className="font-medium">{selectedEmployee.employeeDetails.alternateNumber || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Personal Email:</span> <span className="font-medium">{selectedEmployee.employeeDetails.personalEmail || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Gender:</span> <span className="font-medium capitalize">{selectedEmployee.employeeDetails.gender || 'N/A'}</span></div>
@@ -1204,9 +1213,9 @@ export default function EmployeeManagement() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Professional Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-gray-500">Designation:</span> <span className="font-medium">{selectedEmployee.employeeDetails.designation || 'N/A'}</span></div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Professional Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm dark:text-gray-300">
+                  <div><span className="text-gray-500 dark:text-gray-400">Designation:</span> <span className="font-medium">{selectedEmployee.employeeDetails.designation || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Officer Level:</span> <span className="font-medium">{selectedEmployee.employeeDetails.officerLevel || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Category:</span> <span className="font-medium capitalize">{selectedEmployee.employeeDetails.employeeCategory || 'N/A'}</span></div>
                   <div><span className="text-gray-500">Type:</span> <span className="font-medium capitalize">{selectedEmployee.employeeDetails.employeeType || 'N/A'}</span></div>
@@ -1216,19 +1225,19 @@ export default function EmployeeManagement() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Department Assignment</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-gray-500">School:</span> <span className="font-medium">{selectedEmployee.employeeDetails.schoolName || selectedEmployee.employeeDetails.school?.facultyName || 'N/A'}</span></div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Department Assignment</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm dark:text-gray-300">
+                  <div><span className="text-gray-500 dark:text-gray-400">School:</span> <span className="font-medium">{selectedEmployee.employeeDetails.schoolName || selectedEmployee.employeeDetails.school?.facultyName || 'N/A'}</span></div>
                   <div><span className="text-gray-500">School Department:</span> <span className="font-medium">{selectedEmployee.employeeDetails.departmentName || selectedEmployee.employeeDetails.department?.departmentName || 'N/A'}</span></div>
                   <div className="col-span-2"><span className="text-gray-500">Central Department:</span> <span className="font-medium">{selectedEmployee.employeeDetails.centralDepartmentName || 'N/A'}</span></div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Address</h3>
-                <div className="space-y-3 text-sm">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Address</h3>
+                <div className="space-y-3 text-sm dark:text-gray-300">
                   <div>
-                    <p className="text-gray-500">Current Address</p>
+                    <p className="text-gray-500 dark:text-gray-400">Current Address</p>
                     <p className="font-medium text-gray-900">{selectedEmployee.employeeDetails.currentAddress || 'N/A'}</p>
                   </div>
                   <div>

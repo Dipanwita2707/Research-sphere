@@ -110,7 +110,8 @@ export default function PatentFilingForm() {
   // Fetch departments when school changes
   useEffect(() => {
     if (formData.schoolId) {
-      const school = schools.find((s) => s.id === formData.schoolId);
+      const school = schools.find((s) => s.id ===
+   formData.schoolId);
       setDepartments(school?.departments || []);
     } else {
       setDepartments([]);
@@ -206,7 +207,8 @@ export default function PatentFilingForm() {
         departmentId: formData.departmentId || undefined,
         sdgs: formData.selectedSdgs.map((code) => ({
           code,
-          title: SDG_OPTIONS.find((s) => s.code === code)?.title || '',
+          title: SDG_OPTIONS.find((s) => s.code ===
+   code)?.title || '',
         })),
         applicantDetails,
         annexureFilePath: annexureS3Key,
@@ -214,7 +216,8 @@ export default function PatentFilingForm() {
       });
 
       // If submit type is 'submit', submit the application
-      if (submitType === 'submit') {
+      if (submitType ===
+   'submit') {
         await iprService.submitApplication(application.id);
         setSuccess('Patent application submitted successfully!');
       } else {

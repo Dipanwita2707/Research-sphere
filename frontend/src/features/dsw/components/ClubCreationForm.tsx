@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -159,7 +159,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
   useEffect(() => {
     if (selectedMainCategory) {
-      const mc = mainCategories.find((c) => c.id === selectedMainCategory);
+      const mc = mainCategories.find((c) => c.id ===
+   selectedMainCategory);
       setSubCategories(mc?.children || []);
     } else {
       setSubCategories([]);
@@ -275,7 +276,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
         <div className="flex items-center justify-center gap-0">
           {STEPS.map((step) => {
             const Icon = step.icon;
-            const active = currentStep === step.num;
+            const active = currentStep ===
+   step.num;
             const done = currentStep > step.num;
             return (
               <div key={step.num} className="flex items-center">
@@ -323,7 +325,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
         )}
 
         {/* ════════════ STEP 1 – Club Details ════════════ */}
-        {currentStep === 1 && (
+        {currentStep ===
+   1 && (
           <>
             {/* Club Name */}
             <div>
@@ -530,7 +533,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
         )}
 
         {/* ════════════ STEP 2 – People & Operations ════════════ */}
-        {currentStep === 2 && (
+        {currentStep ===
+   2 && (
           <>
             {/* Chairperson – auto-assigned read-only */}
             <div>
@@ -655,8 +659,10 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                           s.uid,
                         );
                         const isChairperson =
-                          currentUser?.uid === s.uid ||
-                          currentUser?.id === s.uid;
+                          currentUser?.uid ===
+   s.uid ||
+                          currentUser?.id ===
+   s.uid;
 
                         if (isChairperson) return null;
 
@@ -709,7 +715,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   {MEETING_FREQUENCIES.map((f) => (
                     <label
                       key={f.value}
-                      className={`flex items-center gap-2.5 px-3 py-2 border-2 rounded-lg cursor-pointer text-sm select-none transition-colors ${value.meetingFrequency === f.value ? "border-ev-700 bg-ev-50" : "border-[#b3cde0] hover:border-[#6497b1]"}`}
+                      className={`flex items-center gap-2.5 px-3 py-2 border-2 rounded-lg cursor-pointer text-sm select-none transition-colors ${value.meetingFrequency ===
+   f.value ? "border-ev-700 bg-ev-50" : "border-[#b3cde0] hover:border-[#6497b1]"}`}
                     >
                       <input
                         type="radio"
@@ -717,7 +724,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                         value={f.value}
                         className="accent-[#005b96]"
                         disabled={disabled}
-                        checked={value.meetingFrequency === f.value}
+                        checked={value.meetingFrequency ===
+   f.value}
                         onChange={() =>
                           set(
                             "meetingFrequency",
@@ -752,7 +760,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                       const raw = sanitizeDigitsInput(e.target.value, {
                         maxLength: 3,
                       });
-                      if (raw === "") {
+                      if (raw ===
+   "") {
                         set("estimatedAnnualActivityCount", 0);
                         return;
                       }
@@ -783,7 +792,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                       const raw = sanitizeDigitsInput(e.target.value, {
                         maxLength: 5,
                       });
-                      if (raw === "") {
+                      if (raw ===
+   "") {
                         set("expectedStudentStrength", null);
                         return;
                       }
@@ -802,7 +812,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
         )}
 
         {/* ════════════ STEP 3 – Declarations ════════════ */}
-        {currentStep === 3 && (
+        {currentStep ===
+   3 && (
           <>
             {/* Declarations */}
             <div
@@ -938,7 +949,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
         <button
           type="button"
           onClick={handlePrev}
-          disabled={currentStep === 1 || disabled}
+          disabled={currentStep ===
+   1 || disabled}
           className="flex items-center gap-1.5 px-4 py-2 text-sm text-ev-700 hover:bg-ev-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-4 h-4" /> Previous
@@ -949,7 +961,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
         <button
           type="button"
           onClick={handleNext}
-          disabled={currentStep === 3 || disabled}
+          disabled={currentStep ===
+   3 || disabled}
           className="flex items-center gap-1.5 px-4 py-2 text-sm bg-ev-700 text-white rounded-lg hover:bg-ev-800 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Next <ChevronRight className="w-4 h-4" />

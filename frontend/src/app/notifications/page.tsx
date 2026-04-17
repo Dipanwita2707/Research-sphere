@@ -86,7 +86,8 @@ export default function NotificationsPage() {
       const response = await notificationService.getNotifications({
         page: pagination.page,
         limit: pagination.limit,
-        unreadOnly: filter === 'unread',
+        unreadOnly: filter ===
+   'unread',
       });
       setNotifications(response.data);
       setUnreadCount(response.unreadCount);
@@ -106,7 +107,8 @@ export default function NotificationsPage() {
     try {
       await notificationService.markAsRead(id);
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
+        prev.map((n) => (n.id ===
+   id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
@@ -221,12 +223,14 @@ export default function NotificationsPage() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-        ) : notifications.length === 0 ? (
+        ) : notifications.length ===
+   0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900">No notifications</h3>
             <p className="text-gray-500 mt-1">
-              {filter === 'unread' ? "You're all caught up!" : "You don't have any notifications yet."}
+              {filter ===
+   'unread' ? "You're all caught up!" : "You don't have any notifications yet."}
             </p>
           </div>
         ) : (
@@ -268,9 +272,12 @@ export default function NotificationsPage() {
 
                       {notification.metadata?.priority && (
                         <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-                          notification.metadata.priority === 'urgent' ? 'bg-red-100 text-red-700 border border-red-300' :
-                          notification.metadata.priority === 'high' ? 'bg-orange-100 text-orange-700 border border-orange-300' :
-                          notification.metadata.priority === 'medium' ? 'bg-blue-100 text-blue-700 border border-blue-300' :
+                          notification.metadata.priority ===
+   'urgent' ? 'bg-red-100 text-red-700 border border-red-300' :
+                          notification.metadata.priority ===
+   'high' ? 'bg-orange-100 text-orange-700 border border-orange-300' :
+                          notification.metadata.priority ===
+   'medium' ? 'bg-blue-100 text-blue-700 border border-blue-300' :
                           'bg-gray-100 text-gray-700 border border-gray-300'
                         }`}>
                           {notification.metadata.priority[0].toUpperCase() + notification.metadata.priority.slice(1)}
@@ -279,7 +286,8 @@ export default function NotificationsPage() {
 
                       {(notification.metadata?.reviewerName || notification.metadata?.createdBy || notification.metadata?.createdByUid || (notification.metadata?.createdBy && notification.metadata.createdBy.uid)) && (
                         <div className="text-xs text-gray-500">
-                          By {notification.metadata.reviewerName || (notification.metadata.createdBy && (typeof notification.metadata.createdBy === 'string' ? notification.metadata.createdBy : notification.metadata.createdBy.employeeDetails?.displayName || `${notification.metadata.createdBy.firstName || ''} ${notification.metadata.createdBy.lastName || ''}`.trim()))}
+                          By {notification.metadata.reviewerName || (notification.metadata.createdBy && (typeof notification.metadata.createdBy ===
+   'string' ? notification.metadata.createdBy : notification.metadata.createdBy.employeeDetails?.displayName || `${notification.metadata.createdBy.firstName || ''} ${notification.metadata.createdBy.lastName || ''}`.trim()))}
                           {notification.metadata.createdByUid ? ` (${notification.metadata.createdByUid})` : (notification.metadata.createdBy && (notification.metadata.createdBy.uid || notification.metadata.createdBy.userId) ? ` (${notification.metadata.createdBy.uid || notification.metadata.createdBy.userId})` : '')}
                         </div>
                       )}
@@ -335,7 +343,8 @@ export default function NotificationsPage() {
         <div className="mt-6 flex items-center justify-center gap-2">
           <button
             onClick={() => setPagination((p) => ({ ...p, page: Math.max(1, p.page - 1) }))}
-            disabled={pagination.page === 1}
+            disabled={pagination.page ===
+   1}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
@@ -345,7 +354,8 @@ export default function NotificationsPage() {
           </span>
           <button
             onClick={() => setPagination((p) => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))}
-            disabled={pagination.page === pagination.totalPages}
+            disabled={pagination.page ===
+   pagination.totalPages}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next

@@ -60,7 +60,8 @@ const hasPermission = (permissions: DepartmentPermission[], permissionName: stri
 
 const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
   // If no permissions, return false
-  if (!permissions || permissions.length === 0) return false;
+  if (!permissions || permissions.length ===
+   0) return false;
   
   // Check for any DRD-related permission
   const drdKeys = [
@@ -123,10 +124,18 @@ const getNavItems = (
   permissions: DepartmentPermission[],
   extraFlags?: { isChairperson?: boolean; hasVolunteerAssignments?: boolean }
 ): NavItem[] => {
-  const isStudent = userRole === 'student' || userType === 'student';
-  const isFaculty = userRole === 'faculty' || userType === 'faculty';
-  const isStaff = userRole === 'staff' || userType === 'staff';
-  const isAdmin = userRole === 'admin' || userType === 'admin';
+  const isStudent = userRole ===
+   'student' || userType ===
+   'student';
+  const isFaculty = userRole ===
+   'faculty' || userType ===
+   'faculty';
+  const isStaff = userRole ===
+   'staff' || userType ===
+   'staff';
+  const isAdmin = userRole ===
+   'admin' || userType ===
+   'admin';
   const canCreateEvent = isFaculty || extraFlags?.isChairperson;
   const canBrowseEvents = true;
   const hasVolunteerAssignments = extraFlags?.hasVolunteerAssignments ?? false;
@@ -291,7 +300,8 @@ const getUserDisplayName = (user: any): string => {
 
 const getUserRoleLabel = (user: any): string => {
   const type = user?.userType?.toUpperCase() || user?.role?.name?.toUpperCase() || 'USER';
-  if (type === 'ADMIN') return 'ADMINISTRATOR';
+  if (type ===
+   'ADMIN') return 'ADMINISTRATOR';
   return type;
 };
 
@@ -333,7 +343,9 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
   const fetchEventFlags = async () => {
     try {
       // Check if student is a club chairperson
-      const isStudentUser = user?.role?.name === 'student' || user?.userType === 'student';
+      const isStudentUser = user?.role?.name ===
+   'student' || user?.userType ===
+   'student';
       if (isStudentUser) {
         const permsRes = await api.get('/noting/my-permissions');
         if (permsRes.data?.data?.isClubChairperson) {
@@ -396,7 +408,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       <nav className="flex-1 py-4 overflow-y-auto">
         {filteredNavItems.map((item: NavItem) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const isActive = pathname ===
+   item.href || pathname.startsWith(item.href + '/');
           const isExpanded = expandedItems.includes(item.name);
           const hasSubItems = item.subItems && item.subItems.length > 0;
           
@@ -424,7 +437,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                     <div className="mt-1 space-y-0.5 pl-4 pr-2">
                       {item.subItems!.map((subItem: NavItem) => {
                         const SubIcon = subItem.icon;
-                        const isSubActive = pathname === subItem.href;
+                        const isSubActive = pathname ===
+   subItem.href;
                         return (
                           <Link
                             key={subItem.name}

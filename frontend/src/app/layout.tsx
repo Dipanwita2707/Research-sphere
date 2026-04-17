@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/shared/providers/ThemeProvider';
 import ErrorBoundary from '@/shared/providers/ErrorBoundary';
 import { ToastProvider } from '@/shared/ui-components/Toast';
 import { ConfirmModalProvider } from '@/shared/ui-components/ConfirmModal';
+import { NavigationProgress } from '@/shared/components/common/NavigationProgress';
 import '@/styles/globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -29,6 +30,7 @@ export default function RootLayout({
               <ConfirmModalProvider>
                 <QueryProvider>
                   <AuthProvider>
+                    <NavigationProgress />
                     {children}
                   </AuthProvider>
                 </QueryProvider>

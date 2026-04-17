@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -28,7 +28,8 @@ export default function CreateClubPage() {
 
   // Check if this student is already chairperson of any non-archived club
   const existingChairClub = (myClubsData?.data ?? []).find(
-    (c) => c.chairpersonId === currentUser?.id && c.status !== "archived",
+    (c) => c.chairpersonId ===
+   currentUser?.id && c.status !== "archived",
   );
   const isAlreadyChairperson = !!existingChairClub;
   const activeRequest = (myClubRequests ?? []).find(
@@ -133,6 +134,7 @@ export default function CreateClubPage() {
       const result = await notingAPI.createClub(clubPayload as any);
 
       if (!result.success || !result.data) {
+        throw new Error(result.message || 'Failed to submit club creation request');
         throw new Error(
           result.message || "Failed to submit club creation request",
         );

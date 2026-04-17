@@ -121,9 +121,11 @@ export default function OverviewTab({
       </div>
 
       {/* Revenue + Capacity Row (conditional) */}
-      {(event.paymentType === 'paid' || event.maxCapacity) && (
+      {(event.paymentType ===
+   'paid' || event.maxCapacity) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {event.paymentType === 'paid' && (
+          {event.paymentType ===
+   'paid' && (
             <div className={METRIC_CARD}>
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-sgt-500 to-sgt-700 text-white">

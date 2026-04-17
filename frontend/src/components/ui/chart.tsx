@@ -125,6 +125,13 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed"
     nameKey?: string
     labelKey?: string
+    payload?: any[]
+    active?: boolean
+    label?: any
+    labelFormatter?: (label: any, payload: any[]) => React.ReactNode
+    labelClassName?: string
+    formatter?: (value: any, name: any, item: any, index: any) => React.ReactNode
+    color?: string
   }) {
   const { config } = useChart()
 
@@ -137,7 +144,8 @@ function ChartTooltipContent({
     const key = `${labelKey || item?.dataKey || item?.name || "value"}`
     const itemConfig = getPayloadConfigFromPayload(config, item, key)
     const value =
-      !labelKey && typeof label === "string"
+      !labelKey && typeof label ===
+   "string"
         ? config[label as keyof typeof config]?.label || label
         : itemConfig?.label
 
@@ -168,7 +176,8 @@ function ChartTooltipContent({
     return null
   }
 
-  const nestLabel = payload.length === 1 && indicator !== "dot"
+  const nestLabel = payload.length ===
+   1 && indicator !== "dot"
 
   return (
     <div
@@ -191,7 +200,8 @@ function ChartTooltipContent({
                 key={item.dataKey}
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
-                  indicator === "dot" && "items-center"
+                  indicator ===
+   "dot" && "items-center"
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
@@ -206,11 +216,15 @@ function ChartTooltipContent({
                           className={cn(
                             "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
                             {
-                              "h-2.5 w-2.5": indicator === "dot",
-                              "w-1": indicator === "line",
+                              "h-2.5 w-2.5": indicator ===
+   "dot",
+                              "w-1": indicator ===
+   "line",
                               "w-0 border-[1.5px] border-dashed bg-transparent":
-                                indicator === "dashed",
-                              "my-0.5": nestLabel && indicator === "dashed",
+                                indicator ===
+   "dashed",
+                              "my-0.5": nestLabel && indicator ===
+   "dashed",
                             }
                           )}
                           style={
@@ -258,10 +272,11 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
-}: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+}: React.ComponentProps<"div"> & {
     hideIcon?: boolean
     nameKey?: string
+    payload?: any[]
+    verticalAlign?: "top" | "bottom" | "middle"
   }) {
   const { config } = useChart()
 
@@ -273,7 +288,8 @@ function ChartLegendContent({
     <div
       className={cn(
         "flex items-center justify-center gap-4",
-        verticalAlign === "top" ? "pb-3" : "pt-3",
+        verticalAlign ===
+   "top" ? "pb-3" : "pt-3",
         className
       )}
     >
@@ -313,13 +329,15 @@ function getPayloadConfigFromPayload(
   payload: unknown,
   key: string
 ) {
-  if (typeof payload !== "object" || payload === null) {
+  if (typeof payload !== "object" || payload ===
+   null) {
     return undefined
   }
 
   const payloadPayload =
     "payload" in payload &&
-    typeof payload.payload === "object" &&
+    typeof payload.payload ===
+   "object" &&
     payload.payload !== null
       ? payload.payload
       : undefined
@@ -328,13 +346,15 @@ function getPayloadConfigFromPayload(
 
   if (
     key in payload &&
-    typeof payload[key as keyof typeof payload] === "string"
+    typeof payload[key as keyof typeof payload] ===
+   "string"
   ) {
     configLabelKey = payload[key as keyof typeof payload] as string
   } else if (
     payloadPayload &&
     key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
+    typeof payloadPayload[key as keyof typeof payloadPayload] ===
+   "string"
   ) {
     configLabelKey = payloadPayload[
       key as keyof typeof payloadPayload

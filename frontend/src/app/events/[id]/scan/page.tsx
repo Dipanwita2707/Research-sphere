@@ -71,7 +71,8 @@ export default function QRScannerPage() {
         entryType,
         entriesToCheckIn,
         peopleCount: entriesToCheckIn,
-        markStudentExit: entryType === 'exit' ? markStudentExit : undefined,
+        markStudentExit: entryType ===
+   'exit' ? markStudentExit : undefined,
         gateLocation: gateLocation || undefined,
         remarks: remarks || undefined,
       });
@@ -87,7 +88,8 @@ export default function QRScannerPage() {
         type: 'success', 
         message:
           result.message ||
-          (entryType === 'exit'
+          (entryType ===
+   'exit'
             ? `Checked out ${entriesToCheckIn} attendee(s)`
             : `Checked in ${entriesToCheckIn} attendee(s)`),
       });
@@ -183,7 +185,8 @@ export default function QRScannerPage() {
                     onClick={() => setEntryType('entry')}
                     disabled={scanning}
                     className={`px-3 py-2 rounded-lg border text-sm font-medium ${
-                      entryType === 'entry'
+                      entryType ===
+   'entry'
                         ? 'bg-green-600 text-white border-green-600'
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
                     }`}
@@ -195,7 +198,8 @@ export default function QRScannerPage() {
                     onClick={() => setEntryType('exit')}
                     disabled={scanning}
                     className={`px-3 py-2 rounded-lg border text-sm font-medium ${
-                      entryType === 'exit'
+                      entryType ===
+   'exit'
                         ? 'bg-amber-600 text-white border-amber-600'
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
                     }`}
@@ -207,7 +211,8 @@ export default function QRScannerPage() {
 
               <div>
                 <label htmlFor="entriesToCheckIn" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Number of People {entryType === 'exit' ? 'Exiting' : 'Entering'} Now
+                  Number of People {entryType ===
+   'exit' ? 'Exiting' : 'Entering'} Now
                 </label>
                 <input
                   id="entriesToCheckIn"
@@ -221,7 +226,8 @@ export default function QRScannerPage() {
                 />
               </div>
 
-              {entryType === 'exit' && (
+              {entryType ===
+   'exit' && (
                 <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                   <input
                     type="checkbox"
@@ -298,7 +304,8 @@ export default function QRScannerPage() {
                 ) : (
                   <>
                     <QrCode className="h-5 w-5" />
-                    {entryType === 'exit' ? 'Scan For Exit' : 'Scan For Entry'}
+                    {entryType ===
+   'exit' ? 'Scan For Exit' : 'Scan For Entry'}
                   </>
                 )}
               </button>
@@ -327,7 +334,8 @@ export default function QRScannerPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#b3cde0] dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-ev-900 dark:text-white mb-4">Recent Scans</h2>
             
-            {recentScans.length === 0 ? (
+            {recentScans.length ===
+   0 ? (
               <div className="text-center py-8">
                 <Clock className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600 dark:text-gray-400">No scans yet</p>
@@ -360,7 +368,8 @@ export default function QRScannerPage() {
                               {scan.registration?.user?.name || 'Unknown User'}
                             </p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {scan.entryType === 'exit' ? 'Checked out' : 'Checked in'} {scan.entryCount || 1} attendee(s) at {formatTime(scan.scannedAt)}
+                              {scan.entryType ===
+   'exit' ? 'Checked out' : 'Checked in'} {scan.entryCount || 1} attendee(s) at {formatTime(scan.scannedAt)}
                             </p>
                             {scan.registration?.totalAllowedEntries !== undefined && (
                               <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1">

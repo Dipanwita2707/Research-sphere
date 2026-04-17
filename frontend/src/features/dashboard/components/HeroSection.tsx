@@ -58,18 +58,10 @@ export default function HeroSection({ userName, userType, userImage }: HeroSecti
 
   return (
     <div className="relative overflow-hidden rounded-3xl mb-8 bg-white/70 backdrop-blur-sm dark:bg-gray-800 border border-blue-200 dark:border-gray-700 shadow-md transition-colors duration-200">
-      {/* Subtle animated background pattern */}
+      {/* Subtle animated background pattern — CSS animation (compositor thread) */}
       <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.05]">
-        <motion.div
-          animate={{
-            backgroundPosition: ['0% 0%', '100% 100%'],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatType: 'reverse',
-          }}
-          className="w-full h-full"
+        <div
+          className="animate-bg-drift w-full h-full"
           style={{
             backgroundImage: 'radial-gradient(circle, #3b82f6 2px, transparent 2px)',
             backgroundSize: '40px 40px',
@@ -167,18 +159,12 @@ export default function HeroSection({ userName, userType, userImage }: HeroSecti
                 <span className="text-4xl font-bold text-white">{getUserInitials()}</span>
               </motion.div>
 
-              {/* Orbiting Icons with Circular Animation */}
-              <motion.div
-                className="absolute"
+              {/* Orbiting Icons with Circular Animation — CSS animation (compositor thread) */}
+              <div
+                className="absolute animate-orbit-spin"
                 style={{
                   width: '280px',
                   height: '280px',
-                }}
-                animate={{ rotate: 360 }}
-                transition={{
-                  duration: 25,
-                  repeat: Infinity,
-                  ease: 'linear'
                 }}
               >
                 {orbitIcons.map(({ Icon, color, delay }, index) => {
@@ -202,14 +188,7 @@ export default function HeroSection({ userName, userType, userImage }: HeroSecti
                         marginTop: y - 24,
                       }}
                     >
-                      <motion.div
-                        animate={{ rotate: -360 }}
-                        transition={{
-                          duration: 25,
-                          repeat: Infinity,
-                          ease: 'linear'
-                        }}
-                      >
+                      <div className="animate-orbit-counter-spin">
                         <motion.div
                           whileHover={{ scale: 1.2 }}
                           transition={{ duration: 0.2 }}
@@ -217,11 +196,11 @@ export default function HeroSection({ userName, userType, userImage }: HeroSecti
                         >
                           <Icon className="w-6 h-6 text-white" />
                         </motion.div>
-                      </motion.div>
+                      </div>
                     </motion.div>
                   );
                 })}
-              </motion.div>
+              </div>
 
               {/* Orbit Path removed - cleaner design */}
             </div>

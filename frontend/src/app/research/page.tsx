@@ -104,7 +104,8 @@ export default function ResearchDashboard() {
       
       // Calculate stats
       const allContribs = [...myContributions, ...contributed.filter(
-        (c: ResearchContribution) => !myContributions.some((m: ResearchContribution) => m.id === c.id)
+        (c: ResearchContribution) => !myContributions.some((m: ResearchContribution) => m.id ===
+   c.id)
       )];
       
       const completedStatuses = ['approved', 'completed'];
@@ -122,14 +123,16 @@ export default function ResearchDashboard() {
       
       setStats({
         total: myContributions.length,
-        drafts: myContributions.filter((c: ResearchContribution) => c.status === 'draft').length,
+        drafts: myContributions.filter((c: ResearchContribution) => c.status ===
+   'draft').length,
         pending: myContributions.filter((c: ResearchContribution) => 
           ['submitted', 'under_review', 'resubmitted', 'changes_required'].includes(c.status)
         ).length,
         approved: myContributions.filter((c: ResearchContribution) => 
           ['approved', 'completed'].includes(c.status)
         ).length,
-        rejected: myContributions.filter((c: ResearchContribution) => c.status === 'rejected').length,
+        rejected: myContributions.filter((c: ResearchContribution) => c.status ===
+   'rejected').length,
         totalIncentives,
         totalPoints,
       });
@@ -147,14 +150,14 @@ export default function ResearchDashboard() {
   const recentContributions = Array.isArray(contributions) ? contributions.slice(0, 5) : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Research & Academic Contributions</h1>
-              <p className="text-gray-600 mt-1">Track and manage your research publications, books, and grants</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Research & Academic Contributions</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Track and manage your research publications, books, and grants</p>
             </div>
             <Link
               href="/research/apply"
@@ -170,11 +173,11 @@ export default function ResearchDashboard() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Total Contributions</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Total Contributions</p>
+                {loading ? <div className="h-9 w-16 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse mt-1" /> : <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.total}</p>}
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <FileText className="w-6 h-6 text-blue-600" />
@@ -182,11 +185,11 @@ export default function ResearchDashboard() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Pending Review</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Pending Review</p>
+                {loading ? <div className="h-9 w-12 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse mt-1" /> : <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>}
               </div>
               <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                 <Clock className="w-6 h-6 text-yellow-600" />
@@ -194,11 +197,11 @@ export default function ResearchDashboard() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Total Incentives</p>
-                <p className="text-3xl font-bold text-green-600">₹{stats.totalIncentives.toLocaleString()}</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Total Incentives</p>
+                {loading ? <div className="h-9 w-24 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse mt-1" /> : <p className="text-3xl font-bold text-green-600">₹{stats.totalIncentives.toLocaleString()}</p>}
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <Coins className="w-6 h-6 text-green-600" />
@@ -206,11 +209,11 @@ export default function ResearchDashboard() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Total Points</p>
-                <p className="text-3xl font-bold text-purple-600">{stats.totalPoints}</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Total Points</p>
+                {loading ? <div className="h-9 w-14 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse mt-1" /> : <p className="text-3xl font-bold text-purple-600">{stats.totalPoints}</p>}
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Award className="w-6 h-6 text-purple-600" />
@@ -221,24 +224,25 @@ export default function ResearchDashboard() {
 
         {/* Publication Types Grid */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Publication Types</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Publication Types</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {PUBLICATION_TYPES.map((pubType) => {
               const Icon = pubType.icon;
-              const count = Array.isArray(contributions) ? contributions.filter(c => c.publicationType === pubType.type).length : 0;
+              const count = Array.isArray(contributions) ? contributions.filter(c => c.publicationType ===
+   pubType.type).length : 0;
               return (
                 <Link
                   key={pubType.type}
                   href={pubType.href}
-                  className="group bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 hover:border-gray-300"
+                  className="group bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-600"
                 >
                   <div className={`w-12 h-12 ${pubType.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{pubType.label}</h3>
-                  <p className="text-gray-600 text-sm mb-2">{pubType.description}</p>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{pubType.label}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">{pubType.description}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">{count} filed</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{count} filed</span>
                     <div className="flex items-center text-blue-600 text-sm font-medium">
                       Apply Now
                       <Plus className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
@@ -252,10 +256,10 @@ export default function ResearchDashboard() {
 
         {/* Recent Contributions */}
         {recentContributions.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Recent Contributions</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Contributions</h2>
                 <Link 
                   href="/research/my-contributions"
                   className="text-blue-600 hover:text-blue-700 text-sm font-medium"
@@ -264,18 +268,19 @@ export default function ResearchDashboard() {
                 </Link>
               </div>
             </div>
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {recentContributions.map((contribution) => {
                 const statusInfo = getStatusInfo(contribution.status);
                 const StatusIcon = statusInfo.icon;
-                const pubType = PUBLICATION_TYPES.find(p => p.type === contribution.publicationType);
+                const pubType = PUBLICATION_TYPES.find(p => p.type ===
+   contribution.publicationType);
                 const PubIcon = pubType?.icon || FileText;
                 
                 return (
                   <Link
                     key={contribution.id}
                     href={`/research/contribution/${contribution.id}`}
-                    className="block p-4 hover:bg-gray-50 transition-colors"
+                    className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
@@ -283,8 +288,8 @@ export default function ResearchDashboard() {
                           <PubIcon className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                          <h3 className="font-medium text-gray-900 line-clamp-1">{contribution.title}</h3>
-                          <p className="text-sm text-gray-500">
+                          <h3 className="font-medium text-gray-900 dark:text-white line-clamp-1">{contribution.title}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             {contribution.applicationNumber || 'No app number'} • {pubType?.label || contribution.publicationType}
                           </p>
                         </div>
@@ -302,13 +307,14 @@ export default function ResearchDashboard() {
         )}
 
         {/* Empty State */}
-        {!loading && contributions.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-gray-400" />
+        {!loading && contributions.length ===
+   0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No contributions yet</h3>
-            <p className="text-gray-600 mb-6">Start by filing your first research contribution</p>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No contributions yet</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Start by filing your first research contribution</p>
             <Link
               href="/research/apply"
               className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -319,10 +325,26 @@ export default function ResearchDashboard() {
           </div>
         )}
 
-        {/* Loading State */}
+        {/* Loading Skeleton */}
         {loading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="h-5 w-44 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+            </div>
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+                    <div>
+                      <div className="h-4 w-52 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2" />
+                      <div className="h-3 w-36 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="h-6 w-24 bg-gray-200 rounded-full animate-pulse" />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

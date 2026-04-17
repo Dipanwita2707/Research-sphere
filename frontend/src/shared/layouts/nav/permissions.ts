@@ -9,7 +9,8 @@ export const hasPermission = (permissions: DepartmentPermission[], permissionNam
 };
 
 export const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
-  if (!permissions || permissions.length === 0) return false;
+  if (!permissions || permissions.length ===
+   0) return false;
   const drdKeys = [
     'ipr_review', 'ipr_approve', 'ipr_assign_school', 'ipr_recommend',
     'research_review', 'research_approve', 'research_assign_school',

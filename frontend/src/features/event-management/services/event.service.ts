@@ -382,11 +382,10 @@ export const eventService = {
     return response.data.data;
   },
 
-  // ============================================
-  // Advanced Registration Methods
-  // ============================================
-
-  /**
+  // =====================================
+    // Advanced Registration Methods
+  // ==============================
+    /**
    * Get registration form for an event (with custom fields and user profile)
    */
   async getRegistrationForm(eventId: string): Promise<any> {
@@ -478,11 +477,10 @@ export const eventService = {
     return response.data.data;
   },
 
-  // ============================================
-  // Team Management Methods
-  // ============================================
-
-  /**
+  // =====================================
+    // Team Management Methods
+  // ==============================
+    /**
    * Create a team for an event
    */
   async createTeam(eventId: string, teamName: string): Promise<any> {
@@ -626,11 +624,10 @@ export const eventService = {
     return response.data.data;
   },
 
-  // ============================================
-  // Custom Field Management Methods
-  // ============================================
-
-  /**
+  // =====================================
+    // Custom Field Management Methods
+  // ==============================
+    /**
    * Get custom fields for an event
    */
   async getCustomFields(eventId: string): Promise<any[]> {
@@ -686,11 +683,10 @@ export const eventService = {
     return response.data.data;
   },
 
-  // ============================================
-  // Prize Management Methods
-  // ============================================
-
-  /**
+  // =====================================
+    // Prize Management Methods
+  // ==============================
+    /**
    * Get prizes for an event
    */
   async getPrizes(eventId: string): Promise<EventPrize[]> {
@@ -753,11 +749,10 @@ export const eventService = {
     return response.data?.data ?? response.data;
   },
 
-  // ============================================
-  // Stall Management Methods
-  // ============================================
-
-  /**
+  // =====================================
+    // Stall Management Methods
+  // ==============================
+    /**
    * Get events open for stall applications (browse page)
    */
   async getStallOpportunities(): Promise<StallOpportunity[]> {
@@ -1027,16 +1022,16 @@ export const eventService = {
     return response.data.data;
   },
 
-  // ============================================
-  // Payment API — Razorpay Integration
-  // ============================================
-
-  /**
+  // =====================================
+    // Payment API — Razorpay Integration
+  // ==============================
+    /**
    * Create a Razorpay order for individual event registration.
    * Backend calculates the amount — never trust frontend values.
    */
   async createIndividualPaymentOrder(eventId: string, couponCode?: string | null) {
-    const payload = couponCode === undefined ? {} : { couponCode };
+    const payload = couponCode ===
+   undefined ? {} : { couponCode };
     const response = await api.post(`${BASE_URL}/${eventId}/payments/individual/create-order`, payload);
     return response.data.data;
   },
@@ -1199,11 +1194,10 @@ export const eventService = {
     return response.data.data;
   },
 
-  // ============================================
-  // Coupon Methods
-  // ============================================
-
-  /**
+  // =====================================
+    // Coupon Methods
+  // ==============================
+    /**
    * List coupons for an event (organizer)
    */
   async listCoupons(eventId: string): Promise<EventCoupon[]> {
@@ -1430,11 +1424,10 @@ export const eventService = {
     return response.data.data;
   },
 
-  // ============================================
-  // Rounds
-  // ============================================
-
-  async getRounds(eventId: string): Promise<EventRound[]> {
+  // =====================================
+    // Rounds
+  // ==============================
+    async getRounds(eventId: string): Promise<EventRound[]> {
     const response = await api.get(`${BASE_URL}/${eventId}/rounds`);
     return response.data?.data ?? response.data;
   },

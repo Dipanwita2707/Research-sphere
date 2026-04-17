@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
 }
@@ -10,7 +10,6 @@ datasource db {
 }
 
 model UserLogin {
-<<<<<<< HEAD
   id                                  String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   uid                                 String                               @unique @db.VarChar(32)
   email                               String?                              @unique @db.Citext
@@ -171,7 +170,6 @@ model UserLogin {
   assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
   departmentPermissions                             UserDepartmentPermission[]
   userSettings                                      UserSettings?                        @relation("UserSettings")
->>>>>>> 9b857847c7ed76344b6f9ab89284a20f787fa615
 
   @@map("user_login")
 }

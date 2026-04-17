@@ -1,8 +1,6 @@
 /**
- * ============================================================
- *  DELETE ALL NOTING + EVENT DATA FROM THE SYSTEM
- * ============================================================
- *  Yeh script NOTE aur EVENT ke related saare records
+ * ===================================================== *  DELETE ALL NOTING + EVENT DATA FROM THE SYSTEM
+ * ===================================================== *  Yeh script NOTE aur EVENT ke related saare records
  *  database se delete karta hai, foreign-key order mein.
  *
  *  RUN:
@@ -10,8 +8,7 @@
  *    node scripts/delete-noting-event-data.js
  *
  *  CAUTION: IRREVERSIBLE. Pehle backup lo.
- * ============================================================
- */
+ * ===================================================== */
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();

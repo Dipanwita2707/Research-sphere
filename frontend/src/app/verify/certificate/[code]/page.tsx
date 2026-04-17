@@ -159,7 +159,9 @@ export default function CertificateVerifyPage() {
                         <DetailRow
                           icon={FileText}
                           label="Certificate Type"
-                          value={data.certificateType === 'participation' ? 'Certificate of Participation' : data.certificateType === 'winner' ? 'Certificate of Achievement' : data.certificateType}
+                          value={data.certificateType ===
+   'participation' ? 'Certificate of Participation' : data.certificateType ===
+   'winner' ? 'Certificate of Achievement' : data.certificateType}
                           badge
                         />
                         <DetailRow

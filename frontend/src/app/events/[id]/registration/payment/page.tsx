@@ -105,14 +105,17 @@ export default function PaymentPage() {
   const isPaid = paymentStatus?.isPaid;
 
   // Coupon covered 100%: amountPaid is 0 and no Razorpay payment exists
-  const isCouponFree = eventData?.amountPaid === 0;
+  const isCouponFree = eventData?.amountPaid ===
+   0;
   const savedDiscountAmount = eventData && eventData.amountPaid != null && eventData.amountPaid < eventData.registrationFee
     ? eventData.registrationFee - eventData.amountPaid
     : 0;
-  const effectiveAmount = couponMode === 'applied' && couponResult
+  const effectiveAmount = couponMode ===
+   'applied' && couponResult
     ? couponResult.finalAmount
     : (eventData?.amountPaid ?? eventData?.registrationFee ?? 0);
-  const effectiveDiscountAmount = couponMode === 'applied' && couponResult
+  const effectiveDiscountAmount = couponMode ===
+   'applied' && couponResult
     ? couponResult.discountAmount
     : savedDiscountAmount;
 
@@ -278,13 +281,15 @@ export default function PaymentPage() {
                   </p>
                 </div>
 
-                {couponMode === 'untouched' && savedDiscountAmount > 0 && (
+                {couponMode ===
+   'untouched' && savedDiscountAmount > 0 && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
                     A discount is already attached to this registration and will be used unless you replace or remove it.
                   </div>
                 )}
 
-                {couponMode === 'applied' && couponResult ? (
+                {couponMode ===
+   'applied' && couponResult ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-950/30">
                       <div className="flex items-center gap-2">
@@ -328,12 +333,14 @@ export default function PaymentPage() {
                       onChange={(e) => {
                         setCouponInput(e.target.value.toUpperCase());
                         setCouponError(null);
-                        if (couponMode === 'cleared') {
+                        if (couponMode ===
+   'cleared') {
                           setCouponMode('untouched');
                         }
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
+                        if (e.key ===
+   'Enter') {
                           e.preventDefault();
                           handleValidateCoupon();
                         }
@@ -359,7 +366,8 @@ export default function PaymentPage() {
                   </div>
                 )}
 
-                {couponMode === 'cleared' && savedDiscountAmount > 0 && (
+                {couponMode ===
+   'cleared' && savedDiscountAmount > 0 && (
                   <div className="text-sm text-amber-600 dark:text-amber-400">
                     Saved coupon discount will be removed when you proceed with payment.
                   </div>
@@ -387,9 +395,11 @@ export default function PaymentPage() {
               <div className="p-6">
                 <button
                   onClick={() => initiateIndividualPayment(
-                    couponMode === 'applied'
+                    couponMode ===
+   'applied'
                       ? couponCode
-                      : couponMode === 'cleared'
+                      : couponMode ===
+   'cleared'
                         ? null
                         : undefined
                   )}
@@ -417,7 +427,8 @@ export default function PaymentPage() {
                 </button>
 
                 {/* Retry hint */}
-                {paymentStatus?.latestPayment?.status === 'failed' && (
+                {paymentStatus?.latestPayment?.status ===
+   'failed' && (
                   <div className="mt-4 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-4 py-3">
                     <RefreshCw className="w-4 h-4 flex-shrink-0" />
                     <span>Your previous payment attempt failed. Please try again.</span>

@@ -100,7 +100,8 @@ export default function EventManagementPage() {
         eventService.getVolunteers(eventId)
       ]);
 
-      if (statsData.status === 'fulfilled') {
+      if (statsData.status ===
+   'fulfilled') {
         setStatistics(statsData.value);
       } else {
         // Provide empty statistics for draft events
@@ -121,7 +122,8 @@ export default function EventManagementPage() {
         } as unknown as EventStatistics);
       }
 
-      if (volunteersData.status === 'fulfilled') {
+      if (volunteersData.status ===
+   'fulfilled') {
         setVolunteers(volunteersData.value);
       }
     } catch (error: any) {
@@ -153,13 +155,15 @@ export default function EventManagementPage() {
 
   // ── Computed Metrics ───────────────────────────────────────────
   const attendanceRate = useMemo(() => {
-    if (!statistics || statistics.confirmedRegistrations === 0) return 0;
+    if (!statistics || statistics.confirmedRegistrations ===
+   0) return 0;
     const attended = statistics.totalAttended ?? 0;
     return Math.round((attended / statistics.confirmedRegistrations) * 100);
   }, [statistics]);
 
   const confirmationRate = useMemo(() => {
-    if (!statistics || statistics.totalRegistrations === 0) return 0;
+    if (!statistics || statistics.totalRegistrations ===
+   0) return 0;
     return Math.round((statistics.confirmedRegistrations / statistics.totalRegistrations) * 100);
   }, [statistics]);
 
@@ -247,13 +251,15 @@ export default function EventManagementPage() {
   if (event?.hasStalls) {
     tabs.push({ id: 'stalls', label: 'Stall Management', icon: Store });
   }
-  if (event?.paymentType === 'paid') {
+  if (event?.paymentType ===
+   'paid') {
     tabs.push({ id: 'coupons', label: 'Coupons', icon: Tag });
   }
   tabs.push({ id: 'settings', label: 'Event Settings', icon: Settings });
 
   const handleShowFeedbackQR = async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window ===
+   'undefined') return;
     const url = `${window.location.origin}/events/${eventId}/feedback`;
     try {
       const QRCodeGenerator = (await import('qrcode')).default;
@@ -319,7 +325,8 @@ export default function EventManagementPage() {
                   setActiveTab(tab.id);
                   router.replace(`/events/${eventId}/management?tab=${tab.id}`, { scroll: false });
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${activeTab === tab.id
+                className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${activeTab ===
+   tab.id
                   ? 'bg-ev-700 text-white shadow-ev'
                   : 'text-ev-400 dark:text-gray-400 hover:bg-ev-50 dark:hover:bg-gray-700'
                   }`}
@@ -335,7 +342,8 @@ export default function EventManagementPage() {
       {/* ── Tab Content ───────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Draft Mode Banner */}
-        {event.status === 'draft' && (
+        {event.status ===
+   'draft' && (
           <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <div>
@@ -347,7 +355,8 @@ export default function EventManagementPage() {
           </div>
         )}
 
-        {activeTab === 'overview' && (
+        {activeTab ===
+   'overview' && (
           <OverviewTab
             event={event}
             statistics={statistics}
@@ -359,10 +368,12 @@ export default function EventManagementPage() {
             pieData={pieData}
           />
         )}
-        {activeTab === 'registrations' && (
+        {activeTab ===
+   'registrations' && (
           <RegistrationsTab eventId={eventId} event={event} />
         )}
-        {activeTab === 'volunteers' && (
+        {activeTab ===
+   'volunteers' && (
           <VolunteersTab
             eventId={eventId}
             event={event}
@@ -370,7 +381,8 @@ export default function EventManagementPage() {
             onVolunteersChange={setVolunteers}
           />
         )}
-        {activeTab === 'analytics' && (
+        {activeTab ===
+   'analytics' && (
           <AnalyticsTab
             eventId={eventId}
             statistics={statistics}
@@ -380,21 +392,26 @@ export default function EventManagementPage() {
             volunteers={volunteers}
           />
         )}
-        {activeTab === 'feedback' && <FeedbackTab eventId={eventId} />}
-        {activeTab === 'stalls' && (
+        {activeTab ===
+   'feedback' && <FeedbackTab eventId={eventId} />}
+        {activeTab ===
+   'stalls' && (
           <StallsTab
             eventId={eventId}
             event={event}
             onEventChange={(updated) => setEvent(updated)}
           />
         )}
-        {activeTab === 'settings' && (
+        {activeTab ===
+   'settings' && (
           <EventSettings eventId={event.id} onToast={toast} isFromNoting={!!event.notingId} />
         )}
-        {activeTab === 'coupons' && (
+        {activeTab ===
+   'coupons' && (
           <CouponManagement
             eventId={eventId}
-            isPaidEvent={event.paymentType === 'paid'}
+            isPaidEvent={event.paymentType ===
+   'paid'}
             onToast={toast}
           />
         )}

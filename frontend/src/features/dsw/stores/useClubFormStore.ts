@@ -76,7 +76,8 @@ export const useClubFormStore = create<ClubFormStore>()(
       setCurrentStep: (step) =>
         set((state) => ({
           currentStep:
-            typeof step === "function" ? step(state.currentStep) : step,
+            typeof step ===
+   "function" ? step(state.currentStep) : step,
         })),
 
       setSelectedMainCategory: (id) => set({ selectedMainCategory: id }),

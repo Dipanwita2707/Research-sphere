@@ -53,11 +53,13 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
         eventService.getStallApplications(eventId, { limit: 100 }),
         eventService.getStalls(eventId),
       ]);
-      if (appsResult.status === 'fulfilled') {
+      if (appsResult.status ===
+   'fulfilled') {
         const appsData = appsResult.value as any;
         setStallApplications(appsData.applications || appsData || []);
       }
-      if (stallsResult.status === 'fulfilled') {
+      if (stallsResult.status ===
+   'fulfilled') {
         const v = stallsResult.value as any;
         setStalls(Array.isArray(v) ? v : Array.isArray(v?.stalls) ? v.stalls : []);
       }
@@ -69,7 +71,8 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
   }, [eventId, toast]);
 
   const handleStallApplicationAction = async (appId: string, status: 'approved' | 'rejected', reason?: string) => {
-    if (status === 'rejected' && !reason) {
+    if (status ===
+   'rejected' && !reason) {
       setRejectingAppId(appId);
       setRejectReason('');
       setShowRejectModal(true);
@@ -80,11 +83,13 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
       await eventService.updateStallApplication(eventId, appId, { status, rejectionReason: reason });
       await loadStallData();
       toast({ type: 'success', message: `Application ${status}` });
-      if (status === 'rejected') {
+      if (status ===
+   'rejected') {
         setShowRejectModal(false);
         setRejectingAppId(null);
       }
-      if (showStallAppModal && selectedStallApp?.id === appId) {
+      if (showStallAppModal && selectedStallApp?.id ===
+   appId) {
         setShowStallAppModal(false);
       }
     } catch (err: any) {
@@ -104,7 +109,8 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
   };
 
   const stallToFormData = (stall: Stall & { stallCategory?: string; description?: string; size?: string; stallMetadata?: { businessName?: string; electricityRequired?: boolean; waterRequired?: boolean; specialRequirements?: string; products?: string[] } }): CreateStallFormData => {
-    const meta = stall.stallMetadata && typeof stall.stallMetadata === 'object' ? stall.stallMetadata : {};
+    const meta = stall.stallMetadata && typeof stall.stallMetadata ===
+   'object' ? stall.stallMetadata : {};
     const spaceMatch = stall.size?.match(/(\d+)/);
     return {
       stallName: stall.stallName,
@@ -136,7 +142,9 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
         specialRequirements: data.specialRequirements,
         products: data.products?.filter(Boolean),
       });
-      setStalls((prev) => prev.map((s) => (s.stallId === updated.stallId || s.id === updated.id ? { ...s, ...updated } : s)));
+      setStalls((prev) => prev.map((s) => (s.stallId ===
+   updated.stallId || s.id ===
+   updated.id ? { ...s, ...updated } : s)));
       setSelectedStallForEdit(null);
       toast({ type: 'success', message: 'Stall updated successfully' });
     } catch (err: unknown) {
@@ -192,7 +200,8 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
   };
 
   const handleShowStallQR = async (stall: Stall & { stallQrCode?: string | null }) => {
-    if (typeof window === 'undefined') return;
+    if (typeof window ===
+   'undefined') return;
     const qrPath = stall.stallQrCode || `/events/${eventId}/stalls/${stall.stallId}/feedback`;
     const url = qrPath.startsWith('http') ? qrPath : `${window.location.origin}${qrPath}`;
     try {
@@ -220,7 +229,8 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                 ? 'Portal is OPEN — students can apply for stalls right now'
                 : 'Portal is CLOSED — students cannot apply for stalls'}
             </p>
-            {event.status === 'draft' && (
+            {event.status ===
+   'draft' && (
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                 Event is in draft mode but you can still open applications early.
               </p>
@@ -257,8 +267,10 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { label: 'Total Applications', value: stallApplications.length, color: 'text-ev-700', bg: 'bg-ev-50 dark:bg-ev-900/20' },
-              { label: 'Pending', value: stallApplications.filter((a) => a.status === 'pending').length, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-              { label: 'Approved', value: stallApplications.filter((a) => a.status === 'approved').length, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+              { label: 'Pending', value: stallApplications.filter((a) => a.status ===
+   'pending').length, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+              { label: 'Approved', value: stallApplications.filter((a) => a.status ===
+   'approved').length, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
               { label: 'Active Stalls', value: stalls.filter((s) => s.isActive).length, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
             ].map((m) => (
               <div key={m.label} className={`${CARD} p-4 flex flex-col gap-1`}>
@@ -297,19 +309,25 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
               </div>
             </div>
 
-            {stallApplications.length === 0 ? (
+            {stallApplications.length ===
+   0 ? (
               <div className="p-8 text-center text-sm text-gray-400">No stall applications yet.</div>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {stallApplications
-                  .filter((a) => stallStatusFilter === 'all' || a.status === stallStatusFilter)
+                  .filter((a) => stallStatusFilter ===
+   'all' || a.status ===
+   stallStatusFilter)
                   .map((app) => (
                     <div key={app.id} className="px-5 py-4 flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="font-medium text-sm text-gray-900 dark:text-white">{app.stallName}</span>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{app.stallType}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${app.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : app.status === 'rejected' ? 'bg-red-100 text-red-700' : app.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${app.status ===
+   'approved' ? 'bg-emerald-100 text-emerald-700' : app.status ===
+   'rejected' ? 'bg-red-100 text-red-700' : app.status ===
+   'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
                             {app.status}
                           </span>
                         </div>
@@ -332,18 +350,22 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        {app.status === 'pending' && (
+                        {app.status ===
+   'pending' && (
                           <>
                             <button
-                              disabled={stallActionLoading === app.id}
+                              disabled={stallActionLoading ===
+   app.id}
                               onClick={() => handleStallApplicationAction(app.id, 'approved')}
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              {stallActionLoading === app.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCheck className="w-3 h-3" />}
+                              {stallActionLoading ===
+   app.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCheck className="w-3 h-3" />}
                               Approve
                             </button>
                             <button
-                              disabled={stallActionLoading === app.id}
+                              disabled={stallActionLoading ===
+   app.id}
                               onClick={() => handleStallApplicationAction(app.id, 'rejected')}
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
                             >
@@ -375,8 +397,10 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm text-gray-900 dark:text-white">{stall.stallName}</span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">{stall.stallType}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${stall.source === 'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                          {stall.source === 'creator' ? 'Organizer' : 'Student'}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${stall.source ===
+   'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {stall.source ===
+   'creator' ? 'Organizer' : 'Student'}
                         </span>
                       </div>
                       {stall.location && <p className="text-xs text-gray-400 mt-0.5">Location: {stall.location}</p>}
@@ -399,7 +423,8 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                       >
                         <QrCode className="w-4 h-4" />
                       </button>
-                      {stall.source === 'creator' && (
+                      {stall.source ===
+   'creator' && (
                         <button
                           onClick={() => setSelectedStallForEdit(stall)}
                           className="p-1.5 text-gray-500 hover:text-ev-700 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
@@ -432,9 +457,13 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
             </div>
             <div className="p-6 space-y-6">
               {/* Status Band */}
-              <div className={`px-4 py-2 rounded-md flex items-center justify-between ${selectedStallApp.status === 'approved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : selectedStallApp.status === 'rejected' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300' : selectedStallApp.status === 'pending' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : 'bg-gray-50 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300'}`}>
+              <div className={`px-4 py-2 rounded-md flex items-center justify-between ${selectedStallApp.status ===
+   'approved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : selectedStallApp.status ===
+   'rejected' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300' : selectedStallApp.status ===
+   'pending' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' : 'bg-gray-50 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300'}`}>
                 <span className="text-sm font-medium">Status: {selectedStallApp.status.toUpperCase()}</span>
-                {selectedStallApp.status === 'pending' && (
+                {selectedStallApp.status ===
+   'pending' && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => { handleStallApplicationAction(selectedStallApp.id, 'approved'); setShowStallAppModal(false); }}
@@ -630,7 +659,8 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                 disabled={stallActionLoading !== null || !rejectReason.trim()}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {stallActionLoading === rejectingAppId ? (
+                {stallActionLoading ===
+   rejectingAppId ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <XCircleIcon className="w-4 h-4" />
@@ -690,8 +720,10 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-gray-900 dark:text-white">{selectedStall.stallName}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">{selectedStall.stallType}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${selectedStall.source === 'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {selectedStall.source === 'creator' ? 'Organizer' : 'Student'}
+                <span className={`text-xs px-2 py-0.5 rounded-full ${selectedStall.source ===
+   'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {selectedStall.source ===
+   'creator' ? 'Organizer' : 'Student'}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">

@@ -335,8 +335,10 @@ export default function MyRegistrationsPage() {
                     style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}
                   >
                     {/* Decorative top accent — TMS palette */}
-                    <div className={`absolute left-0 right-0 top-0 h-1.5 bg-gradient-to-r ${registration.status === 'confirmed' ? 'from-[#011f4b] via-[#005b96] to-[#03396c]' :
-                        registration.status === 'cancelled' ? 'from-red-500 to-red-700' :
+                    <div className={`absolute left-0 right-0 top-0 h-1.5 bg-gradient-to-r ${registration.status ===
+   'confirmed' ? 'from-[#011f4b] via-[#005b96] to-[#03396c]' :
+                        registration.status ===
+   'cancelled' ? 'from-red-500 to-red-700' :
                           'from-amber-400 to-orange-500'
                       }`} />
 
@@ -429,7 +431,8 @@ export default function MyRegistrationsPage() {
                             {eventAllowsExtraPasses && registrationEligible && (
                               <div className="mt-3">
                                 <button
-                                  onClick={() => setAddingGuestFor(prev => prev === registration.id ? null : registration.id)}
+                                  onClick={() => setAddingGuestFor(prev => prev ===
+   registration.id ? null : registration.id)}
                                   disabled={!canAddExtraPass}
                                   className="rounded-lg bg-[#005b96] px-3 py-2 text-xs font-semibold text-white disabled:bg-gray-300 disabled:text-gray-600 hover:bg-[#03396c]"
                                 >
@@ -439,7 +442,8 @@ export default function MyRegistrationsPage() {
                               </div>
                             )}
 
-                            {addingGuestFor === registration.id && canAddExtraPass && (
+                            {addingGuestFor ===
+   registration.id && canAddExtraPass && (
                               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <input value={guestForm.guestName} onChange={(e) => setGuestForm(prev => ({ ...prev, guestName: e.target.value }))} placeholder="Guest Name" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
                                 <input value={guestForm.guestEmail} onChange={(e) => setGuestForm(prev => ({ ...prev, guestEmail: e.target.value }))} placeholder="Guest Email" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
@@ -481,7 +485,8 @@ export default function MyRegistrationsPage() {
 
                       {/* Right: Actions (Ticket Stub) */}
                       <div className="lg:w-64 bg-gray-50 dark:bg-gray-800/30 p-6 lg:p-7 flex flex-col justify-center items-center gap-4 border-t lg:border-t-0 lg:border-l border-[#b3cde0]/30 dark:border-gray-800">
-                        {registration.status === 'confirmed' ? (
+                        {registration.status ===
+   'confirmed' ? (
                           <>
                             {/* QR Button / Preview */}
                             <button
@@ -531,7 +536,8 @@ export default function MyRegistrationsPage() {
               >
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page ===
+   1}
                   className="rounded-xl border border-[#b3cde0]/50 px-5 py-2.5 text-sm font-medium text-[#03396c] transition-all hover:bg-[#b3cde0]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   Previous
@@ -543,7 +549,8 @@ export default function MyRegistrationsPage() {
 
                 <button
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={page === pagination.totalPages}
+                  disabled={page ===
+   pagination.totalPages}
                   className="rounded-xl border border-[#b3cde0]/50 px-5 py-2.5 text-sm font-medium text-[#03396c] transition-all hover:bg-[#b3cde0]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   Next

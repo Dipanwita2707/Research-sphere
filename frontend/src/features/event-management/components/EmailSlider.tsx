@@ -178,7 +178,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
   }, [eventId, toast]);
 
   useEffect(() => {
-    if (open && sliderTab === 'history') {
+    if (open && sliderTab ===
+   'history') {
       loadHistory(1);
       setExpandedLogId(null);
     }
@@ -195,14 +196,16 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
   // Close on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key ===
+   'Escape') onClose();
     };
     if (open) window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
   // When filter is 'selected', count comes from the passed-in IDs (not the API)
-  const recipientCount = filter === 'selected'
+  const recipientCount = filter ===
+   'selected'
     ? (selectedRegistrationIds?.length ?? 0)
     : (counts ? counts[filter as keyof typeof counts] ?? 0 : 0);
 
@@ -217,7 +220,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
       toast({ type: 'error', message: 'Please enter email body content.' });
       return;
     }
-    if (recipientCount === 0) {
+    if (recipientCount ===
+   0) {
       toast({ type: 'error', message: 'No recipients match the selected filter.' });
       return;
     }
@@ -244,10 +248,12 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
       const result = await eventService.sendBulkEmail(eventId, {
         subject,
         body,
-        filter: filter === 'selected' ? 'all' : filter,
+        filter: filter ===
+   'selected' ? 'all' : filter,
         replyTo: replyTo || undefined,
         ...(scheduledAtISO ? { scheduledAt: scheduledAtISO } : {}),
-        ...(filter === 'selected' && selectedRegistrationIds?.length
+        ...(filter ===
+   'selected' && selectedRegistrationIds?.length
           ? { registrationIds: selectedRegistrationIds }
           : {}),
       });
@@ -345,7 +351,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                 <div
                   title={`⚡ Email Credits\n\nAvailable: ${credits.available}  |  Used: ${credits.used}  |  Total: ${credits.total}\n\nHow it works:\n• Each registration earns ${credits.creditsPerRegistration} credits\n• 1 credit is spent per email sent\n• Failed deliveries are automatically refunded\n• Credits grow as more people register`}
                   className={`hidden sm:flex flex-col items-start gap-0 px-2 py-1 rounded-lg text-xs font-semibold mr-1 ${
-                    credits.available === 0
+                    credits.available ===
+   0
                       ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                       : credits.available < 10
                       ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
@@ -380,7 +387,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
               type="button"
               onClick={() => setSliderTab('compose')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-                sliderTab === 'compose'
+                sliderTab ===
+   'compose'
                   ? 'border-ev-700 text-ev-700 dark:text-ev-400 dark:border-ev-400'
                   : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
@@ -392,7 +400,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
               type="button"
               onClick={() => setSliderTab('history')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-                sliderTab === 'history'
+                sliderTab ===
+   'history'
                   ? 'border-ev-700 text-ev-700 dark:text-ev-400 dark:border-ev-400'
                   : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
@@ -405,7 +414,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
 
         {/* ── Scrollable Content ──────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
-         {sliderTab === 'compose' ? (
+         {sliderTab ===
+   'compose' ? (
           <div className="px-5 py-5 space-y-5">
 
             {/* ── To: Recipients Card ──────────────────────── */}
@@ -433,8 +443,10 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2.5">Filter by status</p>
                 <div className="flex flex-wrap gap-1.5">
                   {FILTERS.map((f) => {
-                    const active = filter === f.value;
-                    const count = f.value === 'selected'
+                    const active = filter ===
+   f.value;
+                    const count = f.value ===
+   'selected'
                       ? (selectedRegistrationIds?.length ?? 0)
                       : (counts ? counts[f.value as keyof RecipientCounts] : '…');
                     return (
@@ -589,7 +601,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                 <Loader2 className="w-8 h-8 animate-spin mb-3" />
                 <span className="text-sm">Loading email history…</span>
               </div>
-            ) : historyLogs.length === 0 ? (
+            ) : historyLogs.length ===
+   0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                 <Mail className="w-10 h-10 mb-3 opacity-40" />
                 <p className="text-sm font-medium">No emails sent yet</p>
@@ -598,28 +611,49 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
             ) : (
               <>
                 {historyLogs.map((log) => {
-                  const expanded = expandedLogId === log.id;
-                  const isScheduled = log.status === 'scheduled';
-                  const isCancelled = log.status === 'cancelled';
+                  const expanded = expandedLogId ===
+   log.id;
+                  const isScheduled = log.status ===
+   'scheduled';
+                  const isCancelled = log.status ===
+   'cancelled';
                   const statusColor =
-                    log.status === 'sent' ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
-                    : log.status === 'partial' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400'
-                    : log.status === 'scheduled' ? 'text-violet-600 bg-violet-50 dark:bg-violet-900/20 dark:text-violet-400'
-                    : log.status === 'cancelled' ? 'text-gray-500 bg-gray-100 dark:bg-gray-700/40 dark:text-gray-400'
+                    log.status ===
+   'sent' ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
+                    : log.status ===
+   'partial' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400'
+                    : log.status ===
+   'scheduled' ? 'text-violet-600 bg-violet-50 dark:bg-violet-900/20 dark:text-violet-400'
+                    : log.status ===
+   'cancelled' ? 'text-gray-500 bg-gray-100 dark:bg-gray-700/40 dark:text-gray-400'
                     : 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400';
-                  const StatusIcon = log.status === 'sent' ? CheckCircle2
-                    : log.status === 'partial' ? AlertCircle
-                    : log.status === 'scheduled' ? Calendar
-                    : log.status === 'cancelled' ? Ban
+                  const StatusIcon = log.status ===
+   'sent' ? CheckCircle2
+                    : log.status ===
+   'partial' ? AlertCircle
+                    : log.status ===
+   'scheduled' ? Calendar
+                    : log.status ===
+   'cancelled' ? Ban
                     : XCircle;
 
                   // Filter recipient details
                   const filteredRecipients = (log.recipientDetails || []).filter((r) => {
-                    if (recipientFilter === 'all') return true;
-                    if (recipientFilter === 'delivered') return r.status === 'delivered';
-                    if (recipientFilter === 'opened') return r.openCount > 0;
-                    if (recipientFilter === 'not_opened') return r.openCount === 0 && r.status === 'delivered';
-                    if (recipientFilter === 'failed') return r.status === 'failed' || r.status === 'bounced';
+                    if (recipientFilter ===
+   'all') return true;
+                    if (recipientFilter ===
+   'delivered') return r.status ===
+   'delivered';
+                    if (recipientFilter ===
+   'opened') return r.openCount > 0;
+                    if (recipientFilter ===
+   'not_opened') return r.openCount ===
+   0 && r.status ===
+   'delivered';
+                    if (recipientFilter ===
+   'failed') return r.status ===
+   'failed' || r.status ===
+   'bounced';
                     return true;
                   });
 
@@ -685,10 +719,12 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                                   setCancellingId(null);
                                 }
                               }}
-                              disabled={cancellingId === log.id}
+                              disabled={cancellingId ===
+   log.id}
                               className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-md bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                             >
-                              {cancellingId === log.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                              {cancellingId ===
+   log.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
                               Cancel
                             </button>
                           )}
@@ -795,7 +831,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                                 { key: 'not_opened' as const, label: 'Not Opened', count: log.notOpenedCount, color: '#6b7280' },
                                 { key: 'failed' as const, label: 'Failed', count: log.failedCount + (log.bouncedCount || 0), color: '#ef4444' },
                               ]).map((f) => {
-                                const active = recipientFilter === f.key;
+                                const active = recipientFilter ===
+   f.key;
                                 return (
                                   <button
                                     key={f.key}
@@ -815,19 +852,27 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
 
                             {/* Recipient List */}
                             <div className="max-h-52 overflow-y-auto rounded border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800">
-                              {filteredRecipients.length === 0 ? (
+                              {filteredRecipients.length ===
+   0 ? (
                                 <div className="px-3 py-4 text-center text-xs text-gray-400">No recipients match this filter.</div>
                               ) : (
                                 filteredRecipients.map((r) => {
                                   const rStatusColor =
-                                    r.status === 'delivered' && r.openCount > 0 ? 'text-ev-700 dark:text-ev-400'
-                                    : r.status === 'delivered' ? 'text-green-600 dark:text-green-400'
-                                    : r.status === 'failed' || r.status === 'bounced' ? 'text-red-500 dark:text-red-400'
+                                    r.status ===
+   'delivered' && r.openCount > 0 ? 'text-ev-700 dark:text-ev-400'
+                                    : r.status ===
+   'delivered' ? 'text-green-600 dark:text-green-400'
+                                    : r.status ===
+   'failed' || r.status ===
+   'bounced' ? 'text-red-500 dark:text-red-400'
                                     : 'text-gray-500 dark:text-gray-400';
                                   const RIcon =
                                     r.openCount > 0 ? MailOpen
-                                    : r.status === 'delivered' ? CheckCircle2
-                                    : r.status === 'failed' || r.status === 'bounced' ? XCircle
+                                    : r.status ===
+   'delivered' ? CheckCircle2
+                                    : r.status ===
+   'failed' || r.status ===
+   'bounced' ? XCircle
                                     : Clock;
                                   return (
                                     <div key={r.id} className="flex items-center gap-2 px-3 py-2 border-b border-[#b3cde0]/30 dark:border-gray-700 last:border-0">
@@ -841,14 +886,18 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                                       <div className="flex flex-col items-end gap-0.5 shrink-0">
                                         <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${rStatusColor}`}>
                                           <RIcon className="w-3 h-3" />
-                                          {r.openCount > 0 ? `Opened (${r.openCount}×)` : r.status === 'delivered' ? 'Delivered' : r.status === 'bounced' ? 'Bounced' : r.status === 'failed' ? 'Failed' : 'Sent'}
+                                          {r.openCount > 0 ? `Opened (${r.openCount}×)` : r.status ===
+   'delivered' ? 'Delivered' : r.status ===
+   'bounced' ? 'Bounced' : r.status ===
+   'failed' ? 'Failed' : 'Sent'}
                                         </span>
                                         {r.openCount > 0 && r.firstOpenedAt && (
                                           <span className="text-[9px] text-gray-400">
                                             First: {new Date(r.firstOpenedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                           </span>
                                         )}
-                                        {r.deliveredAt && r.openCount === 0 && (
+                                        {r.deliveredAt && r.openCount ===
+   0 && (
                                           <span className="text-[9px] text-gray-400">
                                             {new Date(r.deliveredAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                           </span>
@@ -911,7 +960,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
         </div>
 
         {/* ── Footer Actions ──────────────────────────────── */}
-        {sliderTab === 'compose' && (
+        {sliderTab ===
+   'compose' && (
         <div className="border-t border-[#b3cde0] dark:border-gray-700/60 bg-white dark:bg-gray-900">
           {/* Schedule date/time picker (shown when schedule mode is on) */}
           {scheduleMode && (
@@ -971,7 +1021,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
             <button
               type="button"
               onClick={handleSend}
-              disabled={sending || recipientCount === 0 || (scheduleMode && !scheduledDate) || (!!credits && credits.available < recipientCount)}
+              disabled={sending || recipientCount ===
+   0 || (scheduleMode && !scheduledDate) || (!!credits && credits.available < recipientCount)}
               className={`flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-ev ${
                 scheduleMode
                   ? 'bg-violet-600 hover:bg-violet-700 active:bg-violet-800'

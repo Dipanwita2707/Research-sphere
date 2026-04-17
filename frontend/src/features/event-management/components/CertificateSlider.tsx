@@ -174,7 +174,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
   const [sendingTest, setSendingTest] = useState(false);
 
   // ── Computed ───────────────────────────────────────────────
-  const recipientCount = filter === 'selected'
+  const recipientCount = filter ===
+   'selected'
     ? (selectedRegistrationIds?.length ?? 0)
     : (counts ? counts[filter as keyof RecipientCounts] : 0);
 
@@ -221,7 +222,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
 
   // ── Load history when tab switches ─────────────────────────
   useEffect(() => {
-    if (sliderTab === 'history' && open) {
+    if (sliderTab ===
+   'history' && open) {
       loadHistory(1);
     }
   }, [sliderTab, open]);
@@ -319,7 +321,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
     try {
       await eventService.deleteCertificateTemplate(eventId, tmplId);
       setTemplates((prev) => prev.filter((t) => t.id !== tmplId));
-      if (selectedTemplate?.id === tmplId) setSelectedTemplate(null);
+      if (selectedTemplate?.id ===
+   tmplId) setSelectedTemplate(null);
       toast({ type: 'success', message: 'Template deleted.' });
     } catch {
       toast({ type: 'error', message: 'Failed to delete template.' });
@@ -336,7 +339,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
       return;
     }
     setTextFields((prev) => prev.map((f) =>
-      f.id === activeFieldId ? { ...f, text: f.text + ' ' + value } : f
+      f.id ===
+   activeFieldId ? { ...f, text: f.text + ' ' + value } : f
     ));
     setShowPlaceholderDropdown(false);
   }, [activeFieldId, toast]);
@@ -345,9 +349,12 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
   const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, fieldId: string, fieldType: 'text' | 'image') => {
     e.preventDefault();
     e.stopPropagation();
-    const field = fieldType === 'text'
-      ? textFields.find((f) => f.id === fieldId)
-      : imageFields.find((f) => f.id === fieldId);
+    const field = fieldType ===
+   'text'
+      ? textFields.find((f) => f.id ===
+   fieldId)
+      : imageFields.find((f) => f.id ===
+   fieldId);
     if (!field) return;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -365,13 +372,16 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
       const dy = ((cy - drag.startY) / rect.height) * 100;
       const newX = Math.max(0, Math.min(100, drag.origX + dx));
       const newY = Math.max(0, Math.min(100, drag.origY + dy));
-      if (fieldType === 'text') {
+      if (fieldType ===
+   'text') {
         setTextFields((prev) => prev.map((f) =>
-          f.id === drag.fieldId ? { ...f, x: newX, y: newY } : f
+          f.id ===
+   drag.fieldId ? { ...f, x: newX, y: newY } : f
         ));
       } else {
         setImageFields((prev) => prev.map((f) =>
-          f.id === drag.fieldId ? { ...f, x: newX, y: newY } : f
+          f.id ===
+   drag.fieldId ? { ...f, x: newX, y: newY } : f
         ));
       }
     };
@@ -398,14 +408,17 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
   }, []);
 
   const removeTextField = useCallback((id: string) => {
-    const field = textFields.find((f) => f.id === id);
+    const field = textFields.find((f) => f.id ===
+   id);
     if (field) setUndoStack((prev) => [...prev, { type: 'text', field }]);
     setTextFields((prev) => prev.filter((f) => f.id !== id));
-    if (activeFieldId === id) setActiveFieldId(null);
+    if (activeFieldId ===
+   id) setActiveFieldId(null);
   }, [activeFieldId, textFields]);
 
   const updateField = useCallback((id: string, patch: Partial<TextField>) => {
-    setTextFields((prev) => prev.map((f) => f.id === id ? { ...f, ...patch } : f));
+    setTextFields((prev) => prev.map((f) => f.id ===
+   id ? { ...f, ...patch } : f));
   }, []);
 
   // ── Image field handlers ───────────────────────────────────
@@ -447,22 +460,27 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
   }, [eventId, toast]);
 
   const removeImageField = useCallback((id: string) => {
-    const field = imageFields.find((f) => f.id === id);
+    const field = imageFields.find((f) => f.id ===
+   id);
     if (field) setUndoStack((prev) => [...prev, { type: 'image', field }]);
     setImageFields((prev) => prev.filter((f) => f.id !== id));
-    if (activeFieldId === id) setActiveFieldId(null);
+    if (activeFieldId ===
+   id) setActiveFieldId(null);
   }, [activeFieldId, imageFields]);
 
   const updateImageField = useCallback((id: string, patch: Partial<ImageField>) => {
-    setImageFields((prev) => prev.map((f) => f.id === id ? { ...f, ...patch } : f));
+    setImageFields((prev) => prev.map((f) => f.id ===
+   id ? { ...f, ...patch } : f));
   }, []);
 
   // ── Undo handler ───────────────────────────────────────────
   const handleUndo = useCallback(() => {
-    if (undoStack.length === 0) return;
+    if (undoStack.length ===
+   0) return;
     const last = undoStack[undoStack.length - 1];
     setUndoStack((prev) => prev.slice(0, -1));
-    if (last.type === 'text') {
+    if (last.type ===
+   'text') {
       setTextFields((prev) => [...prev, last.field]);
       setActiveFieldId(last.field.id);
       setActiveFieldType('text');
@@ -477,12 +495,14 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
   // ── Ctrl+Z keyboard shortcut ───────────────────────────────
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && undoStack.length > 0) {
+      if ((e.ctrlKey || e.metaKey) && e.key ===
+   'z' && undoStack.length > 0) {
         e.preventDefault();
         handleUndo();
       }
     };
-    if (open && step === 'configure') {
+    if (open && step ===
+   'configure') {
       window.addEventListener('keydown', onKeyDown);
       return () => window.removeEventListener('keydown', onKeyDown);
     }
@@ -551,7 +571,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
       })),
     };
 
-    if (filter === 'selected' && selectedRegistrationIds) {
+    if (filter ===
+   'selected' && selectedRegistrationIds) {
       payload.registrationIds = selectedRegistrationIds;
     } else {
       payload.filter = filter;
@@ -570,7 +591,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
       toast({ type: 'error', message: 'Please select a certificate template first.' });
       return;
     }
-    if (recipientCount === 0) {
+    if (recipientCount ===
+   0) {
       toast({ type: 'error', message: 'No recipients found for the selected filter.' });
       return;
     }
@@ -696,7 +718,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                 <div className="space-y-2.5">
                   <button
                     onClick={() => handleDuplicateAction('skip')}
-                    disabled={duplicateWarning.newRecipients === 0}
+                    disabled={duplicateWarning.newRecipients ===
+   0}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-ev-200 dark:border-ev-800 bg-ev-50 dark:bg-ev-900/20 hover:bg-ev-100 dark:hover:bg-ev-900/30 transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <div className="w-8 h-8 bg-ev-100 dark:bg-ev-900/40 rounded-lg flex items-center justify-center shrink-0">
@@ -770,7 +793,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               type="button"
               onClick={() => setSliderTab('send')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-                sliderTab === 'send'
+                sliderTab ===
+   'send'
                   ? 'border-amber-500 text-amber-600 dark:text-amber-400 dark:border-amber-400'
                   : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
@@ -782,7 +806,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               type="button"
               onClick={() => setSliderTab('history')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-                sliderTab === 'history'
+                sliderTab ===
+   'history'
                   ? 'border-amber-500 text-amber-600 dark:text-amber-400 dark:border-amber-400'
                   : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
@@ -795,7 +820,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
 
         {/* ── Scrollable Content ──────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
-          {sliderTab === 'send' ? (
+          {sliderTab ===
+   'send' ? (
             <div className="px-5 py-5 space-y-5">
 
               {/* ── Step Indicator ───────────────────────────── */}
@@ -804,7 +830,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   const labels = ['Template', 'Configure', 'Send'];
                   const icons = [ImageIcon, Type, Send];
                   const Icon = icons[i];
-                  const isActive = step === s;
+                  const isActive = step ===
+   s;
                   const stepIndex = ['template', 'configure', 'recipients'].indexOf(step);
                   const isPast = i < stepIndex;
                   return (
@@ -833,7 +860,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               </div>
 
               {/* ── Step 1: Template Selection ─────────────── */}
-              {step === 'template' && (
+              {step ===
+   'template' && (
                 <div className="space-y-4">
                   {/* Header */}
                   <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-900/10 p-4">
@@ -876,7 +904,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                             type="button"
                             onClick={() => handleSelectTemplate(tmpl)}
                             className={`group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all min-h-[120px] ${
-                              selectedTemplate?.id === tmpl.id
+                              selectedTemplate?.id ===
+   tmpl.id
                                 ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-500/30'
                                 : 'border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-amber-300'
                             }`}
@@ -893,7 +922,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                               </div>
                             )}
                             <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate w-full text-center">{tmpl.name}</span>
-                            {selectedTemplate?.id === tmpl.id && (
+                            {selectedTemplate?.id ===
+   tmpl.id && (
                               <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
                                 <CheckCircle2 className="w-3 h-3 text-white" />
                               </div>
@@ -905,7 +935,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                               className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-200 dark:hover:bg-red-800/60 transition-all"
                               title="Delete template"
                             >
-                              {deleting === tmpl.id ? (
+                              {deleting ===
+   tmpl.id ? (
                                 <Loader2 className="w-3 h-3 text-red-500 animate-spin" />
                               ) : (
                                 <X className="w-3 h-3 text-red-500" />
@@ -959,7 +990,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               )}
 
               {/* ── Step 2: Visual Editor ─────────────────── */}
-              {step === 'configure' && (
+              {step ===
+   'configure' && (
                 <div className="space-y-4">
                   {/* Toolbar */}
                   <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 p-3 flex flex-wrap items-center gap-2">
@@ -991,7 +1023,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                     <button
                       type="button"
                       onClick={handleUndo}
-                      disabled={undoStack.length === 0}
+                      disabled={undoStack.length ===
+   0}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       title="Undo (Ctrl+Z)"
                     >
@@ -1042,7 +1075,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
 
                     {/* Draggable text fields */}
                     {textFields.map((field) => {
-                      const isActive = activeFieldId === field.id;
+                      const isActive = activeFieldId ===
+   field.id;
                       const previewText = field.text
                         .replace(/\[Candidate Name\]/gi, 'John Doe')
                         .replace(/\[Event Name\]/gi, eventName)
@@ -1057,7 +1091,9 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           style={{
                             left: `${field.x}%`,
                             top: `${field.y}%`,
-                            transform: field.textAlign === 'center' ? 'translate(-50%, -50%)' : field.textAlign === 'right' ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+                            transform: field.textAlign ===
+   'center' ? 'translate(-50%, -50%)' : field.textAlign ===
+   'right' ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
                             fontSize: `${field.fontSize}px`,
                             color: field.color,
                             fontWeight: field.fontWeight,
@@ -1082,7 +1118,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
 
                     {/* Draggable image overlays */}
                     {imageFields.map((imgf) => {
-                      const isActive = activeFieldId === imgf.id;
+                      const isActive = activeFieldId ===
+   imgf.id;
                       return (
                         <div
                           key={imgf.id}
@@ -1111,8 +1148,10 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   </div>
 
                   {/* Active field editor */}
-                  {activeFieldId && activeFieldType === 'text' && (() => {
-                    const af = textFields.find((f) => f.id === activeFieldId);
+                  {activeFieldId && activeFieldType ===
+   'text' && (() => {
+                    const af = textFields.find((f) => f.id ===
+   activeFieldId);
                     if (!af) return null;
                     return (
                       <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-900/10 p-4 space-y-3">
@@ -1166,8 +1205,10 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           {/* Bold */}
                           <button
                             type="button"
-                            onClick={() => updateField(af.id, { fontWeight: af.fontWeight === 'bold' ? 'normal' : 'bold' })}
-                            className={`p-1.5 rounded-md border transition-colors ${af.fontWeight === 'bold' ? 'bg-amber-100 border-amber-400 text-amber-700 dark:bg-amber-900/30 dark:border-amber-600 dark:text-amber-400' : 'border-gray-300 dark:border-gray-600 text-gray-500 hover:border-amber-300'}`}
+                            onClick={() => updateField(af.id, { fontWeight: af.fontWeight ===
+   'bold' ? 'normal' : 'bold' })}
+                            className={`p-1.5 rounded-md border transition-colors ${af.fontWeight ===
+   'bold' ? 'bg-amber-100 border-amber-400 text-amber-700 dark:bg-amber-900/30 dark:border-amber-600 dark:text-amber-400' : 'border-gray-300 dark:border-gray-600 text-gray-500 hover:border-amber-300'}`}
                             title="Bold"
                           >
                             <Bold className="w-3.5 h-3.5" />
@@ -1176,13 +1217,16 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           {/* Alignment */}
                           <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
                             {(['left', 'center', 'right'] as const).map((a) => {
-                              const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+                              const Icon = a ===
+   'left' ? AlignLeft : a ===
+   'center' ? AlignCenter : AlignRight;
                               return (
                                 <button
                                   key={a}
                                   type="button"
                                   onClick={() => updateField(af.id, { textAlign: a })}
-                                  className={`p-1.5 transition-colors ${af.textAlign === a ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                                  className={`p-1.5 transition-colors ${af.textAlign ===
+   a ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                                 >
                                   <Icon className="w-3.5 h-3.5" />
                                 </button>
@@ -1197,8 +1241,10 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   })()}
 
                   {/* Active image field editor */}
-                  {activeFieldId && activeFieldType === 'image' && (() => {
-                    const af = imageFields.find((f) => f.id === activeFieldId);
+                  {activeFieldId && activeFieldType ===
+   'image' && (() => {
+                    const af = imageFields.find((f) => f.id ===
+   activeFieldId);
                     if (!af) return null;
                     return (
                       <div className="rounded-xl border border-ev-200 dark:border-ev-800/40 bg-ev-50/50 dark:bg-ev-900/10 p-4 space-y-3">
@@ -1258,7 +1304,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           key={f.id}
                           type="button"
                           onClick={() => { setActiveFieldId(f.id); setActiveFieldType('text'); }}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-colors ${activeFieldId === f.id ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-colors ${activeFieldId ===
+   f.id ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
                         >
                           <GripVertical className="w-3 h-3 shrink-0 opacity-40" />
                           <span className="truncate flex-1">{f.text || '(empty)'}</span>
@@ -1277,7 +1324,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                               key={f.id}
                               type="button"
                               onClick={() => { setActiveFieldId(f.id); setActiveFieldType('image'); }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-colors ${activeFieldId === f.id ? 'bg-ev-100 dark:bg-ev-900/20 text-ev-800 dark:text-ev-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-colors ${activeFieldId ===
+   f.id ? 'bg-ev-100 dark:bg-ev-900/20 text-ev-800 dark:text-ev-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
                             >
                               <ImageIcon className="w-3 h-3 shrink-0 opacity-60" />
                               <span className="truncate flex-1">Image</span>
@@ -1338,7 +1386,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               )}
 
               {/* ── Step 3: Recipients & Send ─────────────── */}
-              {step === 'recipients' && (
+              {step ===
+   'recipients' && (
                 <div className="space-y-4">
                   {/* Recipient count */}
                   <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
@@ -1364,8 +1413,10 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2.5">Filter by status</p>
                       <div className="flex flex-wrap gap-1.5">
                         {FILTERS.map((f) => {
-                          const active = filter === f.value;
-                          const count = f.value === 'selected'
+                          const active = filter ===
+   f.value;
+                          const count = f.value ===
+   'selected'
                             ? (selectedRegistrationIds?.length ?? 0)
                             : (counts ? counts[f.value as keyof RecipientCounts] : '…');
                           return (
@@ -1443,7 +1494,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                     <button
                       type="button"
                       onClick={handleSend}
-                      disabled={sending || recipientCount === 0}
+                      disabled={sending || recipientCount ===
+   0}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors shadow-ev"
                     >
                       {sending ? (
@@ -1469,7 +1521,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                 <div className="flex items-center justify-center py-16">
                   <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
                 </div>
-              ) : historyLogs.length === 0 ? (
+              ) : historyLogs.length ===
+   0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
                     <Award className="w-7 h-7 text-gray-300 dark:text-gray-600" />
@@ -1494,11 +1547,14 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           </div>
                           <span
                             className={`shrink-0 ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              log.status === 'sent'
+                              log.status ===
+   'sent'
                                 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                : log.status === 'partial'
+                                : log.status ===
+   'partial'
                                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                : log.status === 'processing'
+                                : log.status ===
+   'processing'
                                 ? 'bg-ev-100 text-ev-800 dark:bg-ev-900/30 dark:text-ev-400'
                                 : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                             }`}

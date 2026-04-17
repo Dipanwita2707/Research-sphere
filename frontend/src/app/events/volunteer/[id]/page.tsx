@@ -137,7 +137,8 @@ export default function VolunteerEventPage() {
         // Try to fetch volunteer info for this user
         try {
           const assignments = await eventService.getMyVolunteerAssignments();
-          const myAssignment = assignments.find((a: any) => a.eventId === eventId);
+          const myAssignment = assignments.find((a: any) => a.eventId ===
+   eventId);
           if (myAssignment) {
             setVolunteerInfo(myAssignment);
             if (myAssignment.assignedGate) {
@@ -160,7 +161,8 @@ export default function VolunteerEventPage() {
 
   // Auto-focus on QR input when in input mode
   useEffect(() => {
-    if (scanMode === 'input') {
+    if (scanMode ===
+   'input') {
       qrInputRef.current?.focus();
     }
   }, [scanMode]);
@@ -169,7 +171,9 @@ export default function VolunteerEventPage() {
     const merged = [...recentScans, ...persistedScans];
     const uniqueScans = merged.filter((scan, index, scans) => {
       if (!scan.success || !scan.id) return true;
-      return index === scans.findIndex((candidate) => candidate.success && candidate.id === scan.id);
+      return index ===
+   scans.findIndex((candidate) => candidate.success && candidate.id ===
+   scan.id);
     });
 
     return uniqueScans
@@ -197,7 +201,8 @@ export default function VolunteerEventPage() {
       const preview = await eventService.previewQRScan(eventId, code, entryType);
 
       if (preview.maxForThisScan <= 0) {
-        const msg = entryType === 'entry'
+        const msg = entryType ===
+   'entry'
           ? `Pass capacity reached (${preview.currentlyInside}/${preview.totalAllowedEntries} currently inside)`
           : 'No one is currently inside for this pass';
         toast({ type: 'warning', message: msg });
@@ -206,7 +211,8 @@ export default function VolunteerEventPage() {
       }
 
       // If pass allows only 1 person for this scan, proceed directly
-      if (preview.maxForThisScan === 1) {
+      if (preview.maxForThisScan ===
+   1) {
         await executeScan(code, 1);
       } else {
         // Show group entry modal
@@ -217,7 +223,8 @@ export default function VolunteerEventPage() {
       const errorMsg = getErrorMessage(error);
       const status = getErrorStatusCode(error);
       const isValidationWarning =
-        status === 400 &&
+        status ===
+   400 &&
         (errorMsg.toLowerCase().includes('already entered') ||
           errorMsg.toLowerCase().includes('not checked in') ||
           errorMsg.toLowerCase().includes('check in first') ||
@@ -226,7 +233,8 @@ export default function VolunteerEventPage() {
           errorMsg.toLowerCase().includes('capacity reached'));
       const isRealFailure =
         !isValidationWarning &&
-        (isNetworkError(error) || (status != null && status >= 500) || status === 404);
+        (isNetworkError(error) || (status != null && status >= 500) || status ===
+   404);
 
       const scan: ScanResult = {
         entryType,
@@ -287,11 +295,14 @@ export default function VolunteerEventPage() {
     setRecentScans((prev) => [scan, ...prev.slice(0, 19)]);
     setSessionStats((prev) => ({
       ...prev,
-      entries: entryType === 'entry' ? prev.entries + peopleCount : prev.entries,
-      exits: entryType === 'exit' ? prev.exits + peopleCount : prev.exits,
+      entries: entryType ===
+   'entry' ? prev.entries + peopleCount : prev.entries,
+      exits: entryType ===
+   'exit' ? prev.exits + peopleCount : prev.exits,
     }));
 
-    const action = entryType === 'entry' ? 'Check-in' : 'Check-out';
+    const action = entryType ===
+   'entry' ? 'Check-in' : 'Check-out';
     const countLabel = peopleCount > 1 ? ` (${peopleCount} people)` : '';
     toast({
       type: 'success',
@@ -396,7 +407,9 @@ export default function VolunteerEventPage() {
     const now = new Date();
     const start = new Date(event.startDate);
     const end = new Date(event.endDate);
-    if (event.status === 'completed' || event.status === 'cancelled') return event.status;
+    if (event.status ===
+   'completed' || event.status ===
+   'cancelled') return event.status;
     if (now >= start && now <= end) return 'ongoing';
     return event.status;
   };
@@ -424,7 +437,8 @@ export default function VolunteerEventPage() {
   }
 
   const eventStatus = getEventStatus();
-  const isLive = eventStatus === 'ongoing';
+  const isLive = eventStatus ===
+   'ongoing';
 
   return (
     <>
@@ -575,14 +589,16 @@ export default function VolunteerEventPage() {
               <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
                 <button
                   onClick={() => { stopCameraScanner(); setScanMode('input'); }}
-                  className={`p-2 rounded-md transition-colors ${scanMode === 'input' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500'}`}
+                  className={`p-2 rounded-md transition-colors ${scanMode ===
+   'input' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500'}`}
                   title="Manual Input"
                 >
                   <Keyboard className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => { setScanMode('camera'); setTimeout(() => startCameraScanner(), 150); }}
-                  className={`p-2 rounded-md transition-colors ${scanMode === 'camera' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500'}`}
+                  className={`p-2 rounded-md transition-colors ${scanMode ===
+   'camera' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500'}`}
                   title="Camera Scanner"
                 >
                   <Camera className="h-4 w-4" />
@@ -600,7 +616,8 @@ export default function VolunteerEventPage() {
                   type="button"
                   onClick={() => setEntryType('entry')}
                   className={`py-3.5 px-4 rounded-lg border-2 font-semibold transition-all flex items-center justify-center gap-2 ${
-                    entryType === 'entry'
+                    entryType ===
+   'entry'
                       ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 shadow-ev'
                       : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400'
                   }`}
@@ -612,7 +629,8 @@ export default function VolunteerEventPage() {
                   type="button"
                   onClick={() => setEntryType('exit')}
                   className={`py-3.5 px-4 rounded-lg border-2 font-semibold transition-all flex items-center justify-center gap-2 ${
-                    entryType === 'exit'
+                    entryType ===
+   'exit'
                       ? 'border-ev-700 bg-ev-50 dark:bg-ev-900/20 text-ev-800 dark:text-ev-400 shadow-ev'
                       : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400'
                   }`}
@@ -623,7 +641,8 @@ export default function VolunteerEventPage() {
               </div>
             </div>
 
-            <div className={`mb-5 ${scanMode === 'camera' ? '' : 'hidden'}`}>
+            <div className={`mb-5 ${scanMode ===
+   'camera' ? '' : 'hidden'}`}>
               <div id="qr-reader" className="rounded-lg overflow-hidden min-h-[250px] [&_video]:!rounded-lg [&_img]:!rounded-lg" />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
                 Point camera at entry pass QR. Use manual input below if camera fails.
@@ -697,7 +716,8 @@ export default function VolunteerEventPage() {
                 type="submit"
                 disabled={scanning || !qrInput.trim()}
                 className={`w-full px-6 py-3.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
-                  entryType === 'entry'
+                  entryType ===
+   'entry'
                     ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
                     : 'bg-gradient-to-r from-ev-700 to-ev-900 hover:from-ev-800 hover:to-ev-900 text-white'
                 } disabled:opacity-50 disabled:cursor-not-allowed shadow-ev`}
@@ -709,8 +729,10 @@ export default function VolunteerEventPage() {
                   </>
                 ) : (
                   <>
-                    {entryType === 'entry' ? <LogIn className="h-5 w-5" /> : <LogOut className="h-5 w-5" />}
-                    {entryType === 'entry' ? 'Check-in Participant' : 'Check-out Participant'}
+                    {entryType ===
+   'entry' ? <LogIn className="h-5 w-5" /> : <LogOut className="h-5 w-5" />}
+                    {entryType ===
+   'entry' ? 'Check-in Participant' : 'Check-out Participant'}
                   </>
                 )}
               </button>
@@ -742,7 +764,8 @@ export default function VolunteerEventPage() {
               )}
             </div>
 
-            {combinedRecentScans.length === 0 ? (
+            {combinedRecentScans.length ===
+   0 ? (
               <div className="text-center py-12">
                 <QrCode className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-600 dark:text-gray-400 font-medium">No scans yet</p>
@@ -757,7 +780,8 @@ export default function VolunteerEventPage() {
                     key={index}
                     className={`p-4 rounded-lg border transition-all ${
                       scan.success
-                        ? scan.entryType === 'entry'
+                        ? scan.entryType ===
+   'entry'
                           ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
                           : 'border-ev-200 dark:border-ev-800 bg-ev-50 dark:bg-ev-900/10'
                         : scan.isWarning
@@ -767,7 +791,8 @@ export default function VolunteerEventPage() {
                   >
                     <div className="flex items-start gap-3">
                       {scan.success ? (
-                        scan.entryType === 'entry' ? (
+                        scan.entryType ===
+   'entry' ? (
                           <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-full mt-0.5">
                             <LogIn className="h-4 w-4 text-green-600 dark:text-green-400" />
                           </div>
@@ -800,11 +825,13 @@ export default function VolunteerEventPage() {
                                   </span>
                                 )}
                                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                  scan.entryType === 'entry'
+                                  scan.entryType ===
+   'entry'
                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                     : 'bg-ev-100 dark:bg-ev-900/30 text-ev-800 dark:text-ev-400'
                                 }`}>
-                                  {scan.entryType === 'entry' ? 'IN' : 'OUT'}
+                                  {scan.entryType ===
+   'entry' ? 'IN' : 'OUT'}
                                 </span>
                               </div>
                             </div>
@@ -882,12 +909,15 @@ export default function VolunteerEventPage() {
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !groupSubmitting && setGroupModal(null)}>
         <div className={`${CARD} w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200`} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-3 mb-5">
-            <div className={`p-3 rounded-xl ${entryType === 'entry' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-ev-100 dark:bg-ev-900/30'}`}>
-              <Users className={`h-6 w-6 ${entryType === 'entry' ? 'text-green-600 dark:text-green-400' : 'text-ev-700 dark:text-ev-400'}`} />
+            <div className={`p-3 rounded-xl ${entryType ===
+   'entry' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-ev-100 dark:bg-ev-900/30'}`}>
+              <Users className={`h-6 w-6 ${entryType ===
+   'entry' ? 'text-green-600 dark:text-green-400' : 'text-ev-700 dark:text-ev-400'}`} />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-ev-900 dark:text-white">
-                Group {entryType === 'entry' ? 'Check-in' : 'Check-out'}
+                Group {entryType ===
+   'entry' ? 'Check-in' : 'Check-out'}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {groupModal.preview.participant.name}
@@ -907,7 +937,8 @@ export default function VolunteerEventPage() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">
-                {entryType === 'entry' ? 'Available Entry Slots' : 'Can Exit'}
+                {entryType ===
+   'entry' ? 'Available Entry Slots' : 'Can Exit'}
               </span>
               <span className={`font-bold text-lg ${groupModal.preview.maxForThisScan > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {groupModal.preview.maxForThisScan}
@@ -918,7 +949,8 @@ export default function VolunteerEventPage() {
           {/* People Count Selector */}
           <div className="mb-5">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              How many people are {entryType === 'entry' ? 'entering' : 'exiting'}?
+              How many people are {entryType ===
+   'entry' ? 'entering' : 'exiting'}?
             </label>
             <div className="flex items-center justify-center gap-4">
               <button
@@ -950,8 +982,10 @@ export default function VolunteerEventPage() {
                     type="button"
                     onClick={() => setGroupCount(n)}
                     className={`w-10 h-10 rounded-lg text-sm font-semibold transition-colors ${
-                      groupCount === n
-                        ? entryType === 'entry'
+                      groupCount ===
+   n
+                        ? entryType ===
+   'entry'
                           ? 'bg-green-600 text-white'
                           : 'bg-ev-700 text-white'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -979,7 +1013,8 @@ export default function VolunteerEventPage() {
               onClick={confirmGroupEntry}
               disabled={groupSubmitting}
               className={`flex-1 py-3 px-4 rounded-lg text-white font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
-                entryType === 'entry'
+                entryType ===
+   'entry'
                   ? 'bg-green-600 hover:bg-green-700'
                   : 'bg-ev-700 hover:bg-ev-800'
               }`}
@@ -988,8 +1023,11 @@ export default function VolunteerEventPage() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {entryType === 'entry' ? <LogIn className="h-5 w-5" /> : <LogOut className="h-5 w-5" />}
-                  {entryType === 'entry' ? 'Check-in' : 'Check-out'} {groupCount} {groupCount === 1 ? 'person' : 'people'}
+                  {entryType ===
+   'entry' ? <LogIn className="h-5 w-5" /> : <LogOut className="h-5 w-5" />}
+                  {entryType ===
+   'entry' ? 'Check-in' : 'Check-out'} {groupCount} {groupCount ===
+   1 ? 'person' : 'people'}
                 </>
               )}
             </button>

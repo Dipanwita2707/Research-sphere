@@ -1,11 +1,13 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const cookieParser = require("cookie-parser");
-const rateLimit = require("express-rate-limit");
-const log = require("./shared/utils/logger");
-const path = require("path");
+require('dotenv').config();
+const express = require('express');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
+const log = require('./shared/utils/logger');
 
 const config = require("./shared/config/app.config");
 const errorHandler = require("./shared/middleware/errorHandler");
@@ -20,7 +22,18 @@ const auditModule = require("./modules/audit");
 // Import gate-entry module
 const gateEntryModule = require('./modules/gate-entry');
 
+// Import chat module
+const chatModule = require('./modules/chat');
+const { socketAuth } = require('./modules/chat/sockets/socketAuth');
+const { initChatSocket } = require('./modules/chat/sockets/chatSocket');
+
+// Import mail module
+const mailModule = require('./modules/mail');
+
 const app = express();
+
+// Create HTTP server for Socket.io
+const httpServer = createServer(app);
 
 // Trust proxy for load balancer (important for rate limiting with 25k users)
 app.set("trust proxy", 1);
@@ -120,6 +133,13 @@ if (shouldLogRequests) {
   });
 }
 
+// Serve static files from uploads directory with explicit CORS headers
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '..', 'uploads')));
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
@@ -238,6 +258,11 @@ app.use(`${API_PREFIX}`, coreModule);
 // Audit module (separate for security isolation)
 app.use(`${API_PREFIX}/audit`, auditModule);
 
+// Chat module
+app.use(`${API_PREFIX}/chat`, chatModule);
+
+// Mail module (Internal Mailing System)
+app.use(`${API_PREFIX}/mail`, mailModule);
 // Gate Entry module
 app.use(`${API_PREFIX}/gate-entry`, gateEntryModule);
 
@@ -258,6 +283,26 @@ const startServer = async () => {
     // Initialize Redis cache (with fallback to memory cache)
     const cache = require("./shared/config/redis");
     await cache.initRedis();
+    
+    // Initialize Socket.io
+    const io = new Server(httpServer, {
+      cors: {
+        origin: config.cors.origin,
+        credentials: true,
+      },
+      pingTimeout: 60000,
+      pingInterval: 25000,
+    });
+
+    // Socket.io authentication middleware
+    io.use(socketAuth);
+
+    // Initialize chat socket handlers
+    initChatSocket(io);
+
+    // Make io available globally for other modules
+    app.set('io', io);
+    
 
     // Initialize audit report scheduler
     const {
@@ -292,22 +337,17 @@ const startServer = async () => {
     // Initialize workflow health monitor
     const { startWorkflowHealthMonitor } = require('./jobs/workflowHealthMonitor.job');
     startWorkflowHealthMonitor();
-    
-    app.listen(config.port, () => {
-      console.log(
-        `✅ Server running in ${config.env} mode on port ${config.port}`,
-      );
-      console.log(
-        `🔗 API available at http://localhost:${config.port}${API_PREFIX}`,
-      );
+
+    httpServer.listen(config.port, () => {
+      console.log(`✅ Server running in ${config.env} mode on port ${config.port}`);
+      console.log(`🔗 API available at http://localhost:${config.port}${API_PREFIX}`);
       console.log(`🗄️  Database connected via Prisma`);
-      console.log(
-        `📦 Cache initialized (${cache.isConnected() ? "Redis" : "Memory fallback"})`,
-      );
-      console.log(`� Email queue: ${emailQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
+      console.log(`📦 Cache initialized (${cache.isConnected() ? 'Redis' : 'Memory fallback'})`);
+      console.log(`🔌 Socket.io ready for connections`);
+      console.log(`📧 Email queue: ${emailQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
       console.log(`🧠 Research workflow queue: ${researchWorkflowQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
       console.log(`🩺 Workflow health monitor initialized`);
-      console.log(`�📊 Audit report scheduler initialized`);
+      console.log(`📊 Audit report scheduler initialized`);
       console.log(`🎫 TMS auto-escalation scheduler initialized`);
       console.log(`🎫 QR activation job started for gate entry`);
     });

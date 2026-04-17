@@ -86,7 +86,8 @@ export default function MyCertificatesPage() {
       </div>
 
       {/* Certificates List */}
-      {certificates.length === 0 ? (
+      {certificates.length ===
+   0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-gray-400" />
@@ -133,10 +134,12 @@ export default function MyCertificatesPage() {
                   {cert.hasDownload && (
                     <button
                       onClick={() => handleDownload(cert)}
-                      disabled={downloading === cert.verificationCode}
+                      disabled={downloading ===
+   cert.verificationCode}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-ev-700 hover:bg-ev-800 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
                     >
-                      {downloading === cert.verificationCode ? (
+                      {downloading ===
+   cert.verificationCode ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Download className="w-4 h-4" />

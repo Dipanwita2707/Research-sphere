@@ -24,14 +24,17 @@ export function LanguageSelector() {
     }
   }, [isOpen]);
 
-  const currentLanguage = languages.find((lang) => lang.code === language) || languages[0];
+  const currentLanguage = languages.find((lang) => lang.code ===
+   language) || languages[0];
 
   const getPrimaryLabel = (code: 'en' | 'hi') => {
-    return code === 'en' ? 'English' : 'हिंदी';
+    return code ===
+   'en' ? 'English' : 'हिंदी';
   };
 
   const getSecondaryLabel = (code: 'en' | 'hi') => {
-    return code === 'en' ? t('language.english') : t('language.hindi');
+    return code ===
+   'en' ? t('language.english') : t('language.hindi');
   };
 
   return (
@@ -78,13 +81,15 @@ export function LanguageSelector() {
                     setIsOpen(false);
                   }}
                   className={`w-full px-4 py-3.5 flex items-center justify-between hover:bg-[#b3cde0]/20 transition-all duration-200 group ${
-                    language === lang.code ? 'bg-[#b3cde0]/25' : ''
+                    language ===
+   lang.code ? 'bg-[#b3cde0]/25' : ''
                   }`}
                 >
                   <div className="flex flex-col items-start">
                     <span
                       className={`text-sm font-medium ${
-                        language === lang.code ? 'text-[#005b96]' : 'text-[#03396c]'
+                        language ===
+   lang.code ? 'text-[#005b96]' : 'text-[#03396c]'
                       } group-hover:text-[#005b96] transition-colors`}
                     >
                       {getPrimaryLabel(lang.code)}
@@ -93,7 +98,8 @@ export function LanguageSelector() {
                       {getSecondaryLabel(lang.code)}
                     </span>
                   </div>
-                  {language === lang.code && (
+                  {language ===
+   lang.code && (
                     <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#005b96] animate-scaleIn shadow-[0_4px_10px_rgba(3,57,108,0.28)]">
                       <Check className="w-4 h-4 text-white" />
                     </div>

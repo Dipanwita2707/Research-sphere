@@ -33,7 +33,9 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
   const [searchTerm, setSearchTerm] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const isBook = publicationType === 'book' || publicationType === 'book_chapter';
+  const isBook = publicationType ===
+   'book' || publicationType ===
+   'book_chapter';
   const [newAuthor, setNewAuthor] = useState<Author>({
     name: '',
     authorType: 'Faculty',
@@ -63,7 +65,9 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
     }
 
     try {
-      const role = newAuthor.authorType === 'Student' ? 'student' : newAuthor.authorType === 'Faculty' ? 'faculty' : 'all';
+      const role = newAuthor.authorType ===
+   'Student' ? 'student' : newAuthor.authorType ===
+   'Faculty' ? 'faculty' : 'all';
       const response = await researchService.searchUsers(term, role);
       
       let userData = [];
@@ -90,13 +94,17 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
   };
 
   const selectAuthorFromSuggestion = async (userData: any) => {
-    if (userData.uid === user?.uid) {
+    if (userData.uid ===
+   user?.uid) {
       setError('Cannot add yourself as a co-author');
       return;
     }
 
     const userName = userData.name || userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-    const authorType = userData.role === 'student' ? 'Student' : 'Faculty';
+    const roleName = typeof userData.role ===
+   'object' ? userData.role?.name : userData.role;
+    const authorType = roleName ===
+   'student' ? 'Student' : 'Faculty';
 
     try {
       const fullData = await researchService.lookupByRegistration(userData.uid);
@@ -131,30 +139,37 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
       return;
     }
 
-    if (newAuthor.authorCategory === 'Internal' && !newAuthor.uid) {
+    if (newAuthor.authorCategory ===
+   'Internal' && !newAuthor.uid) {
       setError('Please select an internal author from search results');
       return;
     }
 
-    if (newAuthor.authorCategory === 'External' && !newAuthor.affiliation.trim()) {
+    if (newAuthor.authorCategory ===
+   'External' && !newAuthor.affiliation.trim()) {
       setError('Affiliation is required for external authors');
       return;
     }
 
     // Check for duplicates
-    if (authors.some(a => a.uid && a.uid === newAuthor.uid)) {
+    if (authors.some(a => a.uid && a.uid ===
+   newAuthor.uid)) {
       setError('This author has already been added');
       return;
     }
 
     // Validate no multiple First Authors (only for research papers)
-    if (!isBook && newAuthor.authorRole === 'First Author' && authors.some(a => a.authorRole === 'First Author')) {
+    if (!isBook && newAuthor.authorRole ===
+   'First Author' && authors.some(a => a.authorRole ===
+   'First Author')) {
       setError('Only one First Author is allowed');
       return;
     }
 
     // Validate no multiple Corresponding Authors (only for research papers)
-    if (!isBook && newAuthor.authorRole === 'Corresponding Author' && authors.some(a => a.authorRole === 'Corresponding Author')) {
+    if (!isBook && newAuthor.authorRole ===
+   'Corresponding Author' && authors.some(a => a.authorRole ===
+   'Corresponding Author')) {
       setError('Only one Corresponding Author is allowed');
       return;
     }
@@ -202,10 +217,13 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
             <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  author.authorCategory === 'Internal' ? 'bg-green-100' : 'bg-blue-100'
+                  author.authorCategory ===
+   'Internal' ? 'bg-green-100' : 'bg-blue-100'
                 }`}>
-                  {author.authorCategory === 'Internal' ? (
-                    <User className={`w-5 h-5 ${author.authorCategory === 'Internal' ? 'text-green-600' : 'text-blue-600'}`} />
+                  {author.authorCategory ===
+   'Internal' ? (
+                    <User className={`w-5 h-5 ${author.authorCategory ===
+   'Internal' ? 'text-green-600' : 'text-blue-600'}`} />
                   ) : (
                     <Building2 className="w-5 h-5 text-blue-600" />
                   )}
@@ -217,8 +235,10 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                       <span className="text-xs text-gray-500">({author.uid})</span>
                     )}
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      author.authorRole === 'First Author' ? 'bg-purple-100 text-purple-700' :
-                      author.authorRole === 'Corresponding Author' ? 'bg-orange-100 text-orange-700' :
+                      author.authorRole ===
+   'First Author' ? 'bg-purple-100 text-purple-700' :
+                      author.authorRole ===
+   'Corresponding Author' ? 'bg-orange-100 text-orange-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
                       {author.authorRole}
@@ -226,7 +246,8 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span className={`px-2 py-0.5 rounded text-xs ${
-                      author.authorCategory === 'Internal' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                      author.authorCategory ===
+   'Internal' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                     }`}>
                       {author.authorCategory}
                     </span>
@@ -255,7 +276,8 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
         </div>
       )}
 
-      {authors.length === 0 && !isEditing && (
+      {authors.length ===
+   0 && !isEditing && (
         <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
           <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-500">No co-authors added yet</p>
@@ -296,19 +318,25 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                 >
                   <option 
                     value="First Author"
-                    disabled={authors.some(a => a.authorRole === 'First Author')}
+                    disabled={authors.some(a => a.authorRole ===
+   'First Author')}
                   >
-                    First Author {authors.some(a => a.authorRole === 'First Author') && '(Already assigned)'}
+                    First Author {authors.some(a => a.authorRole ===
+   'First Author') && '(Already assigned)'}
                   </option>
                   <option value="Co-Author">Co-Author</option>
                   <option 
                     value="Corresponding Author"
-                    disabled={authors.some(a => a.authorRole === 'Corresponding Author')}
+                    disabled={authors.some(a => a.authorRole ===
+   'Corresponding Author')}
                   >
-                    Corresponding Author {authors.some(a => a.authorRole === 'Corresponding Author') && '(Already assigned)'}
+                    Corresponding Author {authors.some(a => a.authorRole ===
+   'Corresponding Author') && '(Already assigned)'}
                   </option>
                 </select>
-                {(authors.some(a => a.authorRole === 'First Author') || authors.some(a => a.authorRole === 'Corresponding Author')) && (
+                {(authors.some(a => a.authorRole ===
+   'First Author') || authors.some(a => a.authorRole ===
+   'Corresponding Author')) && (
                   <p className="text-xs text-gray-500 mt-1">
                     Some roles are already assigned
                   </p>
@@ -324,8 +352,10 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                   setNewAuthor({
                     ...newAuthor,
                     authorCategory: category,
-                    affiliation: category === 'Internal' ? 'SGT University' : '',
-                    uid: category === 'External' ? undefined : newAuthor.uid
+                    affiliation: category ===
+   'Internal' ? 'SGT University' : '',
+                    uid: category ===
+   'External' ? undefined : newAuthor.uid
                   });
                   setSearchTerm('');
                 }}
@@ -349,7 +379,8 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
             </div>
           </div>
 
-          {newAuthor.authorCategory === 'Internal' ? (
+          {newAuthor.authorCategory ===
+   'Internal' ? (
             <div ref={searchRef} className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Search by UID/Name</label>
               <div className="relative">

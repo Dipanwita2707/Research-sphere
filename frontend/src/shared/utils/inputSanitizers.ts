@@ -9,7 +9,8 @@ export function sanitizePlainTextInput(
   options: { maxLength?: number } = {},
 ): string {
   const sanitized = normalizeInput(value).replace(/[<>]/g, "");
-  return typeof options.maxLength === "number"
+  return typeof options.maxLength ===
+   "number"
     ? sanitized.slice(0, options.maxLength)
     : sanitized;
 }
@@ -23,7 +24,8 @@ export function sanitizeDigitsInput(
   options: { maxLength?: number } = {},
 ): string {
   const digits = value.replace(/\D/g, "");
-  return typeof options.maxLength === "number"
+  return typeof options.maxLength ===
+   "number"
     ? digits.slice(0, options.maxLength)
     : digits;
 }

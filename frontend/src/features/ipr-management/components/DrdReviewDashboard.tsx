@@ -123,7 +123,8 @@ export default function DrdReviewDashboard() {
                 allPermissions['ipr_review'] = true;  // Recommend is part of review
                 allPermissions['drd_ipr_recommend'] = true;
               }
-              if (permLower === 'ipr_assign_school' || (permLower.includes('assign') && permLower.includes('school'))) {
+              if (permLower ===
+   'ipr_assign_school' || (permLower.includes('assign') && permLower.includes('school'))) {
                 allPermissions['ipr_assign_school'] = true;
               }
             });
@@ -214,7 +215,8 @@ export default function DrdReviewDashboard() {
     try {
       setSubmitting(true);
       
-      if (reviewData.decision === 'approved') {
+      if (reviewData.decision ===
+   'approved') {
         // Only users with drd_ipr_approve can approve
         if (!canApprove) {
           toast({ type: 'warning', message: 'You do not have permission to approve. Please use "Recommend" instead.' });
@@ -222,7 +224,8 @@ export default function DrdReviewDashboard() {
         }
         await drdReviewService.approveReview(selectedApp.id, reviewData.comments);
         toast({ type: 'success', message: 'Application approved successfully! Incentive points have been credited.' });
-      } else if (reviewData.decision === 'recommended') {
+      } else if (reviewData.decision ===
+   'recommended') {
         // Recommend for approval - moves to DRD Head for final approval
         if (!reviewData.comments.trim()) {
           toast({ type: 'warning', message: 'Comments are required when recommending' });
@@ -230,14 +233,16 @@ export default function DrdReviewDashboard() {
         }
         await drdReviewService.recommendReview(selectedApp.id, reviewData.comments);
         toast({ type: 'success', message: 'Application recommended successfully! It will now go to DRD Head for final approval.' });
-      } else if (reviewData.decision === 'rejected') {
+      } else if (reviewData.decision ===
+   'rejected') {
         if (!reviewData.comments.trim()) {
           toast({ type: 'warning', message: 'Comments are required for rejection' });
           return;
         }
         await drdReviewService.rejectReview(selectedApp.id, reviewData.comments);
         toast({ type: 'success', message: 'Application rejected successfully!' });
-      } else if (reviewData.decision === 'changes_required') {
+      } else if (reviewData.decision ===
+   'changes_required') {
         if (!reviewData.comments.trim()) {
           toast({ type: 'warning', message: 'Comments are required when requesting changes' });
           return;
@@ -297,7 +302,8 @@ export default function DrdReviewDashboard() {
   // New workflow handlers
   const handleRecommendToHead = async (app: any) => {
     const comments = prompt(`Add comments for recommending "${app.title}" to DRD Head:`);
-    if (comments === null) return;
+    if (comments ===
+   null) return;
     if (!comments.trim()) {
       toast({ type: 'warning', message: 'Comments are required when recommending' });
       return;
@@ -457,15 +463,20 @@ export default function DrdReviewDashboard() {
   const filteredApplications = applications.filter(app => {
     // Tab filter
     let tabMatch = false;
-    if (activeTab === 'pending') {
+    if (activeTab ===
+   'pending') {
       tabMatch = ['submitted', 'under_drd_review', 'resubmitted', 'changes_required'].includes(app.status);
-    } else if (activeTab === 'recommended') {
+    } else if (activeTab ===
+   'recommended') {
       tabMatch = ['recommended_to_head'].includes(app.status);
-    } else if (activeTab === 'govt') {
+    } else if (activeTab ===
+   'govt') {
       tabMatch = ['drd_head_approved', 'submitted_to_govt', 'govt_application_filed'].includes(app.status);
-    } else if (activeTab === 'published') {
+    } else if (activeTab ===
+   'published') {
       tabMatch = ['published', 'completed'].includes(app.status);
-    } else if (activeTab === 'rejected') {
+    } else if (activeTab ===
+   'rejected') {
       tabMatch = ['drd_rejected', 'drd_head_rejected', 'govt_rejected'].includes(app.status);
     }
     
@@ -680,7 +691,8 @@ export default function DrdReviewDashboard() {
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all duration-200 ${
-                    activeTab === tab.key
+                    activeTab ===
+   tab.key
                       ? 'bg-sgt-gradient text-white shadow-sgt'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
@@ -688,7 +700,8 @@ export default function DrdReviewDashboard() {
                   <tab.icon className="w-4 h-4" />
                   <span>{tab.label}</span>
                   <span className={`ml-1 px-2 py-0.5 text-xs rounded-full font-semibold ${
-                    activeTab === tab.key 
+                    activeTab ===
+   tab.key 
                       ? 'bg-white/20 text-white' 
                       : 'bg-gray-200 text-gray-600'
                   }`}>
@@ -712,7 +725,8 @@ export default function DrdReviewDashboard() {
           </div>
         </div>
         {/* Applications List */}
-        {filteredApplications.length === 0 ? (
+        {filteredApplications.length ===
+   0 ? (
           <div className="p-16 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-10 h-10 text-gray-400" />
@@ -823,7 +837,8 @@ export default function DrdReviewDashboard() {
                   {/* Actions */}
                   <div className="flex flex-col gap-2 flex-shrink-0">
                     {/* Status Update Button - For Complete Filings (Hide when at Publication ID stage or rejected) */}
-                    {app.filingType === 'complete' && 
+                    {app.filingType ===
+   'complete' && 
                      !['govt_application_filed', 'published', 'govt_rejected', 'drd_rejected', 'drd_head_rejected', 'completed'].includes(app.status) && (
                       <button
                         onClick={() => {
@@ -865,7 +880,8 @@ export default function DrdReviewDashboard() {
                     )}
 
                     {/* Recommended to Head - Head Actions (only for users with approve permission) */}
-                    {app.status === 'recommended_to_head' && canApprove && (
+                    {app.status ===
+   'recommended_to_head' && canApprove && (
                       <>
                         <button
                           onClick={async () => {
@@ -896,7 +912,8 @@ export default function DrdReviewDashboard() {
                     )}
                     
                     {/* Recommended to Head - View Only for reviewers without approve permission */}
-                    {app.status === 'recommended_to_head' && !canApprove && (
+                    {app.status ===
+   'recommended_to_head' && !canApprove && (
                       <span className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-semibold ring-1 ring-indigo-200">
                         <Clock className="w-4 h-4" />
                         Awaiting Head Approval
@@ -904,7 +921,8 @@ export default function DrdReviewDashboard() {
                     )}
 
                     {/* Submitted to Govt - Add Govt ID (Only users with ipr_review permission can do this) */}
-                    {app.status === 'submitted_to_govt' && canRecommend && (
+                    {app.status ===
+   'submitted_to_govt' && canRecommend && (
                       <button
                         onClick={() => {
                           setSelectedApp(app);
@@ -918,7 +936,8 @@ export default function DrdReviewDashboard() {
                     )}
 
                     {/* Submitted to Govt - View only for users with only ipr_approve permission */}
-                    {app.status === 'submitted_to_govt' && canApprove && !canRecommend && (
+                    {app.status ===
+   'submitted_to_govt' && canApprove && !canRecommend && (
                       <span className="flex items-center gap-2 px-4 py-2.5 bg-teal-50 text-teal-700 rounded-xl text-sm font-semibold ring-1 ring-teal-200">
                         <Clock className="w-4 h-4" />
                         Awaiting Govt Filing
@@ -926,7 +945,8 @@ export default function DrdReviewDashboard() {
                     )}
 
                     {/* Govt Filed - Add Publication ID OR Mark as Rejected (Only users with ipr_review permission can do this) */}
-                    {app.status === 'govt_application_filed' && canRecommend && (
+                    {app.status ===
+   'govt_application_filed' && canRecommend && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
@@ -954,7 +974,8 @@ export default function DrdReviewDashboard() {
 
 
                     {/* Govt Filed - View only for users with only ipr_approve permission */}
-                    {app.status === 'govt_application_filed' && canApprove && !canRecommend && (
+                    {app.status ===
+   'govt_application_filed' && canApprove && !canRecommend && (
                       <span className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-semibold ring-1 ring-emerald-200">
                         <Clock className="w-4 h-4" />
                         Awaiting Publication ID
@@ -1039,14 +1060,18 @@ export default function DrdReviewDashboard() {
       {showPubIdModal && selectedApp && (
         <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp">
-            <div className={`bg-gradient-to-r ${selectedApp.status === 'govt_rejected' ? 'from-red-600 to-red-700' : 'from-emerald-600 to-emerald-700'} p-6 text-white`}>
+            <div className={`bg-gradient-to-r ${selectedApp.status ===
+   'govt_rejected' ? 'from-red-600 to-red-700' : 'from-emerald-600 to-emerald-700'} p-6 text-white`}>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
                   <Award className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">{selectedApp.status === 'govt_rejected' ? 'Rejection Reference' : 'Publication ID'}</h3>
-                  <p className={`${selectedApp.status === 'govt_rejected' ? 'text-red-100' : 'text-emerald-100'} text-sm`}>{selectedApp.status === 'govt_rejected' ? 'Document the rejection details' : 'Complete the IPR publication'}</p>
+                  <h3 className="text-xl font-bold">{selectedApp.status ===
+   'govt_rejected' ? 'Rejection Reference' : 'Publication ID'}</h3>
+                  <p className={`${selectedApp.status ===
+   'govt_rejected' ? 'text-red-100' : 'text-emerald-100'} text-sm`}>{selectedApp.status ===
+   'govt_rejected' ? 'Document the rejection details' : 'Complete the IPR publication'}</p>
                 </div>
               </div>
             </div>
@@ -1062,14 +1087,17 @@ export default function DrdReviewDashboard() {
               
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {selectedApp.status === 'govt_rejected' ? 'Rejection Reference/Note' : 'Publication/Grant ID'} <span className="text-red-500">*</span>
+                  {selectedApp.status ===
+   'govt_rejected' ? 'Rejection Reference/Note' : 'Publication/Grant ID'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={publicationId}
                   onChange={(e) => setPublicationId(e.target.value)}
-                  placeholder={selectedApp.status === 'govt_rejected' ? 'e.g., Rejection letter ref: REJ-2024-001' : 'e.g., IN-PAT-2024-12345'}
-                  className={`w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 ${selectedApp.status === 'govt_rejected' ? 'focus:ring-red-400 focus:border-red-400' : 'focus:ring-emerald-400 focus:border-emerald-400'} transition-all`}
+                  placeholder={selectedApp.status ===
+   'govt_rejected' ? 'e.g., Rejection letter ref: REJ-2024-001' : 'e.g., IN-PAT-2024-12345'}
+                  className={`w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 ${selectedApp.status ===
+   'govt_rejected' ? 'focus:ring-red-400 focus:border-red-400' : 'focus:ring-emerald-400 focus:border-emerald-400'} transition-all`}
                 />
               </div>
               
@@ -1087,9 +1115,11 @@ export default function DrdReviewDashboard() {
                 <button
                   onClick={handleAddPublicationId}
                   disabled={submitting || !publicationId.trim()}
-                  className={`flex-1 px-4 py-3 bg-gradient-to-r ${selectedApp.status === 'govt_rejected' ? 'from-red-600 to-red-700' : 'from-emerald-600 to-emerald-700'} text-white rounded-xl hover:shadow-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`flex-1 px-4 py-3 bg-gradient-to-r ${selectedApp.status ===
+   'govt_rejected' ? 'from-red-600 to-red-700' : 'from-emerald-600 to-emerald-700'} text-white rounded-xl hover:shadow-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {submitting ? 'Adding...' : (selectedApp.status === 'govt_rejected' ? 'Add Reference' : 'Add & Publish')}
+                  {submitting ? 'Adding...' : (selectedApp.status ===
+   'govt_rejected' ? 'Add Reference' : 'Add & Publish')}
                 </button>
               </div>
             </div>
@@ -1250,7 +1280,8 @@ export default function DrdReviewDashboard() {
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   {/* Check for internal applicant - either from applicantDetails or applicantUser */}
-                  {(selectedApp.applicantDetails?.uid || selectedApp.applicantDetails?.employeeCategory === 'internal' || selectedApp.applicantUser) ? (
+                  {(selectedApp.applicantDetails?.uid || selectedApp.applicantDetails?.employeeCategory ===
+   'internal' || selectedApp.applicantUser) ? (
                     <>
                       <div>
                         <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Name</p>
@@ -1348,11 +1379,13 @@ export default function DrdReviewDashboard() {
                           <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">{contributor.department}</span>
                         )}
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                          contributor.employeeCategory === 'internal' || contributor.userId
+                          contributor.employeeCategory ===
+   'internal' || contributor.userId
                             ? 'bg-blue-100 text-blue-700' 
                             : 'bg-purple-100 text-purple-700'
                         }`}>
-                          {contributor.employeeCategory === 'internal' || contributor.userId ? 'Internal' : 'External'}
+                          {contributor.employeeCategory ===
+   'internal' || contributor.userId ? 'Internal' : 'External'}
                         </span>
                       </div>
                     ))}
@@ -1507,9 +1540,13 @@ export default function DrdReviewDashboard() {
                     <div className="absolute left-[23px] top-8 bottom-8 w-0.5 bg-gradient-to-b from-sgt-200 via-sgt-300 to-sgt-200"></div>
                     
                     {selectedApp.reviews.map((review: any, index: number) => {
-                      const isApproved = review.decision === 'approved' || review.decision === 'recommended';
-                      const isRejected = review.decision === 'rejected';
-                      const isChangesRequired = review.decision === 'changes_required';
+                      const isApproved = review.decision ===
+   'approved' || review.decision ===
+   'recommended';
+                      const isRejected = review.decision ===
+   'rejected';
+                      const isChangesRequired = review.decision ===
+   'changes_required';
                       
                       return (
                         <div key={index} className="relative pl-14 pb-4">
@@ -1593,7 +1630,8 @@ export default function DrdReviewDashboard() {
               >
                 Close
               </button>
-              {selectedApp.status === 'recommended_to_head' && canApprove && (
+              {selectedApp.status ===
+   'recommended_to_head' && canApprove && (
                 <>
                   <button
                     onClick={() => {
@@ -1706,7 +1744,8 @@ export default function DrdReviewDashboard() {
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   {/* Check for internal applicant - either from applicantDetails or applicantUser */}
-                  {(selectedApp.applicantDetails?.uid || selectedApp.applicantDetails?.employeeCategory === 'internal' || selectedApp.applicantUser) ? (
+                  {(selectedApp.applicantDetails?.uid || selectedApp.applicantDetails?.employeeCategory ===
+   'internal' || selectedApp.applicantUser) ? (
                     <>
                       <div>
                         <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Name</p>
@@ -1755,8 +1794,10 @@ export default function DrdReviewDashboard() {
                         <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Applicant Type</p>
                         <p className="font-medium text-gray-700 capitalize">
                           {selectedApp.applicantUser?.employeeDetails?.designation ||
-                           (selectedApp.applicantUser?.role === 'staff' ? 'Staff' : 
-                            selectedApp.applicantUser?.role === 'faculty' ? 'Faculty' :
+                           (selectedApp.applicantUser?.role?.name ===
+   'staff' ? 'Staff' : 
+                            selectedApp.applicantUser?.role?.name ===
+   'faculty' ? 'Faculty' :
                             selectedApp.applicantUser?.employeeDetails ? 'Staff' : null) || 
                            (selectedApp.applicantUser?.studentLogin ? 'Student' : null) ||
                            selectedApp.applicantDetails?.employeeType || selectedApp.applicantType || 'N/A'}
@@ -1822,11 +1863,13 @@ export default function DrdReviewDashboard() {
                           </p>
                         </div>
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                          contributor.employeeCategory === 'internal' || contributor.userId
+                          contributor.employeeCategory ===
+   'internal' || contributor.userId
                             ? 'bg-blue-100 text-blue-700' 
                             : 'bg-purple-100 text-purple-700'
                         }`}>
-                          {contributor.employeeCategory === 'internal' || contributor.userId ? 'Internal' : 'External'}
+                          {contributor.employeeCategory ===
+   'internal' || contributor.userId ? 'Internal' : 'External'}
                         </span>
                       </div>
                     ))}
@@ -2012,10 +2055,13 @@ export default function DrdReviewDashboard() {
                               type="button"
                               onClick={() => setReviewData({ ...reviewData, decision: option.value as any })}
                               className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                                reviewData.decision === option.value
-                                  ? option.color === 'emerald' 
+                                reviewData.decision ===
+   option.value
+                                  ? option.color ===
+   'emerald' 
                                     ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                                    : option.color === 'amber'
+                                    : option.color ===
+   'amber'
                                     ? 'border-amber-500 bg-amber-50 text-amber-700'
                                     : 'border-red-500 bg-red-50 text-red-700'
                                   : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
@@ -2039,10 +2085,13 @@ export default function DrdReviewDashboard() {
                               type="button"
                               onClick={() => setReviewData({ ...reviewData, decision: option.value as any })}
                               className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                                reviewData.decision === option.value
-                                  ? option.color === 'blue' 
+                                reviewData.decision ===
+   option.value
+                                  ? option.color ===
+   'blue' 
                                     ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                    : option.color === 'amber'
+                                    : option.color ===
+   'amber'
                                     ? 'border-amber-500 bg-amber-50 text-amber-700'
                                     : 'border-red-500 bg-red-50 text-red-700'
                                   : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
@@ -2071,7 +2120,8 @@ export default function DrdReviewDashboard() {
                     />
                   </div>
 
-                  {reviewData.decision === 'changes_required' && selectedApp && (
+                  {reviewData.decision ===
+   'changes_required' && selectedApp && (
                     <div className="space-y-6 mt-6 pt-6 border-t border-gray-200">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">

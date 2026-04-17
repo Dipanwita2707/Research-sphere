@@ -7,11 +7,10 @@ import { useMyHistory } from '@/features/ticket-management/hooks/useTickets';
 import { STATUS_CONFIG, PRIORITY_CONFIG, PAGE_SIZE } from '@/features/ticket-management/constants';
 import type { TmsTicket, TmsTicketStatus, TmsPriority, TmsTimelineAction, TicketListParams } from '@/features/ticket-management/types/tms.types';
 
-// ============================================
-// Helper functions
-// ============================================
-
-function getStudentName(ticket: TmsTicket): string {
+// =====================================
+  // Helper functions
+// ==============================
+  function getStudentName(ticket: TmsTicket): string {
   const u = ticket.createdBy;
   if (!u) return '—';
   if (u.studentLogin) return u.studentLogin.displayName;
@@ -27,11 +26,10 @@ function getStudentId(ticket: TmsTicket): string {
   return u.uid;
 }
 
-// ============================================
-// Badges
-// ============================================
-
-function StatusBadge({ status }: { status: TmsTicketStatus }) {
+// =====================================
+  // Badges
+// ==============================
+  function StatusBadge({ status }: { status: TmsTicketStatus }) {
   const config = STATUS_CONFIG[status];
   if (!config) return <span className="text-xs">{status}</span>;
   const colorMap: Record<string, string> = {
@@ -84,11 +82,10 @@ function ActionBadge({ action }: { action: string | null }) {
   );
 }
 
-// ============================================
-// Page Component
-// ============================================
-
-export default function RequestHistoryPage() {
+// =====================================
+  // Page Component
+// ==============================
+  export default function RequestHistoryPage() {
   const router = useRouter();
 
   const [page, setPage] = useState(1);
@@ -125,10 +122,14 @@ export default function RequestHistoryPage() {
     const all = tickets as (TmsTicket & { myLastAction?: string; myActionCount?: number })[];
     return {
       total: pagination.total,
-      resolved: all.filter((t) => t.myLastAction === 'resolved').length,
-      closed: all.filter((t) => t.myLastAction === 'closed').length,
-      escalated: all.filter((t) => t.myLastAction === 'escalated').length,
-      remarked: all.filter((t) => t.myLastAction === 'remarked').length,
+      resolved: all.filter((t) => t.myLastAction ===
+   'resolved').length,
+      closed: all.filter((t) => t.myLastAction ===
+   'closed').length,
+      escalated: all.filter((t) => t.myLastAction ===
+   'escalated').length,
+      remarked: all.filter((t) => t.myLastAction ===
+   'remarked').length,
     };
   }, [tickets, pagination.total]);
 
@@ -250,7 +251,8 @@ export default function RequestHistoryPage() {
             <div className="text-center py-20">
               <p className="text-red-500 text-sm font-medium">Failed to load history. Please try again.</p>
             </div>
-          ) : tickets.length === 0 ? (
+          ) : tickets.length ===
+   0 ? (
             <div className="text-center py-20">
               <div className="inline-flex items-center justify-center w-14 h-14 bg-[#005b96]/[0.06] rounded-2xl mb-4">
                 <FileText className="w-7 h-7 text-[#b3cde0]" />
@@ -282,7 +284,8 @@ export default function RequestHistoryPage() {
                   {(tickets as (TmsTicket & { myLastAction?: string; myLastActionAt?: string; myActionCount?: number })[]).map((ticket, idx) => (
                     <tr
                       key={ticket.id}
-                      className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}
+                      className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 ===
+   0 ? 'bg-white' : 'bg-[#f8fafc]'}`}
                     >
                       {/* Request ID */}
                       <td className="px-4 py-3.5">
@@ -365,7 +368,8 @@ export default function RequestHistoryPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
+                disabled={page ===
+   1}
                 className="p-2 border border-[#b3cde0]/40 rounded-xl text-[#005b96] hover:bg-[#005b96]/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />

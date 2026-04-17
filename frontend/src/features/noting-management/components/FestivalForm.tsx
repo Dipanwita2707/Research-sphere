@@ -211,8 +211,10 @@ const SubEventCard: React.FC<SubEventCardProps> = ({ index, data, onChange, onRe
         <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex-1 truncate">
           #{index + 1} {data.venueFormData.eventName || <span className="text-gray-400 font-normal">(Unnamed Sub-Event)</span>}
         </span>
-        <span className={cls('text-xs px-2 py-0.5 rounded-full font-medium', data.eventType === 'stall' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300')}>
-          {data.eventType === 'stall' ? '🪄 Stall-Based' : '🏛️ Venue'}
+        <span className={cls('text-xs px-2 py-0.5 rounded-full font-medium', data.eventType ===
+   'stall' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300')}>
+          {data.eventType ===
+   'stall' ? '🪄 Stall-Based' : '🏛️ Venue'}
         </span>
         {data.venueFormData.eventStartDate && (
           <span className="text-xs text-gray-400 hidden sm:block">{data.venueFormData.eventStartDate}</span>
@@ -233,15 +235,18 @@ const SubEventCard: React.FC<SubEventCardProps> = ({ index, data, onChange, onRe
               {(['venue', 'stall'] as const).map((t) => (
                 <button
                   key={t} type="button" disabled={disabled}
-                  onClick={() => onChange({ ...data, eventType: t, stallConfig: t === 'stall' ? { ...defaultStallConfig } : undefined })}
+                  onClick={() => onChange({ ...data, eventType: t, stallConfig: t ===
+   'stall' ? { ...defaultStallConfig } : undefined })}
                   className={cls(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors',
-                    data.eventType === t
+                    data.eventType ===
+   t
                       ? 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 dark:text-sgt-300'
                       : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-sgt-300'
                   )}
                 >
-                  {t === 'venue' ? '🏛️ Venue Event' : '🪄 Stall-Based Event'}
+                  {t ===
+   'venue' ? '🏛️ Venue Event' : '🪄 Stall-Based Event'}
                 </button>
               ))}
             </div>
@@ -261,7 +266,8 @@ const SubEventCard: React.FC<SubEventCardProps> = ({ index, data, onChange, onRe
           />
 
           {/* Stall config (only for stall type) */}
-          {data.eventType === 'stall' && data.stallConfig && (
+          {data.eventType ===
+   'stall' && data.stallConfig && (
             <div>
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Stall Configuration</p>
               <StallConfigSection
@@ -314,14 +320,16 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
 
   const updateSubEvents = (subEvents: SubEventData[]) => { setDateError(''); onChange({ ...data, subEvents }); };
 
-  const stageIndex = STAGE_LABELS.findIndex((s) => s.id === stage);
+  const stageIndex = STAGE_LABELS.findIndex((s) => s.id ===
+   stage);
 
   return (
     <div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/50">
       {/* Stage indicator */}
       <div className="flex items-center gap-0 mb-6">
         {STAGE_LABELS.map((s, i) => {
-          const active = s.id === stage;
+          const active = s.id ===
+   stage;
           const done = stageIndex > i;
           return (
             <React.Fragment key={s.id}>
@@ -345,7 +353,8 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
       </div>
 
       {/* ── Stage 1: Festival Meta ── */}
-      {stage === 'meta' && (
+      {stage ===
+   'meta' && (
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2">
             <label className={labelCls}>Festival Name <span className="text-red-500">*</span></label>
@@ -417,12 +426,14 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
       )}
 
       {/* ── Stage 2: Sub-Events ── */}
-      {stage === 'subevents' && (
+      {stage ===
+   'subevents' && (
         <div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             Add all sub-events <span className="text-red-500">*</span>. Each can independently be venue-based or stall-based, with its own full details.
           </p>
-          {data.subEvents.length === 0 && (
+          {data.subEvents.length ===
+   0 && (
             <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg mb-4">
               No sub-events yet. Click below to add one.
             </div>
@@ -457,7 +468,8 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
       )}
 
       {/* ── Stage 3: Review ── */}
-      {stage === 'review' && (
+      {stage ===
+   'review' && (
         <div className="space-y-4">
           <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
             <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">🎪 {data.festivalName || 'Festival'}</h4>
@@ -477,8 +489,10 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
                 <div key={evt.id} className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md text-xs">
                   <span className="text-gray-400 font-medium">#{i + 1}</span>
                   <span className="font-medium text-gray-800 dark:text-gray-200 flex-1">{evt.venueFormData.eventName || '(Unnamed)'}</span>
-                  <span className={cls('px-2 py-0.5 rounded-full font-medium', evt.eventType === 'stall' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}>
-                    {evt.eventType === 'stall' ? '🪄 Stall' : '🏛️ Venue'}
+                  <span className={cls('px-2 py-0.5 rounded-full font-medium', evt.eventType ===
+   'stall' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}>
+                    {evt.eventType ===
+   'stall' ? '🪄 Stall' : '🏛️ Venue'}
                   </span>
                   <span className="text-gray-400">{evt.venueFormData.eventType || '—'}</span>
                   {evt.venueFormData.eventStartDate && <span className="text-gray-400">{evt.venueFormData.eventStartDate}</span>}
@@ -496,7 +510,9 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
       )}
 
       {/* Validation error */}
-      {dateError && (stage === 'meta' || stage === 'subevents') && (
+      {dateError && (stage ===
+   'meta' || stage ===
+   'subevents') && (
         <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-xs text-red-700 dark:text-red-300">
           <span>⚠️</span>
           <span>{dateError}</span>
@@ -507,8 +523,11 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
       <div className="flex justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
         <button
           type="button"
-          disabled={stage === 'meta' || disabled}
-          onClick={() => { if (stage === 'review') setStage('subevents'); else if (stage === 'subevents') setStage('meta'); }}
+          disabled={stage ===
+   'meta' || disabled}
+          onClick={() => { if (stage ===
+   'review') setStage('subevents'); else if (stage ===
+   'subevents') setStage('meta'); }}
           className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-4 h-4" /> Back
@@ -518,7 +537,8 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
             type="button"
             disabled={disabled}
             onClick={() => {
-              if (stage === 'meta') {
+              if (stage ===
+   'meta') {
                 if (!data.festivalName?.trim()) { setDateError('Please enter the Festival Name.'); return; }
                 if (!data.startDate) { setDateError('Please select the Festival Start Date.'); return; }
                 if (!data.endDate) { setDateError('Please select the Festival End Date.'); return; }
@@ -532,7 +552,8 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
                 }
                 setDateError('');
                 setStage('subevents');
-              } else if (stage === 'subevents') {
+              } else if (stage ===
+   'subevents') {
                 // Validate each sub-event has required fields
                 const seenSubEventNames = new Set<string>();
                 for (let i = 0; i < data.subEvents.length; i++) {
@@ -557,11 +578,16 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
                     setDateError(`${label}: End Date should be after Start Date. Please correct the dates.`); return;
                   }
                   if (!v.eventPaymentType) { setDateError(`${label}: Please select Payment Type (Free or Paid).`); return; }
-                  if (v.eventPaymentType === 'paid') {
-                    if (v.eventParticipationType === 'individual' && (v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
+                  if (v.eventPaymentType ===
+   'paid') {
+                    if (v.eventParticipationType ===
+   'individual' && (v.eventRegistrationFeeIndividual ===
+   '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
                       setDateError(`${label}: Please enter the Participation Fee (₹) for paid events.`); return;
                     }
-                    if (v.eventParticipationType === 'team' && (v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
+                    if (v.eventParticipationType ===
+   'team' && (v.eventRegistrationFeeTeam ===
+   '' || Number(v.eventRegistrationFeeTeam) < 0)) {
                       setDateError(`${label}: Please enter the Fee per Team (₹) for paid events.`); return;
                     }
                   }

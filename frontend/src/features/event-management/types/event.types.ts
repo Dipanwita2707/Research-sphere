@@ -880,11 +880,10 @@ export interface EventAdminEventListResponse {
   };
 }
 
-// ============================================
-// Advanced Registration Types
-// ============================================
-
-export interface EventCustomField {
+// =====================================
+  // Advanced Registration Types
+// ==============================
+  export interface EventCustomField {
   id: string;
   fieldName: string;
   fieldLabel: string;
@@ -1180,11 +1179,10 @@ export interface RegistrationSettings {
   prizesEnabled?: boolean;
 }
 
-// ============================================
-// Round Types
-// ============================================
-
-export type RoundType = 'elimination' | 'final' | 'general';
+// =====================================
+  // Round Types
+// ==============================
+  export type RoundType = 'elimination' | 'final' | 'general';
 
 export interface EventRound {
   id: string;
@@ -1209,11 +1207,10 @@ export interface RoundFormData {
   roundType?: RoundType;
 }
 
-// ============================================
-// Prize Types
-// ============================================
-
-export type PrizeType =
+// =====================================
+  // Prize Types
+// ==============================
+  export type PrizeType =
   | 'cash'
   | 'certificate'
   | 'internship'
@@ -1249,11 +1246,10 @@ export interface PrizeFormData {
   additionalPerks?: string[];
 }
 
-// ============================================
-// Stall Management Types
-// ============================================
-
-export type StallApplicationStatus =
+// =====================================
+  // Stall Management Types
+// ==============================
+  export type StallApplicationStatus =
   | 'pending'
   | 'approved'
   | 'rejected'
@@ -1389,11 +1385,10 @@ export interface StallApplicationFormData {
   termsAccepted: boolean;
 }
 
-// ============================================
-// Razorpay Payment Types
-// ============================================
-
-export type PaymentRecordStatus = 'created' | 'authorized' | 'captured' | 'failed' | 'refunded';
+// =====================================
+  // Razorpay Payment Types
+// ==============================
+  export type PaymentRecordStatus = 'created' | 'authorized' | 'captured' | 'failed' | 'refunded';
 export type PaymentFor = 'individual' | 'team';
 
 export interface PaymentRecord {

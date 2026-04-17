@@ -97,7 +97,8 @@ export function useApi<T = unknown>(
       let data = response.data;
 
       // Handle nested data structure
-      if (data && typeof data === 'object' && 'data' in data) {
+      if (data && typeof data ===
+   'object' && 'data' in data) {
         data = data.data;
       }
 
@@ -116,7 +117,9 @@ export function useApi<T = unknown>(
       return transformedData;
     } catch (error) {
       // Ignore abort errors
-      if ((error as Error).name === 'AbortError' || (error as AxiosError).code === 'ERR_CANCELED') {
+      if ((error as Error).name ===
+   'AbortError' || (error as AxiosError).code ===
+   'ERR_CANCELED') {
         return null;
       }
 
@@ -236,7 +239,8 @@ export function useMutation<T = unknown, D = unknown>(
         let responseData = response.data;
 
         // Handle nested data structure
-        if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        if (responseData && typeof responseData ===
+   'object' && 'data' in responseData) {
           responseData = responseData.data;
         }
 

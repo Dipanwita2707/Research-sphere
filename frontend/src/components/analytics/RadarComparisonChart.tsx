@@ -51,7 +51,8 @@ export default function RadarComparisonChart({
       .map((a, i) => {
         const val = (ds.values[a.key] || 0) / maxByAxis[a.key];
         const { x, y } = polarToXY(i, val);
-        return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+        return `${i ===
+   0 ? 'M' : 'L'}${x},${y}`;
       })
       .join('') + 'Z';
   }
@@ -92,8 +93,10 @@ export default function RadarComparisonChart({
               {Array.from({ length: rings }).map((_, ri) => {
                 const frac = (ri + 1) / rings;
                 const pts = axes.map((_, ai) => polarToXY(ai, frac));
-                const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join('') + 'Z';
-                return <path key={ri} d={path} fill="none" stroke="#e2e8f0" strokeWidth={ri === rings - 1 ? 1.5 : 0.8} strokeDasharray={ri < rings - 1 ? '3 3' : undefined} opacity={0.7} />;
+                const path = pts.map((p, i) => `${i ===
+   0 ? 'M' : 'L'}${p.x},${p.y}`).join('') + 'Z';
+                return <path key={ri} d={path} fill="none" stroke="#e2e8f0" strokeWidth={ri ===
+   rings - 1 ? 1.5 : 0.8} strokeDasharray={ri < rings - 1 ? '3 3' : undefined} opacity={0.7} />;
               })}
 
               {axes.map((_, ai) => {

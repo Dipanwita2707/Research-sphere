@@ -71,17 +71,21 @@ export function MobileMenu({ menuItems, unreadCount, pathname, onClose, onLogout
         className="lg:hidden fixed left-0 top-14 bottom-0 w-[280px] z-50 overflow-y-auto"
         style={{ background: 'linear-gradient(180deg, #005b96 0%, #003d6b 100%)' }}
       >
-        <Link href="/dashboard" onClick={onClose} className={`flex items-center gap-3 px-4 py-3 mx-2 mt-2 rounded-lg transition-all ${pathname === '/dashboard' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10'}`}>
+        <Link href="/dashboard" onClick={onClose} className={`flex items-center gap-3 px-4 py-3 mx-2 mt-2 rounded-lg transition-all ${pathname ===
+   '/dashboard' ? 'bg-white/20 text-white' : 'text-white/90 hover:bg-white/10'}`}>
           <span className="font-medium">Dashboard</span>
         </Link>
 
         {menuItems.map(item => (
           <div key={item.name} className="border-t border-white/10">
-            <button onClick={() => setExpandedMenu(expandedMenu === item.name ? null : item.name)} className="w-full flex items-center justify-between px-4 py-3 text-white/90 hover:bg-white/10 transition-all">
+            <button onClick={() => setExpandedMenu(expandedMenu ===
+   item.name ? null : item.name)} className="w-full flex items-center justify-between px-4 py-3 text-white/90 hover:bg-white/10 transition-all">
               <span className="font-medium text-sm">{item.name}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${expandedMenu === item.name ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 transition-transform ${expandedMenu ===
+   item.name ? 'rotate-180' : ''}`} />
             </button>
-            {expandedMenu === item.name && item.subItems && (
+            {expandedMenu ===
+   item.name && item.subItems && (
               <div className="bg-black/10 pb-2">
                 {item.subItems.map(subItem => (
                   <MobileSubItem key={subItem.name} item={subItem} onClose={onClose} />

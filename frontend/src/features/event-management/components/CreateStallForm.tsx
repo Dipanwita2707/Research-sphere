@@ -111,7 +111,8 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
                 type="button"
                 onClick={() => setStep(s.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  step === s.id ? 'bg-ev-50 dark:bg-ev-900/30 text-ev-800 dark:text-ev-200' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  step ===
+   s.id ? 'bg-ev-50 dark:bg-ev-900/30 text-ev-800 dark:text-ev-200' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
                 {s.label}
@@ -122,7 +123,8 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {step === 1 && (
+          {step ===
+   1 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Stall Information</h2>
               <div>
@@ -142,10 +144,12 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
                     <label
                       key={t.value}
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        form.stallType === t.value ? 'border-ev-400 bg-ev-50/50 dark:bg-ev-900/10' : 'border-[#b3cde0] dark:border-gray-600'
+                        form.stallType ===
+   t.value ? 'border-ev-400 bg-ev-50/50 dark:bg-ev-900/10' : 'border-[#b3cde0] dark:border-gray-600'
                       }`}
                     >
-                      <input type="radio" name="stallType" value={t.value} checked={form.stallType === t.value} onChange={() => update({ stallType: t.value })} className="mt-0.5 w-4 h-4 text-ev-700" />
+                      <input type="radio" name="stallType" value={t.value} checked={form.stallType ===
+   t.value} onChange={() => update({ stallType: t.value })} className="mt-0.5 w-4 h-4 text-ev-700" />
                       <div>
                         <p className="text-sm font-medium text-ev-900 dark:text-white">{t.label}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{t.desc}</p>
@@ -167,7 +171,8 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
             </>
           )}
 
-          {step === 2 && (
+          {step ===
+   2 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Business Details</h2>
               <div>
@@ -217,7 +222,8 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
             </>
           )}
 
-          {step === 3 && (
+          {step ===
+   3 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">Infrastructure Requirements</h2>
               <div>
@@ -256,7 +262,8 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
             </>
           )}
 
-          {step === 4 && (
+          {step ===
+   4 && (
             <>
               <h2 className="font-semibold text-ev-900 dark:text-white">{isEdit ? 'Review & Update' : 'Review & Create'}</h2>
               {!isEdit && (
@@ -268,7 +275,8 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
               <div className="space-y-2 text-sm">
                 {[
                   { label: 'Stall Name', value: form.stallName },
-                  { label: 'Stall Type', value: STALL_TYPES.find(t => t.value === form.stallType)?.label },
+                  { label: 'Stall Type', value: STALL_TYPES.find(t => t.value ===
+   form.stallType)?.label },
                   { label: 'Category', value: form.category || '—' },
                   { label: 'Business Name', value: form.businessName || '—' },
                   { label: 'Space Required', value: form.spaceRequired ? `${form.spaceRequired} sq ft` : '—' },
@@ -289,7 +297,8 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
           <button
             type="button"
             onClick={() => setStep((s) => Math.max(1, s - 1))}
-            disabled={step === 1}
+            disabled={step ===
+   1}
             className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#b3cde0] dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" /> Back
@@ -297,8 +306,10 @@ export default function CreateStallForm({ onClose, onSubmit, initialData }: Crea
           {step < STEPS.length ? (
             <button
               type="button"
-              onClick={() => { if (step === 1 && !form.stallName.trim()) return; setStep((s) => s + 1); }}
-              disabled={step === 1 && !form.stallName.trim()}
+              onClick={() => { if (step ===
+   1 && !form.stallName.trim()) return; setStep((s) => s + 1); }}
+              disabled={step ===
+   1 && !form.stallName.trim()}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-ev-700 text-white text-sm font-medium rounded-lg hover:bg-ev-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue <ChevronRight className="w-4 h-4" />
