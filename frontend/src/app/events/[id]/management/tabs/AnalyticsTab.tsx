@@ -12,6 +12,7 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { EventStatistics, EventVolunteer } from '@/features/event-management/types/event.types';
 import { CARD, CARD_HEADER } from './constants';
+import { ShimmerStatCard, ShimmerCard, ShimmerLine } from '@/components/shimmer';
 
 type EmailAnalyticsData = {
   totalCampaigns: number;
@@ -224,7 +225,16 @@ export default function AnalyticsTab({
           </h3>
         </div>
         {emailAnalyticsLoading ? (
-          <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-violet-400" /></div>
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <ShimmerCard key={i} className="p-3">
+                  <ShimmerLine className="h-6 w-12 mb-1" />
+                  <ShimmerLine className="h-3 w-16" />
+                </ShimmerCard>
+              ))}
+            </div>
+          </div>
         ) : !emailAnalytics || emailAnalytics.totalCampaigns === 0 ? (
           <div className="p-8 text-center">
             <Mail className="w-10 h-10 mx-auto mb-2 text-gray-300 dark:text-gray-600" />

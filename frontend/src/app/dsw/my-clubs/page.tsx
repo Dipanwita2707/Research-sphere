@@ -23,6 +23,7 @@ import dswAPI from "@/features/dsw/services/api";
 import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { DSWMyClubsShimmer } from "@/components/shimmer";
 import { ClubCreationRequest } from "@/features/dsw/types";
 
 // ─── Noting status → human-readable label + style ───────────────────────────
@@ -269,7 +270,7 @@ export default function MyClubsPage() {
     : null;
 
   if (isLoading) {
-    return <PageSkeleton message="Loading your clubs..." />;
+    return <DSWMyClubsShimmer />;
   }
 
   const hasAnything = clubs.length > 0 || allRequests.length > 0;

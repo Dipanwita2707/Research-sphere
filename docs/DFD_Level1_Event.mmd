@@ -1,0 +1,105 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '14px'}}}%%
+
+flowchart TB
+    subgraph ENTITIES["👥 EXTERNAL ENTITIES"]
+        STU["👨‍🎓 Student"]
+        FAC["👨‍🏫 Faculty"]
+        VOL["🙋 Volunteer"]
+        PUB["🌐 Public"]
+        ADM["🔐 Admin"]
+    end
+
+    subgraph EVENT["🎪 3.0 EVENT MANAGEMENT MODULE"]
+        E1(("3.1<br/>Event<br/>Discovery"))
+        E2(("3.2<br/>Event<br/>Registration"))
+        E3(("3.3<br/>Team<br/>Management"))
+        E4(("3.4<br/>Payment<br/>Processing"))
+        E5(("3.5<br/>QR Scan<br/>Attendance"))
+        E6(("3.6<br/>Volunteer<br/>Management"))
+        E7(("3.7<br/>Certificate<br/>Generation"))
+        E8(("3.8<br/>Feedback<br/>Collection"))
+        E9(("3.9<br/>Stall<br/>Management"))
+        E10(("3.10<br/>Bulk Email"))
+        E11(("3.11<br/>Analytics"))
+    end
+
+    subgraph STORES["📦 DATA STORES"]
+        DB_EVT[("D1: Event")]
+        DB_REG[("D2: Registration")]
+        DB_TEAM[("D3: Team")]
+        DB_PAY[("D4: Payment")]
+        DB_CERT[("D5: Certificate")]
+        S3[("D6: AWS S3")]
+    end
+
+    subgraph SERVICES["🔌 EXTERNAL SERVICES"]
+        RAZORPAY["💳 Razorpay"]
+        SENDGRID["📧 SendGrid"]
+    end
+
+    NOTING["📝 From Noting<br/>(Approved Event)"]
+
+    %% Event Discovery
+    NOTING -->|"Event Created"| DB_EVT
+    STU -->|"Browse/Search"| E1
+    E1 -->|"Query Events"| DB_EVT
+    E1 -->|"Event List"| STU
+
+    %% Registration
+    STU -->|"Register"| E2
+    E2 -->|"Registration"| DB_REG
+    E2 -->|"QR Ticket"| STU
+
+    %% Teams
+    STU -->|"Create/Join Team"| E3
+    E3 -->|"Team Data"| DB_TEAM
+
+    %% Payment
+    E2 -->|"Paid Event"| E4
+    E4 -->|"Create Order"| RAZORPAY
+    RAZORPAY -->|"Payment Status"| E4
+    E4 -->|"Payment Record"| DB_PAY
+
+    %% Attendance
+    VOL -->|"Scan QR"| E5
+    E5 -->|"Entry/Exit"| DB_REG
+    E5 -->|"Report"| FAC
+
+    %% Volunteers
+    FAC -->|"Assign"| E6
+    E6 -->|"Volunteer Data"| DB_EVT
+
+    %% Certificates
+    FAC -->|"Generate"| E7
+    E7 -->|"PDF"| S3
+    E7 -->|"Record"| DB_CERT
+    E7 -->|"Certificate"| STU
+    PUB -->|"Verify"| E7
+
+    %% Feedback
+    STU -->|"Submit"| E8
+    E8 -->|"Feedback"| DB_EVT
+
+    %% Stalls
+    STU -->|"Apply"| E9
+    E9 -->|"Application"| DB_EVT
+
+    %% Bulk Email
+    FAC -->|"Send"| E10
+    E10 -->|"Campaign"| SENDGRID
+
+    %% Analytics
+    ADM -->|"View"| E11
+    E11 -->|"Query"| DB_EVT
+
+    classDef entity fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef process fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef store fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    classDef service fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    classDef external fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    
+    class STU,FAC,VOL,PUB,ADM entity
+    class E1,E2,E3,E4,E5,E6,E7,E8,E9,E10,E11 process
+    class DB_EVT,DB_REG,DB_TEAM,DB_PAY,DB_CERT,S3 store
+    class RAZORPAY,SENDGRID service
+    class NOTING external

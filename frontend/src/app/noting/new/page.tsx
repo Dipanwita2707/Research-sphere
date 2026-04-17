@@ -40,6 +40,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { NotingFormShimmer } from '@/components/shimmer';
 import { useNotingDraftStore } from '@/features/noting-management/stores/notingDraftStore';
 import { useAuthStore } from '@/shared/auth/authStore';
 import {
@@ -1368,11 +1369,7 @@ export default function NewNotePage() {
   // isChairperson, effectiveCategory, effectiveSubcategory are declared near the top (after category/subcategory state)
 
   if (loading || notingPermsLoading || departmentsLoading || !config) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
-        <PageSkeleton message="Loading form..." />
-      </div>
-    );
+    return <NotingFormShimmer />;
   }
 
   if (!isStudentUser && notingPerms && !notingPerms.noting_create) {

@@ -272,6 +272,18 @@ code {
   animation: shimmer 1.5s infinite;
 }
 
+/* Shimmer animation class for skeleton components */
+.shimmer-animate {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Dark mode shimmer */
+.dark .shimmer,
+.dark .shimmer-animate {
+  background: linear-gradient(90deg, #374151 25%, #4B5563 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
 /* Badge styles */
 .badge-sgt {
   background: linear-gradient(135deg, #0F2573 0%, #041D56 100%);

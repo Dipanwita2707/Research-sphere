@@ -37,6 +37,7 @@ import type {
   NotingAnalyticsUser,
 } from '@/features/noting-management/types/noting.types';
 import { PAGE_SIZE, STATUS_CONFIG } from '@/features/noting-management/constants';
+import { NotingAdminShimmer, ShimmerTableRow, ShimmerStatCard, ShimmerCard } from '@/components/shimmer';
 
 type AdminTab = 'overview' | 'notings' | 'users' | 'activity';
 
@@ -363,8 +364,16 @@ export default function NotingAdminPage() {
         {tab === 'overview' && (
           <div className="space-y-6">
             {overviewLoading ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <ShimmerStatCard key={i} />
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <ShimmerCard className="h-64" />
+                  <ShimmerCard className="h-64" />
+                </div>
               </div>
             ) : overview ? (
               <>
@@ -582,9 +591,13 @@ export default function NotingAdminPage() {
             </div>
 
             {notesLoading ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-              </div>
+              <ShimmerCard className="overflow-hidden">
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <ShimmerTableRow key={i} columns={7} />
+                  ))}
+                </div>
+              </ShimmerCard>
             ) : notes.length === 0 ? (
               <EmptyState title="No notings match these filters" description="Try a broader search or clear one of the active filters." />
             ) : (
@@ -663,8 +676,19 @@ export default function NotingAdminPage() {
         {tab === 'users' && (
           <div className="space-y-6">
             {usersLoading ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[1, 2, 3].map((i) => (
+                    <ShimmerStatCard key={i} />
+                  ))}
+                </div>
+                <ShimmerCard className="overflow-hidden">
+                  <div className="p-4 space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <ShimmerTableRow key={i} columns={7} />
+                    ))}
+                  </div>
+                </ShimmerCard>
               </div>
             ) : userAnalytics ? (
               <>
@@ -745,8 +769,19 @@ export default function NotingAdminPage() {
         {tab === 'activity' && (
           <div className="space-y-6">
             {activityLoading ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <ShimmerStatCard key={i} />
+                  ))}
+                </div>
+                <ShimmerCard className="overflow-hidden">
+                  <div className="p-4 space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <ShimmerTableRow key={i} columns={7} />
+                    ))}
+                  </div>
+                </ShimmerCard>
               </div>
             ) : activityAnalytics ? (
               <>

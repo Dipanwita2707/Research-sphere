@@ -45,6 +45,7 @@ import {
 import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { DSWClubDetailShimmer } from "@/components/shimmer";
 import {
   CLUB_MEMBER_ROLES,
   CLUB_MEMBER_ROLE_OPTIONS,
@@ -779,7 +780,7 @@ export default function ClubDetailsPage() {
   };
 
   // ── Loading ──────────────────────────────────────────────────────────────────
-  if (isLoading) return <PageSkeleton message="Loading club details…" />;
+  if (isLoading) return <DSWClubDetailShimmer />;
 
   // ── Error / Not Found ────────────────────────────────────────────────────────
   if (errorMessage || !club) {

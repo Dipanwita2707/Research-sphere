@@ -33,6 +33,7 @@ import type {
   EventAdminEventSummary,
   EventAdminUserItem,
 } from '@/features/event-management/types/event.types';
+import { ShimmerStatCard, ShimmerCard, ShimmerTableRow, EventCardShimmer } from '@/components/shimmer';
 
 const PAGE_SIZE = 20;
 
@@ -540,8 +541,16 @@ export default function EventAdminPage() {
             {tab === 'overview' ? (
               <div className="space-y-6">
                 {overviewLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <ShimmerStatCard key={i} />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <ShimmerCard className="h-64" />
+                      <ShimmerCard className="h-64" />
+                    </div>
                   </div>
                 ) : overview ? (
                   <>
@@ -710,8 +719,10 @@ export default function EventAdminPage() {
                 </div>
 
                 {eventsLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <EventCardShimmer key={i} />
+                    ))}
                   </div>
                 ) : eventsData?.events?.length ? (
                   <>
@@ -759,9 +770,16 @@ export default function EventAdminPage() {
             {tab === 'users' ? (
               <div className="space-y-6">
                 {usersLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-                  </div>
+                  <ShimmerCard className="overflow-hidden">
+                    <div className="px-6 py-5 border-b border-[#b3cde0]/20">
+                      <div className="shimmer-animate h-4 w-32 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] dark:from-gray-700 dark:via-gray-600 dark:to-gray-700" />
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <ShimmerTableRow key={i} columns={6} />
+                      ))}
+                    </div>
+                  </ShimmerCard>
                 ) : usersData?.creators?.length ? (
                   <div className="bg-white rounded-2xl border border-[#b3cde0]/40 overflow-hidden">
                     <div className="px-6 py-5 border-b border-[#b3cde0]/20">
@@ -797,8 +815,12 @@ export default function EventAdminPage() {
             {tab === 'activity' ? (
               <div className="space-y-6">
                 {activityLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <ShimmerCard key={i} className="p-4">
+                        <ShimmerTableRow columns={4} />
+                      </ShimmerCard>
+                    ))}
                   </div>
                 ) : activityData?.items?.length ? (
                   <>

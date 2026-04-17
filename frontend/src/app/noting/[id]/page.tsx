@@ -57,6 +57,7 @@ import { useToast } from "@/shared/ui-components/Toast";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
 import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
+import { NotingDetailShimmer } from "@/components/shimmer";
 import { useAuthStore } from "@/shared/auth/authStore";
 import NotingCreatorPanel from "./components/NotingCreatorPanel";
 
@@ -630,11 +631,7 @@ export default function NoteDetailPage() {
   };
 
   if (loading || !note) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
-        <PageSkeleton message="Loading note..." />
-      </div>
-    );
+    return <NotingDetailShimmer />;
   }
 
   const approverActions =

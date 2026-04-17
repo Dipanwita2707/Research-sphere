@@ -9,7 +9,7 @@ import type { EventRegistration } from '@/features/event-management/types/event.
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import TicketModal from '@/components/TicketModal';
-import { CardSkeleton } from "@/components/skeletons";
+import { EventsUserRegistrationsShimmer, ShimmerCard } from '@/components/shimmer';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', icon: Clock },
@@ -268,13 +268,7 @@ export default function MyRegistrationsPage() {
 
         {/* Registrations List */}
         {loading ? (
-          <div
-            className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
-            style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
-          >
-            <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-            <p className="mt-4 text-sm font-medium text-[#6497b1]">Loading your passes...</p>
-          </div>
+          <EventsUserRegistrationsShimmer />
         ) : registrations.length === 0 ? (
           <div
             className="rounded-2xl border border-[#b3cde0]/40 bg-white py-16 text-center dark:border-gray-700 dark:bg-gray-800"
@@ -593,7 +587,7 @@ export default function MyRegistrationsPage() {
                   />
                 ) : (
                   <div className="flex items-center justify-center h-48 w-48">
-                    <CardSkeleton className="w-full max-w-sm" />
+                    <ShimmerCard className="w-full max-w-sm h-48" />
                   </div>
                 )}
                 <div className="mt-4 px-3 py-1.5 bg-gray-100 rounded-md font-mono text-xs font-bold text-gray-600 tracking-wider">

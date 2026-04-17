@@ -53,6 +53,7 @@ import {
   PAGE_SIZE,
 } from "@/features/noting-management/constants";
 import { CardSkeleton, Skeleton } from "@/components/skeletons";
+import { NotingCardShimmer } from "@/components/shimmer";
 
 function getDisplayName(note: Note): string {
   const c = note.createdBy;
@@ -824,14 +825,10 @@ export default function NotingListPage() {
         {filter === "copies" ? (
           /* ===== Copies For Me Tab ===== */
           copiesLoading ? (
-            <div
-              className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
-              style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
-            >
-              <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-              <p className="mt-4 text-sm font-medium text-[#6497b1]">
-                Loading copies...
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <NotingCardShimmer key={i} />
+              ))}
             </div>
           ) : myCopies.length === 0 ? (
             <div
@@ -993,14 +990,10 @@ export default function NotingListPage() {
             </div>
           )
         ) : isLoading ? (
-          <div
-            className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
-            style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
-          >
-            <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-            <p className="mt-4 text-sm font-medium text-[#6497b1]">
-              Loading notes...
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <NotingCardShimmer key={i} />
+            ))}
           </div>
         ) : notes.length === 0 ? (
           <div

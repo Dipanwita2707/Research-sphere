@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EventsMyEventsShimmer, EventCardShimmer } from '@/components/shimmer';
 
 /** Status → icon mapping (page-specific) */
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -102,14 +103,7 @@ export default function MyCreatedEventsPage() {
 
   // Show TMS-style loading while checking permissions for students
   if (isStudent && permsLoading) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] py-8 px-4 dark:bg-gray-900 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-center py-24">
-          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-          <p className="mt-4 text-sm font-medium text-[#6497b1]">Loading...</p>
-        </div>
-      </div>
-    );
+    return <EventsMyEventsShimmer />;
   }
   // Access guard: students who are not club chairpersons cannot access this page
   if (isStudent && !isChairperson) {
@@ -249,12 +243,10 @@ export default function MyCreatedEventsPage() {
 
               {/* Events List */}
               {loading ? (
-                <div
-                  className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
-                  style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
-                >
-                  <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-                  <p className="mt-4 text-sm font-medium text-[#6497b1]">Loading events...</p>
+                <div className="grid grid-cols-1 gap-6">
+                  {[1, 2, 3, 4].map((i) => (
+                    <EventCardShimmer key={i} />
+                  ))}
                 </div>
               ) : events.length === 0 ? (
                 <div

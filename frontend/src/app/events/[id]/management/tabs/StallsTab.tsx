@@ -11,6 +11,7 @@ import CreateStallForm, { type CreateStallFormData } from '@/features/event-mana
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { CARD, CARD_HEADER } from './constants';
+import { EventsStallOpportunitiesShimmer } from '@/components/shimmer';
 
 // ── Props ────────────────────────────────────────────────────────
 interface StallsTabProps {
@@ -249,7 +250,7 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
       </div>
 
       {stallsLoading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-ev-700" /></div>
+        <EventsStallOpportunitiesShimmer />
       ) : (
         <>
           {/* Summary Metrics */}

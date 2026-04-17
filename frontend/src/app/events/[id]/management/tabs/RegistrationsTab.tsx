@@ -15,6 +15,7 @@ import type {
   RegistrationFilterOptions,
   RegistrationRow,
 } from '@/features/event-management/types/registrationFilter.types';
+import { ShimmerTableRow, ShimmerCard } from '@/components/shimmer';
 import {
   getRegistrationDisplayName,
   getRegistrationIdentifier,
@@ -517,7 +518,15 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
 
             return (
               <div className="space-y-4">
-                {regLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-ev-700" /></div>}
+                {regLoading && (
+                  <div className="space-y-4">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <ShimmerCard key={i} className="p-4">
+                        <ShimmerTableRow columns={6} />
+                      </ShimmerCard>
+                    ))}
+                  </div>
+                )}
                 {teamEntries.map(([teamId, members], idx) => {
                   const color = teamColorMap.get(teamId)!;
                   const teamInfo = members[0]?.team;
@@ -590,7 +599,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                   Registrations {regPagination ? `(${regPagination.total})` : ''}
                 </h3>
-                {regLoading && <Loader2 className="w-4 h-4 animate-spin text-ev-700" />}
+                {regLoading && <div className="w-4 h-4 rounded-full shimmer-animate bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] dark:from-gray-700 dark:via-gray-600 dark:to-gray-700" />}
               </div>
               <div className="overflow-x-auto -mx-1">
                 <table className="w-full min-w-[900px]">
@@ -716,7 +725,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                   Guest Passes ({guestRows.length})
                 </h3>
-                {regLoading && <Loader2 className="w-4 h-4 animate-spin text-ev-700" />}
+                {regLoading && <div className="w-4 h-4 rounded-full shimmer-animate bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] dark:from-gray-700 dark:via-gray-600 dark:to-gray-700" />}
               </div>
               <div className="overflow-x-auto -mx-1">
                 <table className="w-full min-w-[980px]">

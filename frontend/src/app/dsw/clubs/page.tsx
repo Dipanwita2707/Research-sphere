@@ -21,6 +21,7 @@ import { ClubFilters } from "@/features/dsw/types";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { useDebounce } from "@/shared/hooks/useDebounce";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { DSWClubsListShimmer } from "@/components/shimmer";
 import { useAuthStore } from "@/shared/auth/authStore";
 
 export default function AllClubsPage() {
@@ -133,7 +134,7 @@ export default function AllClubsPage() {
   };
 
   if (isLoading) {
-    return <PageSkeleton message="Loading clubs..." />;
+    return <DSWClubsListShimmer />;
   }
 
   return (
