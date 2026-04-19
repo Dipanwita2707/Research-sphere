@@ -5,6 +5,7 @@ import { BarChart3, TrendingUp, Users, Calendar, Award, Activity } from 'lucide-
 import { useStatistics } from '@/features/dsw/hooks';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { DSWStatisticsShimmer } from '@/components/shimmer';
 
 export default function StatisticsPage() {
   const { data: response, isLoading, error } = useStatistics();
@@ -22,7 +23,7 @@ export default function StatisticsPage() {
   const errorMessage = error ? getErrorMessage(error) : null;
 
   if (isLoading) {
-    return <PageSkeleton message="Loading statistics..." />;
+    return <DSWStatisticsShimmer />;
   }
 
   return (

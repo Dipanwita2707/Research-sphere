@@ -24,6 +24,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { useDebounce } from '@/shared/hooks/useDebounce';
 import { CardSkeleton, PageHeaderSkeleton } from '@/components/skeletons';
+import { EventCardShimmer } from '@/components/shimmer';
 import { EVENT_TYPE_LABELS } from '@/features/event-management/constants';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useMyClubs } from '@/features/dsw/hooks';
@@ -491,14 +492,10 @@ export default function EventsPage() {
         </div>
 
             {isLoading ? (
-              <div
-                className="overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white dark:border-gray-700 dark:bg-gray-800"
-                style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
-              >
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-                  <p className="mt-4 text-sm font-medium text-[#6497b1]">Loading events...</p>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <EventCardShimmer key={i} />
+                ))}
               </div>
             ) : filteredEvents.length ===
    0 ? (

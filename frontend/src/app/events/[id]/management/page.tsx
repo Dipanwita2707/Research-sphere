@@ -13,6 +13,7 @@ import { eventService } from '@/features/event-management/services/event.service
 import type { Event, EventStatistics, EventVolunteer } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { EventManagementShimmer } from '@/components/shimmer';
 
 // ── Constants (used for computed pieData) ──────────────────────
 const STATUS_COLORS = {
@@ -199,14 +200,7 @@ export default function EventManagementPage() {
 
   // ── Loading & Error States ─────────────────────────────────────
   if (loading) {
-    return (
-      <div className="ev-page flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-ev-700 mx-auto mb-4" />
-          <p className="text-ev-400 dark:text-gray-400 font-medium">Loading event management...</p>
-        </div>
-      </div>
-    );
+    return <EventManagementShimmer />;
   }
 
   if (!event || !statistics) {
