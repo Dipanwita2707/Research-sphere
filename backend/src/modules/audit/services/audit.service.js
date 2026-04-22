@@ -5,6 +5,88 @@
 
 const prisma = require('../../../shared/config/database');
 
+const ALLOWED_PAGE_SIZES = new Set([25, 50, 100]);
+
+function isUuid(value) {
+  if (!value || typeof value !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function toSerializable(value) {
+  if (value === undefined) return null;
+  if (value === null) return null;
+  if (typeof value === 'object') {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (_) {
+      return null;
+    }
+  }
+  return value;
+}
+
+function getSafeSort(sortBy, sortOrder) {
+  const allowedSortBy = new Set([
+    'createdAt',
+    'actionType',
+    'module',
+    'severity',
+    'status',
+    'performedByName',
+    'entityName'
+  ]);
+  const safeSortBy = allowedSortBy.has(sortBy) ? sortBy : 'createdAt';
+  const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+  return { safeSortBy, safeSortOrder };
+}
+
+function computeChangedFields(oldValues, newValues) {
+  if (!oldValues || !newValues || typeof oldValues !== 'object' || typeof newValues !== 'object') {
+    return [];
+  }
+
+  const keys = new Set([...Object.keys(oldValues), ...Object.keys(newValues)]);
+  const changes = [];
+
+  for (const key of keys) {
+    const oldValue = oldValues[key];
+    const newValue = newValues[key];
+    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+      changes.push({ field: key, from: oldValue, to: newValue });
+    }
+  }
+
+  return changes;
+}
+
+function buildDescription({ performedByName, actionType, entityType, entityName, changedFields = [] }) {
+  const actor = performedByName || 'SYSTEM';
+  const prettyEntityType = entityType || 'record';
+  const prettyEntityName = entityName ? `'${entityName}'` : 'record';
+
+  if (actionType === AuditActionType.UPDATE && changedFields.length > 0) {
+    const first = changedFields[0];
+    const from = first.from == null ? 'empty' : String(first.from);
+    const to = first.to == null ? 'empty' : String(first.to);
+    if (changedFields.length === 1) {
+      return `${actor} updated ${prettyEntityType} ${prettyEntityName} - changed ${first.field} from ${from} to ${to}`;
+    }
+    return `${actor} updated ${prettyEntityType} ${prettyEntityName} - changed ${changedFields.length} fields (including ${first.field} from ${from} to ${to})`;
+  }
+
+  if (actionType === AuditActionType.CREATE) {
+    return `${actor} created ${prettyEntityType} ${prettyEntityName}`;
+  }
+  if (actionType === AuditActionType.DELETE) {
+    return `${actor} deleted ${prettyEntityType} ${prettyEntityName}`;
+  }
+  if (actionType === AuditActionType.READ) {
+    return `${actor} viewed ${prettyEntityType} ${prettyEntityName}`;
+  }
+
+  return `${actor} performed ${actionType || 'OTHER'} on ${prettyEntityType} ${prettyEntityName}`;
+}
+
 // Action type constants
 const AuditActionType = {
   CREATE: 'CREATE',
@@ -42,6 +124,9 @@ const AuditModule = {
   AUTH: 'auth',
   IPR: 'ipr',
   RESEARCH: 'research',
+  EVENT: 'event',
+  DSW: 'dsw',
+  NOTES: 'notes',
   ADMIN: 'admin',
   USER: 'user',
   DASHBOARD: 'dashboard',
@@ -53,19 +138,115 @@ const AuditModule = {
 };
 
 class AuditService {
+  async resolvePerformedBySnapshot(actorId) {
+    if (!actorId) {
+      return { performedByName: 'SYSTEM', performedByRole: 'SYSTEM' };
+    }
+
+    try {
+      const actor = await prisma.userLogin.findUnique({
+        where: { id: actorId },
+        select: {
+          uid: true,
+          role: true,
+          employeeDetails: {
+            select: { displayName: true, firstName: true, lastName: true }
+          },
+          studentLogin: {
+            select: { displayName: true, firstName: true, lastName: true }
+          }
+        }
+      });
+
+      if (!actor) {
+        return { performedByName: 'UNKNOWN_USER', performedByRole: 'UNKNOWN_ROLE' };
+      }
+
+      const empName = actor.employeeDetails?.displayName ||
+        [actor.employeeDetails?.firstName, actor.employeeDetails?.lastName].filter(Boolean).join(' ').trim();
+      const studentName = actor.studentLogin?.displayName ||
+        [actor.studentLogin?.firstName, actor.studentLogin?.lastName].filter(Boolean).join(' ').trim();
+
+      return {
+        performedByName: empName || studentName || actor.uid || 'UNKNOWN_USER',
+        performedByRole: actor.role || 'UNKNOWN_ROLE'
+      };
+    } catch (_) {
+      return { performedByName: 'UNKNOWN_USER', performedByRole: 'UNKNOWN_ROLE' };
+    }
+  }
+
+  buildLogWhere({
+    actorId = null,
+    module = null,
+    actionType = null,
+    severity = null,
+    status = null,
+    performedBy = null,
+    targetTable = null,
+    startDate = null,
+    endDate = null,
+    search = null
+  }) {
+    const where = {};
+
+    if (actorId) where.actorId = actorId;
+    if (module) where.module = module;
+    if (actionType) where.actionType = actionType;
+    if (severity) where.severity = severity;
+    if (status) where.status = status;
+    if (targetTable) where.targetTable = targetTable;
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
+    }
+
+    const andConditions = [];
+    if (performedBy) {
+      andConditions.push({
+        performedByName: { contains: performedBy, mode: 'insensitive' }
+      });
+    }
+
+    if (search) {
+      andConditions.push({
+        OR: [
+          { action: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { entityName: { contains: search, mode: 'insensitive' } },
+          { performedByName: { contains: search, mode: 'insensitive' } },
+          { errorMessage: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    return where;
+  }
+
   /**
    * Log an audit event
    * @param {Object} params - Audit log parameters
    */
   async log({
     actorId = null,
+    performedByName = null,
+    performedByRole = null,
     action,
+    description = null,
     actionType = AuditActionType.OTHER,
     module = null,
     category = null,
     severity = AuditSeverity.INFO,
     targetTable = null,
     targetId = null,
+    entityId = null,
+    entityName = null,
     details = {},
     oldValues = null,
     newValues = null,
@@ -75,35 +256,62 @@ class AuditService {
     requestPath = null,
     requestMethod = null,
     responseStatus = null,
+    status = null,
     duration = null,
     errorMessage = null,
     metadata = null
   }) {
     try {
+      let nameSnapshot = performedByName;
+      let roleSnapshot = performedByRole;
+
+      if (!nameSnapshot || !roleSnapshot) {
+        const resolved = await this.resolvePerformedBySnapshot(actorId);
+        nameSnapshot = nameSnapshot || resolved.performedByName;
+        roleSnapshot = roleSnapshot || resolved.performedByRole;
+      }
+
+      const normalizedStatus = status || (responseStatus && responseStatus >= 400 ? 'failed' : 'success');
+      const changedFields = computeChangedFields(oldValues, newValues);
+      const finalDescription = description || buildDescription({
+        performedByName: nameSnapshot,
+        actionType,
+        entityType: targetTable,
+        entityName,
+        changedFields
+      });
+
       const auditLog = await prisma.auditLog.create({
         data: {
           actorId,
+          performedByName: nameSnapshot,
+          performedByRole: roleSnapshot,
           action,
+          description: finalDescription,
+          actionType,
+          module,
+          category,
+          severity,
           targetTable,
-          targetId,
+          targetId: isUuid(targetId) ? targetId : null,
+          entityId: entityId || targetId || null,
+          entityName,
           details: {
-            ...details,
-            actionType,
-            module,
-            category,
-            severity,
-            oldValues,
-            newValues,
-            sessionId,
-            requestPath,
-            requestMethod,
-            responseStatus,
-            duration,
-            errorMessage,
-            metadata
+            ...(toSerializable(details) || {}),
+            changedFields
           },
           ipAddress,
-          userAgent
+          userAgent,
+          oldValues: toSerializable(oldValues),
+          newValues: toSerializable(newValues),
+          sessionId,
+          requestPath,
+          requestMethod,
+          responseStatus,
+          status: normalizedStatus,
+          duration,
+          errorMessage,
+          metadata: toSerializable(metadata)
         }
       });
 
@@ -392,6 +600,8 @@ class AuditService {
     module = null,
     actionType = null,
     severity = null,
+    status = null,
+    performedBy = null,
     targetTable = null,
     startDate = null,
     endDate = null,
@@ -399,35 +609,30 @@ class AuditService {
     sortBy = 'createdAt',
     sortOrder = 'desc'
   }) {
-    const skip = (page - 1) * limit;
-    
-    const where = {};
+    const pageNumber = Number.isFinite(Number(page)) ? Math.max(1, Number(page)) : 1;
+    const normalizedLimit = ALLOWED_PAGE_SIZES.has(Number(limit)) ? Number(limit) : 50;
+    const skip = (pageNumber - 1) * normalizedLimit;
+    const { safeSortBy, safeSortOrder } = getSafeSort(sortBy, sortOrder);
 
-    if (actorId) where.actorId = actorId;
-    if (module) where.module = module;
-    if (actionType) where.actionType = actionType;
-    if (severity) where.severity = severity;
-    if (targetTable) where.targetTable = targetTable;
-
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate);
-    }
-
-    if (search) {
-      where.OR = [
-        { action: { contains: search, mode: 'insensitive' } },
-        { errorMessage: { contains: search, mode: 'insensitive' } }
-      ];
-    }
+    const where = this.buildLogWhere({
+      actorId,
+      module,
+      actionType,
+      severity,
+      status,
+      performedBy,
+      targetTable,
+      startDate,
+      endDate,
+      search
+    });
 
     const [logs, total] = await Promise.all([
       prisma.auditLog.findMany({
         where,
         skip,
-        take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        take: normalizedLimit,
+        orderBy: { [safeSortBy]: safeSortOrder },
         include: {
           actor: {
             select: {
@@ -448,13 +653,24 @@ class AuditService {
       prisma.auditLog.count({ where })
     ]);
 
+    const hydratedLogs = logs.map((log) => ({
+      ...log,
+      performedByName:
+        log.performedByName ||
+        log.actor?.employeeDetails?.displayName ||
+        log.actor?.uid ||
+        'SYSTEM',
+      performedByRole: log.performedByRole || log.actor?.role || 'SYSTEM',
+      status: log.status || (log.responseStatus && log.responseStatus >= 400 ? 'failed' : 'success')
+    }));
+
     return {
-      data: logs,
+      data: hydratedLogs,
       pagination: {
-        page,
-        limit,
+        page: pageNumber,
+        limit: normalizedLimit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / normalizedLimit)
       }
     };
   }

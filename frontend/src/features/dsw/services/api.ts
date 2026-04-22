@@ -11,11 +11,14 @@ import {
   ClubMember,
   ClubAuditLog,
   ClubCreationFormData,
+  ClubLeadershipUpdatePayload,
   ClubFilters,
   AuditLogFilters,
   ApiResponse,
   PaginatedResponse,
   DSWStatistics,
+  DSWAdvancedStatistics,
+  DSWTrendGranularity,
   ClubChangeRequest,
   ClubCreationRequest,
   ClubMemberApplication,
@@ -116,6 +119,33 @@ export const clubAPI = {
     const response = await api.patch<ApiResponse<Club>>(
       DSW_API_ENDPOINTS.CLUB_BY_ID(clubId),
       updates,
+    );
+    return response.data;
+  },
+
+  /**
+   * Update club leadership (chairperson / faculty facilitator)
+   */
+  updateClubLeadership: async (
+    clubId: string,
+    updates: ClubLeadershipUpdatePayload,
+  ): Promise<ApiResponse<Club>> => {
+    const response = await api.patch<ApiResponse<Club>>(
+      DSW_API_ENDPOINTS.CLUB_LEADERSHIP(clubId),
+      updates,
+    );
+    return response.data;
+  },
+
+  /**
+   * Create club directly as admin (bypasses noting workflow)
+   */
+  createClubDirect: async (
+    data: ClubCreationFormData,
+  ): Promise<ApiResponse<Club>> => {
+    const response = await api.post<ApiResponse<Club>>(
+      DSW_API_ENDPOINTS.CLUB_CREATE_DIRECT,
+      data,
     );
     return response.data;
   },
@@ -366,6 +396,20 @@ export const statisticsAPI = {
     );
     return response.data;
   },
+
+  /**
+   * Get advanced DSW analytics by time range and trend granularity
+   */
+  getAdvancedStatistics: async (params?: {
+    rangeMonths?: number;
+    granularity?: DSWTrendGranularity;
+  }): Promise<ApiResponse<DSWAdvancedStatistics>> => {
+    const response = await api.get<ApiResponse<DSWAdvancedStatistics>>(
+      DSW_API_ENDPOINTS.STATISTICS_ADVANCED,
+      { params },
+    );
+    return response.data;
+  },
 };
 
 // Audit Log API
@@ -407,6 +451,7 @@ export const dswAPI = {
   health: healthAPI,
   // Convenience methods at top level
   getStatistics: statisticsAPI.getStatistics,
+  getAdvancedStatistics: statisticsAPI.getAdvancedStatistics,
   getClubs: clubAPI.getClubs,
   getMyClubs: clubAPI.getMyClubs,
   getMyClubRequests: clubAPI.getMyClubRequests,

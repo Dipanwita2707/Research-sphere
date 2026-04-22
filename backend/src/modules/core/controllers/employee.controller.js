@@ -87,6 +87,10 @@ const createEmployee = async (req, res) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
+    const normalizedMiddleName = (middleName || '').trim();
+    const normalizedLastName = (lastName || '').trim();
+    const storedLastName = [normalizedMiddleName, normalizedLastName].filter(Boolean).join(' ') || null;
+    const displayName = [firstName, normalizedMiddleName, normalizedLastName].filter(Boolean).join(' ');
 
     // Create user with employee details in a transaction with extended timeout
     const result = await prisma.$transaction(async (tx) => {
@@ -109,10 +113,8 @@ const createEmployee = async (req, res) => {
           },
           empId,
           firstName,
-          lastName: middleName ? `${middleName} ${lastName}` : lastName,
-          displayName: middleName 
-            ? `${firstName} ${middleName} ${lastName}` 
-            : `${firstName} ${lastName}`,
+          lastName: storedLastName,
+          displayName,
           designation,
           officerLevel: officerLevel || null,
           email: email,
@@ -463,7 +465,7 @@ const updateEmployee = async (req, res) => {
 
     // Employee detail fields (only fields that exist in schema)
     if (updates.firstName) employeeUpdates.firstName = updates.firstName;
-    if (updates.lastName) employeeUpdates.lastName = updates.lastName;
+    if (updates.lastName !== undefined) employeeUpdates.lastName = updates.lastName || null;
     if (updates.designation !== undefined) employeeUpdates.designation = updates.designation || null;
     if (updates.officerLevel !== undefined) employeeUpdates.officerLevel = updates.officerLevel || null;
     if (updates.email) employeeUpdates.email = updates.email;
@@ -487,20 +489,23 @@ const updateEmployee = async (req, res) => {
       if (updates.mobileNumber) metadata.mobileNumber = updates.mobileNumber;
       if (updates.employeeCategory) metadata.employeeCategory = updates.employeeCategory;
       if (updates.employeeType) metadata.employeeType = updates.employeeType;
+      if (updates.dateOfBirth !== undefined) metadata.dateOfBirth = updates.dateOfBirth || null;
+      if (updates.alternateNumber !== undefined) metadata.alternateNumber = updates.alternateNumber || null;
+      if (updates.personalEmail !== undefined) metadata.personalEmail = updates.personalEmail || null;
+      if (updates.currentAddress !== undefined) metadata.currentAddress = updates.currentAddress || null;
+      if (updates.permanentAddress !== undefined) metadata.permanentAddress = updates.permanentAddress || null;
       if (Object.keys(metadata).length > 0) {
         employeeUpdates.metadata = metadata;
       }
     }
 
     // Update displayName if name fields changed
-    if (updates.firstName || updates.middleName || updates.lastName) {
-      const firstName = updates.firstName || employee?.firstName;
-      const lastName = updates.lastName || employee?.lastName;
-      const middleName = updates.middleName;
-      
-      employeeUpdates.displayName = middleName 
-        ? `${firstName} ${middleName} ${lastName}` 
-        : `${firstName} ${lastName}`;
+    if (updates.firstName !== undefined || updates.middleName !== undefined || updates.lastName !== undefined) {
+      const firstName = updates.firstName || employee?.firstName || '';
+      const middleName = updates.middleName !== undefined ? updates.middleName : '';
+      const lastName = updates.lastName !== undefined ? updates.lastName : (employee?.lastName || '');
+
+      employeeUpdates.displayName = [firstName, middleName, lastName].filter(Boolean).join(' ');
     }
 
     // Perform updates in transaction

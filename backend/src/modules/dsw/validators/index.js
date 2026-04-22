@@ -218,9 +218,20 @@ const validateGetClubs = validateRequest({
       limit: optionalInteger(1, 100, "Limit must be between 1 and 100"),
       status: optionalPlainText(64, "Status must be a string"),
       categoryId: z.string().uuid("Invalid category ID").optional(),
+      category: z.string().uuid("Invalid category ID").optional(),
       search: optionalPlainText(256, "Search query too long"),
       academicSession: optionalPlainText(16, "Academic session is invalid"),
       myClubs: z.enum(["true", "false"]).optional(),
+      minMembers: optionalInteger(0, Number.MAX_SAFE_INTEGER, "Minimum members must be a non-negative integer"),
+      maxMembers: optionalInteger(0, Number.MAX_SAFE_INTEGER, "Maximum members must be a non-negative integer"),
+      minEvents: optionalInteger(0, Number.MAX_SAFE_INTEGER, "Minimum events must be a non-negative integer"),
+      maxEvents: optionalInteger(0, Number.MAX_SAFE_INTEGER, "Maximum events must be a non-negative integer"),
+      createdFrom: z.string().datetime("Invalid createdFrom date format").optional(),
+      createdTo: z.string().datetime("Invalid createdTo date format").optional(),
+      sortBy: z
+        .enum(["createdAt", "name", "members", "events", "activity"])
+        .optional(),
+      sortOrder: z.enum(["asc", "desc"]).optional(),
     })
     .strip(),
 });
@@ -336,8 +347,47 @@ const validateMemberRoleUpdate = validateRequest({
     .strip(),
 });
 
+const nullableLeadershipIdentifierField = z.preprocess(
+  (value) => {
+    if (value === "" || value === "null" || value === null) return null;
+    if (value === undefined) return undefined;
+    return sanitizePlainText(value, { maxLength: 128 });
+  },
+  z.string().min(1).max(128).nullable().optional(),
+);
+
+const validateClubLeadershipUpdate = validateRequest({
+  params: clubIdParamsSchema,
+  body: z
+    .object({
+      chairpersonId: nullableLeadershipIdentifierField,
+      facultyFacilitatorId: nullableLeadershipIdentifierField,
+      reason: optionalPlainText(500, "Reason must not exceed 500 characters"),
+    })
+    .refine(
+      (data) =>
+        data.chairpersonId !== undefined ||
+        data.facultyFacilitatorId !== undefined,
+      "At least one leadership field must be provided",
+    )
+    .strip(),
+});
+
+const validateDirectClubCreation = validateRequest({
+  body: clubCreationBodySchema.superRefine((data, ctx) => {
+    if (!data.chairpersonId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["chairpersonId"],
+        message: "Chairperson is required for direct club creation",
+      });
+    }
+  }),
+});
+
 module.exports = {
   validateClubCreation,
+  validateDirectClubCreation,
   validateAddMember,
   validateRemoveMember,
   validateClubChangeRequest,
@@ -350,4 +400,5 @@ module.exports = {
   validateClubApplicationCreate,
   validateClubApplicationReview,
   validateMemberRoleUpdate,
+  validateClubLeadershipUpdate,
 };

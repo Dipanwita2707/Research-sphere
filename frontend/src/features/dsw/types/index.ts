@@ -108,8 +108,8 @@ export interface Club {
   categoryId: string;
   purpose: string;
   academicSession: string;
-  facultyFacilitatorId: string;
-  chairpersonId: string;
+  facultyFacilitatorId: string | null;
+  chairpersonId: string | null;
   targetStudentGroup: ClubTargetGroup[];
   expectedActivityTypes: string[];
   codeOfConductAccepted: boolean;
@@ -134,7 +134,14 @@ export interface Club {
   members?: ClubMember[];
   _count?: {
     members: number;
+    eventNotings?: number;
   };
+}
+
+export interface ClubLeadershipUpdatePayload {
+  chairpersonId?: string | null;
+  facultyFacilitatorId?: string | null;
+  reason?: string;
 }
 
 // Club Creation Form Data
@@ -273,6 +280,116 @@ export interface DSWStatistics {
   }>;
 }
 
+export type DSWTrendGranularity = "monthly" | "quarterly" | "yearly";
+
+export interface DSWTrendPoint {
+  period: string;
+  label: string;
+  events: number;
+  participants: number;
+  attended: number;
+  attendanceRate: number;
+}
+
+export interface DSWGrowthPoint {
+  period: string;
+  label: string;
+  newMembers: number;
+  cumulativeMembers: number;
+}
+
+export interface DSWClubPerformanceRow {
+  clubId: string;
+  clubCode: string;
+  clubName: string;
+  categoryName: string;
+  status: string;
+  totalMembers: number;
+  activeMembers: number;
+  inactiveMembers: number;
+  eventsCount: number;
+  participants: number;
+  attended: number;
+  attendanceRate: number;
+  averageFeedback: number;
+  growthNewMembers: number;
+  growthRate: number;
+  engagementScore: number;
+  eventTimeline: {
+    upcoming: number;
+    ongoing: number;
+    past: number;
+  };
+}
+
+export interface DSWEventPerformanceRow {
+  eventId: string;
+  eventCode: string;
+  name: string;
+  clubId: string;
+  eventType: string;
+  status: string;
+  timeline: "upcoming" | "ongoing" | "past";
+  startDate: string;
+  endDate: string;
+  registrations: number;
+  confirmed: number;
+  attended: number;
+  attendanceRate: number;
+  averageFeedback: number;
+  feedbackResponses: number;
+  engagementScore: number;
+}
+
+export interface DSWAdvancedStatistics {
+  meta: {
+    rangeMonths: number;
+    granularity: DSWTrendGranularity;
+    rangeStart: string;
+    rangeEnd: string;
+    generatedAt: string;
+  };
+  overview: {
+    totalClubs: number;
+    activeClubs: number;
+    totalMembers: number;
+    activeMembers: number;
+    inactiveMembers: number;
+    totalEvents: number;
+    totalParticipants: number;
+    totalAttended: number;
+    averageAttendanceRate: number;
+    eventStatusSummary: {
+      upcoming: number;
+      ongoing: number;
+      past: number;
+    };
+  };
+  trends: {
+    monthly: DSWTrendPoint[];
+    quarterly: DSWTrendPoint[];
+    yearly: DSWTrendPoint[];
+    primaryGranularity: DSWTrendGranularity;
+    primary: DSWTrendPoint[];
+  };
+  topActiveClubs: DSWClubPerformanceRow[];
+  clubPerformance: DSWClubPerformanceRow[];
+  eventPerformance: {
+    highPerforming: DSWEventPerformanceRow[];
+    history: DSWEventPerformanceRow[];
+  };
+  clubGrowth: {
+    overall: DSWGrowthPoint[];
+    leaders: Array<{
+      clubId: string;
+      clubCode: string;
+      clubName: string;
+      growthNewMembers: number;
+      growthRate: number;
+    }>;
+  };
+}
+
 // Club Creation Request (pending noting - not yet a club)
 export interface ClubCreationRequest {
   id: string;
@@ -306,6 +423,14 @@ export interface ClubFilters {
   search?: string;
   academicSession?: string;
   myClubs?: boolean;
+  minMembers?: number;
+  maxMembers?: number;
+  minEvents?: number;
+  maxEvents?: number;
+  createdFrom?: string;
+  createdTo?: string;
+  sortBy?: "createdAt" | "name" | "members" | "events" | "activity";
+  sortOrder?: "asc" | "desc";
 }
 
 export interface AuditLogFilters {

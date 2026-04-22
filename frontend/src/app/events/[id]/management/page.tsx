@@ -7,10 +7,10 @@ import Link from 'next/link';
 import {
   ArrowLeft, Loader2, AlertCircle, BarChart3, Activity,
   RefreshCw, Shield, Settings, QrCode, Store,
-  MessageSquare, Tag, Users, X,
+  MessageSquare, Tag, Users, X, Download, FileUp, Eye,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
-import type { Event, EventStatistics, EventVolunteer } from '@/features/event-management/types/event.types';
+import type { Event, EventStatistics, EventVolunteer, EventPostReportSummary } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { EventManagementShimmer } from '@/components/shimmer';
@@ -71,6 +71,40 @@ export default function EventManagementPage() {
   // Feedback QR (shown in global header)
   const [showFeedbackQR, setShowFeedbackQR] = useState(false);
   const [feedbackQRUrl, setFeedbackQRUrl] = useState<string | null>(null);
+  const [showPostReportModal, setShowPostReportModal] = useState(false);
+  const [postReportFile, setPostReportFile] = useState<File | null>(null);
+  const [postReports, setPostReports] = useState<EventPostReportSummary[]>([]);
+  const [latestPostReport, setLatestPostReport] = useState<EventPostReportSummary | null>(null);
+  const [loadingPostReports, setLoadingPostReports] = useState(false);
+  const [uploadingPostReport, setUploadingPostReport] = useState(false);
+
+  const formatReportSize = (size: number) => {
+    if (!size || size <= 0) return '0 B';
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const formatReportDate = (value?: string) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('en-IN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  };
+
+  const triggerBlobDownload = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+  };
 
 // ── Data Loading ───────────────────────────────────────────────
   useEffect(() => {
@@ -271,6 +305,83 @@ export default function EventManagementPage() {
     }
   };
 
+  const loadPostReports = async () => {
+    try {
+      setLoadingPostReports(true);
+      const data = await eventService.getPostEventReports(eventId);
+      setPostReports(data.versions || []);
+      setLatestPostReport(data.latestReport || null);
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) || 'Failed to load post event reports' });
+    } finally {
+      setLoadingPostReports(false);
+    }
+  };
+
+  const handleOpenPostReportModal = async () => {
+    setShowPostReportModal(true);
+    setPostReportFile(null);
+    await loadPostReports();
+  };
+
+  const handleUploadPostReport = async () => {
+    if (!postReportFile) {
+      toast({ type: 'error', message: 'Please choose a report file first' });
+      return;
+    }
+
+    const extension = postReportFile.name.split('.').pop()?.toLowerCase() || '';
+    if (!['pdf', 'doc', 'docx'].includes(extension)) {
+      toast({ type: 'error', message: 'Only PDF, DOC, and DOCX files are allowed' });
+      return;
+    }
+
+    if (postReportFile.size > 20 * 1024 * 1024) {
+      toast({ type: 'error', message: 'Maximum allowed size is 20 MB' });
+      return;
+    }
+
+    try {
+      setUploadingPostReport(true);
+      const uploaded = await eventService.uploadPostEventReport(eventId, postReportFile);
+      toast({
+        type: 'success',
+        message: `Post-event report uploaded as version ${uploaded.version}`,
+      });
+      setPostReportFile(null);
+      await loadPostReports();
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) || 'Failed to upload post-event report' });
+    } finally {
+      setUploadingPostReport(false);
+    }
+  };
+
+  const handleDownloadPostReport = async (report: EventPostReportSummary) => {
+    try {
+      const blob = await eventService.downloadPostEventReport(eventId, report.id);
+      triggerBlobDownload(blob, report.originalFileName || `event-report-v${report.version}`);
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) || 'Failed to download report' });
+    }
+  };
+
+  const handlePreviewPostReport = async (report: EventPostReportSummary) => {
+    if (report.mimeType !== 'application/pdf') {
+      toast({ type: 'error', message: 'Preview is available only for PDF reports' });
+      return;
+    }
+
+    try {
+      const blob = await eventService.previewPostEventReport(eventId, report.id);
+      const previewUrl = window.URL.createObjectURL(blob);
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => window.URL.revokeObjectURL(previewUrl), 60 * 1000);
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) || 'Failed to preview report' });
+    }
+  };
+
   return (
     <div className="ev-page">
       {/* ── Header ────────────────────────────────────────────── */}
@@ -304,6 +415,14 @@ export default function EventManagementPage() {
               >
                 <QrCode className="w-4 h-4" />
                 <span className="hidden sm:inline">Feedback QR</span>
+              </button>
+              <button
+                onClick={handleOpenPostReportModal}
+                className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-ev-800 dark:text-gray-300 bg-ev-50 dark:bg-gray-700 rounded-lg hover:bg-ev-200/50 dark:hover:bg-gray-600 transition-colors"
+                title="Post Event Report Upload"
+              >
+                <FileUp className="w-4 h-4" />
+                <span className="hidden sm:inline">Post Report</span>
               </button>
               <button
                 onClick={handleRefresh}
@@ -416,6 +535,114 @@ export default function EventManagementPage() {
           />
         )}
       </div>
+
+      {/* Post Event Report Modal */}
+      {showPostReportModal && (
+        <div className="ev-overlay" onClick={() => !uploadingPostReport && setShowPostReportModal(false)}>
+          <div className="ev-modal p-6 max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-ev-900 dark:text-white">Post Event Report Upload</h3>
+                <p className="text-xs text-ev-400 dark:text-gray-400 mt-1">
+                  Upload PDF/DOC/DOCX up to 20 MB. Re-uploads create a new version automatically.
+                </p>
+              </div>
+              <button
+                onClick={() => !uploadingPostReport && setShowPostReportModal(false)}
+                className="p-1 rounded-full hover:bg-ev-50 dark:hover:bg-gray-700"
+              >
+                <X className="w-5 h-5 text-ev-400" />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-[#b3cde0] p-4 bg-[#f8fbfd] dark:bg-gray-900/30 dark:border-gray-700">
+              <label className="block text-sm font-medium text-ev-900 dark:text-white mb-2">Choose file</label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => setPostReportFile(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-ev-700 dark:text-gray-300 file:mr-3 file:rounded-lg file:border-0 file:bg-ev-50 file:px-3 file:py-2 file:font-medium file:text-ev-800 hover:file:bg-ev-200/40"
+                disabled={uploadingPostReport}
+              />
+              {postReportFile ? (
+                <p className="mt-2 text-xs text-ev-500 dark:text-gray-400">
+                  Selected: {postReportFile.name} ({formatReportSize(postReportFile.size)})
+                </p>
+              ) : null}
+
+              <div className="mt-3 flex justify-end">
+                <button
+                  onClick={handleUploadPostReport}
+                  disabled={!postReportFile || uploadingPostReport}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-[#005b96] text-white rounded-lg hover:bg-[#03396c] disabled:opacity-50"
+                >
+                  {uploadingPostReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                  Upload Report
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-ev-900 dark:text-white">Version History</h4>
+                {latestPostReport ? (
+                  <span className="text-xs text-ev-500 dark:text-gray-400">
+                    Latest: v{latestPostReport.version} • {formatReportDate(latestPostReport.uploadedAt)}
+                  </span>
+                ) : null}
+              </div>
+
+              {loadingPostReports ? (
+                <div className="py-8 text-center text-sm text-ev-500 dark:text-gray-400">
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
+                  Loading report history...
+                </div>
+              ) : postReports.length === 0 ? (
+                <div className="py-8 text-center text-sm text-ev-500 dark:text-gray-400 border border-dashed border-[#b3cde0] rounded-xl">
+                  No post-event report uploaded yet.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {postReports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#b3cde0]/70 p-3 bg-white dark:bg-gray-800 dark:border-gray-700"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ev-900 dark:text-white truncate">
+                          v{report.version} • {report.originalFileName}
+                        </p>
+                        <p className="text-xs text-ev-500 dark:text-gray-400 mt-1">
+                          {formatReportSize(report.fileSize)} • Uploaded by {report.uploadedBy?.displayName || report.uploadedBy?.uid || 'Unknown'} • {formatReportDate(report.uploadedAt)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {report.mimeType === 'application/pdf' ? (
+                          <button
+                            onClick={() => handlePreviewPostReport(report)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#b3cde0] text-[#03396c] hover:bg-ev-50"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Preview
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => handleDownloadPostReport(report)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#005b96] text-white hover:bg-[#03396c]"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feedback QR Modal */}
       {showFeedbackQR && feedbackQRUrl && (

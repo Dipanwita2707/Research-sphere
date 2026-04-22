@@ -22,8 +22,10 @@ import {
   ClubFilters,
   AuditLogFilters,
   ClubCreationFormData,
+  ClubLeadershipUpdatePayload,
   ClubCreationRequest,
   ClubMemberApplication,
+  DSWTrendGranularity,
 } from "../types";
 
 // Query Keys
@@ -38,6 +40,10 @@ export const DSW_QUERY_KEYS = {
   myClubApplications: () => ["dsw", "clubs", "applications", "my"],
   categories: () => ["dsw", "categories"],
   statistics: () => ["dsw", "statistics"],
+  advancedStatistics: (params?: {
+    rangeMonths?: number;
+    granularity?: DSWTrendGranularity;
+  }) => ["dsw", "statistics", "advanced", params],
   auditLogs: (clubId: string, filters?: AuditLogFilters) => [
     "dsw",
     "audit-logs",
@@ -210,6 +216,17 @@ export function useStatistics() {
   });
 }
 
+export function useAdvancedStatistics(params?: {
+  rangeMonths?: number;
+  granularity?: DSWTrendGranularity;
+}) {
+  return useQuery({
+    queryKey: DSW_QUERY_KEYS.advancedStatistics(params),
+    queryFn: () => dswAPI.statistics.getAdvancedStatistics(params),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 /**
  * Hook to fetch club audit logs
  */
@@ -310,6 +327,32 @@ export function useUpdateClub(clubId: string) {
       // Invalidate club query
       queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(clubId) });
       queryClient.invalidateQueries({ queryKey: ["dsw", "clubs"] });
+    },
+  });
+}
+
+export function useUpdateClubLeadership(clubId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (updates: ClubLeadershipUpdatePayload) =>
+      dswAPI.clubs.updateClubLeadership(clubId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(clubId) });
+      queryClient.invalidateQueries({ queryKey: ["dsw", "clubs"] });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.myClubs() });
+    },
+  });
+}
+
+export function useCreateClubDirect() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ClubCreationFormData) => dswAPI.clubs.createClubDirect(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dsw", "clubs"] });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.statistics() });
     },
   });
 }

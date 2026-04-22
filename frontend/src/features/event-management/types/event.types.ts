@@ -736,6 +736,31 @@ export interface EventApprovalSummary {
   recentStages: EventApprovalStage[];
 }
 
+export interface EventPostReportSummary {
+  id: string;
+  eventId?: string;
+  version: number;
+  isLatest?: boolean;
+  originalFileName: string;
+  storedFileName?: string;
+  mimeType: string;
+  fileSize: number;
+  storageProvider?: string;
+  uploadedAt: string;
+  isPreviewAvailable?: boolean;
+  uploadedBy?: {
+    id: string;
+    uid: string;
+    role?: string;
+    displayName: string | null;
+  } | null;
+}
+
+export interface EventPostReportListResponse {
+  latestReport: EventPostReportSummary | null;
+  versions: EventPostReportSummary[];
+}
+
 export interface EventAdminEventSummary {
   id: string;
   eventId: string;
@@ -761,6 +786,7 @@ export interface EventAdminEventSummary {
   confirmedParticipantCount: number;
   volunteerCount: number;
   prizeCount: number;
+  postReport?: EventPostReportSummary | null;
   createdBy?: EventAnalyticsUser | null;
   approval?: EventApprovalSummary | null;
 }

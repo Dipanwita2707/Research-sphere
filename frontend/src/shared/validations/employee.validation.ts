@@ -51,10 +51,14 @@ export const createEmployeeSchema = z.object({
 
   lastName: z
     .string()
-    .min(1, 'Last name is required - Please enter the last name')
-    .min(2, 'Last name must be at least 2 characters (e.g., Smith, Kumar)')
     .max(50, 'Last name exceeds 50 characters - Please shorten it')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Last name should only contain letters, spaces, hyphens (-) or apostrophes (\') - No numbers or special characters'),
+    .regex(/^[a-zA-Z\s'-]*$/, 'Last name should only contain letters, spaces, hyphens (-) or apostrophes (\') - No numbers or special characters')
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || val.length >= 2,
+      'Last name must be at least 2 characters (e.g., Smith, Kumar)'
+    ),
 
   gender: z
     .string()
@@ -100,8 +104,7 @@ export const createEmployeeSchema = z.object({
   // Professional details
   designation: z
     .string()
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Designation is required - Please enter designation (e.g., Professor, Assistant Professor)'),
 
   officerLevel: z
     .string()
@@ -201,11 +204,14 @@ export const updateEmployeeSchema = z.object({
 
   lastName: z
     .string()
-    .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must be 50 characters or fewer')
     .regex(/^[a-zA-Z\s'-]*$/, 'Last name should only contain letters, spaces, hyphens (-) or apostrophes (\')')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || val.length >= 2,
+      'Last name must be at least 2 characters'
+    ),
 
   gender: z
     .string()
@@ -227,8 +233,7 @@ export const updateEmployeeSchema = z.object({
 
   designation: z
     .string()
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Designation is required'),
 
   officerLevel: z
     .string()
