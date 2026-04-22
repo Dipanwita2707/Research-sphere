@@ -14,6 +14,7 @@ const { canViewClub } = require('../middleware/rbac');
 const { protect } = require('../../../shared/middleware/auth');
 
 // Statistics endpoint (requires authentication)
+router.get('/statistics/advanced', protect, canViewClub, clubController.getAdvancedStatistics);
 router.get('/statistics', protect, canViewClub, clubController.getStatistics);
 
 // Sub-routes

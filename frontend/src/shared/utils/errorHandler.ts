@@ -55,6 +55,13 @@ export function getErrorMessage(error: unknown): string {
   // Handle Axios errors
   if (isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiErrorResponse>;
+    const statusCode = axiosError.response?.status;
+
+    // Never surface raw backend/internal errors for 5xx responses.
+    if (statusCode && statusCode >= 500) {
+      return 'Server error. Please try again later.';
+    }
+
     const fieldErrors = normalizeApiFieldErrors(axiosError.response?.data?.errors);
     if (fieldErrors) {
       const firstFieldError = Object.values(fieldErrors)[0];

@@ -9,7 +9,7 @@ import {
   Mail,
   Clock,
   X,
-  CheckCircle,
+  SlidersHorizontal,
   ArrowRight,
   FileText,
   Send,
@@ -35,6 +35,7 @@ export default function AllClubsPage() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput, 300);
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedClubId, setSelectedClubId] = useState("");
   const [applyError, setApplyError] = useState<string | null>(null);
 
@@ -50,6 +51,16 @@ export default function AllClubsPage() {
     const submitted = searchParams.get("submitted");
     const notingId = searchParams.get("notingId");
     const clubName = searchParams.get("clubName");
+    const categoryId = searchParams.get("categoryId");
+
+    if (categoryId) {
+      setFilters((prev) => ({
+        ...prev,
+        categoryId,
+        page: 1,
+      }));
+      setShowAdvancedFilters(true);
+    }
 
     if (submitted === "true" && notingId) {
       setPendingBanner({ show: true, notingId, clubName: clubName || "" });
@@ -130,6 +141,15 @@ export default function AllClubsPage() {
       ...prev,
       status: status ===
    "all" ? undefined : (status as ClubFilters["status"]),
+      page: 1,
+    }));
+  };
+
+  const updateNumericFilter = (key: keyof ClubFilters, value: string) => {
+    const parsed = value === "" ? undefined : Number.parseInt(value, 10);
+    setFilters((prev) => ({
+      ...prev,
+      [key]: Number.isNaN(parsed as number) ? undefined : parsed,
       page: 1,
     }));
   };
@@ -257,28 +277,106 @@ export default function AllClubsPage() {
 
       {/* Filters */}
       <div className="ev-card p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ev-400" />
-            <input
-              type="text"
-              placeholder="Search clubs by name, purpose, or ID..."
-              className="ev-input pl-10"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ev-400" />
+              <input
+                type="text"
+                placeholder="Search clubs by name, purpose, or ID..."
+                className="ev-input pl-10"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+            <select
+              className="ev-input sm:w-44"
+              onChange={(e) => handleStatusFilter(e.target.value)}
+              value={filters.status || "all"}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="pending_approval">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="suspended">Suspended</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowAdvancedFilters((prev) => !prev)}
+              className="ev-btn-outline sm:w-auto"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              Advanced
+            </button>
           </div>
-          <select
-            className="ev-input sm:w-44"
-            onChange={(e) => handleStatusFilter(e.target.value)}
-            value={filters.status || "all"}
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="pending_approval">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="suspended">Suspended</option>
-          </select>
+
+          {showAdvancedFilters && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-[#b3cde0]/40 pt-3">
+              <input
+                className="ev-input"
+                type="number"
+                min={0}
+                placeholder="Min members"
+                value={filters.minMembers ?? ""}
+                onChange={(e) => updateNumericFilter("minMembers", e.target.value)}
+              />
+              <input
+                className="ev-input"
+                type="number"
+                min={0}
+                placeholder="Min events"
+                value={filters.minEvents ?? ""}
+                onChange={(e) => updateNumericFilter("minEvents", e.target.value)}
+              />
+              <select
+                className="ev-input"
+                value={filters.sortBy || "createdAt"}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, sortBy: e.target.value as ClubFilters["sortBy"], page: 1 }))
+                }
+              >
+                <option value="createdAt">Sort: Created Date</option>
+                <option value="name">Sort: Name</option>
+                <option value="members">Sort: Members</option>
+                <option value="events">Sort: Events</option>
+                <option value="activity">Sort: Activity</option>
+              </select>
+              <select
+                className="ev-input"
+                value={filters.sortOrder || "desc"}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, sortOrder: e.target.value as ClubFilters["sortOrder"], page: 1 }))
+                }
+              >
+                <option value="desc">Order: Descending</option>
+                <option value="asc">Order: Ascending</option>
+              </select>
+              <input
+                className="ev-input"
+                type="text"
+                placeholder="Category UUID"
+                value={filters.categoryId || ""}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    categoryId: e.target.value || undefined,
+                    page: 1,
+                  }))
+                }
+              />
+              <div className="lg:col-span-3 flex justify-end">
+                <button
+                  type="button"
+                  className="ev-btn-outline"
+                  onClick={() => {
+                    setFilters({ page: 1, limit: 20, search: debouncedSearch || undefined });
+                  }}
+                >
+                  Reset Advanced Filters
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -327,6 +425,10 @@ export default function AllClubsPage() {
                   <Users className="w-4 h-4" />
                   <span>{club._count?.members || 0} members</span>
                 </div>
+                  <div className="flex items-center gap-2 text-ev-400">
+                    <Calendar className="w-4 h-4" />
+                    <span>{club._count?.eventNotings || 0} events</span>
+                  </div>
                 <div className="flex items-center gap-2 text-ev-400">
                   <Calendar className="w-4 h-4" />
                   <span>Session {club.academicSession}</span>

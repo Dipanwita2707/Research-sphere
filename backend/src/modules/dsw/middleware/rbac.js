@@ -28,8 +28,10 @@ const {
 function hasPermission(permissionKey, user) {
   if (!user) return false;
 
+  const normalizedRole = String(user.role || "").trim().toLowerCase();
+
   // Check 1: Default permissions based on role
-  const defaultPerms = getDefaultPermissions(user.role);
+  const defaultPerms = getDefaultPermissions(normalizedRole);
   if (defaultPerms[permissionKey] === true) {
     return true;
   }
@@ -84,6 +86,11 @@ function canViewClub(req, res, next) {
     });
   }
 
+  const normalizedRole = String(user.role || "").trim().toLowerCase();
+  if (normalizedRole === "admin" || normalizedRole === "superadmin") {
+    return next();
+  }
+
   if (!hasPermission("dsw_view_club", user)) {
     return res.status(403).json({
       success: false,
@@ -125,12 +132,16 @@ async function canManageMembers(req, res, next) {
     });
   }
 
-  // Layer 1: Check if user has dsw_manage_members permission (admins get this by default)
+  const normalizedRole = String(user.role || "").trim().toLowerCase();
+
+  // Hard bypass: admin/superadmin should never depend on faculty permission mapping.
+  if (normalizedRole === "admin" || normalizedRole === "superadmin") {
+    return next();
+  }
+
+  // Layer 1: centralized permission gate (permission-bearing admins/office users)
   if (hasPermission("dsw_manage_members", user)) {
-    // Admin/superadmin with permission can manage any club
-    if (user.role === "admin" || user.role === "superadmin") {
-      return next();
-    }
+    return next();
   }
 
   // Layer 2: Context check - must be Chairperson or Faculty Facilitator of THIS club
@@ -311,6 +322,11 @@ function canViewAllClubs(req, res, next) {
     });
   }
 
+  const normalizedRole = String(user.role || "").trim().toLowerCase();
+  if (normalizedRole === "admin" || normalizedRole === "superadmin") {
+    return next();
+  }
+
   if (!hasPermission("dsw_view_all_clubs", user)) {
     return res.status(403).json({
       success: false,
@@ -334,6 +350,11 @@ function isDSWAdmin(req, res, next) {
       success: false,
       message: "Authentication required",
     });
+  }
+
+  const normalizedRole = String(user.role || "").trim().toLowerCase();
+  if (normalizedRole === "admin" || normalizedRole === "superadmin") {
+    return next();
   }
 
   // Check for admin-level DSW permissions

@@ -8,6 +8,7 @@ const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
 const { resolveEvent } = require('../utils/eventHelpers');
+const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
 
 // ──────────────────────────────────────────────────────────────
 // Helpers
@@ -611,6 +612,44 @@ const bulkUpdateStallApplications = asyncHandler(async (req, res) => {
       }));
     }
   });
+
+  await Promise.all(
+    apps.map(async (app) =>
+      auditService.log({
+        actorId: userId,
+        performedByName: req.user?.uid,
+        performedByRole: req.user?.role,
+        action: `Bulk ${status} stall application`,
+        description: `${req.user?.uid || 'User'} ${status} stall application '${app.stallName}'`,
+        actionType: AuditActionType.UPDATE,
+        module: AuditModule.EVENT,
+        category: 'stall_application',
+        severity: AuditSeverity.INFO,
+        targetTable: 'stall_application',
+        targetId: app.id,
+        entityId: app.id,
+        entityName: app.stallName,
+        status: 'success',
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+        requestPath: req.originalUrl || req.url,
+        requestMethod: req.method,
+        responseStatus: 200,
+        metadata: {
+          eventId: event.id,
+          eventName: event.name,
+          stallId: app.stallId,
+          rejectionReason: status === 'rejected' ? (rejectionReason || 'Bulk rejected') : null,
+          bulkOperation: true,
+        },
+        oldValues: { applicationStatus: 'pending' },
+        newValues: {
+          applicationStatus: status,
+          reviewedById: userId,
+        },
+      }),
+    ),
+  );
 
   return ApiResponse.success(res, {
     updated: apps.length,

@@ -127,7 +127,9 @@ export const DSW_API_BASE = "/dsw";
 export const DSW_API_ENDPOINTS = {
   // Clubs
   CLUBS: `${DSW_API_BASE}/clubs`,
+  CLUB_CREATE_DIRECT: `${DSW_API_BASE}/clubs/admin/create-direct`,
   CLUB_BY_ID: (id: string) => `${DSW_API_BASE}/clubs/${id}`,
+  CLUB_LEADERSHIP: (id: string) => `${DSW_API_BASE}/clubs/${id}/leadership`,
   MY_CLUBS: `${DSW_API_BASE}/clubs/my`,
   MY_CLUB_REQUESTS: `${DSW_API_BASE}/clubs/my-requests`,
   CLUB_MEMBERS: (id: string) => `${DSW_API_BASE}/clubs/${id}/members`,
@@ -157,6 +159,7 @@ export const DSW_API_ENDPOINTS = {
 
   // Statistics
   STATISTICS: `${DSW_API_BASE}/statistics`,
+  STATISTICS_ADVANCED: `${DSW_API_BASE}/statistics/advanced`,
 
   // Health
   HEALTH: `${DSW_API_BASE}/health`,

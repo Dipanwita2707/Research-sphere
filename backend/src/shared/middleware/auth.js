@@ -62,6 +62,20 @@ const protect = async (req, res, next) => {
               email: true,
               role: true,
               status: true,
+              employeeDetails: {
+                select: {
+                  displayName: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+              studentLogin: {
+                select: {
+                  displayName: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
               centralDeptPermissions: {
                 where: { isActive: true },
                 select: {

@@ -10,6 +10,7 @@ const auditController = require("../controllers/auditController");
 const { protect } = require("../../../shared/middleware/auth");
 const {
   validateClubCreation,
+  validateDirectClubCreation,
   validateClubId,
   validateClubUpdate,
   validateAddMember,
@@ -18,11 +19,13 @@ const {
   validateClubApplicationCreate,
   validateClubApplicationReview,
   validateMemberRoleUpdate,
+  validateClubLeadershipUpdate,
 } = require("../validators");
 const {
   canViewClub,
   canManageMembers,
   canViewAuditLogs,
+  isDSWAdmin,
 } = require("../middleware/rbac");
 
 // Get all clubs with filtering
@@ -36,6 +39,15 @@ router.get(
 
 // Create club creation noting (faculty submits → noting created → DSW approves → club created)
 router.post("/", protect, validateClubCreation, clubController.createClub);
+
+// Admin direct club creation (bypasses noting workflow)
+router.post(
+  "/admin/create-direct",
+  protect,
+  isDSWAdmin,
+  validateDirectClubCreation,
+  clubController.createClubDirect,
+);
 
 // Get my club creation requests (pending notings initiated by the logged-in student)
 router.get("/my-requests", protect, clubController.getMyClubRequests);
@@ -70,6 +82,15 @@ router.patch(
   canManageMembers,
   validateClubUpdate,
   clubController.updateClub,
+);
+
+// Update chairperson / faculty facilitator assignments
+router.patch(
+  "/:clubId/leadership",
+  protect,
+  canManageMembers,
+  validateClubLeadershipUpdate,
+  clubController.updateClubLeadership,
 );
 
 // Get club members

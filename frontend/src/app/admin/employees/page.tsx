@@ -75,6 +75,7 @@ export default function EmployeeManagement() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     uid: '',
@@ -191,7 +192,7 @@ export default function EmployeeManagement() {
         empId: employee.employeeDetails.empId,
         firstName: employee.employeeDetails.firstName,
         middleName: employee.employeeDetails.middleName || '',
-        lastName: employee.employeeDetails.lastName,
+        lastName: employee.employeeDetails.lastName || '',
         dateOfBirth: '',
         gender: '',
         mobileNumber: employee.employeeDetails.mobileNumber,
@@ -241,6 +242,11 @@ export default function EmployeeManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       // Reset errors
       setFormErrors({});
@@ -252,6 +258,7 @@ export default function EmployeeManagement() {
         departmentId: formData.departmentId || '',
         centralDepartmentId: formData.centralDepartmentId || '',
         middleName: formData.middleName || '',
+        lastName: formData.lastName || '',
         dateOfBirth: formData.dateOfBirth || '',
         alternateNumber: formData.alternateNumber || '',
         personalEmail: formData.personalEmail || '',
@@ -278,18 +285,13 @@ export default function EmployeeManagement() {
         return;
       }
 
-      // Clean up the form data - remove empty strings and replace with null
+      // Keep optional text/date fields as validated strings (including empty string)
+      // because backend employee validation rejects null for these fields.
       const cleanFormData = {
         ...validation.data,
         schoolId: validation.data.schoolId || null,
         departmentId: validation.data.departmentId || null,
         primaryCentralDeptId: validation.data.centralDepartmentId || null,
-        middleName: validation.data.middleName || null,
-        dateOfBirth: validation.data.dateOfBirth || null,
-        alternateNumber: validation.data.alternateNumber || null,
-        personalEmail: validation.data.personalEmail || null,
-        currentAddress: validation.data.currentAddress || null,
-        permanentAddress: validation.data.permanentAddress || null,
       };
 
       // Remove centralDepartmentId from the payload since backend expects primaryCentralDeptId
@@ -322,6 +324,8 @@ export default function EmployeeManagement() {
         }
       }
       toast({ type: 'error', message: errorMsg || 'Failed to save employee' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -797,13 +801,13 @@ export default function EmployeeManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Last Name <span className="text-red-500">*</span>
+                      Last Name
                     </label>
                     <input
                       type="text"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      required
+                      placeholder="Optional"
                       className={`w-full px-3 py-2 border rounded-md dark:text-white ${
                         formErrors.lastName ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
@@ -1142,16 +1146,20 @@ export default function EmployeeManagement() {
               <div className="flex gap-4 pt-4 border-t dark:border-gray-700">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                  onClick={() => !isSubmitting && setShowModal(false)}
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-md hover:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingEmployee ? 'Update Employee' : 'Create Employee'}
+                  {isSubmitting
+                    ? (editingEmployee ? 'Updating...' : 'Creating...')
+                    : (editingEmployee ? 'Update Employee' : 'Create Employee')}
                 </button>
               </div>
             </form>

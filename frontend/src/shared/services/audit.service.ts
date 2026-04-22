@@ -8,13 +8,18 @@ import api from '@/shared/api/api';
 export interface AuditLog {
   id: string;
   actorId: string | null;
+  performedByName?: string | null;
+  performedByRole?: string | null;
   action: string;
+  description?: string | null;
   actionType: string;
   module: string | null;
   category: string | null;
   severity: string;
   targetTable: string | null;
   targetId: string | null;
+  entityId?: string | null;
+  entityName?: string | null;
   details: Record<string, any>;
   oldValues: Record<string, any> | null;
   newValues: Record<string, any> | null;
@@ -24,6 +29,7 @@ export interface AuditLog {
   requestPath: string | null;
   requestMethod: string | null;
   responseStatus: number | null;
+  status?: string | null;
   duration: number | null;
   errorMessage: string | null;
   metadata: Record<string, any> | null;
@@ -82,9 +88,11 @@ export interface AuditFilters {
   page?: number;
   limit?: number;
   actorId?: string;
+  performedBy?: string;
   module?: string;
   actionType?: string;
   severity?: string;
+  status?: string;
   targetTable?: string;
   startDate?: string;
   endDate?: string;
@@ -97,6 +105,8 @@ export interface FilterOptions {
   modules: string[];
   actionTypes: string[];
   severities: string[];
+  statuses?: string[];
+  performers?: string[];
 }
 
 class AuditService {
@@ -138,24 +148,36 @@ class AuditService {
   /**
    * Export audit logs to Excel
    */
-  async exportLogs(filters: { startDate: string; endDate: string; module?: string; actionType?: string; severity?: string }) {
+  async exportLogs(filters: AuditFilters & { format?: 'csv' | 'xlsx' }) {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, String(value));
+      }
     });
+
+    if (!params.get('format')) {
+      params.append('format', 'xlsx');
+    }
 
     const response = await api.get(`/audit/logs/export?${params.toString()}`, {
       responseType: 'blob'
     });
 
+    const selectedFormat = (params.get('format') || 'xlsx').toLowerCase();
+    const extension = selectedFormat === 'csv' ? 'csv' : 'xlsx';
+    const mimeType = extension === 'csv'
+      ? 'text/csv;charset=utf-8'
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
     // Trigger download
     const blob = new Blob([response.data], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      type: mimeType
     });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `audit-logs-${filters.startDate}-to-${filters.endDate}.xlsx`;
+    a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.${extension}`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);

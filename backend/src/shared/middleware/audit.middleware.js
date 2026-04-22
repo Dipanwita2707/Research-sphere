@@ -24,6 +24,9 @@ const routePatterns = [
   { pattern: /\/research\/contributions/, module: AuditModule.RESEARCH, category: 'contribution' },
   { pattern: /\/research\/progress-tracker/, module: AuditModule.RESEARCH, category: 'progress-tracker' },
   { pattern: /\/research\//, module: AuditModule.RESEARCH, category: 'general' },
+  { pattern: /\/events(?:\/|$)/, module: AuditModule.EVENT, category: 'events' },
+  { pattern: /\/dsw(?:\/|$)/, module: AuditModule.DSW, category: 'dsw' },
+  { pattern: /\/noting(?:\/|$)/, module: AuditModule.NOTES, category: 'notes' },
   { pattern: /\/permissions/, module: AuditModule.PERMISSION, category: 'permission' },
   { pattern: /\/admin\//, module: AuditModule.ADMIN, category: 'admin' },
   { pattern: /\/dashboard/, module: AuditModule.DASHBOARD, category: 'dashboard', skipGet: true },
@@ -185,7 +188,7 @@ function generateActionDescription(req, res, routeContext) {
  */
 const auditMiddleware = (options = {}) => {
   const {
-    logGetRequests = false, // By default, don't log GET requests
+    logGetRequests = true,
     logRequestBody = true,
     logResponseBody = true, // Enable to capture success/failure
     maxBodyLength = 10000
@@ -252,6 +255,15 @@ const auditMiddleware = (options = {}) => {
 
         // Extract target ID from response or params (only if valid UUID)
         let targetId = null;
+        let entityId = null;
+        let entityName = null;
+        const responseData = responseBody?.data;
+
+        if (responseData && typeof responseData === 'object') {
+          entityId = responseData.id || responseData.notingId || responseData.eventId || responseData.clubId || null;
+          entityName = responseData.name || responseData.title || responseData.clubName || responseData.eventName || null;
+        }
+
         if (responseBody?.data?.id && isValidUUID(responseBody.data.id)) {
           targetId = responseBody.data.id;
         } else if (req.params?.id && isValidUUID(req.params.id)) {
@@ -262,9 +274,20 @@ const auditMiddleware = (options = {}) => {
           targetId = req.params.contributionId;
         }
 
+        if (!entityId) {
+          entityId = req.params?.id || req.params?.clubId || req.params?.memberId || req.params?.applicationId || req.params?.copyId || null;
+        }
+
+        if (!entityName && req.params?.id) {
+          entityName = `ID:${req.params.id}`;
+        }
+
         // Determine target table from route
         let targetTable = null;
         if (originalPath.includes('/events')) targetTable = 'events';
+        if (originalPath.includes('/event-management')) targetTable = 'events';
+        if (originalPath.includes('/dsw/clubs')) targetTable = 'dsw_club';
+        if (originalPath.includes('/noting')) targetTable = 'note';
         if (originalPath.includes('/ipr')) targetTable = 'ipr_applications';
         if (originalPath.includes('/research')) targetTable = 'research_contributions';
         if (originalPath.includes('/book')) targetTable = 'book_chapters';
@@ -273,10 +296,21 @@ const auditMiddleware = (options = {}) => {
         if (originalPath.includes('/permission')) targetTable = 'permissions';
         if (originalPath.includes('/user')) targetTable = 'users';
 
+        const actorName =
+          req.user?.employeeDetails?.displayName ||
+          req.user?.studentLogin?.displayName ||
+          req.user?.uid ||
+          'SYSTEM';
+        const actorRole = req.user?.role || 'SYSTEM';
+        const operationStatus = res.statusCode >= 400 ? 'failed' : 'success';
+
         // Build audit log data - ALWAYS use req.user if available
         const auditData = {
           actorId: req.user?.id || null, // This should ALWAYS be set if user is authenticated
+          performedByName: actorName,
+          performedByRole: actorRole,
           action: generateActionDescription(req, res, routeContext),
+          description: responseBody?.message || null,
           actionType,
           module: routeContext.module,
           category: routeContext.category,
@@ -290,6 +324,9 @@ const auditMiddleware = (options = {}) => {
           duration,
           targetTable,
           targetId,
+          entityId,
+          entityName,
+          status: operationStatus,
           metadata: {}
         };
 
@@ -299,6 +336,7 @@ const auditMiddleware = (options = {}) => {
           const bodyStr = JSON.stringify(maskedBody);
           if (bodyStr.length <= maxBodyLength) {
             auditData.metadata.requestBody = maskedBody;
+            auditData.newValues = maskedBody;
           } else {
             auditData.metadata.requestBody = { _truncated: true, size: bodyStr.length };
           }
@@ -322,6 +360,13 @@ const auditMiddleware = (options = {}) => {
         // Log error message if request failed
         if (res.statusCode >= 400 && responseBody) {
           auditData.errorMessage = responseBody.message || responseBody.error || `HTTP ${res.statusCode}`;
+        }
+
+        if (logResponseBody && responseBody && typeof responseBody === 'object') {
+          auditData.metadata.responseSummary = {
+            success: responseBody.success,
+            message: responseBody.message,
+          };
         }
 
         // Fire-and-forget audit log (don't block response pipeline)
