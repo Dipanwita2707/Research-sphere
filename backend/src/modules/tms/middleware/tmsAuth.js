@@ -3,8 +3,31 @@
  * Ticket ownership and assignment verification
  */
 const prisma = require('../../../shared/config/database');
-const { ForbiddenError } = require('../../../shared/utils/AppError');
-const { NotFoundError } = require('../../../shared/utils/AppError');
+const { ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
+const { getDefaultPermissions, getPermissionKeyVariants } = require('../../../shared/config/permissions.config');
+
+function hasPermission(user, permissionKey) {
+  if (!user || !permissionKey) return false;
+
+  const permissionVariants = getPermissionKeyVariants(permissionKey);
+  const defaultPermissions = getDefaultPermissions(user.role);
+
+  if (permissionVariants.some((variant) => defaultPermissions[variant] === true)) {
+    return true;
+  }
+
+  const hasCentralPermission = user.centralDeptPermissions?.some((deptPerm) =>
+    deptPerm.permissions && permissionVariants.some((variant) => deptPerm.permissions[variant] === true)
+  );
+
+  if (hasCentralPermission) {
+    return true;
+  }
+
+  return user.schoolDeptPermissions?.some((deptPerm) =>
+    deptPerm.permissions && permissionVariants.some((variant) => deptPerm.permissions[variant] === true)
+  ) || false;
+}
 
 /**
  * Middleware: Verify the ticket exists and belongs to the current user (student creator)
@@ -64,13 +87,13 @@ const requireTicketAssignee = async (req, res, next) => {
 };
 
 /**
- * Middleware: Verify user can view the ticket (creator or assigned employee or admin)
- * More permissive than requireTicketCreator/requireTicketAssignee
+ * Middleware: Verify user can view the ticket.
+ * Allows the creator, current assignee, employees who have already acted on the
+ * ticket, and users with TMS analytics visibility.
  * Attaches ticket to req.ticket
  */
 const requireTicketAccess = async (req, res, next) => {
   const userId = req.user.id;
-  const userRole = req.user.role;
   const { id } = req.params;
 
   const ticket = await prisma.tmsTicket.findUnique({
@@ -82,6 +105,11 @@ const requireTicketAccess = async (req, res, next) => {
       status: true,
       currentLevel: true,
       requestId: true,
+      timeline: {
+        where: { performedById: userId },
+        select: { id: true },
+        take: 1,
+      },
     },
   });
 
@@ -89,12 +117,14 @@ const requireTicketAccess = async (req, res, next) => {
     throw new NotFoundError('Ticket not found');
   }
 
-  // Allow access if: creator, assigned employee, or admin/superadmin
+  // Allow access if: creator, current assignee, prior actor on the ticket,
+  // or someone who can review TMS analytics.
   const isCreator = ticket.createdById === userId;
   const isAssignee = ticket.assignedToId === userId;
-  const isAdmin = ['admin', 'superadmin'].includes(userRole);
+  const hasActedOnTicket = ticket.timeline.length > 0;
+  const hasAnalyticsAccess = hasPermission(req.user, 'tms_view_analytics');
 
-  if (!isCreator && !isAssignee && !isAdmin) {
+  if (!isCreator && !isAssignee && !hasActedOnTicket && !hasAnalyticsAccess) {
     throw new ForbiddenError('You do not have access to this ticket');
   }
 
