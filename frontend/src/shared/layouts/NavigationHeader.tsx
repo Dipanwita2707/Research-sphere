@@ -550,13 +550,13 @@ export default function NavigationHeader() {
     }
     // TEMP HIDE: Ticket Management should not appear in UMS Navigation for now.
     // Keep this block commented so it can be restored quickly later.
-    // if (tmsChildren.length > 0) {
-    //   navigationSubItems.push({
-    //     name: '🎫 Ticket Management',
-    //     description: 'Grievances, Assistance & Enquiries',
-    //     children: tmsChildren,
-    //   });
-    // }
+    if (tmsChildren.length > 0) {
+      navigationSubItems.push({
+        name: '🎫 Ticket Management',
+        description: 'Grievances, Assistance & Enquiries',
+        children: tmsChildren,
+      });
+    }
   }
 
   // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
@@ -578,7 +578,7 @@ export default function NavigationHeader() {
   }
 
   // UMS Navigation - hidden for staff/guard (they only need Gate Entry)
-  if (!isStaff) {
+  if (isStaff || isAdmin || isFaculty || isStudent) {
     menuItems.push({
       name: 'UMS Navigation',
       subItems: navigationSubItems,
