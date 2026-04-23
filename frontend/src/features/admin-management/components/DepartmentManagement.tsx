@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Building2,
   Plus,
@@ -24,6 +25,7 @@ import { schoolService, School as SchoolType } from '@/features/admin-management
 
 export default function DepartmentManagement() {
   const { confirmDelete } = useConfirm();
+  const router = useRouter();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [schools, setSchools] = useState<SchoolType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,13 +199,21 @@ export default function DepartmentManagement() {
             Manage departments under schools ({filteredDepartments.length} departments)
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          Add Department
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push('/admin/bulk-upload')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm"
+          >
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+          >
+            <Plus className="w-5 h-5" />
+            Add Department
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

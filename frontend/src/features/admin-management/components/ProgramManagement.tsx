@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   GraduationCap,
   Plus,
@@ -21,7 +22,7 @@ import {
   Clock,
   Award,
 } from 'lucide-react';
-import { programService, Program, CreateProgramDto, ProgramType } from '@/features/admin-management/services/program.service';
+import { programService, Program, CreateProgramDto, ProgramType, Specialization } from '@/features/admin-management/services/program.service';
 import { departmentService, Department } from '@/features/admin-management/services/department.service';
 import { schoolService, School as SchoolType } from '@/features/admin-management/services/school.service';
 import { useToast } from '@/shared/ui-components/Toast';
@@ -32,6 +33,7 @@ import { logger } from '@/shared/utils/logger';
 export default function ProgramManagement() {
   const toast = useToast();
   const { confirmDelete } = useConfirm();
+  const router = useRouter();
   
   const [programs, setPrograms] = useState<Program[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -47,6 +49,8 @@ export default function ProgramManagement() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedProgramType, setSelectedProgramType] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasSpecializations, setHasSpecializations] = useState(false);
+  const [specializationNames, setSpecializationNames] = useState<string[]>([]);
 
   // Form state
   const [formData, setFormData] = useState<CreateProgramDto>({
@@ -57,6 +61,7 @@ export default function ProgramManagement() {
     shortName: '',
     description: '',
     durationYears: undefined,
+    durationMonths: undefined,
     durationSemesters: undefined,
     totalCredits: undefined,
     admissionCapacity: undefined,
@@ -94,6 +99,9 @@ export default function ProgramManagement() {
   const handleOpenModal = (program?: Program) => {
     if (program) {
       setEditingProgram(program);
+      const existingSpecs = program.specializations || [];
+      setHasSpecializations(existingSpecs.length > 0);
+      setSpecializationNames(existingSpecs.map((s) => s.specializationName));
       setFormData({
         departmentId: program.departmentId,
         programCode: program.programCode,
@@ -102,6 +110,7 @@ export default function ProgramManagement() {
         shortName: program.shortName || '',
         description: program.description || '',
         durationYears: program.durationYears || undefined,
+        durationMonths: program.durationMonths || undefined,
         durationSemesters: program.durationSemesters || undefined,
         totalCredits: program.totalCredits || undefined,
         admissionCapacity: program.admissionCapacity || undefined,
@@ -110,6 +119,8 @@ export default function ProgramManagement() {
       });
     } else {
       setEditingProgram(null);
+      setHasSpecializations(false);
+      setSpecializationNames([]);
       setFormData({
         departmentId: selectedDepartment || '',
         programCode: '',
@@ -118,6 +129,7 @@ export default function ProgramManagement() {
         shortName: '',
         description: '',
         durationYears: undefined,
+        durationMonths: undefined,
         durationSemesters: undefined,
         totalCredits: undefined,
         admissionCapacity: undefined,
@@ -139,11 +151,15 @@ export default function ProgramManagement() {
         return;
       }
 
+      const validSpecs = hasSpecializations
+        ? specializationNames.filter((s) => s.trim() !== '')
+        : [];
+
       if (editingProgram) {
-        await programService.updateProgram(editingProgram.id, formData);
+        await programService.updateProgram(editingProgram.id, { ...formData, specializations: validSpecs });
         toast.success('Program updated successfully');
       } else {
-        await programService.createProgram(formData);
+        await programService.createProgram({ ...formData, specializations: validSpecs });
         toast.success('Program created successfully');
       }
 
@@ -242,13 +258,21 @@ export default function ProgramManagement() {
             Manage programs under departments ({filteredPrograms.length} programs)
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          Add Program
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push('/admin/bulk-upload')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm"
+          >
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+          >
+            <Plus className="w-5 h-5" />
+            Add Program
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}
@@ -423,9 +447,16 @@ export default function ProgramManagement() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1 text-sm text-gray-600">
                             <Clock className="w-4 h-4" />
-                            {program.durationYears ? `${program.durationYears} Years` : '-'}
-                            {program.durationSemesters && ` (${program.durationSemesters} Sem)`}
+                            {program.durationYears != null
+                              ? `${program.durationYears} Year${program.durationYears !== 1 ? 's' : ''}${(program.durationMonths ?? 0) > 0 ? ` ${program.durationMonths} Month${program.durationMonths !== 1 ? 's' : ''}` : ''}`
+                              : '-'}
+                            {program.durationSemesters ? ` (${program.durationSemesters} Sem)` : ''}
                           </div>
+                          {program.specializations && program.specializations.length > 0 && (
+                            <div className="text-xs text-indigo-600 mt-0.5">
+                              {program.specializations.length} specialization(s)
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 text-sm">
@@ -584,21 +615,48 @@ export default function ProgramManagement() {
               </div>
 
               {/* Duration and Credits */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Duration (Years)
+              <div className="space-y-3">
+                {/* Duration grouped block */}
+                <div className="border border-blue-100 rounded-xl p-3 bg-blue-50/30">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Programme Duration
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.durationYears || ''}
-                    onChange={(e) => setFormData({ ...formData, durationYears: e.target.value ? parseInt(e.target.value) : undefined })}
-                    placeholder="e.g., 4"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        value={formData.durationYears ?? ''}
+                        onChange={(e) => setFormData({ ...formData, durationYears: e.target.value !== '' ? parseInt(e.target.value) : undefined })}
+                        placeholder="Years"
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <span className="text-xs text-gray-500 mt-0.5 ml-1">Years</span>
+                    </div>
+                    <span className="text-gray-400 font-semibold text-lg pb-5">+</span>
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="11"
+                        value={formData.durationMonths ?? ''}
+                        onChange={(e) => setFormData({ ...formData, durationMonths: e.target.value !== '' ? parseInt(e.target.value) : undefined })}
+                        placeholder="Months"
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <span className="text-xs text-gray-500 mt-0.5 ml-1">Months (0–11)</span>
+                    </div>
+                    {(formData.durationYears != null || formData.durationMonths != null) && (
+                      <div className="text-sm font-medium text-blue-700 bg-blue-100 px-3 py-2 rounded-xl whitespace-nowrap pb-6">
+                        = {formData.durationYears ?? 0} Yr{(formData.durationYears ?? 0) !== 1 ? 's' : ''}{(formData.durationMonths ?? 0) > 0 ? ` ${formData.durationMonths} Mo` : ''}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Semesters + Credits */}
+                <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Semesters
@@ -625,6 +683,7 @@ export default function ProgramManagement() {
                     placeholder="e.g., 160"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                </div>
                 </div>
               </div>
 
@@ -674,6 +733,70 @@ export default function ProgramManagement() {
                     <option value="Expired">Expired</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Specialization */}
+              <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Has Specializations?</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setHasSpecializations(false); setSpecializationNames([]); }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${!hasSpecializations ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      No
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHasSpecializations(true)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${hasSpecializations ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      Yes
+                    </button>
+                  </div>
+                </div>
+
+                {hasSpecializations && (
+                  <div className="space-y-2">
+                    {specializationNames.map((name, index) => {
+                      const code = `${formData.programCode || 'CODE'}-SP${index + 1}`;
+                      return (
+                        <div key={index} className="flex items-center gap-2">
+                          <span className="text-xs font-mono bg-indigo-50 text-indigo-700 px-2 py-1.5 rounded-lg w-36 flex-shrink-0 text-center">
+                            {code}
+                          </span>
+                          <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => {
+                              const updated = [...specializationNames];
+                              updated[index] = e.target.value;
+                              setSpecializationNames(updated);
+                            }}
+                            placeholder={`Specialization ${index + 1} name`}
+                            className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setSpecializationNames(specializationNames.filter((_, i) => i !== index))}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setSpecializationNames([...specializationNames, ''])}
+                      className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium mt-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Specialization
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Description */}

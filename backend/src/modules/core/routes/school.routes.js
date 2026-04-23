@@ -24,4 +24,7 @@ router.delete('/:id', restrictTo('admin'), schoolController.deleteSchool);
 // PATCH toggle school status (admin only)
 router.patch('/:id/toggle-status', restrictTo('admin'), schoolController.toggleSchoolStatus);
 
+// POST bulk create schools (admin only)
+router.post('/bulk', restrictTo('admin'), schoolController.bulkCreate);
+
 module.exports = router;

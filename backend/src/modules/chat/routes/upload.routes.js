@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { protect, optionalAuth } = require('../../../shared/middleware/auth');
+const { requireChatAuth } = require('../../chat-auth/middleware/requireChatAuth');
 const {
   uploadGroupFile,
   uploadDirectFile,
@@ -31,7 +31,7 @@ router.get('/files/*', serveFile);
 
 // All other routes require authentication and chat access
 const { requireChatAccess } = require('../middleware/chatAccess');
-router.use(protect);
+router.use(requireChatAuth);
 router.use(requireChatAccess);
 
 // File uploads

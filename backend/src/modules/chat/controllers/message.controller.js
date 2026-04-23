@@ -12,10 +12,12 @@ const getGroupMessages = async (req, res) => {
     const { groupId } = req.params;
     const { cursor, limit = 50 } = req.query;
     const userId = req.user.id;
+    const userRole = req.user.role;
 
     const result = await messageService.getGroupMessages(groupId, userId, {
       cursor,
       limit: parseInt(limit),
+      userRole,
     });
 
     res.json({

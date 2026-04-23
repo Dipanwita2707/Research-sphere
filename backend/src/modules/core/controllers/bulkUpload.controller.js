@@ -1,5 +1,6 @@
 const prisma = require('../../../shared/config/database');
 const bcrypt = require('bcryptjs');
+const XLSX = require('xlsx');
 
 /**
  * Format bulk upload response consistently
@@ -24,8 +25,20 @@ function formatBulkUploadResponse(rows, results) {
   };
 }
 
+function sendExcelTemplate(res, headers, sampleRows, fileName, sheetName) {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+  worksheet['!cols'] = headers.map((header) => ({ wch: Math.max(header.length + 4, 18) }));
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+  res.send(buffer);
+}
+
 /**
- * Generate CSV template for schools
+ * Generate Excel template for schools
  */
 exports.getSchoolTemplate = async (req, res) => {
   try {
@@ -42,7 +55,7 @@ exports.getSchoolTemplate = async (req, res) => {
       'websiteUrl',
     ];
 
-    const sampleData = [
+    const sampleRows = [[
       'SOCS',
       'School of Computer Science',
       'school',
@@ -53,13 +66,9 @@ exports.getSchoolTemplate = async (req, res) => {
       '1234567890',
       'Block A, Floor 2',
       'https://sgtuniversity.ac.in/socs',
-    ];
+    ]];
 
-    const csv = headers.join(',') + '\n' + sampleData.join(',');
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=schools_template.csv');
-    res.send(csv);
+    sendExcelTemplate(res, headers, sampleRows, 'schools_template.xlsx', 'Schools');
   } catch (error) {
     console.error('Get school template error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -67,7 +76,7 @@ exports.getSchoolTemplate = async (req, res) => {
 };
 
 /**
- * Generate CSV template for departments
+ * Generate Excel template for departments
  */
 exports.getDepartmentTemplate = async (req, res) => {
   try {
@@ -83,7 +92,7 @@ exports.getDepartmentTemplate = async (req, res) => {
       'officeLocation',
     ];
 
-    const sampleData = [
+    const sampleRows = [[
       'SOCS',
       'CS',
       'Computer Science',
@@ -93,13 +102,9 @@ exports.getDepartmentTemplate = async (req, res) => {
       'cs@sgtuniversity.ac.in',
       '1234567890',
       'Block A, Room 201',
-    ];
+    ]];
 
-    const csv = headers.join(',') + '\n' + sampleData.join(',');
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=departments_template.csv');
-    res.send(csv);
+    sendExcelTemplate(res, headers, sampleRows, 'departments_template.xlsx', 'Departments');
   } catch (error) {
     console.error('Get department template error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -107,7 +112,7 @@ exports.getDepartmentTemplate = async (req, res) => {
 };
 
 /**
- * Generate CSV template for programmes
+ * Generate Excel template for programmes
  */
 exports.getProgrammeTemplate = async (req, res) => {
   try {
@@ -122,7 +127,7 @@ exports.getProgrammeTemplate = async (req, res) => {
       'durationSemesters',
     ];
 
-    const sampleData = [
+    const sampleRows = [[
       'CS',
       'BTECH-CS',
       'B.Tech Computer Science',
@@ -131,13 +136,9 @@ exports.getProgrammeTemplate = async (req, res) => {
       'Bachelor of Technology in Computer Science',
       '4',
       '8',
-    ];
+    ]];
 
-    const csv = headers.join(',') + '\n' + sampleData.join(',');
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=programmes_template.csv');
-    res.send(csv);
+    sendExcelTemplate(res, headers, sampleRows, 'programmes_template.xlsx', 'Programmes');
   } catch (error) {
     console.error('Get programme template error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -252,25 +253,66 @@ function parseCSV(content) {
   return { headers, rows };
 }
 
+function parseTabularRows(matrix) {
+  const normalizedRows = matrix
+    .map((row) => row.map((cell) => String(cell ?? '').trim()))
+    .filter((row) => row.some((cell) => cell));
+
+  if (normalizedRows.length < 2) return { headers: [], rows: [] };
+
+  const headers = normalizedRows[0].map((header) => header.replace(/^"|"$/g, ''));
+  const rows = normalizedRows.slice(1).map((values) => {
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = (values[index] || '').replace(/^"|"$/g, '');
+    });
+    return row;
+  });
+
+  return { headers, rows };
+}
+
+function parseUploadedFile(file) {
+  const isExcelFile = file
+    && (/\.(xlsx|xls)$/i.test(file.originalname)
+      || [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+      ].includes(file.mimetype));
+
+  if (isExcelFile) {
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) return { headers: [], rows: [] };
+    const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], {
+      header: 1,
+      raw: false,
+      defval: '',
+    });
+    return parseTabularRows(matrix);
+  }
+
+  return parseCSV(file.buffer.toString('utf-8'));
+}
+
 /**
  * Bulk upload schools
  */
 exports.bulkUploadSchools = async (req, res) => {
   try {
-    // Handle both file upload and direct csvContent
-    let csvContent;
+    let parsedData;
     if (req.file) {
-      csvContent = req.file.buffer.toString('utf-8');
+      parsedData = parseUploadedFile(req.file);
     } else if (req.body.csvContent) {
-      csvContent = req.body.csvContent;
+      parsedData = parseCSV(req.body.csvContent);
     } else {
-      return res.status(400).json({ success: false, message: 'CSV file or content is required' });
+      return res.status(400).json({ success: false, message: 'Spreadsheet file or CSV content is required' });
     }
 
-    const { headers, rows } = parseCSV(csvContent);
+    const { rows } = parsedData;
     
     if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in CSV' });
+      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
     }
 
     const results = { success: [], failed: [] };
@@ -357,20 +399,19 @@ exports.bulkUploadSchools = async (req, res) => {
  */
 exports.bulkUploadDepartments = async (req, res) => {
   try {
-    // Handle both file upload and direct csvContent
-    let csvContent;
+    let parsedData;
     if (req.file) {
-      csvContent = req.file.buffer.toString('utf-8');
+      parsedData = parseUploadedFile(req.file);
     } else if (req.body.csvContent) {
-      csvContent = req.body.csvContent;
+      parsedData = parseCSV(req.body.csvContent);
     } else {
-      return res.status(400).json({ success: false, message: 'CSV file or content is required' });
+      return res.status(400).json({ success: false, message: 'Spreadsheet file or CSV content is required' });
     }
 
-    const { headers, rows } = parseCSV(csvContent);
+    const { rows } = parsedData;
     
     if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in CSV' });
+      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
     }
 
     const results = { success: [], failed: [] };
@@ -460,20 +501,19 @@ exports.bulkUploadDepartments = async (req, res) => {
  */
 exports.bulkUploadProgrammes = async (req, res) => {
   try {
-    // Handle both file upload and direct csvContent
-    let csvContent;
+    let parsedData;
     if (req.file) {
-      csvContent = req.file.buffer.toString('utf-8');
+      parsedData = parseUploadedFile(req.file);
     } else if (req.body.csvContent) {
-      csvContent = req.body.csvContent;
+      parsedData = parseCSV(req.body.csvContent);
     } else {
-      return res.status(400).json({ success: false, message: 'CSV file or content is required' });
+      return res.status(400).json({ success: false, message: 'Spreadsheet file or CSV content is required' });
     }
 
-    const { headers, rows } = parseCSV(csvContent);
+    const { rows } = parsedData;
     
     if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in CSV' });
+      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
     }
 
     const results = { success: [], failed: [] };

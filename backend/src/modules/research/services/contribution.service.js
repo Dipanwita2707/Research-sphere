@@ -714,13 +714,13 @@ class ContributionService {
   async submitContribution(id, userId, request = null) {
     const contribution = await this.repo.findById(id, {
       applicantDetails: true, authors: true,
-      applicantUser: { select: { id: true, uid: true, role: { select: { name: true } }, studentLogin: { select: { id: true } } } }
+      applicantUser: { select: { id: true, uid: true, role: true, studentLogin: { select: { id: true } } } }
     });
     if (!contribution) { const e = new Error('Research contribution not found'); e.statusCode = 404; throw e; }
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can submit this contribution'); e.statusCode = 403; throw e; }
     if (contribution.status !== 'draft') { const e = new Error(`Cannot submit contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
-    const isStudent = contribution.applicantUser?.studentLogin?.id || contribution.applicantUser?.role?.name?.toLowerCase() === 'student';
+    const isStudent = contribution.applicantUser?.studentLogin?.id || contribution.applicantUser?.role?.toLowerCase() === 'student';
     const hasMentor = contribution.applicantDetails?.mentorUid || contribution.applicantDetails?.mentorName;
     let newStatus = 'submitted';
     let statusMessage = 'Submitted for DRD review';

@@ -141,12 +141,24 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
   const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Load data
+  // Debounce refs
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce the list search (authorized users)
+  useEffect(() => {
+    if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current);
+    listSearchDebounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => { if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current); };
+  }, [search]);
+
+  // Load data (only fires after 400ms debounce on search)
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const [usersRes, statsRes] = await Promise.all([
-        chatService.getAuthorizedUsers({ page, limit: 20, search }),
+        chatService.getAuthorizedUsers({ page, limit: 20, search: debouncedSearch }),
         chatService.getChatPermissionStats(),
       ]);
       setUsers(usersRes.users);
@@ -157,28 +169,31 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, debouncedSearch]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
 
-  // Search unadded users
-  const handleSearchUsers = async (query: string) => {
+  // Search unadded users — debounced 350ms, min 2 chars
+  const handleSearchUsers = (query: string) => {
     setSearchQuery(query);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     if (query.length < 2) {
       setSearchResults([]);
       return;
     }
-    setIsSearching(true);
-    try {
-      const results = await chatService.searchUnaddedUsers(query, 10);
-      setSearchResults(results);
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setIsSearching(false);
-    }
+    searchDebounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await chatService.searchUnaddedUsers(query, 10);
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Search failed:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 350);
   };
 
   // Add single user

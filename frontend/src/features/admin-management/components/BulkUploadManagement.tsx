@@ -33,6 +33,7 @@ interface TabConfig {
   icon: React.ElementType;
   description: string;
   templateFields: string[];
+  fileFormat: 'xlsx' | 'csv';
 }
 
 const tabs: TabConfig[] = [
@@ -42,6 +43,7 @@ const tabs: TabConfig[] = [
     icon: School,
     description: 'Upload schools/faculties',
     templateFields: ['facultyCode', 'facultyName', 'shortName', 'description', 'establishedYear', 'website', 'contactEmail', 'contactPhone'],
+    fileFormat: 'xlsx',
   },
   {
     id: 'departments',
@@ -49,6 +51,7 @@ const tabs: TabConfig[] = [
     icon: Building2,
     description: 'Upload departments under schools',
     templateFields: ['facultyCode', 'departmentCode', 'departmentName', 'shortName', 'description', 'establishedYear', 'contactEmail', 'contactPhone'],
+    fileFormat: 'xlsx',
   },
   {
     id: 'programmes',
@@ -56,6 +59,7 @@ const tabs: TabConfig[] = [
     icon: BookOpen,
     description: 'Upload programmes under departments',
     templateFields: ['departmentCode', 'programCode', 'programName', 'programType', 'duration', 'totalCredits', 'description'],
+    fileFormat: 'xlsx',
   },
   {
     id: 'employees',
@@ -63,6 +67,7 @@ const tabs: TabConfig[] = [
     icon: Users,
     description: 'Upload faculty and staff members',
     templateFields: ['employeeId', 'email', 'firstName', 'lastName', 'gender', 'designation', 'departmentCode', 'schoolCode', 'phone', 'joiningDate', 'userType'],
+    fileFormat: 'csv',
   },
   {
     id: 'students',
@@ -70,8 +75,11 @@ const tabs: TabConfig[] = [
     icon: GraduationCap,
     description: 'Upload student records',
     templateFields: ['enrollmentNumber', 'email', 'firstName', 'lastName', 'gender', 'programCode', 'batch', 'section', 'phone', 'admissionDate'],
+    fileFormat: 'csv',
   },
 ];
+
+const isExcelFile = (fileName: string) => /\.(xlsx|xls)$/i.test(fileName);
 
 export default function BulkUploadManagement() {
   const { toast } = useToast();
@@ -110,15 +118,15 @@ export default function BulkUploadManagement() {
       switch (activeTab) {
         case 'schools':
           blob = await bulkUploadService.downloadSchoolTemplate();
-          filename = 'schools_template.csv';
+          filename = 'schools_template.xlsx';
           break;
         case 'departments':
           blob = await bulkUploadService.downloadDepartmentTemplate();
-          filename = 'departments_template.csv';
+          filename = 'departments_template.xlsx';
           break;
         case 'programmes':
           blob = await bulkUploadService.downloadProgrammeTemplate();
-          filename = 'programmes_template.csv';
+          filename = 'programmes_template.xlsx';
           break;
         case 'employees':
           blob = await bulkUploadService.downloadEmployeeTemplate();
@@ -141,6 +149,61 @@ export default function BulkUploadManagement() {
     } catch (err: unknown) {
       logger.error('Failed to download template:', err);
     }
+  };
+
+  const parsePreviewFile = async (selectedFile: File) => {
+    if (isExcelFile(selectedFile.name)) {
+      const XLSX = await import('xlsx');
+      const workbook = XLSX.read(await selectedFile.arrayBuffer(), { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        setPreviewData([]);
+        setShowPreview(false);
+        return;
+      }
+
+      const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(workbook.Sheets[firstSheetName], {
+        header: 1,
+        raw: false,
+        defval: '',
+      })
+        .map(row => row.map(cell => String(cell ?? '').trim()))
+        .filter(row => row.some(cell => cell));
+
+      if (rows.length < 2) {
+        setPreviewData([]);
+        setShowPreview(false);
+        return;
+      }
+
+      const headers = rows[0];
+      const preview = rows.slice(1, 6).map((values) => {
+        const row: Record<string, string> = {};
+        headers.forEach((header, idx) => {
+          row[header] = values[idx] || '';
+        });
+        return row;
+      });
+
+      setPreviewData(preview);
+      setShowPreview(true);
+      return;
+    }
+
+    const text = await selectedFile.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    const headers = lines[0].split(',').map(h => h.trim());
+    const preview = lines.slice(1, 6).map(line => {
+      const values = line.split(',');
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx]?.trim() || '';
+      });
+      return row;
+    });
+
+    setPreviewData(preview);
+    setShowPreview(true);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -167,29 +230,21 @@ export default function BulkUploadManagement() {
   };
 
   const handleFileSelect = (selectedFile: File) => {
-    if (!selectedFile.name.endsWith('.csv')) {
-      toast({ type: 'warning', message: 'Please upload a CSV file' });
+    const requiresExcel = activeTabConfig.fileFormat === 'xlsx';
+    const isValidFile = requiresExcel
+      ? isExcelFile(selectedFile.name)
+      : selectedFile.name.endsWith('.csv');
+
+    if (!isValidFile) {
+      toast({
+        type: 'warning',
+        message: requiresExcel ? 'Please upload an Excel file (.xlsx or .xls)' : 'Please upload a CSV file',
+      });
       return;
     }
     setFile(selectedFile);
     setResult(null);
-    parseCSVPreview(selectedFile);
-  };
-
-  const parseCSVPreview = async (file: File) => {
-    const text = await file.text();
-    const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim());
-    const preview = lines.slice(1, 6).map(line => {
-      const values = line.split(',');
-      const row: Record<string, string> = {};
-      headers.forEach((header, idx) => {
-        row[header] = values[idx]?.trim() || '';
-      });
-      return row;
-    });
-    setPreviewData(preview);
-    setShowPreview(true);
+    parsePreviewFile(selectedFile);
   };
 
   const handleUpload = async () => {
@@ -249,6 +304,8 @@ export default function BulkUploadManagement() {
   const activeTabConfig = tabs.find(t => t.id ===
    activeTab)!;
   const TabIcon = activeTabConfig.icon;
+  const acceptedFileExtensions = activeTabConfig.fileFormat === 'xlsx' ? '.xlsx,.xls' : '.csv';
+  const fileFormatLabel = activeTabConfig.fileFormat === 'xlsx' ? 'Excel' : 'CSV';
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -311,7 +368,7 @@ export default function BulkUploadManagement() {
                   Download Template
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Download the CSV template for {activeTabConfig.label.toLowerCase()}, fill it with your data, then upload
+                  Download the {fileFormatLabel} template for {activeTabConfig.label.toLowerCase()}, fill it with your data, then upload
                 </p>
               </div>
               <button
@@ -348,7 +405,7 @@ export default function BulkUploadManagement() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept={acceptedFileExtensions}
               onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
               className="hidden"
             />
@@ -398,7 +455,7 @@ export default function BulkUploadManagement() {
               <div>
                 <TabIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-700 font-medium mb-1">
-                  Drop your CSV file here, or{' '}
+                  Drop your {fileFormatLabel} file here, or{' '}
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="text-blue-600 hover:text-blue-700"
@@ -406,7 +463,7 @@ export default function BulkUploadManagement() {
                     browse
                   </button>
                 </p>
-                <p className="text-sm text-gray-500">Upload {activeTabConfig.label.toLowerCase()} data in CSV format</p>
+                <p className="text-sm text-gray-500">Upload {activeTabConfig.label.toLowerCase()} data in {fileFormatLabel} format</p>
               </div>
             )}
           </div>

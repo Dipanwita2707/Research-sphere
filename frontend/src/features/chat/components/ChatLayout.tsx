@@ -141,18 +141,23 @@ export function ChatLayout() {
         // Restore currentGroup object after refresh (only ID is persisted)
         const { currentGroupId, currentGroup } = useChatStore.getState();
         if (currentGroupId && !currentGroup) {
-          // Set a quick placeholder from the list for responsiveness
-          const matchedGroup = groupsRes.groups.find((g: any) => g.id ===
-   currentGroupId);
-          if (matchedGroup) {
+          // Check if group still exists in the fetched list
+          const matchedGroup = groupsRes.groups.find((g: any) => g.id === currentGroupId);
+          if (!matchedGroup) {
+            // Stale group ID — clear it silently
+            useChatStore.getState().setCurrentGroup(null, null);
+          } else {
+            // Set a quick placeholder from the list for responsiveness
             useChatStore.getState().setCurrentGroup(currentGroupId, matchedGroup);
-          }
-          // Then fetch full group details (with all member data)
-          try {
-            const fullGroup = await chatService.getGroup(currentGroupId);
-            useChatStore.getState().setCurrentGroup(fullGroup.id, fullGroup as any);
-          } catch (err) {
-            console.error('Failed to fetch full group details:', err);
+            // Then fetch full group details (with all member data)
+            try {
+              const fullGroup = await chatService.getGroup(currentGroupId);
+              useChatStore.getState().setCurrentGroup(fullGroup.id, fullGroup as any);
+            } catch (err) {
+              console.error('Failed to fetch full group details:', err);
+              // Group no longer accessible — clear it
+              useChatStore.getState().setCurrentGroup(null, null);
+            }
           }
         }
       } catch (error: any) {

@@ -71,7 +71,7 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
 };
 
 const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => {
-  const keys = ['finance', 'incentive', 'payment'];
+  const keys = ['configure_fee_structure', 'print_loan_letter', 'finance_analytics', 'finance', 'incentive', 'payment'];
   for (const dept of permissions) {
     if (dept.permissions.some(p => keys.some(k => p.toLowerCase().includes(k)))) return true;
   }
@@ -492,6 +492,28 @@ export default function NavigationHeader() {
     );
   }
 
+  // Add Finance section - per-permission sub-items
+  if (hasFinanceAccess) {
+    const financeChildren: SubMenuItem[] = [];
+    if (isAdmin || hasPermission(userPermissions, 'configure_fee_structure')) {
+      financeChildren.push({ name: '⚙️ Fee Structure', href: '/finance/fees', description: 'Configure transport, hostel & academic fees' });
+    }
+    if (isAdmin || hasPermission(userPermissions, 'print_loan_letter')) {
+      financeChildren.push({ name: '📄 Loan Letters', href: '/finance/loan-letter', description: 'Generate and manage student loan letters' });
+    }
+    if (isAdmin || hasPermission(userPermissions, 'finance_analytics')) {
+      financeChildren.push({ name: '📊 Finance Analytics', href: '/finance/analytics', description: 'Fee structure and loan letter statistics' });
+    }
+    navigationSubItems.push({
+      name: '💰 Finance',
+      description: 'Fee structures, loan letters & analytics',
+      children: [
+        { name: '🏠 Finance Dashboard', href: '/finance/dashboard', description: 'Finance overview' },
+        ...financeChildren,
+      ],
+    });
+  }
+
   // Add Event Management
   const canCreateEvent = isFaculty || isClubChairperson;
   const eventChildren: SubMenuItem[] = [
@@ -577,8 +599,8 @@ export default function NavigationHeader() {
     });
   }
 
-  // UMS Navigation - hidden for staff/guard (they only need Gate Entry)
-  if (!isStaff) {
+  // UMS Navigation - show it whenever there are actual items available for the user.
+  if (navigationSubItems.length > 0) {
     menuItems.push({
       name: 'UMS Navigation',
       subItems: navigationSubItems,
@@ -679,15 +701,15 @@ export default function NavigationHeader() {
   }
 
   // =====================================
-    // SYSTEM & COMMUNICATION - Chat + Mail grouped (hidden for now)
+    // SYSTEM & COMMUNICATION - Chat + Mail grouped
   // =====================================
-    // menuItems.push({
-    //   name: 'System & Communication',
-    //   subItems: [
-    //     { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
-    //     { name: '📧 Mail', href: '/mail', description: 'Open the mail system' },
-    //   ],
-    // });
+    menuItems.push({
+    name: 'System & Communication',
+    subItems: [
+      { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
+      { name: '📧 Mail', href: '/mail', description: 'Open the mail system' },
+    ],
+  });
 
   // ── Active-route helper ──────────────────────────────────────────────────
   /** Returns true if this item or any descendant href matches the current path */

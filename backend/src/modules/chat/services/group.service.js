@@ -256,7 +256,7 @@ const updateGroup = async (groupId, userId, { name, description, avatar }) => {
  */
 const deleteGroup = async (groupId, userId, userType) => {
   // System admin (platform level) can delete any group
-  if (userType === 'admin') {
+  if (userType === 'admin' || userType === 'superadmin') {
     await prisma.chatGroup.update({
       where: { id: groupId },
       data: { isActive: false },
@@ -396,7 +396,7 @@ const removeMember = async (groupId, userId, removedBy) => {
  */
 const updateMemberRole = async (groupId, userId, newRole, updatedBy, updaterUserType) => {
   // System admin bypass
-  if (updaterUserType !== 'admin') {
+  if (updaterUserType !== 'admin' && updaterUserType !== 'superadmin') {
     const updaterMember = await prisma.chatGroupMember.findUnique({
       where: { groupId_userId: { groupId, userId: updatedBy } },
       select: { memberRole: true },
@@ -438,7 +438,7 @@ const updateMemberRole = async (groupId, userId, newRole, updatedBy, updaterUser
  * System admin (userType = 'admin') can update permissions in any group
  */
 const updateMemberPermissions = async (groupId, userId, customPermissions, updatedBy, updaterUserType) => {
-  if (updaterUserType !== 'admin') {
+  if (updaterUserType !== 'admin' && updaterUserType !== 'superadmin') {
     const isAdmin = await isGroupAdmin(groupId, updatedBy);
     if (!isAdmin) {
       throw new Error('Only admins or system admin can update member permissions');
@@ -460,7 +460,7 @@ const updateMemberPermissions = async (groupId, userId, customPermissions, updat
  * System admin (userType = 'admin') can update group permissions for any group
  */
 const updateGroupPermissions = async (groupId, permissions, updatedBy, updaterUserType) => {
-  if (updaterUserType !== 'admin') {
+  if (updaterUserType !== 'admin' && updaterUserType !== 'superadmin') {
     const isAdmin = await isGroupAdmin(groupId, updatedBy);
     if (!isAdmin) {
       throw new Error('Only admins or system admin can update group permissions');

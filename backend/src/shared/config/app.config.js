@@ -15,6 +15,12 @@ module.exports = {
     expire: process.env.JWT_EXPIRE || '7d',
     cookieExpire: parseInt(process.env.JWT_COOKIE_EXPIRE) || 7,
   },
+
+  chatJwt: {
+    secret: process.env.CHAT_JWT_SECRET || process.env.JWT_SECRET || 'dev-only-insecure-chat-secret',
+    accessExpire: process.env.CHAT_JWT_ACCESS_EXPIRE || '15m',
+    refreshExpire: process.env.CHAT_JWT_REFRESH_EXPIRE || '30d',
+  },
   
   bcrypt: {
     // Optimized for scalability: 10 rounds = ~100ms, good balance for 25k users

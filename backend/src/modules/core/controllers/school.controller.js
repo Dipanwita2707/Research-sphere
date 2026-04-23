@@ -585,3 +585,68 @@ exports.toggleSchoolStatus = async (req, res) => {
     });
   }
 };
+/**
+ * Bulk create schools from JSON array
+ * Expected body: { schools: [{ facultyCode, facultyName, facultyType, shortName?, ... }] }
+ */
+exports.bulkCreate = async (req, res) => {
+  try {
+    const { schools } = req.body;
+    if (!Array.isArray(schools) || schools.length === 0) {
+      return res.status(400).json({ success: false, message: 'schools array is required' });
+    }
+    if (schools.length > 200) {
+      return res.status(400).json({ success: false, message: 'Maximum 200 rows per upload' });
+    }
+
+    const results = { created: [], skipped: [], errors: [] };
+
+    for (let i = 0; i < schools.length; i++) {
+      const row = schools[i];
+      const rowNum = i + 1;
+      const errors = validateSchoolData(row);
+      if (errors.length > 0) {
+        results.errors.push({ row: rowNum, facultyCode: row.facultyCode, errors });
+        continue;
+      }
+      const code = (row.facultyCode || '').toUpperCase();
+      const exists = await prisma.facultySchoolList.findUnique({ where: { facultyCode: code } });
+      if (exists) {
+        results.skipped.push({ row: rowNum, facultyCode: code, reason: 'Already exists' });
+        continue;
+      }
+      try {
+        const created = await prisma.facultySchoolList.create({
+          data: {
+            facultyCode: code,
+            facultyName: row.facultyName,
+            facultyType: row.facultyType,
+            shortName: row.shortName || null,
+            description: row.description || null,
+            establishedYear: row.establishedYear ? Number(row.establishedYear) : null,
+            contactEmail: row.contactEmail || null,
+            contactPhone: row.contactPhone || null,
+            officeLocation: row.officeLocation || null,
+            websiteUrl: row.websiteUrl || null,
+            metadata: {},
+            isActive: true,
+          },
+        });
+        results.created.push({ row: rowNum, facultyCode: code, id: created.id });
+      } catch (e) {
+        results.errors.push({ row: rowNum, facultyCode: code, errors: [e.message] });
+      }
+    }
+
+    await cache.delPattern(`${cache.CACHE_KEYS.SCHOOL}*`);
+
+    res.status(207).json({
+      success: true,
+      message: `Bulk upload complete: ${results.created.length} created, ${results.skipped.length} skipped, ${results.errors.length} errors`,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Bulk create schools error:', error);
+    res.status(500).json({ success: false, message: 'Bulk upload failed' });
+  }
+};

@@ -27,6 +27,9 @@ const chatModule = require('./modules/chat');
 const { socketAuth } = require('./modules/chat/sockets/socketAuth');
 const { initChatSocket } = require('./modules/chat/sockets/chatSocket');
 
+// Import chat auth module (scoped JWT sessions for chat)
+const chatAuthModule = require('./modules/chat-auth');
+
 // Import mail module
 const mailModule = require('./modules/mail');
 
@@ -261,6 +264,9 @@ app.use(`${API_PREFIX}/audit`, auditModule);
 // Chat module
 app.use(`${API_PREFIX}/chat`, chatModule);
 
+// Chat auth module (scoped JWT sessions)
+app.use(`${API_PREFIX}/chat-auth`, chatAuthModule);
+
 // Mail module (Internal Mailing System)
 app.use(`${API_PREFIX}/mail`, mailModule);
 // Gate Entry module
@@ -293,6 +299,37 @@ const startServer = async () => {
       pingTimeout: 60000,
       pingInterval: 25000,
     });
+
+    // Attach Redis adapter for horizontal scaling (multi-instance broadcasts)
+    try {
+      const connOpts = cache.getConnectionOpts();
+      if (connOpts) {
+        const { createAdapter } = require('@socket.io/redis-adapter');
+        const Redis = require('ioredis');
+        const pubClient = connOpts.url
+          ? new Redis(connOpts.url)
+          : new Redis(connOpts);
+        const subClient = pubClient.duplicate();
+        await Promise.all([
+          new Promise((resolve, reject) => {
+            pubClient.on('ready', resolve);
+            pubClient.on('error', reject);
+            setTimeout(() => reject(new Error('Redis adapter pub timeout')), 5000);
+          }),
+          new Promise((resolve, reject) => {
+            subClient.on('ready', resolve);
+            subClient.on('error', reject);
+            setTimeout(() => reject(new Error('Redis adapter sub timeout')), 5000);
+          }),
+        ]);
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log('🔄 Socket.IO Redis adapter attached');
+      } else {
+        console.log('⚠️  Socket.IO running without Redis adapter (single instance only)');
+      }
+    } catch (adapterErr) {
+      console.warn('⚠️  Socket.IO Redis adapter failed, single instance mode:', adapterErr.message);
+    }
 
     // Socket.io authentication middleware
     io.use(socketAuth);

@@ -278,18 +278,20 @@ export default function EmployeeManagement() {
         return;
       }
 
-      // Clean up the form data - remove empty strings and replace with null
+      // Clean up the form data
+      // schoolId/departmentId/primaryCentralDeptId: null is fine (backend accepts null)
+      // String optional fields: send '' not null (backend schema accepts '' but not null)
       const cleanFormData = {
         ...validation.data,
         schoolId: validation.data.schoolId || null,
         departmentId: validation.data.departmentId || null,
         primaryCentralDeptId: validation.data.centralDepartmentId || null,
-        middleName: validation.data.middleName || null,
-        dateOfBirth: validation.data.dateOfBirth || null,
-        alternateNumber: validation.data.alternateNumber || null,
-        personalEmail: validation.data.personalEmail || null,
-        currentAddress: validation.data.currentAddress || null,
-        permanentAddress: validation.data.permanentAddress || null,
+        middleName: validation.data.middleName || '',
+        dateOfBirth: validation.data.dateOfBirth || '',
+        alternateNumber: validation.data.alternateNumber || '',
+        personalEmail: validation.data.personalEmail || '',
+        currentAddress: validation.data.currentAddress || '',
+        permanentAddress: validation.data.permanentAddress || '',
       };
 
       // Remove centralDepartmentId from the payload since backend expects primaryCentralDeptId

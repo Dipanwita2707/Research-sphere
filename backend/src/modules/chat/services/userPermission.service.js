@@ -81,10 +81,15 @@ const hasUserChatAccess = async (userId) => {
   }
 
   // Check if there are ANY user permissions created (if none exist, allow all - backwards compatibility)
-  const totalPermissions = await prisma.chatUserPermission.count();
-  
-  if (totalPermissions === 0) {
-    // No user permissions configured yet - allow all users (backwards compatible)
+  // This count is cached for 10 min because it only matters once (bootstrap), saving a full-table COUNT on every cache miss.
+  const anyPermsCacheKey = 'chat:has-any-permissions';
+  let hasAnyPerms = await cache.get(anyPermsCacheKey);
+  if (hasAnyPerms === null || hasAnyPerms === undefined) {
+    const totalPermissions = await prisma.chatUserPermission.count();
+    hasAnyPerms = totalPermissions > 0 ? 'yes' : 'no';
+    await cache.set(anyPermsCacheKey, hasAnyPerms, 600); // 10 min TTL
+  }
+  if (hasAnyPerms === 'no') {
     await cache.set(cacheKey, 'true', 300);
     return true;
   }
@@ -103,6 +108,11 @@ const hasUserChatAccess = async (userId) => {
  * Get all authorized chat users (paginated)
  */
 const getAuthorizedUsers = async ({ page = 1, limit = 50, search = '' } = {}) => {
+  // Cache the list for 30s (admin panel pagination; no instant-consistency needed)
+  const listCacheKey = `chat:authorized-users:${page}:${limit}:${search}`;
+  const listCached = await cache.get(listCacheKey);
+  if (listCached) return JSON.parse(listCached);
+
   const skip = (page - 1) * limit;
 
   const where = search
@@ -159,7 +169,7 @@ const getAuthorizedUsers = async ({ page = 1, limit = 50, search = '' } = {}) =>
     prisma.chatUserPermission.count({ where }),
   ]);
 
-  return {
+  const result = {
     users,
     pagination: {
       page,
@@ -168,6 +178,8 @@ const getAuthorizedUsers = async ({ page = 1, limit = 50, search = '' } = {}) =>
       totalPages: Math.ceil(total / limit),
     },
   };
+  await cache.set(listCacheKey, JSON.stringify(result), 30);
+  return result;
 };
 
 /**
@@ -399,66 +411,69 @@ const toggleUserChat = async (userId, enabled) => {
  * Get user permission stats
  */
 const getStats = async () => {
+  const cacheKey = 'chat:user-permission:stats';
+  const cached = await cache.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
   const [total, enabled, disabled] = await Promise.all([
     prisma.chatUserPermission.count(),
     prisma.chatUserPermission.count({ where: { chatEnabled: true } }),
     prisma.chatUserPermission.count({ where: { chatEnabled: false } }),
   ]);
 
-  return { total, enabled, disabled };
+  const result = { totalUsers: total, enabledUsers: enabled, disabledUsers: disabled };
+  await cache.set(cacheKey, JSON.stringify(result), 30); // 30s TTL
+  return result;
 };
 
 /**
- * Search users not yet added to chat permissions
+ * Search users not yet added to chat permissions.
+ * Uses a single query with NOT EXISTS instead of fetching all IDs first.
  */
 const searchUnaddedUsers = async (query, limit = 20) => {
-  // Get all existing permission user IDs
-  const existingPerms = await prisma.chatUserPermission.findMany({
-    select: { userId: true },
-  });
-  const existingUserIds = existingPerms.map((p) => p.userId);
+  const q = `%${query}%`;
 
-  const users = await prisma.userLogin.findMany({
-    where: {
-      id: { notIn: existingUserIds.length > 0 ? existingUserIds : ['none'] },
-      OR: [
-        { uid: { contains: query, mode: 'insensitive' } },
-        { email: { contains: query, mode: 'insensitive' } },
-        {
-          employeeDetails: {
-            OR: [
-              { firstName: { contains: query, mode: 'insensitive' } },
-              { lastName: { contains: query, mode: 'insensitive' } },
-            ],
-          },
-        },
-        {
-          studentLogin: {
-            OR: [
-              { firstName: { contains: query, mode: 'insensitive' } },
-              { lastName: { contains: query, mode: 'insensitive' } },
-            ],
-          },
-        },
-      ],
-    },
-    select: {
-      id: true,
-      uid: true,
-      email: true,
-      role: true,
-      profileImage: true,
-      employeeDetails: {
-        select: { firstName: true, lastName: true, displayName: true },
-      },
-      studentLogin: {
-        select: { firstName: true, lastName: true },
-      },
-    },
-    take: limit,
-  });
+  const users = await prisma.$queryRaw`
+    SELECT
+      ul.id,
+      ul.uid,
+      ul.email,
+      ul.role::text        AS role,
+      ul.profile_image     AS "profileImage",
+      ed.first_name        AS "firstName",
+      ed.last_name         AS "lastName",
+      ed.display_name      AS "displayName",
+      sl.first_name        AS "studentFirstName",
+      sl.last_name         AS "studentLastName"
+    FROM user_login ul
+    LEFT JOIN employee_details ed ON ed.user_login_id = ul.id
+    LEFT JOIN student_details  sl ON sl.user_login_id = ul.id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM chat_user_permission cup WHERE cup.user_id = ul.id
+    )
+    AND (
+      ul.uid   ILIKE ${q}
+      OR ul.email ILIKE ${q}
+      OR ed.first_name  ILIKE ${q}
+      OR ed.last_name   ILIKE ${q}
+      OR ed.display_name ILIKE ${q}
+      OR sl.first_name  ILIKE ${q}
+      OR sl.last_name   ILIKE ${q}
+    )
+    LIMIT ${limit}
+  `;
 
-  return users;
+  // Normalise into the shape callers expect
+  return users.map((u) => ({
+    id: u.id,
+    uid: u.uid,
+    email: u.email,
+    role: u.role,
+    profileImage: u.profileImage,
+    firstName: u.firstName || u.studentFirstName || u.uid || '',
+    lastName:  u.lastName  || u.studentLastName  || '',
+    displayName: u.displayName || null,
+  }));
 };
 
 /**
@@ -468,6 +483,9 @@ const invalidateUserPermissionCache = async (userId) => {
   await Promise.all([
     cache.del(`chat:user-permission:${userId}`),
     cache.del(`chat:user-access:${userId}`),
+    cache.del(`chat:socket-user:${userId}`),
+    cache.del('chat:user-permission:stats'),
+    cache.del('chat:has-any-permissions'),
   ]);
 };
 

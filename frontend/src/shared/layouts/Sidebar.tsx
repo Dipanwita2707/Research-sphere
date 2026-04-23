@@ -31,7 +31,8 @@ import {
   Shield,
   Store,
   QrCode,
-  Award
+  Award,
+  Receipt
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -111,7 +112,7 @@ const hasAnalyticsPermissions = (permissions: DepartmentPermission[]): boolean =
 };
 
 const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => {
-  const keys = ['finance', 'incentive', 'payment'];
+  const keys = ['configure_fee_structure', 'print_loan_letter', 'finance_analytics', 'finance', 'incentive', 'payment'];
   for (const dept of permissions) {
     if (dept.permissions.some(p => keys.some(k => p.toLowerCase().includes(k)))) return true;
   }
@@ -174,11 +175,23 @@ const getNavItems = (
     });
   }
   
-  // Finance Dashboard - Show if user has finance permissions
+  // Finance - Show with permission-gated sub-items
   if (hasFinanceAccess) {
-    items.push({ name: 'Finance', href: '/finance/dashboard', icon: DollarSign });
+    const financeSubItems: NavItem[] = [
+      { name: 'Dashboard', href: '/finance/dashboard', icon: LayoutDashboard },
+    ];
+    if (isAdmin || hasPermission(permissions, 'configure_fee_structure')) {
+      financeSubItems.push({ name: 'Fee Structure', href: '/finance/fees', icon: Receipt });
+    }
+    if (isAdmin || hasPermission(permissions, 'print_loan_letter')) {
+      financeSubItems.push({ name: 'Loan Letters', href: '/finance/loan-letter', icon: FileText });
+    }
+    if (isAdmin || hasPermission(permissions, 'finance_analytics')) {
+      financeSubItems.push({ name: 'Finance Analytics', href: '/finance/analytics', icon: BarChart3 });
+    }
+    items.push({ name: 'Finance', href: '/finance/dashboard', icon: DollarSign, subItems: financeSubItems });
   }
-  
+
   // Research & IPR - Show unified menu for faculty and students
   if (canFileResearch || canFileIpr || canFileBook) {
     const researchIprSubItems: NavItem[] = [

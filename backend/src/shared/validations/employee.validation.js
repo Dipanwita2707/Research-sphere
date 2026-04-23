@@ -47,7 +47,8 @@ const createEmployeeSchema = z.object({
     .max(50, 'Middle name must not exceed 50 characters')
     .regex(/^[a-zA-Z\s'-]*$/, 'Middle name can only contain letters, spaces, hyphens and apostrophes')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .or(z.literal(null)),
   
   lastName: z
     .string()
@@ -74,6 +75,7 @@ const createEmployeeSchema = z.object({
     .string()
     .optional()
     .or(z.literal(''))
+    .or(z.literal(null))
     .refine(
       (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val),
       'Date of birth must be in YYYY-MM-DD format'
@@ -83,6 +85,7 @@ const createEmployeeSchema = z.object({
     .string()
     .optional()
     .or(z.literal(''))
+    .or(z.literal(null))
     .refine(
       (val) => !val || /^\d{10}$/.test(val),
       'Alternate number must be exactly 10 digits (numbers only)'
@@ -92,6 +95,7 @@ const createEmployeeSchema = z.object({
     .string()
     .optional()
     .or(z.literal(''))
+    .or(z.literal(null))
     .refine(
       (val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
       'Personal email format is invalid - Use format: name@example.com'
@@ -130,6 +134,7 @@ const createEmployeeSchema = z.object({
     .string()
     .optional()
     .or(z.literal(''))
+    .or(z.literal(null))
     .refine(
       (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val),
       'Date of joining must be in YYYY-MM-DD format'
@@ -155,13 +160,15 @@ const createEmployeeSchema = z.object({
     .string()
     .max(500, 'Current address must not exceed 500 characters')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .or(z.literal(null)),
   
   permanentAddress: z
     .string()
     .max(500, 'Permanent address must not exceed 500 characters')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .or(z.literal(null)),
   
   // Other
   isActive: z

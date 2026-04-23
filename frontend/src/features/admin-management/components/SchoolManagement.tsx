@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { schoolService, School, CreateSchoolDto } from '@/features/admin-management/services/school.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
@@ -18,6 +19,7 @@ const FACULTY_TYPES = [
 
 export default function SchoolManagement() {
   const toast = useToast();
+  const router = useRouter();
   
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,12 +159,20 @@ export default function SchoolManagement() {
           <h1 className="text-2xl font-bold text-gray-900">School Management</h1>
           <p className="text-gray-600 mt-1">Manage faculties and schools</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          Add New School
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push('/admin/bulk-upload')}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+          >
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Add New School
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">

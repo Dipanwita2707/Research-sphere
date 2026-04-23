@@ -32,7 +32,7 @@ export const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean 
 };
 
 export const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => {
-  const keys = ['finance', 'incentive', 'payment'];
+  const keys = ['configure_fee_structure', 'print_loan_letter', 'finance_analytics', 'finance', 'incentive', 'payment'];
   for (const dept of permissions) {
     if (dept.permissions.some(p => keys.some(k => p.toLowerCase().includes(k)))) return true;
   }
@@ -44,7 +44,7 @@ export const hasAnalyticsPermissions = (permissions: DepartmentPermission[]): bo
     'applicant_analytics', 'drd_member_analytics',
     'ipr_applicant_analytics', 'research_applicant_analytics',
     'book_applicant_analytics', 'conference_applicant_analytics',
-    'grant_applicant_analytics',
+    'grant_applicant_analytics', 'finance_analytics',
   ];
   for (const dept of permissions) {
     for (const perm of dept.permissions || []) {

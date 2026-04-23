@@ -7,5 +7,11 @@ export default function FinanceLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
+  return (
+    <AuthenticatedLayout>
+      <div className="finance-theme min-h-full">
+        {children}
+      </div>
+    </AuthenticatedLayout>
+  );
 }

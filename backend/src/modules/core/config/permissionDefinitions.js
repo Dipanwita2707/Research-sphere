@@ -354,30 +354,24 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
 
   // Finance Department
   finance: [
-    { key: "view_accounts", label: "View Accounts", category: "Finance" },
-    { key: "manage_accounts", label: "Manage Accounts", category: "Finance" },
     {
-      key: "view_transactions",
-      label: "View Transactions",
+      key: "configure_fee_structure",
+      label: "Configure Fee Structure",
       category: "Finance",
+      description: "Can configure transport, hostel, and academic fee structures for each batch year.",
     },
     {
-      key: "approve_transactions",
-      label: "Approve Transactions",
+      key: "print_loan_letter",
+      label: "Print Loan Letter",
       category: "Finance",
-    },
-    { key: "manage_fees", label: "Manage Fees", category: "Finance" },
-    {
-      key: "generate_invoices",
-      label: "Generate Invoices",
-      category: "Finance",
+      description: "Can generate and print loan letters for students with a unique letter number.",
     },
     {
-      key: "view_financial_reports",
-      label: "View Financial Reports",
-      category: "Finance",
+      key: "finance_analytics",
+      label: "Finance Analytics",
+      category: "Finance Analytics",
+      description: "Can view finance analytics including fee structure summaries and loan letter statistics.",
     },
-    { key: "manage_budget", label: "Manage Budget", category: "Finance" },
   ],
 
   // Library

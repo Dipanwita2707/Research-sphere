@@ -56,6 +56,9 @@ exports.getAllPrograms = async (req, res) => {
             },
           },
         },
+        specializations: {
+          orderBy: { specializationCode: 'asc' },
+        },
         _count: {
           select: {
             sections: true,
@@ -220,6 +223,7 @@ exports.createProgram = async (req, res) => {
       shortName,
       description,
       durationYears,
+      durationMonths,
       durationSemesters,
       totalCredits,
       admissionCapacity,
@@ -227,6 +231,7 @@ exports.createProgram = async (req, res) => {
       accreditationBody,
       accreditationStatus,
       metadata,
+      specializations,
     } = req.body;
 
     // Validate required fields
@@ -306,6 +311,7 @@ exports.createProgram = async (req, res) => {
         shortName,
         description,
         durationYears: durationYears != null && durationYears !== '' ? Number(durationYears) : 4,
+        durationMonths: durationMonths != null && durationMonths !== '' ? Number(durationMonths) : null,
         durationSemesters: durationSemesters != null && durationSemesters !== '' ? Number(durationSemesters) : 8,
         totalCredits: totalCredits != null && totalCredits !== '' ? Number(totalCredits) : null,
         admissionCapacity: admissionCapacity != null ? Number(admissionCapacity) : 0,
@@ -330,6 +336,33 @@ exports.createProgram = async (req, res) => {
             },
           },
         },
+        specializations: { orderBy: { specializationCode: 'asc' } },
+      },
+    });
+
+    // Create specializations if provided
+    if (Array.isArray(specializations) && specializations.length > 0) {
+      const specializationData = specializations.map((s, index) => ({
+        programId: program.id,
+        specializationCode: `${programCode}-SP${index + 1}`,
+        specializationName: typeof s === 'string' ? s : s.name,
+        isActive: true,
+      }));
+      await prisma.programSpecialization.createMany({ data: specializationData });
+    }
+
+    const programWithSpecs = await prisma.program.findUnique({
+      where: { id: program.id },
+      include: {
+        department: {
+          select: {
+            id: true,
+            departmentCode: true,
+            departmentName: true,
+            faculty: { select: { id: true, facultyCode: true, facultyName: true } },
+          },
+        },
+        specializations: { orderBy: { specializationCode: 'asc' } },
       },
     });
 
@@ -339,7 +372,7 @@ exports.createProgram = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Program created successfully',
-      data: program,
+      data: programWithSpecs,
     });
   } catch (error) {
     console.error('Create program error:', error);
@@ -364,6 +397,7 @@ exports.updateProgram = async (req, res) => {
       shortName,
       description,
       durationYears,
+      durationMonths,
       durationSemesters,
       totalCredits,
       admissionCapacity,
@@ -372,6 +406,7 @@ exports.updateProgram = async (req, res) => {
       accreditationBody,
       accreditationStatus,
       metadata,
+      specializations,
     } = req.body;
 
     // Check if program exists
@@ -466,6 +501,7 @@ exports.updateProgram = async (req, res) => {
         ...(shortName !== undefined && { shortName }),
         ...(description !== undefined && { description }),
         ...(durationYears !== undefined && { durationYears }),
+        ...(durationMonths !== undefined && { durationMonths: durationMonths !== '' ? Number(durationMonths) : null }),
         ...(durationSemesters !== undefined && { durationSemesters }),
         ...(totalCredits !== undefined && { totalCredits }),
         ...(admissionCapacity !== undefined && { admissionCapacity }),
@@ -503,6 +539,38 @@ exports.updateProgram = async (req, res) => {
             },
           },
         },
+        specializations: { orderBy: { specializationCode: 'asc' } },
+      },
+    });
+
+    // Sync specializations if provided
+    if (Array.isArray(specializations)) {
+      const currentCode = program.programCode;
+      // Delete all existing specializations and recreate
+      await prisma.programSpecialization.deleteMany({ where: { programId: id } });
+      if (specializations.length > 0) {
+        const specializationData = specializations.map((s, index) => ({
+          programId: id,
+          specializationCode: `${currentCode}-SP${index + 1}`,
+          specializationName: typeof s === 'string' ? s : s.name,
+          isActive: true,
+        }));
+        await prisma.programSpecialization.createMany({ data: specializationData });
+      }
+    }
+
+    const updatedWithSpecs = await prisma.program.findUnique({
+      where: { id },
+      include: {
+        department: {
+          select: {
+            id: true,
+            departmentCode: true,
+            departmentName: true,
+            faculty: { select: { id: true, facultyCode: true, facultyName: true } },
+          },
+        },
+        specializations: { orderBy: { specializationCode: 'asc' } },
       },
     });
 
@@ -512,7 +580,7 @@ exports.updateProgram = async (req, res) => {
     res.json({
       success: true,
       message: 'Program updated successfully',
-      data: program,
+      data: updatedWithSpecs,
     });
   } catch (error) {
     console.error('Update program error:', error);
@@ -652,5 +720,181 @@ exports.getProgramTypes = async (req, res) => {
       success: false,
       message: 'Failed to fetch program types',
     });
+  }
+};
+
+/**
+ * Get specializations for a program
+ */
+exports.getSpecializations = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const specializations = await prisma.programSpecialization.findMany({
+      where: { programId: id },
+      orderBy: { specializationCode: 'asc' },
+    });
+
+    res.json({ success: true, data: specializations });
+  } catch (error) {
+    console.error('Get specializations error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch specializations' });
+  }
+};
+
+/**
+ * Add a specialization to a program
+ */
+exports.addSpecialization = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { specializationName } = req.body;
+
+    if (!specializationName) {
+      return res.status(400).json({ success: false, message: 'Specialization name is required' });
+    }
+
+    const program = await prisma.program.findUnique({ where: { id } });
+    if (!program) {
+      return res.status(404).json({ success: false, message: 'Program not found' });
+    }
+
+    // Count existing specializations to generate next sequence number
+    const count = await prisma.programSpecialization.count({ where: { programId: id } });
+    const specializationCode = `${program.programCode}-SP${count + 1}`;
+
+    const specialization = await prisma.programSpecialization.create({
+      data: {
+        programId: id,
+        specializationCode,
+        specializationName,
+        isActive: true,
+      },
+    });
+
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
+
+    res.status(201).json({ success: true, message: 'Specialization added', data: specialization });
+  } catch (error) {
+    console.error('Add specialization error:', error);
+    res.status(500).json({ success: false, message: 'Failed to add specialization' });
+  }
+};
+
+/**
+ * Update a specialization
+ */
+exports.updateSpecialization = async (req, res) => {
+  try {
+    const { specId } = req.params;
+    const { specializationName, isActive } = req.body;
+
+    const spec = await prisma.programSpecialization.findUnique({ where: { id: specId } });
+    if (!spec) {
+      return res.status(404).json({ success: false, message: 'Specialization not found' });
+    }
+
+    const updated = await prisma.programSpecialization.update({
+      where: { id: specId },
+      data: {
+        ...(specializationName !== undefined && { specializationName }),
+        ...(isActive !== undefined && { isActive }),
+      },
+    });
+
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
+
+    res.json({ success: true, message: 'Specialization updated', data: updated });
+  } catch (error) {
+    console.error('Update specialization error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update specialization' });
+  }
+};
+
+/**
+ * Delete a specialization
+ */
+exports.deleteSpecialization = async (req, res) => {
+  try {
+    const { specId } = req.params;
+
+    const spec = await prisma.programSpecialization.findUnique({ where: { id: specId } });
+    if (!spec) {
+      return res.status(404).json({ success: false, message: 'Specialization not found' });
+    }
+
+    await prisma.programSpecialization.delete({ where: { id: specId } });
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
+
+    res.json({ success: true, message: 'Specialization deleted' });
+  } catch (error) {
+    console.error('Delete specialization error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete specialization' });
+  }
+};
+/**
+ * Bulk create programmes
+ * Body: { programs: [{ programCode, programName, programType, departmentId, durationYears?, durationSemesters? }] }
+ */
+exports.bulkCreate = async (req, res) => {
+  try {
+    const { programs } = req.body;
+    if (!Array.isArray(programs) || programs.length === 0) {
+      return res.status(400).json({ success: false, message: 'programs array is required' });
+    }
+    if (programs.length > 200) {
+      return res.status(400).json({ success: false, message: 'Maximum 200 rows per upload' });
+    }
+
+    const results = { created: [], skipped: [], errors: [] };
+
+    for (let i = 0; i < programs.length; i++) {
+      const row = programs[i];
+      const rowNum = i + 1;
+      if (!row.programCode || !row.programName || !row.programType || !row.departmentId) {
+        results.errors.push({ row: rowNum, programCode: row.programCode, errors: ['programCode, programName, programType, and departmentId are required'] });
+        continue;
+      }
+      const code = (row.programCode || '').toUpperCase();
+      const exists = await prisma.program.findFirst({ where: { programCode: code } });
+      if (exists) {
+        results.skipped.push({ row: rowNum, programCode: code, reason: 'Programme code already exists' });
+        continue;
+      }
+      const deptExists = await prisma.department.findUnique({ where: { id: row.departmentId } });
+      if (!deptExists) {
+        results.errors.push({ row: rowNum, programCode: code, errors: [`Department with id ${row.departmentId} not found`] });
+        continue;
+      }
+      try {
+        const created = await prisma.program.create({
+          data: {
+            programCode: code,
+            programName: row.programName,
+            programType: row.programType,
+            departmentId: row.departmentId,
+            durationYears: row.durationYears ? Number(row.durationYears) : null,
+            durationSemesters: row.durationSemesters ? Number(row.durationSemesters) : null,
+            durationMonths: row.durationMonths ? Number(row.durationMonths) : null,
+            description: row.description || null,
+            isActive: true,
+          },
+        });
+        results.created.push({ row: rowNum, programCode: code, id: created.id });
+      } catch (e) {
+        results.errors.push({ row: rowNum, programCode: code, errors: [e.message] });
+      }
+    }
+
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
+
+    res.status(207).json({
+      success: true,
+      message: `Bulk upload complete: ${results.created.length} created, ${results.skipped.length} skipped, ${results.errors.length} errors`,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Bulk create programs error:', error);
+    res.status(500).json({ success: false, message: 'Bulk upload failed' });
   }
 };

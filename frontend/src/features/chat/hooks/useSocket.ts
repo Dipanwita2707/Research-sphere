@@ -7,7 +7,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useChatStore } from '../store/chatStore';
-import { useAuthStore } from '@/shared/auth/authStore';
+import { useChatAuthStore } from '@/shared/auth/chatAuthStore';
 import type { ChatMessage, DirectMessage, ChatUser, TypingUser } from '../types';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5001';
@@ -24,7 +24,7 @@ export function useSocket(options: UseSocketOptions = {}) {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<Error | null>(null);
-  const { getToken } = useAuthStore();
+  const { getChatToken: getToken, chatAccessToken } = useChatAuthStore();
 
   const {
     addMessage,
@@ -107,7 +107,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     // Direct message events
     socket.on('newDirectMessage', (data: { message: DirectMessage }) => {
       // Determine the other user: if I sent it, the other user is the receiver; otherwise the sender
-      const currentUserId = useAuthStore.getState().user?.id ?? null;
+      const currentUserId = useChatAuthStore.getState().chatUser?.id ?? null;
       const otherUserId = data.message.senderId ===
    currentUserId 
         ? data.message.receiverId 
@@ -154,6 +154,7 @@ export function useSocket(options: UseSocketOptions = {}) {
     };
   }, [
     enabled,
+    chatAccessToken,
     getToken,
     onConnect,
     onDisconnect,

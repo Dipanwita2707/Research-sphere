@@ -65,7 +65,7 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
 };
 
 const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => {
-  const keys = ['finance', 'incentive', 'payment'];
+  const keys = ['configure_fee_structure', 'print_loan_letter', 'finance_analytics', 'finance', 'incentive', 'payment'];
   for (const dept of permissions) {
     if (dept.permissions.some(p => keys.some(k => p.toLowerCase().includes(k)))) return true;
   }
