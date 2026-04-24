@@ -10,12 +10,26 @@ const statusPillClassMap: Record<BookingRequestStatus, string> = {
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
   approved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   rejected: 'bg-rose-100 text-rose-700 border-rose-200',
+  cancel_pending: 'bg-orange-100 text-orange-700 border-orange-200',
+  cancelled: 'bg-slate-200 text-slate-700 border-slate-300',
+  reschedule_pending: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+  rescheduled: 'bg-cyan-100 text-cyan-700 border-cyan-200',
 };
 
 const statusLabelMap: Record<BookingRequestStatus, string> = {
   pending: 'Pending',
   approved: 'Approved',
   rejected: 'Rejected',
+  cancel_pending: 'Cancel Pending',
+  cancelled: 'Cancelled',
+  reschedule_pending: 'Reschedule Pending',
+  rescheduled: 'Rescheduled',
+};
+
+const requestTypeLabelMap: Record<BookingRequestItem['requestKind'], string> = {
+  new_booking: 'New Booking',
+  cancel_request: 'Cancellation Request',
+  reschedule_request: 'Reschedule Request',
 };
 
 const monthMap: Record<string, number> = {
@@ -118,6 +132,7 @@ function BookingCard({ request }: { request: BookingRequestItem }) {
           <p className="mt-1 text-sm font-medium text-[#266CA9]">
             {request.blockName}
           </p>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#0F2573]">{requestTypeLabelMap[request.requestKind]}</p>
         </div>
         <span className={['inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold', statusPillClassMap[request.status]].join(' ')}>
           {statusLabelMap[request.status]}
@@ -137,7 +152,29 @@ function BookingCard({ request }: { request: BookingRequestItem }) {
           <MapPin className="h-4 w-4 text-[#266CA9]" />
           {request.roomType.replace('_', ' ')}
         </p>
+        {request.department ? (
+          <p className="inline-flex items-center gap-2 sm:col-span-2">
+            <span className="font-semibold text-[#0F2573]">Department:</span> {request.department}
+          </p>
+        ) : null}
       </div>
+
+      {request.requestKind === 'cancel_request' ? (
+        <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+          <p className="text-xs font-semibold uppercase tracking-wide">Requested cancellation</p>
+          <p className="mt-1">Original schedule: {request.originalBookingDate ?? request.bookingDate} · {request.originalTimeSlot ?? request.timeSlot}</p>
+          <p className="mt-1 text-xs text-orange-700">Admin approval is required before this room slot is released.</p>
+        </div>
+      ) : null}
+
+      {request.requestKind === 'reschedule_request' ? (
+        <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800">
+          <p className="text-xs font-semibold uppercase tracking-wide">Requested reschedule</p>
+          <p className="mt-1">From: {request.originalBookingDate ?? '-'} · {request.originalTimeSlot ?? '-'}</p>
+          <p className="mt-1">To: {request.requestedBookingDate ?? request.bookingDate} · {request.requestedTimeSlot ?? request.timeSlot}</p>
+          <p className="mt-1 text-xs text-indigo-700">New slot will be confirmed only after admin approval.</p>
+        </div>
+      ) : null}
 
       <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Purpose</p>
@@ -287,7 +324,15 @@ export default function MyBookingsPage() {
         map[request.dateKey] = { total: 0, approved: 0, pending: 0, rejected: 0 };
       }
       map[request.dateKey].total += 1;
-      map[request.dateKey][request.status] += 1;
+
+      const metricKey =
+        request.status === 'approved' || request.status === 'cancelled' || request.status === 'rescheduled'
+          ? 'approved'
+          : request.status === 'rejected'
+            ? 'rejected'
+            : 'pending';
+
+      map[request.dateKey][metricKey] += 1;
     });
 
     return map;
@@ -319,6 +364,8 @@ export default function MyBookingsPage() {
       pending: mockBookingRequests.filter((x) => x.status === 'pending').length,
       approved: mockBookingRequests.filter((x) => x.status === 'approved').length,
       rejected: mockBookingRequests.filter((x) => x.status === 'rejected').length,
+      cancelPending: mockBookingRequests.filter((x) => x.status === 'cancel_pending').length,
+      reschedulePending: mockBookingRequests.filter((x) => x.status === 'reschedule_pending').length,
     };
   }, []);
 
@@ -332,9 +379,12 @@ export default function MyBookingsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50 to-slate-100 px-4 py-8 sm:px-6 lg:px-10">
+    <>
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#eaf4ff_0%,#eef5ff_35%,#f8fafc_70%,#f4f7ff_100%)] px-4 py-8 sm:px-6 lg:px-10">
+      <div className="mbp-orb mbp-orb-one" aria-hidden="true" />
+      <div className="mbp-orb mbp-orb-two" aria-hidden="true" />
       <div className="mx-auto max-w-6xl space-y-5">
-        <header className="rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-md backdrop-blur-sm sm:p-6">
+        <header className="mbp-enter rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-md backdrop-blur-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-[#011f4b] sm:text-4xl">My Booking Requests</h1>
@@ -350,7 +400,7 @@ export default function MyBookingsPage() {
           </div>
         </header>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mbp-enter grid gap-3 sm:grid-cols-2 lg:grid-cols-4" style={{ animationDelay: '90ms' }}>
           <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Total requests</p>
             <p className="mt-1 text-3xl font-bold text-[#011f4b]">{summary.total}</p>
@@ -369,7 +419,18 @@ export default function MyBookingsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm sm:p-5">
+        <section className="mbp-enter grid gap-3 sm:grid-cols-2" style={{ animationDelay: '140ms' }}>
+          <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">Cancel approvals pending</p>
+            <p className="mt-1 text-3xl font-bold text-orange-700">{summary.cancelPending}</p>
+          </div>
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Reschedule approvals pending</p>
+            <p className="mt-1 text-3xl font-bold text-indigo-700">{summary.reschedulePending}</p>
+          </div>
+        </section>
+
+        <section className="mbp-enter rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm sm:p-5" style={{ animationDelay: '200ms' }}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="inline-flex items-center text-sm font-semibold text-[#011f4b]">
               <Filter className="mr-2 h-4 w-4 text-[#266CA9]" />
@@ -388,7 +449,7 @@ export default function MyBookingsPage() {
             <div className="lg:col-span-2">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Status</p>
               <div className="flex flex-wrap gap-2">
-                {(['all', 'pending', 'approved', 'rejected'] as const).map((status) => (
+                {(['all', 'pending', 'approved', 'rejected', 'cancel_pending', 'cancelled', 'reschedule_pending', 'rescheduled'] as const).map((status) => (
                   <button
                     key={status}
                     type="button"
@@ -436,7 +497,7 @@ export default function MyBookingsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm sm:p-5">
+        <section className="mbp-enter rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm sm:p-5" style={{ animationDelay: '260ms' }}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <p className="inline-flex items-center text-sm font-semibold text-[#011f4b]">
               <CalendarDays className="mr-2 h-4 w-4 text-[#266CA9]" />
@@ -512,7 +573,7 @@ export default function MyBookingsPage() {
           </div>
         </section>
 
-        <section className="space-y-4">
+        <section className="mbp-enter space-y-4" style={{ animationDelay: '320ms' }}>
           {filteredRequests.length === 0 ? (
             <div className="rounded-2xl border border-blue-100 bg-white p-8 text-center shadow-sm">
               <FileText className="mx-auto h-8 w-8 text-[#266CA9]" />
@@ -524,5 +585,76 @@ export default function MyBookingsPage() {
         </section>
       </div>
     </main>
+    <style jsx>{`
+      .mbp-enter {
+        animation: mbpFadeIn 520ms ease-out both;
+      }
+
+      .mbp-orb {
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+        filter: blur(50px);
+        opacity: 0.3;
+      }
+
+      .mbp-orb-one {
+        width: 280px;
+        height: 280px;
+        top: -60px;
+        right: -50px;
+        background: radial-gradient(circle, #97cbf8 0%, #c3dff8 64%, rgba(195, 223, 248, 0) 100%);
+        animation: mbpFloatOne 14s ease-in-out infinite;
+      }
+
+      .mbp-orb-two {
+        width: 240px;
+        height: 240px;
+        bottom: 12%;
+        left: -70px;
+        background: radial-gradient(circle, #9fd9cf 0%, #c9e9e2 65%, rgba(201, 233, 226, 0) 100%);
+        animation: mbpFloatTwo 16s ease-in-out infinite;
+      }
+
+      @keyframes mbpFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes mbpFloatOne {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(-16px, 12px, 0);
+        }
+      }
+
+      @keyframes mbpFloatTwo {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(18px, -10px, 0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .mbp-enter,
+        .mbp-orb-one,
+        .mbp-orb-two {
+          animation: none;
+        }
+      }
+    `}</style>
+    </>
   );
 }

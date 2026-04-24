@@ -276,20 +276,23 @@ export default function RoomBrowserPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50 to-slate-100 px-4 py-8 sm:px-6 lg:px-10">
+    <>
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#e9f4ff_0%,#eef5ff_32%,#f8fafc_65%,#f5f8ff_100%)] px-4 py-8 sm:px-6 lg:px-10">
+      <div className="rmb-orb rmb-orb-one" aria-hidden="true" />
+      <div className="rmb-orb rmb-orb-two" aria-hidden="true" />
       <div className="mx-auto max-w-6xl">
-        <header className="mb-6 rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-md backdrop-blur-sm sm:p-6">
+        <header className="rmb-enter mb-6 rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-md backdrop-blur-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-[#011f4b] sm:text-4xl">Room Browser</h1>
               <p className="mt-1 text-base text-[#266CA9] sm:text-lg">Select a date to see that date information.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href="/resource-management/seminar-hall-booking/my-bookings" className="inline-flex items-center rounded-xl border border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110">
+              <Link href="/resource-management/seminar-hall-booking/my-bookings" className="inline-flex items-center rounded-xl border border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] px-4 py-2.5 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg hover:shadow-blue-900/20">
                 My bookings
                 <ArrowUpRight className="ml-1 inline h-4 w-4" />
               </Link>
-              <Link href="/resource-management/seminar-hall-booking/admin" className="inline-flex items-center rounded-xl border border-[#266CA9] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F2573] transition hover:bg-blue-50">
+              <Link href="/resource-management/seminar-hall-booking/admin" className="inline-flex items-center rounded-xl border border-[#266CA9] bg-white px-4 py-2.5 text-sm font-semibold text-[#0F2573] transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 hover:shadow-lg hover:shadow-blue-200/40">
                 Admin queue
                 <ArrowUpRight className="ml-1 inline h-4 w-4" />
               </Link>
@@ -297,7 +300,7 @@ export default function RoomBrowserPage() {
           </div>
         </header>
 
-        <section className="rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-sm backdrop-blur-sm sm:p-6">
+        <section className="rmb-enter rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-sm backdrop-blur-sm sm:p-6" style={{ animationDelay: '90ms' }}>
           <h2 className="text-sm font-bold tracking-[0.16em] text-[#266CA9]">SELECT BLOCK</h2>
           <div className="mt-3 flex flex-wrap gap-2.5">
             {mockResourceBlocks.map((block) => {
@@ -330,7 +333,7 @@ export default function RoomBrowserPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm sm:p-6">
+        <section className="rmb-enter mt-6 rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm sm:p-6" style={{ animationDelay: '160ms' }}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="inline-flex items-center text-sm font-bold tracking-[0.16em] text-[#266CA9]">
               <CalendarDays className="mr-2 h-4 w-4" />
@@ -415,10 +418,11 @@ export default function RoomBrowserPage() {
                     setAdditionalRequirement('');
                   }}
                   className={[
-                    'relative rounded-lg border px-3 py-2 text-left transition',
+                    'relative rounded-lg border px-3 py-2 text-left transition duration-300',
                     isSelected ? 'border-[#0F2573] bg-blue-50 ring-2 ring-[#266CA9]/30' : 'border-blue-100 bg-white hover:bg-blue-50/70',
                     isPastDate ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-50' : '',
                     isToday ? 'shadow-[inset_0_0_0_1px_rgba(15,37,115,0.25)]' : '',
+                    !isPastDate ? 'hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-200/60' : '',
                   ].join(' ')}
                 >
                   <p className="text-xs font-semibold text-[#011f4b]">
@@ -431,7 +435,7 @@ export default function RoomBrowserPage() {
                   {isHovered ? (
                     <div
                       className={[
-                        'pointer-events-none absolute top-full z-20 mt-2 w-64 max-w-[85vw] rounded-lg border border-blue-100 bg-white p-3 text-[11px] text-[#03396c] shadow-xl',
+                        'rmb-tooltip pointer-events-none absolute top-full z-20 mt-2 w-64 max-w-[85vw] rounded-lg border border-blue-100 bg-white p-3 text-[11px] text-[#03396c] shadow-xl',
                         hoverTooltipAlign === 'left' ? 'left-0' : '',
                         hoverTooltipAlign === 'center' ? 'left-1/2 -translate-x-1/2' : '',
                         hoverTooltipAlign === 'right' ? 'right-0' : '',
@@ -491,7 +495,7 @@ export default function RoomBrowserPage() {
 
         {isRequestDialogOpen ? (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px]">
-            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-blue-100 bg-white p-5 shadow-2xl sm:p-7">
+            <div className="rmb-dialog max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-blue-100 bg-white p-5 shadow-2xl sm:p-7">
               <div className="mb-5 flex items-start justify-between gap-4 border-b border-blue-100 pb-4">
                 <div>
                   <h3 className="text-2xl font-extrabold tracking-tight text-[#011f4b]">Room Request</h3>
@@ -562,10 +566,10 @@ export default function RoomBrowserPage() {
                             type="button"
                             onClick={() => setSelectedRoomId(room.id)}
                             className={[
-                              'rounded-2xl border px-4 py-3 text-left text-xs transition',
+                              'rounded-2xl border px-4 py-3 text-left text-xs transition duration-300',
                               isRoomSelected
-                                ? 'border-[#0F2573] bg-blue-50 ring-2 ring-[#266CA9]/20'
-                                : 'border-blue-100 bg-white text-[#03396c] hover:border-[#266CA9] hover:bg-blue-50/50',
+                                ? 'border-[#0F2573] bg-blue-50 ring-2 ring-[#266CA9]/20 shadow-md shadow-blue-200/60'
+                                : 'border-blue-100 bg-white text-[#03396c] hover:-translate-y-0.5 hover:border-[#266CA9] hover:bg-blue-50/50 hover:shadow-md hover:shadow-blue-200/40',
                             ].join(' ')}
                           >
                             <p className="font-semibold text-[#011f4b]">{room.name}</p>
@@ -600,10 +604,10 @@ export default function RoomBrowserPage() {
                                 }
                               }}
                               className={[
-                                'rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition',
+                                'rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition duration-300',
                                 isActive
                                   ? 'border-[#0F2573] bg-[#0F2573] text-white'
-                                  : 'border-blue-200 bg-white text-[#03396c] hover:border-[#266CA9] hover:bg-blue-50',
+                                  : 'border-blue-200 bg-white text-[#03396c] hover:-translate-y-0.5 hover:border-[#266CA9] hover:bg-blue-50',
                               ].join(' ')}
                             >
                               {time.label}
@@ -626,10 +630,10 @@ export default function RoomBrowserPage() {
                               onClick={() => setEndTimeValue(time.value)}
                               disabled={isDisabled}
                               className={[
-                                'rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition',
+                                'rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition duration-300',
                                 isActive
                                   ? 'border-[#0F2573] bg-[#0F2573] text-white'
-                                  : 'border-blue-200 bg-white text-[#03396c] hover:border-[#266CA9] hover:bg-blue-50',
+                                  : 'border-blue-200 bg-white text-[#03396c] hover:-translate-y-0.5 hover:border-[#266CA9] hover:bg-blue-50',
                                 isDisabled ? 'cursor-not-allowed opacity-50 hover:border-blue-200 hover:bg-white' : '',
                               ].join(' ')}
                             >
@@ -675,10 +679,10 @@ export default function RoomBrowserPage() {
                     onClick={submitBookingRequest}
                     disabled={selectedDateIsPast || availableRoomsOnSelectedDate.length === 0}
                     className={[
-                      'inline-flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold text-white transition sm:w-auto',
+                      'inline-flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold text-white transition duration-300 sm:w-auto',
                       selectedDateIsPast || availableRoomsOnSelectedDate.length === 0
                         ? 'cursor-not-allowed border-slate-300 bg-slate-400'
-                        : 'border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] hover:brightness-110',
+                        : 'border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg hover:shadow-blue-900/20',
                     ].join(' ')}
                   >
                     {selectedDateIsPast ? 'Past date not allowed' : 'Submit room request'}
@@ -697,5 +701,108 @@ export default function RoomBrowserPage() {
         ) : null}
       </div>
     </main>
+    <style jsx>{`
+      .rmb-enter {
+        animation: rmbFadeIn 520ms ease-out both;
+      }
+
+      .rmb-tooltip {
+        animation: rmbTooltipIn 160ms ease-out both;
+      }
+
+      .rmb-dialog {
+        animation: rmbDialogIn 260ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+      }
+
+      .rmb-orb {
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+        filter: blur(55px);
+        opacity: 0.34;
+      }
+
+      .rmb-orb-one {
+        width: 320px;
+        height: 320px;
+        top: -80px;
+        right: -60px;
+        background: radial-gradient(circle, #84bff5 0%, #b7d8f7 62%, rgba(183, 216, 247, 0) 100%);
+        animation: rmbFloatOne 12s ease-in-out infinite;
+      }
+
+      .rmb-orb-two {
+        width: 280px;
+        height: 280px;
+        bottom: 10%;
+        left: -80px;
+        background: radial-gradient(circle, #a4d6c1 0%, #cde8dc 64%, rgba(205, 232, 220, 0) 100%);
+        animation: rmbFloatTwo 14s ease-in-out infinite;
+      }
+
+      @keyframes rmbFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes rmbTooltipIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes rmbDialogIn {
+        from {
+          opacity: 0;
+          transform: translateY(18px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes rmbFloatOne {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(-18px, 14px, 0);
+        }
+      }
+
+      @keyframes rmbFloatTwo {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(22px, -10px, 0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .rmb-enter,
+        .rmb-tooltip,
+        .rmb-dialog,
+        .rmb-orb-one,
+        .rmb-orb-two {
+          animation: none;
+        }
+      }
+    `}</style>
+    </>
   );
 }

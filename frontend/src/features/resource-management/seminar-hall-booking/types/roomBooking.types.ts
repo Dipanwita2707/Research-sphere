@@ -3,7 +3,9 @@ export type ResourceRoomType = 'seminar_hall' | 'auditorium' | 'classroom' | 'co
 export type RoomAvailabilityStatus = 'free' | 'occupied' | 'private';
 export type RoomCalendarStatus = 'free' | 'booked';
 
-export type BookingRequestStatus = 'pending' | 'approved' | 'rejected';
+export type BookingRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancel_pending' | 'cancelled' | 'reschedule_pending' | 'rescheduled';
+
+export type BookingRequestKind = 'new_booking' | 'cancel_request' | 'reschedule_request';
 
 export interface RoomBookingSnapshot {
   name: string;
@@ -48,6 +50,7 @@ export interface ResourceBlock {
 
 export interface BookingRequestItem {
   id: string;
+  requestKind: BookingRequestKind;
   roomName: string;
   roomType: ResourceRoomType;
   blockName: string;
@@ -59,4 +62,12 @@ export interface BookingRequestItem {
   status: BookingRequestStatus;
   adminRemark?: string;
   createdAtLabel: string;
+  requesterName?: string;
+  requesterEmail?: string;
+  requesterPhone?: string;
+  department?: string;
+  originalBookingDate?: string;
+  originalTimeSlot?: string;
+  requestedBookingDate?: string;
+  requestedTimeSlot?: string;
 }
