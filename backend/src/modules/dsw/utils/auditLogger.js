@@ -5,6 +5,21 @@
 
 const prisma = require('../../../shared/config/database');
 const { AuditActions } = require('../constants');
+const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
+
+function mapDswActionType(action = '') {
+  const normalized = String(action).toUpperCase();
+  if (normalized.includes('CREATED') || normalized.includes('ADDED') || normalized.includes('SUBMITTED')) {
+    return AuditActionType.CREATE;
+  }
+  if (normalized.includes('REMOVED') || normalized.includes('DELETED') || normalized.includes('ARCHIVED')) {
+    return AuditActionType.DELETE;
+  }
+  if (normalized.includes('UPDATED') || normalized.includes('APPROVED') || normalized.includes('REJECTED') || normalized.includes('CHANGED') || normalized.includes('SUSPENDED') || normalized.includes('ACTIVATED')) {
+    return AuditActionType.UPDATE;
+  }
+  return AuditActionType.OTHER;
+}
 
 /**
  * Create an audit log entry for a club action
@@ -63,6 +78,32 @@ async function createAuditLog({
             clubId: true,
           },
         },
+      },
+    });
+
+    // Mirror DSW audit log into central audit stream for /admin/audit-logs.
+    await auditService.log({
+      actorId: performedById || null,
+      action: action || 'DSW club action',
+      actionType: mapDswActionType(action),
+      module: AuditModule.DSW,
+      category: 'club',
+      severity: AuditSeverity.INFO,
+      targetTable: 'club',
+      targetId: clubId,
+      entityId: auditLog?.club?.clubId || clubId,
+      entityName: auditLog?.club?.name || null,
+      oldValues: previousState,
+      newValues: newState,
+      status: 'success',
+      description: metadata?.message || null,
+      ipAddress,
+      userAgent,
+      metadata: {
+        source,
+        action,
+        changes,
+        ...(metadata || {}),
       },
     });
 

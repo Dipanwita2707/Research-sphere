@@ -41,10 +41,12 @@ import {
   useMyClubApplications,
   useClubApplications,
   useReviewClubApplication,
+  useUpdateClubLeadership,
 } from "@/features/dsw/hooks";
 import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { DSWClubDetailShimmer } from "@/components/shimmer";
 import {
   CLUB_MEMBER_ROLES,
   CLUB_MEMBER_ROLE_OPTIONS,
@@ -619,6 +621,8 @@ function AddMemberModal({
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TabKey = "overview" | "team" | "details" | "applications" | "events";
+type EventTimeFilter = "live" | "upcoming" | "past";
+type LeadershipReplacementTarget = "facilitator" | "chairperson";
 
 interface ConfirmDeleteState {
   memberId: string;
@@ -655,8 +659,19 @@ export default function ClubDetailsPage() {
     null,
   );
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [eventFilter, setEventFilter] = useState<EventTimeFilter>("live");
+  const [replacementTarget, setReplacementTarget] =
+    useState<LeadershipReplacementTarget | null>(null);
+  const [replacementIdentifier, setReplacementIdentifier] = useState("");
+  const [replacementError, setReplacementError] = useState<string | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [reviewActionId, setReviewActionId] = useState<string | null>(null);
+  const [leadershipError, setLeadershipError] = useState<string | null>(null);
+  const [leadershipSuccess, setLeadershipSuccess] = useState<string | null>(null);
+  const [leadershipInputs, setLeadershipInputs] = useState({
+    chairpersonId: "",
+    facultyFacilitatorId: "",
+  });
 
   const { user: currentUser } = useAuthStore();
   const normalizedUserRole = String(
@@ -672,9 +687,14 @@ export default function ClubDetailsPage() {
   const updateMemberRole = useUpdateMemberRole(clubId);
   const applyToClub = useApplyToClub();
   const reviewClubApplication = useReviewClubApplication(clubId);
+  const updateClubLeadership = useUpdateClubLeadership(clubId);
 
   const club = response?.success ? response.data : null;
   const errorMessage = error ? getErrorMessage(error) : null;
+  const errorHelpText =
+    errorMessage && errorMessage.toLowerCase().includes("server error")
+      ? "Something went wrong while loading this club. Please try again shortly."
+      : "The club you\'re looking for doesn\'t exist or you don\'t have permission to view it.";
 
   // Active members only
   const activeMembers = useMemo(
@@ -738,6 +758,10 @@ export default function ClubDetailsPage() {
     (!myApplication || myApplication.status ===
    "rejected");
 
+  const canManageChairperson =
+    isAdminUser || currentUser?.id === club?.facultyFacilitatorId;
+  const canManageFacilitator = isAdminUser;
+
   // Filtered member groups — respects roleFilter when set
   const filteredLeadership = roleFilter
     ? leadershipMembers.filter((m) => getMemberRole(m) ===
@@ -751,6 +775,36 @@ export default function ClubDetailsPage() {
     ? volunteerMembers.filter((m) => getMemberRole(m) ===
    roleFilter)
     : volunteerMembers;
+
+  const eventBuckets = useMemo(() => {
+    const now = Date.now();
+    const buckets = {
+      live: [] as typeof clubEvents,
+      upcoming: [] as typeof clubEvents,
+      past: [] as typeof clubEvents,
+    };
+
+    for (const event of clubEvents) {
+      const startMs = new Date(event.startDate).getTime();
+      const endMs = new Date(event.endDate).getTime();
+
+      if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+        continue;
+      }
+
+      if (startMs <= now && endMs >= now) {
+        buckets.live.push(event);
+      } else if (startMs > now) {
+        buckets.upcoming.push(event);
+      } else {
+        buckets.past.push(event);
+      }
+    }
+
+    return buckets;
+  }, [clubEvents]);
+
+  const filteredClubEvents = eventBuckets[eventFilter];
 
   const handleRemove = useCallback(
     (memberId: string) => {
@@ -797,8 +851,68 @@ export default function ClubDetailsPage() {
     }
   };
 
+  const handleLeadershipMutation = async (
+    payload: { chairpersonId?: string | null; facultyFacilitatorId?: string | null },
+    successMessage: string,
+  ) => {
+    try {
+      setLeadershipError(null);
+      setLeadershipSuccess(null);
+      await updateClubLeadership.mutateAsync({
+        ...payload,
+        reason: "Updated from club overview",
+      });
+      setLeadershipSuccess(successMessage);
+      setLeadershipInputs({ chairpersonId: "", facultyFacilitatorId: "" });
+      return true;
+    } catch (err) {
+      setLeadershipError(getErrorMessage(err));
+      return false;
+    }
+  };
+
+  const openReplacementModal = (target: LeadershipReplacementTarget) => {
+    setReplacementError(null);
+    setReplacementIdentifier("");
+    setReplacementTarget(target);
+  };
+
+  const closeReplacementModal = () => {
+    setReplacementTarget(null);
+    setReplacementIdentifier("");
+    setReplacementError(null);
+  };
+
+  const handleReplaceLeadership = async () => {
+    const identifier = replacementIdentifier.trim();
+    if (!replacementTarget) return;
+
+    if (!identifier) {
+      setReplacementError(
+        replacementTarget === "facilitator"
+          ? "Please enter backup facilitator UID or email."
+          : "Please enter backup chairperson student ID, UID, or email.",
+      );
+      return;
+    }
+
+    setReplacementError(null);
+    const replaced = await handleLeadershipMutation(
+      replacementTarget === "facilitator"
+        ? { facultyFacilitatorId: identifier }
+        : { chairpersonId: identifier },
+      replacementTarget === "facilitator"
+        ? "Faculty Facilitator replaced successfully."
+        : "Chairperson replaced successfully.",
+    );
+
+    if (replaced) {
+      closeReplacementModal();
+    }
+  };
+
   // ── Loading ──────────────────────────────────────────────────────────────────
-  if (isLoading) return <PageSkeleton message="Loading club details…" />;
+  if (isLoading) return <DSWClubDetailShimmer />;
 
   // ── Error / Not Found ────────────────────────────────────────────────────────
   if (errorMessage || !club) {
@@ -818,8 +932,7 @@ export default function ClubDetailsPage() {
             {errorMessage || "Club Not Found"}
           </h3>
           <p className="text-ev-400 text-sm">
-            The club you&apos;re looking for doesn&apos;t exist or you
-            don&apos;t have permission to view it.
+            {errorHelpText}
           </p>
         </div>
       </div>
@@ -951,6 +1064,72 @@ export default function ClubDetailsPage() {
                 className="ev-btn disabled:opacity-60"
               >
                 {applyToClub.isPending ? "Applying..." : "Apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {replacementTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => e.target === e.currentTarget && closeReplacementModal()}
+        >
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-ev-lg border border-[#b3cde0] p-6 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-ev-900">
+                {replacementTarget === "facilitator"
+                  ? "Replace Faculty Facilitator"
+                  : "Replace Chairperson"}
+              </h3>
+              <p className="text-xs text-ev-400 mt-1">
+                {replacementTarget === "facilitator"
+                  ? "Add backup facilitator first. Current facilitator will be replaced automatically."
+                  : "Add backup chairperson first. Current chairperson will be replaced automatically."}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-ev-800 mb-1.5">
+                {replacementTarget === "facilitator"
+                  ? "Backup Facilitator (UID / Email)"
+                  : "Backup Chairperson (Student ID / UID / Email)"}
+              </label>
+              <input
+                type="text"
+                value={replacementIdentifier}
+                onChange={(e) => setReplacementIdentifier(e.target.value)}
+                placeholder={
+                  replacementTarget === "facilitator"
+                    ? "Enter faculty UID / email"
+                    : "Enter student ID / UID / email"
+                }
+                className="ev-input"
+              />
+            </div>
+
+            {replacementError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {replacementError}
+              </p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={closeReplacementModal}
+                className="flex-1 ev-btn-outline"
+                disabled={updateClubLeadership.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReplaceLeadership}
+                className="flex-1 ev-btn disabled:opacity-60"
+                disabled={updateClubLeadership.isPending}
+              >
+                {updateClubLeadership.isPending ? "Replacing..." : "Replace"}
               </button>
             </div>
           </div>
@@ -1167,6 +1346,14 @@ export default function ClubDetailsPage() {
         {activeTab ===
    "overview" && (
           <div className="space-y-5">
+            {(leadershipError || leadershipSuccess) && (
+              <div
+                className={`rounded-lg border px-4 py-3 text-sm ${leadershipError ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}
+              >
+                {leadershipError || leadershipSuccess}
+              </div>
+            )}
+
             {/* Purpose */}
             <div className="ev-card p-5">
               <h2 className="flex items-center gap-2 text-base font-bold text-ev-900 mb-3">
@@ -1198,34 +1385,83 @@ export default function ClubDetailsPage() {
                   </div>
                 </div>
                 {club.facultyFacilitator ? (
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(facultyName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm`}
-                    >
-                      {getInitials(facultyName)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                        {facultyName}
-                      </p>
-                      {club.facultyFacilitator?.email && (
-                        <a
-                          href={`mailto:${club.facultyFacilitator.email}`}
-                          className="flex items-center gap-1 text-xs text-ev-600 hover:underline mt-0.5 truncate"
-                        >
-                          <Mail className="w-3 h-3 flex-shrink-0" />
-                          {club.facultyFacilitator.email}
-                        </a>
-                      )}
-                      {club.facultyFacilitator?.uid && (
-                        <p className="text-xs text-ev-400 mt-0.5">
-                          UID: {club.facultyFacilitator.uid}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(facultyName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm`}
+                      >
+                        {getInitials(facultyName)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                          {facultyName}
                         </p>
-                      )}
+                        {club.facultyFacilitator?.email && (
+                          <a
+                            href={`mailto:${club.facultyFacilitator.email}`}
+                            className="flex items-center gap-1 text-xs text-ev-600 hover:underline mt-0.5 truncate"
+                          >
+                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            {club.facultyFacilitator.email}
+                          </a>
+                        )}
+                        {club.facultyFacilitator?.uid && (
+                          <p className="text-xs text-ev-400 mt-0.5">
+                            UID: {club.facultyFacilitator.uid}
+                          </p>
+                        )}
+                      </div>
                     </div>
+                    {canManageFacilitator && (
+                      <button
+                        type="button"
+                        onClick={() => openReplacementModal("facilitator")}
+                        className="ev-btn-outline text-red-600 border-red-200 hover:bg-red-50"
+                        disabled={updateClubLeadership.isPending}
+                      >
+                        Replace Facilitator
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400">Not assigned</p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-400">Not assigned</p>
+                    {canManageFacilitator && (
+                      <>
+                        <input
+                          type="text"
+                          className="ev-input"
+                          placeholder="Enter faculty UID / email"
+                          value={leadershipInputs.facultyFacilitatorId}
+                          onChange={(e) =>
+                            setLeadershipInputs((prev) => ({
+                              ...prev,
+                              facultyFacilitatorId: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleLeadershipMutation(
+                              {
+                                facultyFacilitatorId:
+                                  leadershipInputs.facultyFacilitatorId.trim(),
+                              },
+                              "Faculty Facilitator assigned successfully.",
+                            )
+                          }
+                          className="ev-btn"
+                          disabled={
+                            updateClubLeadership.isPending ||
+                            !leadershipInputs.facultyFacilitatorId.trim()
+                          }
+                        >
+                          Add Facilitator
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -1244,35 +1480,85 @@ export default function ClubDetailsPage() {
                     </p>
                   </div>
                 </div>
+
                 {club.chairperson ? (
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(chairpersonName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm`}
-                    >
-                      {getInitials(chairpersonName)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                        {chairpersonName}
-                      </p>
-                      {club.chairperson.email && (
-                        <a
-                          href={`mailto:${club.chairperson.email}`}
-                          className="flex items-center gap-1 text-xs text-ev-600 hover:underline mt-0.5 truncate"
-                        >
-                          <Mail className="w-3 h-3 flex-shrink-0" />
-                          {club.chairperson.email}
-                        </a>
-                      )}
-                      {club.chairperson.uid && (
-                        <p className="text-xs text-ev-400 mt-0.5">
-                          UID: {club.chairperson.uid}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(chairpersonName)} flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm`}
+                      >
+                        {getInitials(chairpersonName)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                          {chairpersonName}
                         </p>
-                      )}
+                        {club.chairperson.email && (
+                          <a
+                            href={`mailto:${club.chairperson.email}`}
+                            className="flex items-center gap-1 text-xs text-ev-600 hover:underline mt-0.5 truncate"
+                          >
+                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            {club.chairperson.email}
+                          </a>
+                        )}
+                        {club.chairperson.uid && (
+                          <p className="text-xs text-ev-400 mt-0.5">
+                            UID: {club.chairperson.uid}
+                          </p>
+                        )}
+                      </div>
                     </div>
+
+                    {canManageChairperson && (
+                      <button
+                        type="button"
+                        onClick={() => openReplacementModal("chairperson")}
+                        className="ev-btn-outline text-red-600 border-red-200 hover:bg-red-50"
+                        disabled={updateClubLeadership.isPending}
+                      >
+                        Replace Chairperson
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400">Not assigned</p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-400">Not assigned</p>
+                    {canManageChairperson && (
+                      <>
+                        <input
+                          type="text"
+                          className="ev-input"
+                          placeholder="Enter student ID / UID / email"
+                          value={leadershipInputs.chairpersonId}
+                          onChange={(e) =>
+                            setLeadershipInputs((prev) => ({
+                              ...prev,
+                              chairpersonId: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleLeadershipMutation(
+                              {
+                                chairpersonId: leadershipInputs.chairpersonId.trim(),
+                              },
+                              "Chairperson assigned successfully.",
+                            )
+                          }
+                          className="ev-btn"
+                          disabled={
+                            updateClubLeadership.isPending ||
+                            !leadershipInputs.chairpersonId.trim()
+                          }
+                        >
+                          Add Chairperson
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -1718,7 +2004,7 @@ export default function ClubDetailsPage() {
    "events" && (
           <div className="space-y-5">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/20">
@@ -1729,6 +2015,31 @@ export default function ClubDetailsPage() {
                 <p className="text-xs text-ev-400 mt-0.5 ml-9">
                   All events organised by {club.name}
                 </p>
+              </div>
+
+              <div className="flex items-center rounded-xl border border-[#b3cde0]/70 bg-white p-1">
+                {([
+                  { key: "live", label: "Live", count: eventBuckets.live.length },
+                  {
+                    key: "upcoming",
+                    label: "Upcoming",
+                    count: eventBuckets.upcoming.length,
+                  },
+                  { key: "past", label: "Past", count: eventBuckets.past.length },
+                ] as const).map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => setEventFilter(option.key)}
+                    className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-colors font-medium ${
+                      eventFilter === option.key
+                        ? "bg-ev-700 text-white"
+                        : "text-ev-500 hover:bg-ev-50"
+                    }`}
+                  >
+                    {option.label} ({option.count})
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1742,20 +2053,20 @@ export default function ClubDetailsPage() {
               <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-6 text-center">
                 <p className="text-sm text-red-600 dark:text-red-400">Failed to load events: {(eventsError as Error)?.message}</p>
               </div>
-            ) : clubEvents.length ===
+            ) : filteredClubEvents.length ===
    0 ? (
               <div className="bg-white rounded-2xl border border-dashed border-[#b3cde0] p-14 text-center shadow-ev">
                 <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-ev-50 mx-auto mb-4">
                   <CalendarDays className="w-8 h-8 text-ev-400" />
                 </div>
-                <h3 className="text-base font-bold text-ev-900 mb-1">No events yet</h3>
+                <h3 className="text-base font-bold text-ev-900 mb-1">No {eventFilter} events</h3>
                 <p className="text-sm text-ev-400 max-w-xs mx-auto">
-                  Events created from notings linked to this club will appear here.
+                  Events created from notings linked to this club will appear here once they match the selected timeline.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {clubEvents.map((event) => {
+                {filteredClubEvents.map((event) => {
                   const isPast = new Date(event.endDate) < new Date();
                   const canManageEvent =
                     isAdminUser ||

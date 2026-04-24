@@ -110,7 +110,7 @@ app.use(compression({ threshold: 1024 }));
 // Audit logging middleware - captures all API requests
 app.use(
   auditMiddleware({
-    logGetRequests: false, // Don't log GET requests to reduce noise
+    logGetRequests: true,
     logRequestBody: true,
     logResponseBody: false,
   }),

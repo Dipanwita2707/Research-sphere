@@ -34,6 +34,7 @@ import {
 import type { Event } from "@/features/event-management/types/event.types";
 import { useAuthStore } from "@/shared/auth/authStore";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { EventDetailShimmer } from "@/components/shimmer";
 import { API_URL } from "@/shared/api/api";
 
 const EventPrizesSection = dynamic(() => import("./components/EventPrizesSection"), { ssr: false });
@@ -186,11 +187,7 @@ export default function EventDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="ev-page flex items-center justify-center">
-        <PageSkeleton message="Loading event..." />
-      </div>
-    );
+    return <EventDetailShimmer />;
   }
 
   if (!event) {

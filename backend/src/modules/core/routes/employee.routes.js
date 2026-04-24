@@ -21,6 +21,9 @@ router.get('/:id', employeeController.getEmployeeById);
 // Update employee
 router.put('/:id', employeeController.updateEmployee);
 
+// Reset employee password
+router.patch('/:id/reset-password', employeeController.resetEmployeePassword);
+
 // Toggle employee status (active/inactive)
 router.patch('/:id/toggle-status', employeeController.toggleEmployeeStatus);
 

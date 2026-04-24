@@ -70,6 +70,7 @@ export default function AuditLogsPage() {
 
   // Pagination
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -77,10 +78,14 @@ export default function AuditLogsPage() {
   const [filters, setFilters] = useState({
     search: '',
     module: '',
+    performedBy: '',
     actionType: '',
     severity: '',
+    status: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc' as 'asc' | 'desc',
   });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -107,7 +112,7 @@ export default function AuditLogsPage() {
    'recipients') {
       loadRecipients();
     }
-  }, [activeTab, page, filters]);
+  }, [activeTab, page, limit, filters]);
 
   const loadFilterOptions = async () => {
     try {
@@ -125,7 +130,7 @@ export default function AuditLogsPage() {
       setLoading(true);
       const response = await auditService.getLogs({
         page,
-        limit: 50,
+        limit,
         ...filters
       });
 
@@ -173,19 +178,11 @@ export default function AuditLogsPage() {
     }
   };
 
-  const handleExport = async () => {
-    if (!filters.startDate || !filters.endDate) {
-      addToast({ type: 'warning', message: 'Please select start and end dates for export' });
-      return;
-    }
-
+  const handleExport = async (format: 'csv' | 'xlsx') => {
     try {
       await auditService.exportLogs({
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        module: filters.module,
-        actionType: filters.actionType,
-        severity: filters.severity
+        ...filters,
+        format,
       });
     } catch (err: unknown) {
       addToast({ type: 'error', message: 'Failed to export: ' + extractErrorMessage(err) });
@@ -274,12 +271,17 @@ export default function AuditLogsPage() {
     setFilters({
       search: '',
       module: '',
+      performedBy: '',
       actionType: '',
       severity: '',
+      status: '',
       startDate: '',
-      endDate: ''
+      endDate: '',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
     });
     setPage(1);
+    setLimit(25);
   };
 
   const renderLogs = () => (
@@ -321,16 +323,24 @@ export default function AuditLogsPage() {
           </button>
 
           <button
-            onClick={handleExport}
+            onClick={() => handleExport('csv')}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+
+          <button
+            onClick={() => handleExport('xlsx')}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             <Download className="w-4 h-4" />
-            Export
+            Export Excel
           </button>
         </div>
 
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Module</label>
               <select
@@ -339,6 +349,9 @@ export default function AuditLogsPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">All Modules</option>
+                <option value="event">Events</option>
+                <option value="dsw">DSW</option>
+                <option value="notes">Notes</option>
                 {filterOptions?.modules.map(m => (
                   <option key={m} value={m}>{m}</option>
                 ))}
@@ -353,8 +366,44 @@ export default function AuditLogsPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">All Actions</option>
-                {filterOptions?.actionTypes.map(a => (
+                <option value="CREATE">Create</option>
+                <option value="UPDATE">Update</option>
+                <option value="DELETE">Delete</option>
+                <option value="READ">View</option>
+                {filterOptions?.actionTypes?.map(a => (
                   <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Performed By</label>
+              <input
+                list="audit-performers"
+                value={filters.performedBy}
+                onChange={(e) => setFilters(prev => ({ ...prev, performedBy: e.target.value }))}
+                placeholder="All users"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+              <datalist id="audit-performers">
+                {filterOptions?.performers?.map((performer) => (
+                  <option key={performer} value={performer} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">All Statuses</option>
+                <option value="success">Success</option>
+                <option value="failed">Failed</option>
+                {filterOptions?.statuses?.map((status) => (
+                  <option key={status} value={status}>{status}</option>
                 ))}
               </select>
             </div>
@@ -393,7 +442,23 @@ export default function AuditLogsPage() {
               />
             </div>
 
-            <div className="col-span-2 md:col-span-5 flex justify-end">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rows / Page</label>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            <div className="col-span-2 md:col-span-4 lg:col-span-8 flex justify-end">
               <button
                 onClick={clearFilters}
                 className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -411,14 +476,26 @@ export default function AuditLogsPage() {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Timestamp</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer"
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      sortBy: 'createdAt',
+                      sortOrder: prev.sortOrder === 'desc' ? 'asc' : 'desc',
+                    }))
+                  }
+                >
+                  Timestamp {filters.sortOrder === 'desc' ? '▼' : '▲'}
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Module</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Severity</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Description</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Performed By</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Role</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">IP Address</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -435,40 +512,61 @@ export default function AuditLogsPage() {
                       hour12: true
                     })}
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="text-gray-900 dark:text-white">
-                      {log.actor?.employeeDetails?.displayName || log.actor?.uid || 'System'}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {log.actor?.email || ''}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-white max-w-xs truncate" title={log.action}>
-                    {log.action}
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      log.module === 'event'
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
+                        : log.module === 'dsw'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
+                          : log.module === 'notes'
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                    }`}>
+                      {(log.module || '-').toUpperCase()}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 text-xs rounded-full ${ACTION_TYPE_COLORS[log.actionType] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
                       {log.actionType}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                    {log.module || '-'}
+                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-white max-w-md">
+                    <div className="truncate" title={log.description || log.action}>
+                      {log.description || log.action}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={log.entityName || ''}>
+                      {log.entityName || log.entityId || log.targetId || '-'}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-semibold">
+                        {(log.performedByName || log.actor?.employeeDetails?.displayName || log.actor?.uid || 'S').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-gray-900 dark:text-white">
+                          {log.performedByName || log.actor?.employeeDetails?.displayName || log.actor?.uid || 'SYSTEM'}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {log.actor?.email || ''}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                    {log.performedByRole || log.actor?.role || 'SYSTEM'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">
+                    {log.ipAddress || '-'}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs rounded-full ${SEVERITY_COLORS[log.severity]}`}>
-                      {log.severity}
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      (log.status || '').toLowerCase() === 'failed' || (log.responseStatus || 0) >= 400
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                        : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                    }`}>
+                      {(log.status || ((log.responseStatus || 0) >= 400 ? 'failed' : 'success')).toUpperCase()}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {log.responseStatus && (
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        log.responseStatus < 400 
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                          : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                      }`}>
-                        {log.responseStatus}
-                      </span>
-                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button
@@ -1037,13 +1135,19 @@ export default function AuditLogsPage() {
                 <div>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">User</dt>
                   <dd className="text-gray-900 dark:text-white">
-                    {showLogDetail.actor?.employeeDetails?.displayName || showLogDetail.actor?.uid || 'System'}
+                    {showLogDetail.performedByName || showLogDetail.actor?.employeeDetails?.displayName || showLogDetail.actor?.uid || 'SYSTEM'}
                     {showLogDetail.actor?.email && <span className="text-gray-500 ml-2">({showLogDetail.actor.email})</span>}
                   </dd>
                 </div>
                 <div>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Role</dt>
+                  <dd className="text-gray-900 dark:text-white">
+                    {showLogDetail.performedByRole || showLogDetail.actor?.role || 'SYSTEM'}
+                  </dd>
+                </div>
+                <div>
                   <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Action</dt>
-                  <dd className="text-gray-900 dark:text-white">{showLogDetail.action}</dd>
+                  <dd className="text-gray-900 dark:text-white">{showLogDetail.description || showLogDetail.action}</dd>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1051,8 +1155,16 @@ export default function AuditLogsPage() {
                     <dd><span className={`px-2 py-1 text-xs rounded-full ${ACTION_TYPE_COLORS[showLogDetail.actionType] || 'bg-gray-100'}`}>{showLogDetail.actionType}</span></dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Severity</dt>
-                    <dd><span className={`px-2 py-1 text-xs rounded-full ${SEVERITY_COLORS[showLogDetail.severity]}`}>{showLogDetail.severity}</span></dd>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
+                    <dd>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        (showLogDetail.status || '').toLowerCase() === 'failed' || (showLogDetail.responseStatus || 0) >= 400
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                          : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                      }`}>
+                        {(showLogDetail.status || ((showLogDetail.responseStatus || 0) >= 400 ? 'failed' : 'success')).toUpperCase()}
+                      </span>
+                    </dd>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1070,6 +1182,12 @@ export default function AuditLogsPage() {
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Request</dt>
                     <dd className="text-gray-900 dark:text-white font-mono text-sm">
                       {showLogDetail.requestMethod} {showLogDetail.requestPath}
+                      <a
+                        href={showLogDetail.requestPath}
+                        className="ml-2 text-blue-600 dark:text-blue-400 underline"
+                      >
+                        Open
+                      </a>
                     </dd>
                   </div>
                 )}
@@ -1091,6 +1209,38 @@ export default function AuditLogsPage() {
                   <div>
                     <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Error Message</dt>
                     <dd className="text-red-600 dark:text-red-400">{showLogDetail.errorMessage}</dd>
+                  </div>
+                )}
+                {(showLogDetail.oldValues || showLogDetail.newValues) && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Field Changes</dt>
+                    <dd className="mt-2 overflow-x-auto">
+                      <table className="min-w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-600 dark:text-gray-300">Field</th>
+                            <th className="px-3 py-2 text-left font-semibold text-red-600 dark:text-red-300">Old Value</th>
+                            <th className="px-3 py-2 text-left font-semibold text-green-600 dark:text-green-300">New Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from(new Set([
+                            ...Object.keys(showLogDetail.oldValues || {}),
+                            ...Object.keys(showLogDetail.newValues || {}),
+                          ])).map((field) => (
+                            <tr key={field} className="border-t border-gray-200 dark:border-gray-700">
+                              <td className="px-3 py-2 text-gray-900 dark:text-gray-100">{field}</td>
+                              <td className="px-3 py-2 text-red-700 dark:text-red-300 break-all">
+                                {JSON.stringify((showLogDetail.oldValues || {})[field] ?? null)}
+                              </td>
+                              <td className="px-3 py-2 text-green-700 dark:text-green-300 break-all">
+                                {JSON.stringify((showLogDetail.newValues || {})[field] ?? null)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </dd>
                   </div>
                 )}
                 {showLogDetail.details && Object.keys(showLogDetail.details).length > 0 && (

@@ -5,6 +5,7 @@ import { MessageSquare, QrCode, Loader2, X } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { CARD } from './constants';
+import { ShimmerCard, ShimmerStatCard, ShimmerLine } from '@/components/shimmer';
 
 // ── Props ────────────────────────────────────────────────────────
 interface FeedbackTabProps {
@@ -94,8 +95,16 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
         )}
 
         {feedbackLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-ev-700" />
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <ShimmerCard key={i} className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <ShimmerLine className="h-3 w-24" />
+                  <ShimmerLine className="h-4 w-12" />
+                </div>
+                <ShimmerLine className="h-4 w-full mt-2" />
+              </ShimmerCard>
+            ))}
           </div>
         ) : feedbackList.length ===
    0 ? (

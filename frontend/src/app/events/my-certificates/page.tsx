@@ -5,7 +5,7 @@ import { Award, Calendar, Download, ExternalLink, Loader2, Search, FileText } fr
 import { eventService } from '@/features/event-management/services/event.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
-import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { EventsCertificatesShimmer } from '@/components/shimmer';
 
 interface Certificate {
   id: string;
@@ -64,9 +64,8 @@ export default function MyCertificatesPage() {
     window.open(`/verify/certificate/${cert.verificationCode}`, '_blank');
   };
 
-  if (loading && certificates.length ===
-   0) {
-    return <PageSkeleton message="Loading your certificates..." />;
+  if (loading && certificates.length === 0) {
+    return <EventsCertificatesShimmer />;
   }
 
   return (

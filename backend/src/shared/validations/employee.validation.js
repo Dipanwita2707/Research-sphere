@@ -52,10 +52,14 @@ const createEmployeeSchema = z.object({
   
   lastName: z
     .string()
-    .min(1, 'Last name is required - Please enter the last name')
-    .min(2, 'Last name must be at least 2 characters (e.g., Smith, Kumar)')
     .max(50, 'Last name exceeds 50 characters - Please shorten it')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Last name should only contain letters, spaces, hyphens (-) or apostrophes (\') - No numbers or special characters'),
+    .regex(/^[a-zA-Z\s'-]*$/, 'Last name should only contain letters, spaces, hyphens (-) or apostrophes (\') - No numbers or special characters')
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || val.length >= 2,
+      'Last name must be at least 2 characters (e.g., Smith, Kumar)'
+    ),
   
   gender: z
     .string()
@@ -104,8 +108,7 @@ const createEmployeeSchema = z.object({
   // Professional details
   designation: z
     .string()
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Designation is required - Please enter designation (e.g., Professor, Assistant Professor)'),
   
   officerLevel: z
     .string()
@@ -187,6 +190,14 @@ const updateEmployeeSchema = z.object({
     .email('Email format is invalid - Use format: name@example.com')
     .optional()
     .or(z.literal('')),
+
+  role: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || ['faculty', 'staff'].includes(val),
+      'Role must be one of: Faculty or Staff'
+    ),
   
   firstName: z
     .string()
@@ -205,11 +216,14 @@ const updateEmployeeSchema = z.object({
   
   lastName: z
     .string()
-    .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must be 50 characters or fewer')
     .regex(/^[a-zA-Z\s'-]*$/, 'Last name should only contain letters, spaces, hyphens (-) or apostrophes (\')')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || val.length >= 2,
+      'Last name must be at least 2 characters'
+    ),
   
   gender: z
     .string()
@@ -231,8 +245,7 @@ const updateEmployeeSchema = z.object({
   
   designation: z
     .string()
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Designation is required'),
   
   officerLevel: z
     .string()
@@ -280,11 +293,50 @@ const updateEmployeeSchema = z.object({
     .string()
     .optional()
     .or(z.literal(null)),
+
+  dateOfBirth: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val),
+      'Date of birth must be in YYYY-MM-DD format'
+    ),
+
+  alternateNumber: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^\d{10}$/.test(val),
+      'Alternate number must be exactly 10 digits (numbers only)'
+    ),
+
+  personalEmail: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
+      'Personal email format is invalid - Use format: name@example.com'
+    ),
+
+  currentAddress: z
+    .string()
+    .max(500, 'Current address must not exceed 500 characters')
+    .optional()
+    .or(z.literal('')),
+
+  permanentAddress: z
+    .string()
+    .max(500, 'Permanent address must not exceed 500 characters')
+    .optional()
+    .or(z.literal('')),
   
   isActive: z
     .boolean()
     .optional(),
-}).strict(); // No extra fields allowed
+}).strip(); // Strip unknown fields silently
 
 /**
  * Validate create employee data

@@ -14,6 +14,8 @@ const notingIntegrationService = require("../services/notingIntegrationService")
 // Cache key constants
 const DSW_STATS_CACHE_KEY = "dsw:statistics:v1";
 const DSW_STATS_TTL = 5 * 60; // 5 minutes
+const DSW_ADV_STATS_CACHE_PREFIX = "dsw:statistics:advanced:v1";
+const DSW_ADV_STATS_TTL = 2 * 60; // 2 minutes
 
 const DSW_CLUB_TTL = 2 * 60; // 2 minutes — per-club detail cache
 const DSW_MY_CLUBS_TTL = 60; // 1 minute  — per-user "my clubs" list cache
@@ -27,6 +29,8 @@ const _myClubsCacheKey = (userId, page, limit) =>
 
 /** Pattern to wipe ALL paginated pages of a user's "my clubs" cache */
 const _myClubsPattern = (userId) => `dsw:clubs:my:${userId}:*`;
+const _advancedStatsCacheKey = (rangeMonths, granularity) =>
+  `${DSW_ADV_STATS_CACHE_PREFIX}:m${rangeMonths}:g${granularity}`;
 const {
   SuccessMessages,
   ErrorMessages,
@@ -44,10 +48,30 @@ async function getClubs(req, res) {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 20,
       status: req.query.status,
-      categoryId: req.query.categoryId,
+      categoryId: req.query.categoryId || req.query.category,
       search: req.query.search,
       academicSession: req.query.academicSession,
       myClubs: req.query.myClubs === "true",
+      minMembers:
+        req.query.minMembers !== undefined
+          ? parseInt(req.query.minMembers, 10)
+          : undefined,
+      maxMembers:
+        req.query.maxMembers !== undefined
+          ? parseInt(req.query.maxMembers, 10)
+          : undefined,
+      minEvents:
+        req.query.minEvents !== undefined
+          ? parseInt(req.query.minEvents, 10)
+          : undefined,
+      maxEvents:
+        req.query.maxEvents !== undefined
+          ? parseInt(req.query.maxEvents, 10)
+          : undefined,
+      createdFrom: req.query.createdFrom,
+      createdTo: req.query.createdTo,
+      sortBy: req.query.sortBy,
+      sortOrder: req.query.sortOrder,
     };
 
     const result = await clubService.getClubs(filters, req.user);
@@ -63,6 +87,48 @@ async function getClubs(req, res) {
       success: false,
       message: "Failed to fetch clubs",
       error: error.message,
+    });
+  }
+}
+
+/**
+ * Create club directly without noting workflow (admin only)
+ * POST /api/dsw/clubs/admin/create-direct
+ */
+async function createClubDirect(req, res) {
+  try {
+    const club = await clubService.createClubDirect(
+      req.body,
+      req.user.id,
+      req,
+      req.user,
+    );
+
+    await Promise.all([
+      _invalidateStatsCache(),
+      cache.del(_clubCacheKey(club.id)),
+    ]);
+
+    return res.status(201).json({
+      success: true,
+      message: "Club created directly by admin",
+      data: club,
+    });
+  } catch (error) {
+    console.error("Error in createClubDirect:", error);
+    const status =
+      error.message === ErrorMessages.UNAUTHORIZED
+        ? 403
+        : error.message === ErrorMessages.DUPLICATE_CLUB_NAME
+          ? 409
+          : error.message === ErrorMessages.INVALID_FACILITATOR ||
+              error.message === ErrorMessages.INVALID_CHAIRPERSON
+            ? 400
+            : 500;
+
+    return res.status(status).json({
+      success: false,
+      message: error.message,
     });
   }
 }
@@ -208,6 +274,7 @@ async function removeMember(req, res) {
       req.user.id,
       reason,
       req,
+      req.user,
     );
 
     // Invalidate stats + club detail + the removed member's "my clubs" list
@@ -227,7 +294,14 @@ async function removeMember(req, res) {
     });
   } catch (error) {
     console.error("Error in removeMember:", error);
-    const status = error.message === ErrorMessages.MEMBER_NOT_FOUND ? 404 : 500;
+    const status =
+      error.message === ErrorMessages.MEMBER_NOT_FOUND
+        ? 404
+        : error.message === ErrorMessages.UNAUTHORIZED ||
+            error.message ===
+              "Only Faculty Facilitator or Admin can remove the Chairperson."
+          ? 403
+          : 500;
 
     res.status(status).json({
       success: false,
@@ -436,6 +510,78 @@ async function updateClub(req, res) {
 }
 
 /**
+ * Update club leadership (chairperson / facilitator)
+ * PATCH /api/dsw/clubs/:clubId/leadership
+ */
+async function updateClubLeadership(req, res) {
+  try {
+    const { clubId } = req.params;
+    const updates = {};
+    if (Object.prototype.hasOwnProperty.call(req.body, "chairpersonId")) {
+      updates.chairpersonId = req.body.chairpersonId;
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, "facultyFacilitatorId")) {
+      updates.facultyFacilitatorId = req.body.facultyFacilitatorId;
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, "reason")) {
+      updates.reason = req.body.reason;
+    }
+
+    const club = await clubService.updateClubLeadership(
+      clubId,
+      updates,
+      req.user.id,
+      req,
+      req.user,
+    );
+
+    const cacheInvalidations = [_invalidateStatsCache(), cache.del(_clubCacheKey(clubId))];
+    if (club.chairpersonId) {
+      cacheInvalidations.push(cache.delPattern(_myClubsPattern(club.chairpersonId)));
+    }
+    if (club.facultyFacilitatorId) {
+      cacheInvalidations.push(
+        cache.delPattern(_myClubsPattern(club.facultyFacilitatorId)),
+      );
+    }
+
+    await Promise.all(cacheInvalidations);
+
+    return res.json({
+      success: true,
+      message: "Club leadership updated successfully",
+      data: club,
+    });
+  } catch (error) {
+    console.error("Error in updateClubLeadership:", error);
+    const status =
+      error.message === ErrorMessages.CLUB_NOT_FOUND
+        ? 404
+        : error.message === ErrorMessages.UNAUTHORIZED
+          ? 403
+          : error.message ===
+                "Chairperson cannot be removed directly. Assign a replacement chairperson." ||
+              error.message ===
+                "Faculty Facilitator cannot be removed directly. Assign a replacement facilitator."
+            ? 400
+          : error.message === ErrorMessages.INVALID_FACILITATOR ||
+              error.message === ErrorMessages.INVALID_CHAIRPERSON
+            ? 400
+            : 500;
+
+    const safeMessage =
+      status >= 500
+        ? "Failed to update club leadership. Please try again."
+        : error.message;
+
+    return res.status(status).json({
+      success: false,
+      message: safeMessage,
+    });
+  }
+}
+
+/**
  * Update a member's role
  * PATCH /api/dsw/clubs/:clubId/members/:memberId/role
  */
@@ -514,9 +660,55 @@ async function getStatistics(req, res) {
   }
 }
 
+/**
+ * Get advanced club analytics (time-range aware).
+ * GET /api/dsw/statistics/advanced?rangeMonths=6&granularity=monthly
+ */
+async function getAdvancedStatistics(req, res) {
+  try {
+    const rangeMonths = Number.parseInt(req.query.rangeMonths, 10);
+    const normalizedRangeMonths = [3, 6, 12, 24].includes(rangeMonths)
+      ? rangeMonths
+      : 6;
+    const granularity = ["monthly", "quarterly", "yearly"].includes(
+      req.query.granularity,
+    )
+      ? req.query.granularity
+      : "monthly";
+
+    const cacheKey = _advancedStatsCacheKey(normalizedRangeMonths, granularity);
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached, fromCache: true });
+    }
+
+    const analytics = await clubService.getAdvancedClubStatistics({
+      rangeMonths: normalizedRangeMonths,
+      granularity,
+    });
+
+    await cache.set(cacheKey, analytics, DSW_ADV_STATS_TTL);
+
+    return res.json({
+      success: true,
+      data: analytics,
+    });
+  } catch (error) {
+    console.error("Error in getAdvancedStatistics:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch advanced club statistics",
+      error: error.message,
+    });
+  }
+}
+
 /** Helper: invalidate stats cache after any mutation that changes club counts */
 async function _invalidateStatsCache() {
-  await cache.del(DSW_STATS_CACHE_KEY);
+  await Promise.all([
+    cache.del(DSW_STATS_CACHE_KEY),
+    cache.delPattern(`${DSW_ADV_STATS_CACHE_PREFIX}:*`),
+  ]);
 }
 
 /**
@@ -842,6 +1034,7 @@ async function getClubEvents(req, res) {
 
 module.exports = {
   createClub,
+  createClubDirect,
   getClubs,
   getClubById,
   getMyClubs,
@@ -856,6 +1049,8 @@ module.exports = {
   updateMemberRole,
   getClubMembers,
   updateClub,
+  updateClubLeadership,
   getClubEvents,
   getStatistics,
+  getAdvancedStatistics,
 };

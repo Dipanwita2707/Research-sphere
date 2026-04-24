@@ -1,0 +1,70 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryTextColor': '#01579b', 'primaryBorderColor': '#0288d1', 'lineColor': '#37474f', 'secondaryColor': '#fff3e0', 'tertiaryColor': '#e8f5e9'}}}%%
+
+flowchart TB
+    subgraph External_Entities[" "]
+        direction TB
+        STUDENT["👨‍🎓 STUDENT<br/><i>University Student</i>"]
+        FACULTY["👨‍🏫 FACULTY<br/><i>Teaching Staff</i>"]
+        STAFF["👔 STAFF<br/><i>Administrative Staff</i>"]
+        ADMIN["🔐 ADMIN/SUPERADMIN<br/><i>System Administrator</i>"]
+        DSW["🏛️ DSW OFFICE<br/><i>Dean of Students Welfare</i>"]
+        VOLUNTEER["🙋 VOLUNTEER<br/><i>Event Staff</i>"]
+        PUBLIC["🌐 PUBLIC USER<br/><i>Certificate Verification</i>"]
+    end
+
+    subgraph System["🎓 SGT UNIVERSITY MANAGEMENT SYSTEM - UMS"]
+        CORE(("0<br/>SGT-UMS<br/><br/>Noting, DSW &<br/>Event Management<br/>System"))
+    end
+
+    subgraph Data_Stores[" "]
+        DB[(📦 PostgreSQL<br/>Database)]
+        REDIS[(⚡ Redis<br/>Cache)]
+        S3[(☁️ AWS S3<br/>Storage)]
+        RAZORPAY[💳 Razorpay<br/>Payment Gateway]
+        SENDGRID[📧 SendGrid<br/>Email Service]
+    end
+
+    %% Student Flows
+    STUDENT -->|"Register for Events<br/>Join Teams<br/>Apply for Clubs<br/>Submit Feedback"| CORE
+    CORE -->|"QR Tickets<br/>Certificates<br/>Registration Status<br/>Club Membership"| STUDENT
+
+    %% Faculty Flows
+    FACULTY -->|"Create Noting Requests<br/>Create Events<br/>Manage Clubs<br/>Assign Volunteers"| CORE
+    CORE -->|"Approval Status<br/>Event Analytics<br/>Attendance Reports"| FACULTY
+
+    %% Staff Flows
+    STAFF -->|"Create/Manage Events<br/>Process Notings"| CORE
+    CORE -->|"Event Data<br/>Reports"| STAFF
+
+    %% Admin Flows
+    ADMIN -->|"System Configuration<br/>Override Controls<br/>Analytics Requests"| CORE
+    CORE -->|"System Analytics<br/>Audit Logs<br/>All Data Access"| ADMIN
+
+    %% DSW Office Flows
+    DSW -->|"Approve/Reject Notings<br/>Manage Categories<br/>Club Approvals"| CORE
+    CORE -->|"Pending Approvals<br/>Club Statistics<br/>Noting Reports"| DSW
+
+    %% Volunteer Flows
+    VOLUNTEER -->|"QR Code Scanning<br/>Entry/Exit Recording"| CORE
+    CORE -->|"Scan Permissions<br/>Activity Logs"| VOLUNTEER
+
+    %% Public Flows
+    PUBLIC -->|"Certificate Verification Request"| CORE
+    CORE -->|"Certificate Validity Status"| PUBLIC
+
+    %% Data Store Connections
+    CORE <-->|"CRUD Operations"| DB
+    CORE <-->|"Cache Read/Write"| REDIS
+    CORE <-->|"File Upload/Download"| S3
+    CORE <-->|"Payment Processing"| RAZORPAY
+    CORE <-->|"Email Notifications"| SENDGRID
+
+    classDef external fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100
+    classDef system fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#0d47a1
+    classDef datastore fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20
+    classDef extservice fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#880e4f
+
+    class STUDENT,FACULTY,STAFF,ADMIN,DSW,VOLUNTEER,PUBLIC external
+    class CORE system
+    class DB,REDIS,S3 datastore
+    class RAZORPAY,SENDGRID extservice

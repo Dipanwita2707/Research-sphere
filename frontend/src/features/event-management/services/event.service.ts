@@ -20,6 +20,8 @@ import type {
   EventAdminActivityResponse,
   EventAdminEventFilters,
   EventAdminEventListResponse,
+  EventPostReportListResponse,
+  EventPostReportSummary,
   EventPrize,
   PrizeFormData,
   StallApplication,
@@ -1239,6 +1241,42 @@ export const eventService = {
   ): Promise<CouponValidationResult> {
     const response = await api.post(`${BASE_URL}/${eventId}/coupons/validate`, { code, amount });
     return response.data.data;
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  //  Post Event Reports
+  // ════════════════════════════════════════════════════════════════
+
+  async uploadPostEventReport(eventId: string, file: File): Promise<EventPostReportSummary> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post(`${BASE_URL}/${eventId}/post-reports`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return response.data.data;
+  },
+
+  async getPostEventReports(eventId: string): Promise<EventPostReportListResponse> {
+    const response = await api.get(`${BASE_URL}/${eventId}/post-reports`);
+    return response.data.data;
+  },
+
+  async downloadPostEventReport(eventId: string, reportId: string): Promise<Blob> {
+    const response = await api.get(`${BASE_URL}/${eventId}/post-reports/${reportId}/download`, {
+      responseType: 'blob',
+    });
+
+    return response.data;
+  },
+
+  async previewPostEventReport(eventId: string, reportId: string): Promise<Blob> {
+    const response = await api.get(`${BASE_URL}/${eventId}/post-reports/${reportId}/preview`, {
+      responseType: 'blob',
+    });
+
+    return response.data;
   },
 
   // ════════════════════════════════════════════════════════════════

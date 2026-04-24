@@ -8,6 +8,12 @@ const { excelExportService } = require('../../core/services/excelExport.service'
 const { auditReportScheduler } = require('../services/auditScheduler.service');
 const prisma = require('../../../shared/config/database');
 
+function toCsvValue(value) {
+  if (value == null) return '';
+  const normalized = String(value).replace(/\r?\n|\r/g, ' ');
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
 /**
  * Get audit logs with filters and pagination
  */
@@ -17,9 +23,11 @@ const getAuditLogs = async (req, res) => {
       page = 1,
       limit = 50,
       actorId,
+      performedBy,
       module,
       actionType,
       severity,
+      status,
       targetTable,
       startDate,
       endDate,
@@ -32,9 +40,11 @@ const getAuditLogs = async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit),
       actorId,
+      performedBy,
       module,
       actionType,
       severity,
+      status,
       targetTable,
       startDate,
       endDate,
@@ -121,26 +131,32 @@ const getEntityAuditHistory = async (req, res) => {
  */
 const exportAuditLogs = async (req, res) => {
   try {
-    const { startDate, endDate, module, actionType, severity } = req.query;
+    const {
+      actorId,
+      performedBy,
+      module,
+      actionType,
+      severity,
+      status,
+      targetTable,
+      startDate,
+      endDate,
+      search,
+      format = 'xlsx'
+    } = req.query;
 
-    if (!startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        message: 'startDate and endDate are required for export'
-      });
-    }
-
-    // Get filtered logs
-    const where = {
-      createdAt: {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      }
-    };
-
-    if (module) where.module = module;
-    if (actionType) where.actionType = actionType;
-    if (severity) where.severity = severity;
+    const where = auditService.buildLogWhere({
+      actorId,
+      performedBy,
+      module,
+      actionType,
+      severity,
+      status,
+      targetTable,
+      startDate,
+      endDate,
+      search
+    });
 
     const logs = await prisma.auditLog.findMany({
       where,
@@ -163,16 +179,73 @@ const exportAuditLogs = async (req, res) => {
       }
     });
 
+    const statisticsStartDate = startDate || logs[0]?.createdAt || new Date();
+    const statisticsEndDate = endDate || logs[logs.length - 1]?.createdAt || new Date();
+
     // Get statistics
-    const statistics = await auditService.getStatistics({ startDate, endDate });
+    const statistics = await auditService.getStatistics({
+      startDate: statisticsStartDate,
+      endDate: statisticsEndDate
+    });
+
+    if (String(format).toLowerCase() === 'csv') {
+      const headers = [
+        'timestamp',
+        'module',
+        'action',
+        'entity_id',
+        'entity_name',
+        'performed_by_name',
+        'performed_by_role',
+        'ip_address',
+        'status',
+        'description',
+        'request_method',
+        'request_path'
+      ];
+
+      const rows = logs.map((log) => [
+        log.createdAt?.toISOString?.() || log.createdAt,
+        log.module || '',
+        log.actionType || '',
+        log.entityId || log.targetId || '',
+        log.entityName || '',
+        log.performedByName || log.actor?.employeeDetails?.displayName || log.actor?.uid || 'SYSTEM',
+        log.performedByRole || log.actor?.role || 'SYSTEM',
+        log.ipAddress || '',
+        log.status || (log.responseStatus >= 400 ? 'failed' : 'success'),
+        log.description || log.action || '',
+        log.requestMethod || '',
+        log.requestPath || ''
+      ]);
+
+      const csv = [
+        headers.map(toCsvValue).join(','),
+        ...rows.map((row) => row.map(toCsvValue).join(','))
+      ].join('\n');
+
+      const csvFileName = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${csvFileName}"`);
+      await auditService.logExport({
+        actorId: req.user?.id,
+        exportType: 'audit_logs',
+        filters: { actorId, performedBy, module, actionType, severity, status, targetTable, startDate, endDate, search },
+        recordCount: logs.length,
+        format: 'csv',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      return res.send(csv);
+    }
 
     // Generate Excel
     const period = {
-      year: new Date(startDate).getFullYear(),
-      month: new Date(startDate).getMonth() + 1,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      monthName: new Date(startDate).toLocaleString('default', { month: 'long' })
+      year: new Date(statisticsStartDate).getFullYear(),
+      month: new Date(statisticsStartDate).getMonth() + 1,
+      startDate: new Date(statisticsStartDate),
+      endDate: new Date(statisticsEndDate),
+      monthName: new Date(statisticsStartDate).toLocaleString('default', { month: 'long' })
     };
 
     const excelBuffer = await excelExportService.generateAuditReport({
@@ -185,7 +258,7 @@ const exportAuditLogs = async (req, res) => {
     await auditService.logExport({
       actorId: req.user?.id,
       exportType: 'audit_logs',
-      filters: { startDate, endDate, module, actionType, severity },
+      filters: { actorId, performedBy, module, actionType, severity, status, targetTable, startDate, endDate, search },
       recordCount: logs.length,
       format: 'xlsx',
       ipAddress: req.ip,
@@ -193,7 +266,7 @@ const exportAuditLogs = async (req, res) => {
     });
 
     // Set headers and send file
-    const fileName = `audit-logs-${startDate}-to-${endDate}.xlsx`;
+    const fileName = `audit-logs-${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(excelBuffer);
@@ -452,7 +525,7 @@ const deleteReportRecipient = async (req, res) => {
  */
 const getFilterOptions = async (req, res) => {
   try {
-    const [modules, actionTypes, severities] = await Promise.all([
+    const [modules, actionTypes, severities, statuses, performers] = await Promise.all([
       prisma.auditLog.findMany({
         select: { module: true },
         distinct: ['module'],
@@ -465,6 +538,18 @@ const getFilterOptions = async (req, res) => {
       prisma.auditLog.findMany({
         select: { severity: true },
         distinct: ['severity']
+      }),
+      prisma.auditLog.findMany({
+        select: { status: true },
+        distinct: ['status'],
+        where: { status: { not: null } }
+      }),
+      prisma.auditLog.findMany({
+        select: { performedByName: true },
+        distinct: ['performedByName'],
+        where: { performedByName: { not: null } },
+        orderBy: { performedByName: 'asc' },
+        take: 100
       })
     ]);
 
@@ -473,7 +558,9 @@ const getFilterOptions = async (req, res) => {
       data: {
         modules: modules.map(m => m.module).filter(Boolean),
         actionTypes: actionTypes.map(a => a.actionType),
-        severities: severities.map(s => s.severity)
+        severities: severities.map(s => s.severity),
+        statuses: statuses.map(s => s.status).filter(Boolean),
+        performers: performers.map(p => p.performedByName).filter(Boolean)
       }
     });
   } catch (error) {

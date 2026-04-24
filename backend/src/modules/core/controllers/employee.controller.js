@@ -87,6 +87,10 @@ const createEmployee = async (req, res) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
+    const normalizedMiddleName = (middleName || '').trim();
+    const normalizedLastName = (lastName || '').trim();
+    const storedLastName = [normalizedMiddleName, normalizedLastName].filter(Boolean).join(' ') || null;
+    const displayName = [firstName, normalizedMiddleName, normalizedLastName].filter(Boolean).join(' ');
 
     // Create user with employee details in a transaction with extended timeout
     const result = await prisma.$transaction(async (tx) => {
@@ -109,10 +113,8 @@ const createEmployee = async (req, res) => {
           },
           empId,
           firstName,
-          lastName: middleName ? `${middleName} ${lastName}` : lastName,
-          displayName: middleName 
-            ? `${firstName} ${middleName} ${lastName}` 
-            : `${firstName} ${lastName}`,
+          lastName: storedLastName,
+          displayName,
           designation,
           officerLevel: officerLevel || null,
           email: email,
@@ -249,9 +251,15 @@ const getAllEmployees = async (req, res) => {
     }
 
     const employeeWhere = {};
-    if (schoolId) employeeWhere.schoolId = schoolId;
-    if (departmentId) employeeWhere.departmentId = departmentId;
-    if (employeeCategory) employeeWhere.employeeCategory = employeeCategory;
+    if (schoolId) employeeWhere.primarySchoolId = schoolId;
+    if (departmentId) employeeWhere.primaryDepartmentId = departmentId;
+    // employeeCategory is stored inside the metadata JSON column
+    if (employeeCategory) {
+      employeeWhere.metadata = {
+        path: ['employeeCategory'],
+        equals: employeeCategory,
+      };
+    }
     if (designation && String(designation).trim()) {
       employeeWhere.designation = { equals: String(designation).trim(), mode: 'insensitive' };
     }
@@ -341,8 +349,26 @@ const getAllEmployees = async (req, res) => {
         return emp;
       }
 
+      const meta = (emp.employeeDetails.metadata && typeof emp.employeeDetails.metadata === 'object')
+        ? emp.employeeDetails.metadata
+        : {};
       const employeeDetails = {
         ...emp.employeeDetails,
+        // Flatten metadata fields for easy frontend access
+        gender: meta.gender || null,
+        mobileNumber: meta.mobileNumber || emp.employeeDetails.phoneNumber || null,
+        alternateNumber: meta.alternateNumber || null,
+        personalEmail: meta.personalEmail || null,
+        employeeCategory: meta.employeeCategory || null,
+        employeeType: meta.employeeType || null,
+        dateOfBirth: meta.dateOfBirth ? String(meta.dateOfBirth).slice(0, 10) : null,
+        currentAddress: meta.currentAddress || null,
+        permanentAddress: meta.permanentAddress || null,
+        // Map DB field joinDate → dateOfJoining (YYYY-MM-DD)
+        dateOfJoining: emp.employeeDetails.joinDate
+          ? new Date(emp.employeeDetails.joinDate).toISOString().slice(0, 10)
+          : null,
+        // IDs
         schoolId: emp.employeeDetails.primarySchool?.id || emp.employeeDetails.primarySchoolId || null,
         schoolName: emp.employeeDetails.primarySchool?.facultyName || null,
         departmentId: emp.employeeDetails.primaryDepartment?.id || emp.employeeDetails.primaryDepartmentId || null,
@@ -361,6 +387,7 @@ const getAllEmployees = async (req, res) => {
 
       return {
         ...emp,
+        isActive: emp.status === 'active',
         employeeDetails
       };
     });
@@ -454,6 +481,7 @@ const updateEmployee = async (req, res) => {
 
     // Login fields
     if (updates.email) loginUpdates.email = updates.email;
+    if (updates.role) loginUpdates.role = updates.role;
     if (updates.isActive !== undefined) {
       loginUpdates.status = updates.isActive ? 'active' : 'inactive';
     }
@@ -463,7 +491,7 @@ const updateEmployee = async (req, res) => {
 
     // Employee detail fields (only fields that exist in schema)
     if (updates.firstName) employeeUpdates.firstName = updates.firstName;
-    if (updates.lastName) employeeUpdates.lastName = updates.lastName;
+    if (updates.lastName !== undefined) employeeUpdates.lastName = updates.lastName || null;
     if (updates.designation !== undefined) employeeUpdates.designation = updates.designation || null;
     if (updates.officerLevel !== undefined) employeeUpdates.officerLevel = updates.officerLevel || null;
     if (updates.email) employeeUpdates.email = updates.email;
@@ -472,6 +500,12 @@ const updateEmployee = async (req, res) => {
     if (updates.schoolId !== undefined) employeeUpdates.primarySchoolId = updates.schoolId || null;
     if (updates.departmentId !== undefined) employeeUpdates.primaryDepartmentId = updates.departmentId || null;
     if (updates.primaryCentralDeptId !== undefined) employeeUpdates.primaryCentralDeptId = updates.primaryCentralDeptId || null;
+    if (updates.primaryCentralDeptId) {
+      employeeUpdates.primarySchoolId = null;
+      employeeUpdates.primaryDepartmentId = null;
+    } else if (updates.schoolId || updates.departmentId) {
+      employeeUpdates.primaryCentralDeptId = null;
+    }
     if (updates.isActive !== undefined) employeeUpdates.isActive = updates.isActive;
     
     console.log('Employee updates to apply:', employeeUpdates);
@@ -487,20 +521,23 @@ const updateEmployee = async (req, res) => {
       if (updates.mobileNumber) metadata.mobileNumber = updates.mobileNumber;
       if (updates.employeeCategory) metadata.employeeCategory = updates.employeeCategory;
       if (updates.employeeType) metadata.employeeType = updates.employeeType;
+      if (updates.dateOfBirth !== undefined) metadata.dateOfBirth = updates.dateOfBirth || null;
+      if (updates.alternateNumber !== undefined) metadata.alternateNumber = updates.alternateNumber || null;
+      if (updates.personalEmail !== undefined) metadata.personalEmail = updates.personalEmail || null;
+      if (updates.currentAddress !== undefined) metadata.currentAddress = updates.currentAddress || null;
+      if (updates.permanentAddress !== undefined) metadata.permanentAddress = updates.permanentAddress || null;
       if (Object.keys(metadata).length > 0) {
         employeeUpdates.metadata = metadata;
       }
     }
 
     // Update displayName if name fields changed
-    if (updates.firstName || updates.middleName || updates.lastName) {
-      const firstName = updates.firstName || employee?.firstName;
-      const lastName = updates.lastName || employee?.lastName;
-      const middleName = updates.middleName;
-      
-      employeeUpdates.displayName = middleName 
-        ? `${firstName} ${middleName} ${lastName}` 
-        : `${firstName} ${lastName}`;
+    if (updates.firstName !== undefined || updates.middleName !== undefined || updates.lastName !== undefined) {
+      const firstName = updates.firstName || employee?.firstName || '';
+      const middleName = updates.middleName !== undefined ? updates.middleName : '';
+      const lastName = updates.lastName !== undefined ? updates.lastName : (employee?.lastName || '');
+
+      employeeUpdates.displayName = [firstName, middleName, lastName].filter(Boolean).join(' ');
     }
 
     // Perform updates in transaction
@@ -549,6 +586,46 @@ const updateEmployee = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update employee',
+      error: error.message,
+    });
+  }
+};
+
+// Reset employee password
+const resetEmployeePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    const user = await prisma.userLogin.findUnique({
+      where: { id },
+      include: { employeeDetails: true },
+    });
+
+    if (!user || !user.employeeDetails || !['faculty', 'staff'].includes(user.role)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found',
+      });
+    }
+
+    const password = newPassword || 'Welcome@123';
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await prisma.userLogin.update({
+      where: { id },
+      data: { passwordHash: hashedPassword },
+    });
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully',
+    });
+  } catch (error) {
+    console.error('Reset employee password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password',
       error: error.message,
     });
   }
@@ -687,6 +764,7 @@ module.exports = {
   getAllEmployees,
   getEmployeeById,
   updateEmployee,
+  resetEmployeePassword,
   toggleEmployeeStatus,
   getDesignations,
   deleteEmployee,

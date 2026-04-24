@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Send, AlertCircle, Crown, FileText } from "lucide-react";
 import ClubCreationForm from "@/features/dsw/components/ClubCreationForm";
-import { notingAPI } from "@/features/dsw/services/api";
+import { dswAPI, notingAPI } from "@/features/dsw/services/api";
 import { useToast } from "@/shared/ui-components/Toast";
 import { useClubFormStore } from "@/features/dsw/stores/useClubFormStore";
 import { useMyClubs, useMyClubRequests } from "@/features/dsw/hooks";
@@ -18,11 +18,17 @@ export default function CreateClubPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [directChairpersonId, setDirectChairpersonId] = useState("");
   const toast = useToast();
   const resetForm = useClubFormStore((state) => state.reset);
   const currentStep = useClubFormStore((state) => state.currentStep);
 
   const { user: currentUser } = useAuthStore();
+  const normalizedRole = String(
+    (currentUser as any)?.userType || (currentUser as any)?.role || "",
+  ).toLowerCase();
+  const isAdmin = normalizedRole === "admin" || normalizedRole === "superadmin";
+  const isStudentUser = normalizedRole === "student";
   const { data: myClubsData } = useMyClubs();
   const { data: myClubRequests } = useMyClubRequests();
 
@@ -31,11 +37,11 @@ export default function CreateClubPage() {
     (c) => c.chairpersonId ===
    currentUser?.id && c.status !== "archived",
   );
-  const isAlreadyChairperson = !!existingChairClub;
+  const isAlreadyChairperson = isStudentUser && !!existingChairClub;
   const activeRequest = (myClubRequests ?? []).find(
     (r) => r.status === "pending" || r.status === "draft",
   );
-  const hasActiveRequest = !!activeRequest;
+  const hasActiveRequest = isStudentUser && !!activeRequest;
   const isLastStep = currentStep === 3;
 
   const handleSubmit = async () => {
@@ -94,14 +100,14 @@ export default function CreateClubPage() {
     setError(null);
 
     // Hard block — student can only chair one club at a time
-    if (isAlreadyChairperson) {
+    if (!isAdmin && isAlreadyChairperson) {
       setError(`You are already the chairperson of "${existingChairClub?.name}". A student can only be chairperson of one club at a time.`);
       setIsSubmitting(false);
       return;
     }
 
     // Hard block — only one active club request at a time
-    if (hasActiveRequest) {
+    if (!isAdmin && hasActiveRequest) {
       setError(
         `You already have an active club request (${activeRequest?.notingId}). Please wait for it to be resolved before submitting a new request.`,
       );
@@ -117,6 +123,7 @@ export default function CreateClubPage() {
         purpose: validation.data.purpose,
         academicSession: validation.data.academicSession,
         facultyFacilitatorId: validation.data.facultyFacilitatorId,
+        chairpersonId: directChairpersonId.trim(),
         initialMembers: validation.data.initialMembers,
         targetStudentGroup: validation.data.targetStudentGroup,
         expectedActivityTypes: validation.data.expectedActivityTypes,
@@ -130,32 +137,40 @@ export default function CreateClubPage() {
         expectedStudentStrength: validation.data.expectedStudentStrength,
       };
 
-      // Use the notingAPI which includes auth token automatically
-      const result = await notingAPI.createClub(clubPayload as any);
+      if (isAdmin && !directChairpersonId.trim()) {
+        setError("Chairperson (student ID / UID / email) is required for direct creation.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const result = isAdmin
+        ? await dswAPI.clubs.createClubDirect(clubPayload as any)
+        : await notingAPI.createClub(clubPayload as any);
 
       if (!result.success || !result.data) {
-        throw new Error(result.message || 'Failed to submit club creation request');
-        throw new Error(
-          result.message || "Failed to submit club creation request",
-        );
+        throw new Error(result.message || "Failed to submit club creation request");
       }
 
       // Clear the persisted draft so a future visit starts fresh
       resetForm();
 
       // Show success toast
-      toast.success(
-        `Club creation request submitted! Noting ID: ${result.data.noting.notingId}`,
-        "✅ Request Submitted Successfully",
-      );
+      if (isAdmin) {
+        toast.success("Club created directly and activated.", "✅ Club Created");
+        router.push(`/dsw/clubs/${(result.data as any).id}`);
+      } else {
+        toast.success(
+          `Club creation request submitted! Noting ID: ${(result.data as any).noting.notingId}`,
+          "✅ Request Submitted Successfully",
+        );
 
-      // Redirect to clubs page with pending banner params
-      const params = new URLSearchParams({
-        submitted: "true",
-        notingId: result.data.noting.notingId,
-        clubName: result.data.noting.clubName ?? "",
-      });
-      router.push(`/dsw/clubs?${params.toString()}`);
+        const params = new URLSearchParams({
+          submitted: "true",
+          notingId: (result.data as any).noting.notingId,
+          clubName: (result.data as any).noting.clubName ?? "",
+        });
+        router.push(`/dsw/clubs?${params.toString()}`);
+      }
     } catch (err: any) {
       console.error("Error submitting club creation:", err);
       setError(err.message || "Failed to submit club creation request");
@@ -178,12 +193,13 @@ export default function CreateClubPage() {
           </button>
 
           <h1 className="text-2xl sm:text-3xl font-bold text-ev-900">
-            Create New Student Club
+            {isAdmin ? "Create Club (Direct Activation)" : "Create New Student Club"}
           </h1>
           <p className="text-ev-600 mt-2">
-            Complete the 3-step club creation form. Your request will go through
-            the approval workflow:{" "}
-            <strong>HOD → Dean → DSW → Higher Authority</strong>
+            {isAdmin
+              ? "As admin, this form creates the club immediately without the noting approval workflow."
+              : "Complete the 3-step club creation form. Your request will go through the approval workflow: "}
+            {!isAdmin && <strong>HOD → Dean → DSW → Higher Authority</strong>}
           </p>
         </div>
 
@@ -303,16 +319,36 @@ export default function CreateClubPage() {
             {/* Club Creation Form */}
             <ClubCreationForm disabled={isSubmitting} />
 
+            {isAdmin && (
+              <div className="mt-4 ev-card p-5">
+                <label className="block text-sm font-semibold text-ev-900 mb-2">
+                  Chairperson (Student ID / UID / Email)
+                </label>
+                <input
+                  type="text"
+                  value={directChairpersonId}
+                  onChange={(e) => setDirectChairpersonId(e.target.value)}
+                  placeholder="e.g. student ID, UID, or student email"
+                  className="ev-input"
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs text-ev-400 mt-2">
+                  Admin direct-create requires a valid student chairperson.
+                </p>
+              </div>
+            )}
+
             {/* Submit Button */}
             <div className="mt-6 ev-card p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold text-ev-900">
-                    Submit Club Creation Request
+                    {isAdmin ? "Create Club Directly" : "Submit Club Creation Request"}
                   </h3>
                   <p className="text-sm text-ev-600 mt-1">
-                    Creates a noting that will be routed: HOD → Dean → DSW →
-                    Higher Authority
+                    {isAdmin
+                      ? "Creates an active club immediately and skips approval routing."
+                      : "Creates a noting that will be routed: HOD → Dean → DSW → Higher Authority"}
                   </p>
                 </div>
 
@@ -329,7 +365,7 @@ export default function CreateClubPage() {
                   ) : (
                     <>
                       <Send className="w-5 h-5" />
-                      Submit Request
+                      {isAdmin ? "Create Club" : "Submit Request"}
                     </>
                   )}
                 </button>
@@ -341,15 +377,17 @@ export default function CreateClubPage() {
                 </p>
               )}
 
-              <div className="mt-4 bg-ev-50 border border-[#b3cde0] rounded-lg p-4">
-                <p className="text-sm text-ev-800">
-                  <strong>📋 Approval Workflow:</strong> Your request will be
-                  sent to your HOD, then Dean, then DSW Team, and finally
-                  Higher Authority for approval. You can track the progress in
-                  the Noting System. Once all approvals are received, your club
-                  will be automatically created with &quot;Active&quot; status.
-                </p>
-              </div>
+              {!isAdmin && (
+                <div className="mt-4 bg-ev-50 border border-[#b3cde0] rounded-lg p-4">
+                  <p className="text-sm text-ev-800">
+                    <strong>📋 Approval Workflow:</strong> Your request will be
+                    sent to your HOD, then Dean, then DSW Team, and finally
+                    Higher Authority for approval. You can track the progress in
+                    the Noting System. Once all approvals are received, your club
+                    will be automatically created with &quot;Active&quot; status.
+                  </p>
+                </div>
+              )}
             </div>
           </>
         )}

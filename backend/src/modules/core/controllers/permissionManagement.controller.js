@@ -1027,7 +1027,7 @@ exports.assignDrdMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_DRD_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -1609,7 +1609,7 @@ exports.assignResearchMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_RESEARCH_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -2048,7 +2048,7 @@ exports.assignBookMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_BOOK_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -2496,7 +2496,7 @@ exports.assignConferenceMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_CONFERENCE_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -2943,7 +2943,7 @@ exports.assignGrantMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_GRANT_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,

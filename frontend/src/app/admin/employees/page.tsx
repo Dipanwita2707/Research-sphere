@@ -75,6 +75,7 @@ export default function EmployeeManagement() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     uid: '',
@@ -183,30 +184,32 @@ export default function EmployeeManagement() {
   const handleOpenModal = (employee?: Employee) => {
     if (employee) {
       setEditingEmployee(employee);
+      const role = employee.role;
+      const derivedCategory = role === 'faculty' ? 'teaching' : 'non_teaching';
       setFormData({
         uid: employee.uid,
         email: employee.email,
         password: '',
-        role: employee.role,
+        role,
         empId: employee.employeeDetails.empId,
         firstName: employee.employeeDetails.firstName,
         middleName: employee.employeeDetails.middleName || '',
-        lastName: employee.employeeDetails.lastName,
-        dateOfBirth: '',
-        gender: '',
+        lastName: employee.employeeDetails.lastName || '',
+        dateOfBirth: employee.employeeDetails.dateOfBirth || '',
+        gender: employee.employeeDetails.gender || '',
         mobileNumber: employee.employeeDetails.mobileNumber,
-        alternateNumber: '',
-        personalEmail: '',
+        alternateNumber: employee.employeeDetails.alternateNumber || '',
+        personalEmail: employee.employeeDetails.personalEmail || '',
         designation: employee.employeeDetails.designation || '',
-        employeeCategory: employee.employeeDetails.employeeCategory,
-        employeeType: employee.employeeDetails.employeeType,
-        dateOfJoining: employee.employeeDetails.dateOfJoining,
+        officerLevel: employee.employeeDetails.officerLevel || '',
+        employeeCategory: employee.employeeDetails.employeeCategory || derivedCategory,
+        employeeType: employee.employeeDetails.employeeType || '',
+        dateOfJoining: employee.employeeDetails.dateOfJoining || '',
         schoolId: employee.employeeDetails.schoolId || '',
         departmentId: employee.employeeDetails.departmentId || '',
         centralDepartmentId: employee.employeeDetails.centralDepartmentId || '',
-        currentAddress: '',
-        permanentAddress: '',
-        officerLevel: (employee.employeeDetails as Record<string, unknown>).officerLevel as string || '',
+        currentAddress: employee.employeeDetails.currentAddress || '',
+        permanentAddress: employee.employeeDetails.permanentAddress || '',
       });
     } else {
       setEditingEmployee(null);
@@ -241,6 +244,11 @@ export default function EmployeeManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       // Reset errors
       setFormErrors({});
@@ -252,6 +260,7 @@ export default function EmployeeManagement() {
         departmentId: formData.departmentId || '',
         centralDepartmentId: formData.centralDepartmentId || '',
         middleName: formData.middleName || '',
+        lastName: formData.lastName || '',
         dateOfBirth: formData.dateOfBirth || '',
         alternateNumber: formData.alternateNumber || '',
         personalEmail: formData.personalEmail || '',
@@ -260,8 +269,10 @@ export default function EmployeeManagement() {
       };
 
       // Validate using Zod schema
+      // For updates, strip fields that don't belong in the update schema (uid, empId, password)
+      const { uid: _uid, empId: _empId, password: _password, ...updateData } = dataToValidate as any;
       const validation = editingEmployee
-        ? validateUpdateEmployee(dataToValidate)
+        ? validateUpdateEmployee(updateData)
         : validateCreateEmployee(dataToValidate);
 
       if (!validation.success) {
@@ -281,6 +292,8 @@ export default function EmployeeManagement() {
       // Clean up the form data
       // schoolId/departmentId/primaryCentralDeptId: null is fine (backend accepts null)
       // String optional fields: send '' not null (backend schema accepts '' but not null)
+      // Keep optional text/date fields as validated strings (including empty string)
+      // because backend employee validation rejects null for these fields.
       const cleanFormData = {
         ...validation.data,
         schoolId: validation.data.schoolId || null,
@@ -324,6 +337,8 @@ export default function EmployeeManagement() {
         }
       }
       toast({ type: 'error', message: errorMsg || 'Failed to save employee' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -552,7 +567,7 @@ export default function EmployeeManagement() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
-                    onClick={() => handleToggleStatus(employee)}
+                    onClick={(e) => { e.stopPropagation(); handleToggleStatus(employee); }}
                     className={`flex items-center px-2 py-1 text-xs rounded-full ${
                       employee.isActive
                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -711,7 +726,14 @@ export default function EmployeeManagement() {
                     </label>
                     <select
                       value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      onChange={(e) => {
+                        const newRole = e.target.value;
+                        setFormData({
+                          ...formData,
+                          role: newRole,
+                          employeeCategory: newRole === 'faculty' ? 'teaching' : 'non_teaching',
+                        });
+                      }}
                       required
                       className={`w-full px-3 py-2 border rounded-md dark:text-white ${
                         formErrors.role ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
@@ -799,13 +821,13 @@ export default function EmployeeManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Last Name <span className="text-red-500">*</span>
+                      Last Name
                     </label>
                     <input
                       type="text"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      required
+                      placeholder="Optional"
                       className={`w-full px-3 py-2 border rounded-md dark:text-white ${
                         formErrors.lastName ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
                       }`}
@@ -988,24 +1010,18 @@ export default function EmployeeManagement() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Employee Category <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={formData.employeeCategory}
-                      onChange={(e) => setFormData({ ...formData, employeeCategory: e.target.value })}
-                      required
-                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
-                        formErrors.employeeCategory ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
-                      }`}
-                    >
-                      <option value="">Select Employee Category</option>
-                      <option value="teaching">Teaching</option>
-                      <option value="non_teaching">Non-Teaching</option>
-                    </select>
-                    {formErrors.employeeCategory && (
-                      <div className="flex items-center mt-1 text-red-600 text-xs">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        {formErrors.employeeCategory}
+                      <div
+                        data-testid="employee-category-locked"
+                        aria-readonly="true"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 select-none"
+                      >
+                        {formData.employeeCategory === 'teaching'
+                          ? 'Teaching'
+                          : formData.employeeCategory === 'non_teaching'
+                            ? 'Non-Teaching'
+                            : 'Not set'}
                       </div>
-                    )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Locked from Role selection. Faculty = Teaching. Staff = Non-Teaching.</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1140,20 +1156,71 @@ export default function EmployeeManagement() {
                 </div>
               </div>
 
+              {/* Address */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Address</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Current Address
+                    </label>
+                    <textarea
+                      value={formData.currentAddress}
+                      onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })}
+                      rows={3}
+                      placeholder="Current residential address (optional)"
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.currentAddress ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
+                      }`}
+                    />
+                    {formErrors.currentAddress && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.currentAddress}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Permanent Address
+                    </label>
+                    <textarea
+                      value={formData.permanentAddress}
+                      onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })}
+                      rows={3}
+                      placeholder="Permanent address (optional)"
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white ${
+                        formErrors.permanentAddress ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700'
+                      }`}
+                    />
+                    {formErrors.permanentAddress && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.permanentAddress}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex gap-4 pt-4 border-t dark:border-gray-700">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                  onClick={() => !isSubmitting && setShowModal(false)}
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-md hover:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingEmployee ? 'Update Employee' : 'Create Employee'}
+                  {isSubmitting
+                    ? (editingEmployee ? 'Updating...' : 'Creating...')
+                    : (editingEmployee ? 'Update Employee' : 'Create Employee')}
                 </button>
               </div>
             </form>

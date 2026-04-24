@@ -742,50 +742,55 @@ const buildStatisticsPayload = async (event) => {
 const getEventStatistics = async (eventId, user) => {
   assertStatisticsAdminAccess(user);
 
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
-    select: {
-      id: true,
-      eventId: true,
-      name: true,
-      status: true,
-      eventType: true,
-      venue: true,
-      startDate: true,
-      endDate: true,
-      registrationStartDate: true,
-      registrationEndDate: true,
-      publishedAt: true,
-      paymentType: true,
-      participationType: true,
-      registrationFee: true,
-      maxCapacity: true,
-      opportunityMode: true,
-      notingId: true,
-      notingEventType: true,
-      sponsors: true,
-      resources: true,
-      note: {
-        select: {
-          eventSponsors: true,
-          eventResources: true,
-          subEvents: true,
+  const eventLookupCacheKey = `event:stats:entity:${String(eventId)}`;
+  const { data: event } = await cache.getOrSet(
+    eventLookupCacheKey,
+    () => prisma.event.findFirst({
+      where: { OR: [{ id: eventId }, { eventId }] },
+      select: {
+        id: true,
+        eventId: true,
+        name: true,
+        status: true,
+        eventType: true,
+        venue: true,
+        startDate: true,
+        endDate: true,
+        registrationStartDate: true,
+        registrationEndDate: true,
+        publishedAt: true,
+        paymentType: true,
+        participationType: true,
+        registrationFee: true,
+        maxCapacity: true,
+        opportunityMode: true,
+        notingId: true,
+        notingEventType: true,
+        sponsors: true,
+        resources: true,
+        note: {
+          select: {
+            eventSponsors: true,
+            eventResources: true,
+            subEvents: true,
+          },
+        },
+        EventCustomField: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            fieldName: true,
+            fieldLabel: true,
+            fieldType: true,
+            isRequired: true,
+            sortOrder: true,
+          },
+          orderBy: { sortOrder: 'asc' },
         },
       },
-      EventCustomField: {
-        where: { isActive: true },
-        select: {
-          id: true,
-          fieldName: true,
-          fieldLabel: true,
-          fieldType: true,
-          isRequired: true,
-          sortOrder: true,
-        },
-        orderBy: { sortOrder: 'asc' },
-      },
-    },
-  });
+    }),
+    cache.CACHE_TTL.EVENT_STATS || 60,
+  );
 
   if (!event) {
     throw new NotFoundError('Event not found');

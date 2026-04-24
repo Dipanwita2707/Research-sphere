@@ -52,6 +52,7 @@ const prizeRoutes = require('./prize.routes');
 const couponRoutes = require('./coupon.routes');
 const bulkEmailRoutes = require('./bulkEmail.routes');
 const certificateRoutes = require('./certificate.routes');
+const postEventReportRoutes = require('./postEventReport.routes');
 const settingsRoutes = require('./settings.routes');
 const roundRoutes = require('./round.routes');
 const { requireEventStatisticsAdmin } = require('../middleware/statisticsAuth.middleware');
@@ -259,6 +260,7 @@ router.use(prizeRoutes);
 router.use(couponRoutes);
 router.use(bulkEmailRoutes);
 router.use(certificateRoutes);
+router.use(postEventReportRoutes);
 router.use(settingsRoutes);
 router.use(roundRoutes);
 

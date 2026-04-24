@@ -60,6 +60,7 @@ model UserLogin {
   emailLogsSent                                     EventEmailLog[]              @relation("EmailLogSentBy")
   certificateTemplatesCreated                       EventCertificateTemplate[]   @relation("CertTemplateCreatedBy")
   certificateLogsSent                               EventCertificateLog[]        @relation("CertLogSentBy")
+  eventPostReportsUploaded                          EventPostReport[]            @relation("EventPostReportUploadedBy")
   couponsCreated                                    EventCoupon[]                @relation("CouponCreatedBy")
   couponUsages                                      CouponUsage[]                @relation("CouponUsageUser")
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
@@ -166,6 +167,7 @@ model UserLogin {
   payments                                           Payment[]                            @relation("PaymentUser")
   loanLettersPrinted                                 LoanLetter[]                         @relation("LoanLetterPrintedBy")
   loanLetterTemplateUpdates                          LoanLetterTemplate[]                 @relation("LoanLetterTemplateUpdatedBy")
+  loanLetterTemplateAuditChanges                     LoanLetterTemplateAudit[]            @relation("LoanLetterTemplateAuditChangedBy")
 
   @@map("user_login")
 }
@@ -277,9 +279,14 @@ model ReissueRequest {
 model AuditLog {
   id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   actorId        String?         @map("actor_id") @db.Uuid
+  performedByName String?        @map("performed_by_name") @db.VarChar(256)
+  performedByRole String?        @map("performed_by_role") @db.VarChar(64)
   action         String          @db.VarChar(256)
+  description    String?         @db.VarChar(1024)
   targetTable    String?         @map("target_table") @db.VarChar(128)
   targetId       String?         @map("target_id") @db.Uuid
+  entityId       String?         @map("entity_id") @db.VarChar(128)
+  entityName     String?         @map("entity_name") @db.VarChar(256)
   details        Json            @default("{}")
   ipAddress      String?         @map("ip_address") @db.Inet
   userAgent      String?         @map("user_agent")
@@ -295,6 +302,7 @@ model AuditLog {
   requestMethod  String?         @map("request_method") @db.VarChar(10)
   requestPath    String?         @map("request_path") @db.VarChar(512)
   responseStatus Int?            @map("response_status")
+  status         String?         @db.VarChar(32)
   sessionId      String?         @map("session_id") @db.VarChar(256)
   severity       AuditSeverity   @default(INFO)
   actor          UserLogin?      @relation(fields: [actorId], references: [id])
@@ -306,6 +314,11 @@ model AuditLog {
   @@index([severity])
   @@index([targetTable, action, actorId, targetId], map: "audit_log_actor_target_action_idx")
   @@index([targetTable, targetId, action, createdAt], map: "audit_log_target_action_created_at_idx")
+  @@index([status])
+  @@index([performedByName])
+  @@index([createdAt, module, actionType])
+  @@index([createdAt, status])
+  @@index([createdAt, performedByName])
   @@map("audit_log")
 }
 
@@ -816,6 +829,21 @@ model LoanLetterTemplate {
   updatedBy       UserLogin? @relation("LoanLetterTemplateUpdatedBy", fields: [updatedById], references: [id])
 
   @@map("loan_letter_template")
+}
+
+model LoanLetterTemplateAudit {
+  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  version       Int        @default(autoincrement())
+  changedAt     DateTime   @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedById   String?    @map("changed_by_id") @db.Uuid
+  changedByName String?    @map("changed_by_name") @db.VarChar(256)
+  changedByUid  String?    @map("changed_by_uid") @db.VarChar(64)
+  changes       Json       @default("{}")
+  changedBy     UserLogin? @relation("LoanLetterTemplateAuditChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([changedAt])
+  @@index([changedById])
+  @@map("loan_letter_template_audit")
 }
 
 model Section {
@@ -2514,6 +2542,7 @@ model Event {
   EventEmailCredit           EventEmailCredit?
   EmailCreditLog             EmailCreditLog[]
   EventCoupon                EventCoupon[]
+  EventPostReport            EventPostReport[]
   EventCertificateTemplate   EventCertificateTemplate[]
   EventCertificateLog        EventCertificateLog[]
   SponsorFulfillmentHistory SponsorFulfillmentHistory[]
@@ -2528,6 +2557,7 @@ model Event {
   @@index([status])
   @@index([status, startDate], map: "event_status_startDate_idx")
   @@index([status, createdAt(sort: Desc)], map: "event_status_createdAt_idx")
+  @@index([createdAt(sort: Desc), status], map: "event_createdAt_status_idx")
   @@index([createdById, status, createdAt(sort: Desc)], map: "event_createdBy_status_createdAt_idx")
   @@index([opportunityMode])
   @@index([participationType])
@@ -2602,6 +2632,7 @@ model EventEntry {
   @@index([scannedAt])
   @@index([volunteerId])
   @@index([eventId, entryType], map: "event_entry_eventId_entryType_idx")
+  @@index([eventId, volunteerId, entryType], map: "event_entry_eventId_volunteerId_entryType_idx")
   @@index([eventId, scannedAt(sort: Desc)], map: "event_entry_eventId_scannedAt_idx")
 }
 
@@ -2662,6 +2693,7 @@ model EventRegistration {
   @@index([couponId])
   @@index([eventId, paymentStatus], map: "event_registration_eventId_paymentStatus_idx")
   @@index([eventId, registeredAt(sort: Desc)], map: "event_registration_eventId_registeredAt_idx")
+  @@index([eventId, status, registeredAt(sort: Desc)], map: "event_registration_eventId_status_registeredAt_idx")
   @@index([eventId, hasEntered], map: "event_registration_eventId_hasEntered_idx")
   @@index([userId, status], map: "event_registration_userId_status_idx")
   @@index([userId, registeredAt(sort: Desc)], map: "event_registration_userId_registeredAt_idx")
@@ -4721,6 +4753,34 @@ enum refund_status_enum {
 // =====================================
 // Event Certificate System
 // ====================================
+model EventPostReport {
+  id               String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId          String
+  uploadedById     String           @db.Uuid
+  version          Int
+  previousReportId String?          @db.Uuid
+  originalFileName String           @db.VarChar(512)
+  storedFileName   String           @db.VarChar(512)
+  filePath         String
+  mimeType         String           @db.VarChar(128)
+  fileSize         Int
+  storageProvider  String           @default("s3") @db.VarChar(32)
+  sha256Hash       String?          @db.VarChar(128)
+  isLatest         Boolean          @default(true)
+  uploadedAt       DateTime         @default(now())
+
+  event            Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uploadedBy       UserLogin        @relation("EventPostReportUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+  previousReport   EventPostReport? @relation("EventPostReportVersionChain", fields: [previousReportId], references: [id])
+  nextReports      EventPostReport[] @relation("EventPostReportVersionChain")
+
+  @@unique([eventId, version])
+  @@index([eventId, isLatest])
+  @@index([eventId, uploadedAt])
+  @@index([uploadedById])
+  @@map("event_post_report")
+}
+
 // Template uploaded by the event organizer (image background + text config)
 model EventCertificateTemplate {
   id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid

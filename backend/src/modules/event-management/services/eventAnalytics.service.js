@@ -1,7 +1,7 @@
 const prisma = require("../../../shared/config/database");
 const cache = require("../../../shared/config/redis");
 
-const userSelect = {
+const userAnalyticsSelect = {
   id: true,
   uid: true,
   role: true,
@@ -29,6 +29,28 @@ const userSelect = {
           },
         },
       },
+    },
+  },
+};
+
+const userSummarySelect = {
+  id: true,
+  uid: true,
+  role: true,
+  employeeDetails: {
+    select: {
+      displayName: true,
+      firstName: true,
+      lastName: true,
+      empId: true,
+    },
+  },
+  studentLogin: {
+    select: {
+      displayName: true,
+      studentId: true,
+      firstName: true,
+      lastName: true,
     },
   },
 };
@@ -71,7 +93,7 @@ const eventAdminSummarySelect = {
   bannerImageUrl: true,
   logoImageUrl: true,
   user_login: {
-    select: userSelect,
+    select: userSummarySelect,
   },
   note: {
     select: {
@@ -123,6 +145,76 @@ const eventAdminSummarySelect = {
       EventRegistration: true,
       EventVolunteer: true,
       EventPrize: true,
+    },
+  },
+  EventPostReport: {
+    where: { isLatest: true },
+    orderBy: { version: 'desc' },
+    take: 1,
+    select: {
+      id: true,
+      version: true,
+      originalFileName: true,
+      mimeType: true,
+      fileSize: true,
+      uploadedAt: true,
+      uploadedBy: {
+        select: {
+          id: true,
+          uid: true,
+          role: true,
+          employeeDetails: {
+            select: {
+              displayName: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          studentLogin: {
+            select: {
+              displayName: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+const eventAdminOverviewSummarySelect = {
+  id: true,
+  eventId: true,
+  name: true,
+  eventType: true,
+  status: true,
+  startDate: true,
+  endDate: true,
+  createdAt: true,
+  updatedAt: true,
+  publishedAt: true,
+  notingId: true,
+  notingEventType: true,
+  venue: true,
+  paymentType: true,
+  participationType: true,
+  registrationFee: true,
+  teamRegistrationFee: true,
+  bannerImageUrl: true,
+  logoImageUrl: true,
+  user_login: {
+    select: userSummarySelect,
+  },
+  note: {
+    select: {
+      id: true,
+      notingId: true,
+      status: true,
+      currentFlowIndex: true,
+      currentHolder: {
+        select: approvalUserSelect,
+      },
     },
   },
 };
@@ -217,7 +309,30 @@ function mapApprovalStage(item) {
   };
 }
 
+function mapPostReport(report) {
+  if (!report) return null;
+
+  return {
+    id: report.id,
+    version: report.version,
+    originalFileName: report.originalFileName,
+    mimeType: report.mimeType,
+    fileSize: report.fileSize,
+    uploadedAt: report.uploadedAt,
+    uploadedBy: report.uploadedBy
+      ? {
+          id: report.uploadedBy.id,
+          uid: report.uploadedBy.uid,
+          role: report.uploadedBy.role,
+          displayName: getDisplayName(report.uploadedBy),
+        }
+      : null,
+  };
+}
+
 function mapEventSummary(event, confirmedRegistrationCount = 0) {
+  const latestPostReport = event.EventPostReport?.[0] || null;
+
   return {
     id: event.id,
     eventId: event.eventId,
@@ -243,6 +358,7 @@ function mapEventSummary(event, confirmedRegistrationCount = 0) {
     confirmedParticipantCount: confirmedRegistrationCount,
     volunteerCount: event._count?.EventVolunteer || 0,
     prizeCount: event._count?.EventPrize || 0,
+    postReport: mapPostReport(latestPostReport),
     createdBy: mapUser(event.user_login),
     approval: event.note
       ? {
@@ -345,6 +461,11 @@ async function getOverviewStats(filters = {}) {
   const cached = await cache.get(cacheKey);
   if (cached) return cached;
 
+  const overviewStartDate = startDate ? new Date(startDate) : null;
+  const overviewEndDate = endDate
+    ? new Date(new Date(endDate).setHours(23, 59, 59, 999))
+    : null;
+
   const where = buildEventWhere({ startDate, endDate });
 
   const [
@@ -352,7 +473,7 @@ async function getOverviewStats(filters = {}) {
     statusRows,
     typeRows,
     timelineRows,
-    phaseRows,
+    lifecycleRows,
     creatorRows,
     totalParticipants,
     confirmedParticipants,
@@ -374,15 +495,25 @@ async function getOverviewStats(filters = {}) {
       where,
       _count: { id: true },
     }),
-    prisma.event.findMany({
-      where,
-      select: { createdAt: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.event.findMany({
-      where,
-      select: { status: true, startDate: true, endDate: true },
-    }),
+    prisma.$queryRaw`
+      SELECT DATE("createdAt")::text AS date, COUNT(*)::int AS count
+      FROM "Event"
+      WHERE "createdAt" >= COALESCE(${overviewStartDate}, "createdAt")
+        AND "createdAt" <= COALESCE(${overviewEndDate}, "createdAt")
+      GROUP BY DATE("createdAt")
+      ORDER BY DATE("createdAt") ASC
+    `,
+    prisma.$queryRaw`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'draft')::int AS draft,
+        COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+        COUNT(*) FILTER (WHERE status NOT IN ('draft', 'cancelled') AND "startDate" > NOW())::int AS upcoming,
+        COUNT(*) FILTER (WHERE status NOT IN ('draft', 'cancelled') AND "startDate" <= NOW() AND "endDate" >= NOW())::int AS ongoing,
+        COUNT(*) FILTER (WHERE status NOT IN ('draft', 'cancelled') AND "endDate" < NOW())::int AS completed
+      FROM "Event"
+      WHERE "createdAt" >= COALESCE(${overviewStartDate}, "createdAt")
+        AND "createdAt" <= COALESCE(${overviewEndDate}, "createdAt")
+    `,
     prisma.event.groupBy({
       by: ["createdById"],
       where,
@@ -432,7 +563,7 @@ async function getOverviewStats(filters = {}) {
       where,
       orderBy: { createdAt: "desc" },
       take: 8,
-      select: eventAdminSummarySelect,
+      select: eventAdminOverviewSummarySelect,
     }),
     prisma.event.findMany({
       where: {
@@ -445,7 +576,7 @@ async function getOverviewStats(filters = {}) {
       },
       orderBy: { updatedAt: "desc" },
       take: 8,
-      select: eventAdminSummarySelect,
+      select: eventAdminOverviewSummarySelect,
     }),
   ]);
 
@@ -467,18 +598,13 @@ async function getOverviewStats(filters = {}) {
     }))
     .sort((left, right) => right.count - left.count);
 
-  const lifecycle = phaseRows.reduce(
-    (acc, row) => {
-      if (row.status === "draft") {
-        acc.draft += 1;
-        return acc;
-      }
-      const stage = getLifecycleStage(row);
-      acc[stage] = (acc[stage] || 0) + 1;
-      return acc;
-    },
-    { upcoming: 0, ongoing: 0, completed: 0, cancelled: 0, draft: 0 },
-  );
+  const lifecycle = {
+    upcoming: Number(lifecycleRows?.[0]?.upcoming) || 0,
+    ongoing: Number(lifecycleRows?.[0]?.ongoing) || 0,
+    completed: Number(lifecycleRows?.[0]?.completed) || 0,
+    cancelled: Number(lifecycleRows?.[0]?.cancelled) || 0,
+    draft: Number(lifecycleRows?.[0]?.draft) || 0,
+  };
 
   const approvalStatus = approvalRows.reduce(
     (acc, row) => {
@@ -506,7 +632,10 @@ async function getOverviewStats(filters = {}) {
     byLifecycle: lifecycle,
     byApprovalStatus: approvalStatus,
     byType,
-    createdTimeline: aggregateTimeline(timelineRows),
+    createdTimeline: (timelineRows || []).map((row) => ({
+      date: row.date,
+      count: Number(row.count) || 0,
+    })),
     recentEvents: recentEvents.map((event) =>
       mapEventSummary(event, confirmedMap.get(event.id) || 0),
     ),
@@ -560,7 +689,7 @@ async function getUserStats(filters = {}) {
   const users = userIds.length
     ? await prisma.userLogin.findMany({
         where: { id: { in: userIds } },
-        select: userSelect,
+        select: userAnalyticsSelect,
       })
     : [];
 
