@@ -1067,7 +1067,7 @@ export default function FinanceAnalytics() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="min-w-[1080px] w-full text-sm">
+                    <table className="min-w-[1180px] w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 text-left text-gray-600 text-xs border-b border-gray-200">
                           <th className="px-4 py-3 font-medium">Loan Letter</th>
@@ -1075,6 +1075,7 @@ export default function FinanceAnalytics() {
                           <th className="px-4 py-3 font-medium">Student</th>
                           <th className="px-4 py-3 font-medium">Email</th>
                           <th className="px-4 py-3 font-medium">Department</th>
+                          <th className="px-4 py-3 font-medium">School</th>
                           <th className="px-4 py-3 font-medium">Programme</th>
                           <th className="px-4 py-3 font-medium text-center">Reprints</th>
                           <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -1096,6 +1097,7 @@ export default function FinanceAnalytics() {
                                 <td className="px-4 py-3">{letter.studentName}</td>
                                 <td className="px-4 py-3 text-xs text-gray-600">{letter.studentEmail || '—'}</td>
                                 <td className="px-4 py-3 text-xs text-gray-600">{letter.program?.department?.departmentName || '—'}</td>
+                                <td className="px-4 py-3 text-xs text-gray-600">{letter.program?.department?.faculty?.facultyName || '—'}</td>
                                 <td className="px-4 py-3 text-xs text-gray-600">{letter.programName} ({letter.programCode})</td>
                                 <td className="px-4 py-3 text-center">
                                   <span className="inline-flex items-center justify-center min-w-[2rem] rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">{letter.reprintCount || 0}</span>
@@ -1111,7 +1113,7 @@ export default function FinanceAnalytics() {
                               </tr>
                               {isExpanded && (
                                 <tr className="bg-gray-50/70">
-                                  <td colSpan={8} className="px-4 py-4">
+                                  <td colSpan={9} className="px-4 py-4">
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                       <div className="rounded-xl border border-gray-200 bg-white p-4">
                                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Record Details</h4>
@@ -1119,6 +1121,7 @@ export default function FinanceAnalytics() {
                                           <div><span className="font-medium text-gray-800">Application No.:</span> <span className="font-mono">{letter.applicationNumber}</span></div>
                                           <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-gray-400" /><span>{letter.studentEmail || 'No email recorded'}</span></div>
                                           <div><span className="font-medium text-gray-800">Relation:</span> {letter.relationPrefix} {letter.relationName}</div>
+                                          <div><span className="font-medium text-gray-800">School:</span> {letter.program?.department?.faculty?.facultyName || '—'}</div>
                                           <div><span className="font-medium text-gray-800">Printed By:</span> {printedByName}{letter.printedBy?.uid ? ` (${letter.printedBy.uid})` : ''}</div>
                                           <div><span className="font-medium text-gray-800">Issued On:</span> {new Date(letter.issuedAt).toLocaleString('en-IN')}</div>
                                           <div><span className="font-medium text-gray-800">Semesters:</span> {letter.selectedSemesters.join(', ')}</div>

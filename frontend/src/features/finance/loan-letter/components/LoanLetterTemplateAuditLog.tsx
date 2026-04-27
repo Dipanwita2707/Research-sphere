@@ -88,7 +88,8 @@ type TemplateTextKey =
   | 'signatoryDept'
   | 'signatoryOrg';
 
-type TemplateNumberKey = 'headerImageWidth' | 'watermarkOpacity' | 'watermarkWidth';
+type TemplateNumberKey = 'headerImageWidth' | 'headerImageX' | 'headerImageY' | 'watermarkOpacity' | 'watermarkWidth' | 'watermarkX' | 'watermarkY';
+type TemplateBooleanKey = 'headerInlineWithText';
 
 function setTemplateTextValue(snapshot: LoanLetterTemplate, key: TemplateTextKey, value: string) {
   snapshot[key] = value;
@@ -96,6 +97,10 @@ function setTemplateTextValue(snapshot: LoanLetterTemplate, key: TemplateTextKey
 
 function setTemplateNumberValue(snapshot: LoanLetterTemplate, key: TemplateNumberKey, value: string) {
   snapshot[key] = Number(value || 0);
+}
+
+function setTemplateBooleanValue(snapshot: LoanLetterTemplate, key: TemplateBooleanKey, value: string) {
+  snapshot[key] = value === 'true';
 }
 
 function buildTemplateSnapshot(
@@ -127,9 +132,16 @@ function buildTemplateSnapshot(
         setTemplateTextValue(snapshot, key, rawValue);
         break;
       case 'headerImageWidth':
+      case 'headerImageX':
+      case 'headerImageY':
       case 'watermarkOpacity':
       case 'watermarkWidth':
+      case 'watermarkX':
+      case 'watermarkY':
         setTemplateNumberValue(snapshot, key, rawValue);
+        break;
+      case 'headerInlineWithText':
+        setTemplateBooleanValue(snapshot, key, rawValue);
         break;
       case 'footerNotes':
         snapshot.footerNotes = parseAuditJson<string[]>(rawValue, snapshot.footerNotes);

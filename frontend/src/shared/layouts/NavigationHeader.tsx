@@ -283,6 +283,8 @@ export default function NavigationHeader() {
   const getLinkPrefetch = (href?: string, prefetch?: boolean) =>
     href?.startsWith('/') ? prefetch : undefined;
 
+  const currentPath = pathname ?? '';
+
   // Build menu items based on permissions
   const menuItems: MenuItem[] = [];
 
@@ -572,13 +574,13 @@ export default function NavigationHeader() {
     }
     // TEMP HIDE: Ticket Management should not appear in UMS Navigation for now.
     // Keep this block commented so it can be restored quickly later.
-    if (tmsChildren.length > 0) {
-      navigationSubItems.push({
-        name: '🎫 Ticket Management',
-        description: 'Grievances, Assistance & Enquiries',
-        children: tmsChildren,
-      });
-    }
+    // if (tmsChildren.length > 0) {
+    //   navigationSubItems.push({
+    //     name: '🎫 Ticket Management',
+    //     description: 'Grievances, Assistance & Enquiries',
+    //     children: tmsChildren,
+    //   });
+    // }
   }
 
   // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
@@ -646,6 +648,7 @@ export default function NavigationHeader() {
       administrationSubItems.push(
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
+        { name: '🐛 Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
 
         // Organization Management
         {
@@ -714,7 +717,7 @@ export default function NavigationHeader() {
   // ── Active-route helper ──────────────────────────────────────────────────
   /** Returns true if this item or any descendant href matches the current path */
   const isItemActive = (item: SubMenuItem): boolean => {
-    if (item.href && item.href !== '#' && pathname.startsWith(item.href)) return true;
+    if (item.href && item.href !== '#' && currentPath.startsWith(item.href)) return true;
     if (item.children) return item.children.some(isItemActive);
     return false;
   };

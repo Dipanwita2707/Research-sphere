@@ -62,6 +62,12 @@ export default function DocumentBodyEditor({ value, onChange, quillRef }: Props)
           font-size: 12pt;
           line-height: 1.8;
           min-height: 480px;
+          white-space: break-spaces;
+          tab-size: 8;
+        }
+        .ql-editor p,
+        .ql-editor div {
+          white-space: break-spaces;
         }
         .ql-container { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
         .ql-toolbar { border-top-left-radius: 6px; border-top-right-radius: 6px; }
@@ -73,6 +79,7 @@ export default function DocumentBodyEditor({ value, onChange, quillRef }: Props)
         onChange={onChange}
         modules={MODULES}
         formats={FORMATS}
+        preserveWhitespace
       />
     </>
   );

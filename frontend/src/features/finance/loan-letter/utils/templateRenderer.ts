@@ -268,6 +268,61 @@ function sampleFooterNotes(template: LoanLetterTemplate): string {
 
 // ── Core render function ──────────────────────────────────────────────────────
 
+function renderLetterheadImage(template: LoanLetterTemplate, preview: boolean): string {
+  if (!template.headerImageUrl) return preview
+    ? '<div style="text-align:center;padding:12px;background:#f3f4f6;border-radius:4px;color:#9ca3af;font-style:italic;font-size:11px;">[Letterhead image — configure in Images tab]</div>'
+    : '';
+
+  const width = template.headerImageWidth ?? 100;
+  const inlineWithText = template.headerInlineWithText ?? false;
+  const x = template.headerImageX ?? 50;
+  const y = template.headerImageY ?? 50;
+  const maxHeight = preview ? 120 : 160;
+  const boxHeight = preview ? 150 : 180;
+
+  if (inlineWithText) {
+    const inlineWidth = Math.min(width, 32);
+    return `<span style="float:left;display:block;width:${inlineWidth}%;max-width:${preview ? 180 : 220}px;margin:0 12px 8px 0;"><img src="${template.headerImageUrl}" alt="Letterhead" style="display:block;width:100%;max-height:${maxHeight}px;object-fit:contain;" /></span>`;
+  }
+
+  return `<div style="position:relative;height:${boxHeight}px;margin-bottom:8px;overflow:hidden;"><img src="${template.headerImageUrl}" alt="Letterhead" style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);width:${width}%;max-height:${maxHeight}px;object-fit:contain;" /></div>`;
+}
+
+function renderInlineLetterheadImage(template: LoanLetterTemplate, preview: boolean): string {
+  if (!template.headerImageUrl) {
+    return preview
+      ? '<span style="display:inline-block;padding:4px 8px;background:#f3f4f6;border-radius:4px;color:#9ca3af;font-style:italic;font-size:11px;vertical-align:middle;">[Letterhead]</span>'
+      : '';
+  }
+
+  const inlineWidth = Math.min(template.headerImageWidth ?? 100, 28);
+  const maxHeight = preview ? 90 : 120;
+  return `<span style="display:inline-block;vertical-align:middle;width:${inlineWidth}%;max-width:${preview ? 160 : 200}px;margin:0 8px 0 0;"><img src="${template.headerImageUrl}" alt="Letterhead" style="display:block;width:100%;max-height:${maxHeight}px;object-fit:contain;" /></span>`;
+}
+
+function hasVisibleText(html: string): boolean {
+  return html
+    .replace(/<br\s*\/?>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, '')
+    .length > 0;
+}
+
+function replaceInlineLetterheadPlaceholders(
+  html: string,
+  template: LoanLetterTemplate,
+  preview: boolean,
+): string {
+  return html.replace(/<p([^>]*)>([\s\S]*?)\{\{LETTERHEAD\}\}([\s\S]*?)<\/p>/gi, (full, attrs, before, after) => {
+    if (!hasVisibleText(before) && !hasVisibleText(after)) {
+      return full;
+    }
+    return `<p${attrs}>${before}${renderInlineLetterheadImage(template, preview)}${after}</p>`;
+  });
+}
+
 /**
  * Unwrap block-level placeholders from surrounding <p> tags so tables render
  * as block elements rather than being nested inside a paragraph.
@@ -296,6 +351,7 @@ export function renderTemplateBody(
   template: LoanLetterTemplate,
 ): string {
   let html = unwrapBlockPlaceholders(templateBody);
+  html = replaceInlineLetterheadPlaceholders(html, template, false);
 
   const subs = buildSubstitutionMap(letter, template);
   for (const [key, value] of Object.entries(subs)) {
@@ -307,24 +363,22 @@ export function renderTemplateBody(
   html = html.replace(/\{\{FOOTER_NOTES\}\}/g, generateFooterNotesHtml(template, letter));
   html = html.replace(/\{\{PAGE_BREAK\}\}/g, '<div style="break-before:page;page-break-before:always;"></div>');
 
-  // LETTERHEAD — render header image with configured width
+  // LETTERHEAD — render header image with configured width and alignment
   if (template.headerImageUrl) {
-    const w = template.headerImageWidth ?? 100;
-    html = html.replace(
-      /\{\{LETTERHEAD\}\}/g,
-      `<div style="text-align:center;margin-bottom:8px;"><img src="${template.headerImageUrl}" alt="Letterhead" style="width:${w}%;max-height:160px;object-fit:contain;" /></div>`,
-    );
+    html = html.replace(/\{\{LETTERHEAD\}\}/g, renderLetterheadImage(template, false));
   } else {
     html = html.replace(/\{\{LETTERHEAD\}\}/g, '');
   }
 
-  // WATERMARK — absolute overlay centred in the document container (position:relative on parent keeps it in-bounds)
+  // WATERMARK — absolute overlay at configurable x/y position
   if (template.watermarkImageUrl) {
     const w = template.watermarkWidth ?? 30;
     const op = (template.watermarkOpacity ?? 20) / 100;
+    const wx = template.watermarkX ?? 50;
+    const wy = template.watermarkY ?? 50;
     html = html.replace(
       /\{\{WATERMARK\}\}/g,
-      `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:${w}%;z-index:0;pointer-events:none;"><img src="${template.watermarkImageUrl}" alt="" style="width:100%;opacity:${op};object-fit:contain;" /></div>`,
+      `<div style="position:absolute;top:${wy}%;left:${wx}%;transform:translate(-50%,-50%);width:${w}%;z-index:0;pointer-events:none;"><img src="${template.watermarkImageUrl}" alt="" style="width:100%;opacity:${op};object-fit:contain;" /></div>`,
     );
   } else {
     html = html.replace(/\{\{WATERMARK\}\}/g, '');
@@ -342,6 +396,7 @@ export function renderTemplatePreview(
   template: LoanLetterTemplate,
 ): string {
   let html = unwrapBlockPlaceholders(templateBody);
+  html = replaceInlineLetterheadPlaceholders(html, template, true);
 
   const subs = buildSampleSubstitutionMap(template);
   for (const [key, value] of Object.entries(subs)) {
@@ -355,22 +410,20 @@ export function renderTemplatePreview(
 
   // LETTERHEAD preview
   if (template.headerImageUrl) {
-    const w = template.headerImageWidth ?? 100;
-    html = html.replace(
-      /\{\{LETTERHEAD\}\}/g,
-      `<div style="text-align:center;margin-bottom:8px;"><img src="${template.headerImageUrl}" alt="Letterhead" style="width:${w}%;max-height:120px;object-fit:contain;" /></div>`,
-    );
+    html = html.replace(/\{\{LETTERHEAD\}\}/g, renderLetterheadImage(template, true));
   } else {
     html = html.replace(/\{\{LETTERHEAD\}\}/g, '<div style="text-align:center;padding:12px;background:#f3f4f6;border-radius:4px;color:#9ca3af;font-style:italic;font-size:11px;">[Letterhead image — configure in Images tab]</div>');
   }
 
-  // WATERMARK preview — absolute overlay centred within the document container
+  // WATERMARK preview — absolute overlay at configurable x/y position
   if (template.watermarkImageUrl) {
     const w = template.watermarkWidth ?? 30;
     const op = (template.watermarkOpacity ?? 20) / 100;
+    const wx = template.watermarkX ?? 50;
+    const wy = template.watermarkY ?? 50;
     html = html.replace(
       /\{\{WATERMARK\}\}/g,
-      `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:${w}%;z-index:0;pointer-events:none;"><img src="${template.watermarkImageUrl}" alt="" style="width:100%;opacity:${op};object-fit:contain;" /></div>`,
+      `<div style="position:absolute;top:${wy}%;left:${wx}%;transform:translate(-50%,-50%);width:${w}%;z-index:0;pointer-events:none;"><img src="${template.watermarkImageUrl}" alt="" style="width:100%;opacity:${op};object-fit:contain;" /></div>`,
     );
   } else {
     html = html.replace(/\{\{WATERMARK\}\}/g, '<div style="text-align:center;padding:8px;background:#fff7ed;border-radius:4px;color:#d97706;font-style:italic;font-size:11px;">[Watermark image — configure in Images tab]</div>');
@@ -385,7 +438,7 @@ export function renderTemplatePreview(
  * Initial HTML body shown when the editor is first used,
  * matching the current hard-coded letter layout.
  */
-export const DEFAULT_TEMPLATE_BODY = `<p style="text-align:right;"><strong>Ref No.:</strong> {{REF_NO}} &nbsp;&nbsp;&nbsp;&nbsp; <strong>Date:</strong> {{DATE}}</p>
+export const DEFAULT_TEMPLATE_BODY = `<table style="width:100%;border:none;border-collapse:collapse;margin-bottom:4px;"><tbody><tr><td style="border:none;padding:0;text-align:left;"><strong>Ref No.:</strong> {{REF_NO}}</td><td style="border:none;padding:0;text-align:right;"><strong>Date:</strong> {{DATE}}</td></tr></tbody></table>
 <p>&nbsp;</p>
 <p style="text-align:center;"><strong><u>TO WHOM SO EVER IT MAY CONCERN</u></strong></p>
 <p>&nbsp;</p>

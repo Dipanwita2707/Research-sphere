@@ -10,6 +10,40 @@ export interface Specialization {
   updatedAt: string;
 }
 
+export interface ProgramCreditRange {
+  min?: number;
+  max?: number;
+}
+
+export interface SpecializationChargeRule {
+  specializationCode: string;
+  specializationName: string;
+  batchYear: number;
+  startSemester: number;
+  requireNonZeroCharge: boolean;
+  isActive?: boolean;
+}
+
+export interface ProgramBatchYearDocument {
+  batchYear: number;
+  admissionCapacity?: number;
+  fileName: string;
+  filePath: string;
+  fileSize?: number;
+  mimeType?: string;
+  uploadedAt?: string;
+}
+
+export interface ProgramMetadata {
+  creditRange?: ProgramCreditRange;
+  specializationChargeRules?: SpecializationChargeRule[];
+  batchYearDocuments?: ProgramBatchYearDocument[];
+  internshipApplicable?: boolean;
+  internshipDurationMonths?: number;
+  internshipSpecializations?: string[];
+  [key: string]: any;
+}
+
 export interface Program {
   id: string;
   departmentId: string;
@@ -28,7 +62,7 @@ export interface Program {
   accreditationBody?: string;
   accreditationStatus?: string;
   isActive: boolean;
-  metadata?: any;
+  metadata?: ProgramMetadata;
   createdAt: string;
   updatedAt: string;
   specializations?: Specialization[];
@@ -79,8 +113,18 @@ export interface CreateProgramDto {
   programCoordinatorId?: string;
   accreditationBody?: string;
   accreditationStatus?: string;
-  metadata?: any;
+  metadata?: ProgramMetadata;
   specializations?: string[];
+}
+
+export interface UploadedProgramDocument {
+  fileName: string;
+  originalName: string;
+  filePath: string;
+  s3Key: string;
+  fileSize: number;
+  mimeType: string;
+  location?: string | null;
 }
 
 export interface UpdateProgramDto extends Partial<CreateProgramDto> {
@@ -123,6 +167,24 @@ class ProgramService {
       data
     );
     return response.data;
+  }
+
+  async uploadProgramDocument(file: File, folder = 'programmes/documents'): Promise<UploadedProgramDocument> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    const response = await api.post<{ success: boolean; data: UploadedProgramDocument }>(
+      '/file-upload/upload',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+
+    return response.data.data;
+  }
+
+  getProgramDocumentUrl(filePath: string): string {
+    return `${api.defaults.baseURL}/file-upload/download/${filePath}`;
   }
 
   async updateProgram(id: string, data: UpdateProgramDto): Promise<{ success: boolean; message: string; data: Program }> {

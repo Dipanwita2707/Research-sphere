@@ -56,15 +56,7 @@ const requireGrantAccess = async (req, res, next) => {
     const hasReviewPerm = mergedPermissions.grant_review === true || mergedPermissions.research_review === true;
     const hasApprovePerm = mergedPermissions.grant_approve === true || mergedPermissions.research_approve === true;
 
-    console.log(`User ${userId} Grant Access Check:`, { 
-      hasReviewPerm, 
-      hasApprovePerm, 
-      permissions: mergedPermissions,
-      source: 'merged from req.user (includes role-based)'
-    });
-
     if (!hasReviewPerm && !hasApprovePerm) {
-      console.log(`Access denied for user ${userId} - No grant review/approve permissions`);
       return res.status(403).json({
         success: false,
         message: 'Access denied - grant_review or grant_approve permission required'

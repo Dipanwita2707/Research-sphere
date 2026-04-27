@@ -78,7 +78,7 @@ interface FieldSuggestion {
 }
 
 export default function GrantReviewPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const id = params.id as string;
   const { user } = useAuthStore();

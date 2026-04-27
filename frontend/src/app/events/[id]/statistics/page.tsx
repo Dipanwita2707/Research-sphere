@@ -59,7 +59,7 @@ const getStatusTone = (status?: string) => {
 };
 
 export default function EventStatisticsPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const { toast } = useToast();
   const eventId = params.id as string;
 

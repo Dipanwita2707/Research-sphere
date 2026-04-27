@@ -191,7 +191,7 @@ function actionLabel(action: string) {
 export default function NotingAdminPage() {
   const { user } = useAuthStore();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [notePage, setNotePage] = useState(1);

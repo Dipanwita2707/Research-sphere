@@ -16,6 +16,7 @@ const prisma = require('../config/database');
 const config = require('../config/app.config');
 const cache = require('../config/redis');
 const log = require('../utils/logger');
+const { logAuthenticationFailure } = require('../../modules/bug-reports/utils/securityLogger');
 
 /**
  * Authenticate incoming request by verifying JWT token.
@@ -233,6 +234,18 @@ const protect = async (req, res, next) => {
 const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
+      // Log authentication failure for admin endpoints
+      if (roles.includes('admin') || roles.includes('super_admin')) {
+        logAuthenticationFailure({
+          endpoint: req.originalUrl || req.url,
+          method: req.method,
+          userId: req.user?.id,
+          userRole: req.user?.role,
+          ip: req.ip,
+          reason: `User role '${req.user?.role}' not authorized. Required roles: ${roles.join(', ')}`,
+        });
+      }
+      
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to perform this action'

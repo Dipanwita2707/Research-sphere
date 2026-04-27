@@ -470,7 +470,7 @@ export default function EventAdminPage() {
   const { user } = useAuthStore();
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [eventPage, setEventPage] = useState(1);

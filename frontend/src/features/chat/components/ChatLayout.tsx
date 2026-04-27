@@ -24,7 +24,7 @@ import type { UserChatAccess } from '../types';
 
 export function ChatLayout() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const actionParam = searchParams.get('action');
   
   const [showCreateGroup, setShowCreateGroup] = useState(actionParam ===

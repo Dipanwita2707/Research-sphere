@@ -89,7 +89,7 @@ export default function LoanLetterList() {
                   <th className="px-4 py-3 font-medium">Student Name</th>
                   <th className="px-4 py-3 font-medium">Application No.</th>
                   <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
+                  <th className="px-4 py-3 font-medium">Student Mobile</th>
                   <th className="px-4 py-3 font-medium">Programme</th>
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium text-center">Reprints</th>
@@ -146,7 +146,7 @@ export default function LoanLetterList() {
                                 <div className="space-y-2 text-sm text-gray-600">
                                   <div><span className="font-medium text-gray-800">Application No.:</span> <span className="font-mono">{letter.applicationNumber}</span></div>
                                   <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-gray-400" /><span>{letter.studentEmail || 'No email recorded'}</span></div>
-                                  <div><span className="font-medium text-gray-800">Phone:</span> {letter.studentPhone || 'No phone recorded'}</div>
+                                  <div><span className="font-medium text-gray-800">Student Mobile:</span> {letter.studentPhone || 'No mobile recorded'}</div>
                                   <div><span className="font-medium text-gray-800">Relation:</span> {letter.relationPrefix} {letter.relationName}</div>
                                   <div><span className="font-medium text-gray-800">Programme:</span> {letter.programName} ({letter.programCode})</div>
                                   <div><span className="font-medium text-gray-800">Semesters:</span> {letter.selectedSemesters.join(', ')}</div>

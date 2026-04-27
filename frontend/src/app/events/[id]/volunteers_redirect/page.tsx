@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 export default function VolunteersRedirect() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const eventId = params.id as string;
 

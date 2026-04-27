@@ -126,9 +126,9 @@ function AllPassesPageContent() {
   const { user } = useAuthStore();
   const toast = useToast();
   const { t, displayText } = useLanguage(); // Get translation and display helpers
-  const searchParams = useSearchParams();
-  const reviewBookingId = searchParams.get('reviewBooking');
-  const reviewRoomCancellationId = searchParams.get('reviewRoomCancellation');
+  const searchParams = useSearchParams()!;
+  const reviewBookingId = searchParams?.get('reviewBooking') ?? null;
+  const reviewRoomCancellationId = searchParams?.get('reviewRoomCancellation') ?? null;
   const cardClass = 'bg-white rounded-2xl border border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)]';
   const inputClass = 'w-full px-4 py-3 border border-[#b3cde0] rounded-xl bg-white focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] transition-all';
 

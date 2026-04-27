@@ -1217,12 +1217,6 @@ const academicCalendarEvents = [
 ];
 
 export default function StudentDashboard() {
-  console.log('✅ =========================================');
-  console.log('✅ StudentDashboard component RENDERING');
-  console.log('✅ Version: NEW REDESIGNED WITH CALENDAR');
-  console.log('✅ Timestamp:', new Date().toISOString());
-  console.log('✅ =========================================');
-
   const { user } = useAuthStore();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1688,7 +1682,6 @@ export default function StudentDashboard() {
   }, [isPaused, yourAuthorities.length]);
 
   const fetchStudentData = async () => {
-    console.log('📊 Fetching student data...');
     try {
       setStudentData({
         uid: '22912084',
@@ -1710,7 +1703,6 @@ export default function StudentDashboard() {
           overall: 95,
         },
       });
-      console.log('✅ Student data loaded successfully');
     } catch (error) {
       logger.error('Failed to fetch student data:', error);
     } finally {
@@ -1765,7 +1757,6 @@ export default function StudentDashboard() {
       // Sort by startDate ascending
       upcoming.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-      console.log(`✅ Fetched ${upcoming.length} real upcoming events`);
       setUpcomingRealEvents(upcoming);
     } catch (error) {
       logger.error('Failed to fetch real events:', error);

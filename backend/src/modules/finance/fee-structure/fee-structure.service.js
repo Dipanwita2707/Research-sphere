@@ -19,6 +19,80 @@ function mapFeeHeadData(heads, feeStructureId) {
   }));
 }
 
+function sumSemesterAmounts(semesterAmounts) {
+  if (!semesterAmounts || typeof semesterAmounts !== 'object') return 0;
+  return Object.values(semesterAmounts).reduce((sum, value) => sum + (Number(value) || 0), 0);
+}
+
+function normalizeAndValidateHeads(heads, { requireSemesterAmounts = false, contextLabel = 'Fee head' } = {}) {
+  if (!Array.isArray(heads)) return [];
+
+  return heads
+    .filter((head) => head && String(head.headName || '').trim())
+    .map((head, index) => {
+      const headName = String(head.headName || '').trim();
+      const amount = Number(head.amount) || 0;
+      const semesterAmounts = head.semesterAmounts || null;
+      const semesterTotal = sumSemesterAmounts(semesterAmounts);
+
+      if (amount <= 0) {
+        throw { status: 400, message: `${contextLabel} row ${index + 1} (${headName}): total amount is required` };
+      }
+      if (requireSemesterAmounts && (!semesterAmounts || semesterTotal <= 0)) {
+        throw { status: 400, message: `${contextLabel} row ${index + 1} (${headName}): semester amounts are required` };
+      }
+      if (semesterAmounts && semesterTotal !== amount) {
+        throw { status: 400, message: `${contextLabel} row ${index + 1} (${headName}): semester total ${semesterTotal} must match head total ${amount}` };
+      }
+
+      return { headName, amount, semesterAmounts };
+    });
+}
+
+function getProgramChargeRules(program) {
+  const metadata = program?.metadata;
+  if (!metadata || typeof metadata !== 'object' || !Array.isArray(metadata.specializationChargeRules)) return [];
+  return metadata.specializationChargeRules
+    .map((rule) => ({
+      specializationCode: String(rule.specializationCode || '').trim().toUpperCase(),
+      specializationName: String(rule.specializationName || '').trim().toLowerCase(),
+      batchYear: Number(rule.batchYear),
+      startSemester: Number(rule.startSemester),
+      requireNonZeroCharge: rule.requireNonZeroCharge !== false,
+    }))
+    .filter((rule) => rule.requireNonZeroCharge && Number.isInteger(rule.batchYear) && Number.isInteger(rule.startSemester));
+}
+
+function findSpecializationChargeRule(program, specialization, batchYear) {
+  if (!specialization) return null;
+  const rules = getProgramChargeRules(program);
+  return rules.find((rule) => (
+    rule.batchYear === Number(batchYear)
+    && (
+      rule.specializationCode === String(specialization.specializationCode || '').trim().toUpperCase()
+      || rule.specializationName === String(specialization.specializationName || '').trim().toLowerCase()
+    )
+  )) || null;
+}
+
+function enforceSpecializationChargeRule({ program, specialization, batchYear, heads, contextLabel }) {
+  const rule = findSpecializationChargeRule(program, specialization, batchYear);
+  if (!rule) return;
+
+  const durationSemesters = Number(program.durationSemesters) || 0;
+  const lastSemester = durationSemesters > 0 ? durationSemesters : Math.max(...heads.flatMap((head) => Object.keys(head.semesterAmounts || {}).map(Number)), rule.startSemester);
+
+  for (let semester = rule.startSemester; semester <= lastSemester; semester++) {
+    const semesterTotal = heads.reduce((sum, head) => sum + (Number(head.semesterAmounts?.[semester]) || 0), 0);
+    if (semesterTotal <= 0) {
+      throw {
+        status: 400,
+        message: `${contextLabel}: ${specialization.specializationCode} requires a non-zero add-on charge from semester ${rule.startSemester} for batch year ${batchYear}`,
+      };
+    }
+  }
+}
+
 function isFeeStructureUniqueViolation(error) {
   if (!error) return false;
 
@@ -103,6 +177,33 @@ class FeeStructureService {
       throw buildFeeStructureConflict(type, batchYear, programId, specializationId);
     }
 
+    const normalizedHeads = normalizeAndValidateHeads(heads, {
+      requireSemesterAmounts: type === 'ACADEMIC',
+      contextLabel: 'Fee head',
+    });
+
+    if (type === 'ACADEMIC' && specializationId) {
+      const [program, specialization] = await Promise.all([
+        prisma.program.findUnique({
+          where: { id: programId },
+          select: { id: true, durationSemesters: true, metadata: true },
+        }),
+        prisma.programSpecialization.findFirst({
+          where: { id: specializationId, programId },
+          select: { id: true, specializationCode: true, specializationName: true },
+        }),
+      ]);
+      if (!program) throw { status: 404, message: 'Programme not found' };
+      if (!specialization) throw { status: 404, message: 'Specialization not found for this programme' };
+      enforceSpecializationChargeRule({
+        program,
+        specialization,
+        batchYear,
+        heads: normalizedHeads,
+        contextLabel: 'Fee head',
+      });
+    }
+
     try {
       return await prisma.$transaction(async (tx) => {
         const feeStructure = await tx.feeStructure.create({
@@ -115,9 +216,9 @@ class FeeStructureService {
           },
         });
 
-        if (Array.isArray(heads) && heads.length > 0) {
+        if (normalizedHeads.length > 0) {
           await tx.feeHead.createMany({
-            data: mapFeeHeadData(heads, feeStructure.id),
+            data: mapFeeHeadData(normalizedHeads, feeStructure.id),
           });
         }
 
@@ -147,7 +248,7 @@ class FeeStructureService {
     if (Array.isArray(baseHeads) && baseHeads.length > 0) {
       requestedStructures.push({
         specializationId: null,
-        heads: baseHeads,
+        heads: normalizeAndValidateHeads(baseHeads, { requireSemesterAmounts: true, contextLabel: 'Base fee head' }),
       });
     }
 
@@ -156,7 +257,7 @@ class FeeStructureService {
         if (!structure?.specializationId || !Array.isArray(structure.heads) || structure.heads.length === 0) continue;
         requestedStructures.push({
           specializationId: structure.specializationId,
-          heads: structure.heads,
+          heads: normalizeAndValidateHeads(structure.heads, { requireSemesterAmounts: true, contextLabel: 'Specialization fee head' }),
         });
       }
     }
@@ -172,7 +273,7 @@ class FeeStructureService {
     const [program, specializations, existingStructures] = await Promise.all([
       prisma.program.findUnique({
         where: { id: programId },
-        select: { id: true, programCode: true, programName: true },
+        select: { id: true, programCode: true, programName: true, durationSemesters: true, metadata: true },
       }),
       uniqueSpecializationIds.length > 0
         ? prisma.programSpecialization.findMany({
@@ -208,6 +309,18 @@ class FeeStructureService {
 
     if (specializations.length !== uniqueSpecializationIds.length) {
       throw { status: 404, message: 'One or more specializations were not found for this programme' };
+    }
+
+    const specializationById = new Map(specializations.map((specialization) => [specialization.id, specialization]));
+    for (const structure of requestedStructures) {
+      if (!structure.specializationId) continue;
+      enforceSpecializationChargeRule({
+        program,
+        specialization: specializationById.get(structure.specializationId),
+        batchYear: normalizedBatchYear,
+        heads: structure.heads,
+        contextLabel: 'Specialization fee head',
+      });
     }
 
     if (existingStructures.length > 0) {
@@ -272,16 +385,40 @@ class FeeStructureService {
     const existing = await prisma.feeStructure.findUnique({ where: { id } });
     if (!existing) throw { status: 404, message: 'Fee structure not found' };
 
+    const normalizedHeads = Array.isArray(heads)
+      ? normalizeAndValidateHeads(heads, { requireSemesterAmounts: existing.type === 'ACADEMIC', contextLabel: 'Fee head' })
+      : null;
+
+    if (normalizedHeads && existing.type === 'ACADEMIC' && existing.specializationId) {
+      const [program, specialization] = await Promise.all([
+        prisma.program.findUnique({
+          where: { id: existing.programId },
+          select: { id: true, durationSemesters: true, metadata: true },
+        }),
+        prisma.programSpecialization.findUnique({
+          where: { id: existing.specializationId },
+          select: { id: true, specializationCode: true, specializationName: true },
+        }),
+      ]);
+      enforceSpecializationChargeRule({
+        program,
+        specialization,
+        batchYear: existing.batchYear,
+        heads: normalizedHeads,
+        contextLabel: 'Fee head',
+      });
+    }
+
     return prisma.$transaction(async (tx) => {
       if (isActive !== undefined) {
         await tx.feeStructure.update({ where: { id }, data: { isActive } });
       }
 
-      if (Array.isArray(heads)) {
+      if (Array.isArray(normalizedHeads)) {
         await tx.feeHead.deleteMany({ where: { feeStructureId: id } });
-        if (heads.length > 0) {
+        if (normalizedHeads.length > 0) {
           await tx.feeHead.createMany({
-            data: mapFeeHeadData(heads, id),
+            data: mapFeeHeadData(normalizedHeads, id),
           });
         }
       }
@@ -309,7 +446,7 @@ class FeeStructureService {
 
   /**
    * Bulk create ACADEMIC fee structures from parsed CSV rows.
-   * Each row: { programCode, batchYear, specializationCode, headName, sem1..sem8 }
+  * Each row: { programCode, batchYear, specializationCode, headName, totalAmount, sem1..sem8 }
    * Rows are grouped by (programCode, batchYear, specializationCode).
    */
   async bulkCreate(rows) {
@@ -368,6 +505,7 @@ class FeeStructureService {
       const maxUploadedSemester = uploadedSemesterNumbers[uploadedSemesterNumbers.length - 1] || 0;
       const sems = prog.durationSemesters || maxUploadedSemester || 8;
       let specializationId = null;
+      let specialization = null;
 
       if (maxUploadedSemester > sems) {
         const message = `${programCode}/${batchYear}/${specializationCode || 'base'}: uploaded semester columns exceed configured duration (${sems})`;
@@ -403,23 +541,52 @@ class FeeStructureService {
           continue;
         }
         specializationId = spec.id;
+        specialization = spec;
       }
 
       const heads = groupRows
         .filter(r => (r.headName || '').trim())
         .map(r => {
           const semesterAmounts = {};
-          let total = 0;
           for (let s = 1; s <= sems; s++) {
             const v = Number(r[`sem${s}`]) || 0;
             semesterAmounts[s] = v;
-            total += v;
           }
-          return { headName: r.headName.trim(), amount: total, semesterAmounts };
+          return { headName: r.headName.trim(), amount: Number(r.totalAmount) || 0, semesterAmounts };
         })
-        .filter(h => h.amount > 0);
+        .filter(h => h.amount > 0 || sumSemesterAmounts(h.semesterAmounts) > 0);
 
-      if (heads.length === 0) {
+      let normalizedHeads;
+      try {
+        normalizedHeads = normalizeAndValidateHeads(heads, {
+          requireSemesterAmounts: true,
+          contextLabel: `${programCode}/${batchYear}/${specializationCode || 'base'}`,
+        });
+        if (specialization) {
+          enforceSpecializationChargeRule({
+            program: prog,
+            specialization,
+            batchYear,
+            heads: normalizedHeads,
+            contextLabel: `${programCode}/${batchYear}/${specializationCode}`,
+          });
+        }
+      } catch (error) {
+        const message = error.message || 'Invalid head totals';
+        results.errors.push(message);
+        results.groups.push({
+          key: groupKey,
+          programCode,
+          batchYear,
+          specializationCode,
+          headCount: 0,
+          status: 'error',
+          message,
+        });
+        continue;
+      }
+
+      if (normalizedHeads.length === 0) {
         results.skipped++;
         results.groups.push({
           key: groupKey,
@@ -438,10 +605,10 @@ class FeeStructureService {
         programCode,
         batchYear,
         specializationCode,
-        headCount: heads.length,
+        headCount: normalizedHeads.length,
         programId: prog.id,
         specializationId,
-        heads,
+        heads: normalizedHeads,
       });
     }
 

@@ -54,6 +54,7 @@ export interface BulkRow extends Partial<Record<BulkSemesterKey, number>> {
   batchYear: number;
   specializationCode?: string;
   headName: string;
+  totalAmount?: number;
 }
 
 export interface BulkGroupResult {

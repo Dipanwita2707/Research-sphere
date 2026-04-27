@@ -36,7 +36,7 @@ function OrgDetail({ icon: Icon, value }: { icon: React.ElementType; value: stri
 }
 
 export default function CertificateVerifyPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const code = params.code as string;
 
   const [loading, setLoading] = useState(true);

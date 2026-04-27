@@ -57,7 +57,7 @@ function getDisplayName(
 }
 
 export default function CopyDetailPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const noteId = params?.id as string;
   const copyId = params?.copyId as string;

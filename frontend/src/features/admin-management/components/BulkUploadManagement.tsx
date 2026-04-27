@@ -20,7 +20,7 @@ import {
   Trash2,
   ChevronRight,
 } from 'lucide-react';
-import { bulkUploadService, UploadStats, BulkUploadResult } from '@/features/admin-management/services/bulkUpload.service';
+import { bulkUploadService, UploadStats, BulkUploadResult, PreviewData } from '@/features/admin-management/services/bulkUpload.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
@@ -57,8 +57,8 @@ const tabs: TabConfig[] = [
     id: 'programmes',
     label: 'Programmes',
     icon: BookOpen,
-    description: 'Upload programmes under departments',
-    templateFields: ['departmentCode', 'programCode', 'programName', 'programType', 'duration', 'totalCredits', 'description'],
+    description: 'Upload programmes under schools and departments',
+    templateFields: ['schoolCode', 'departmentCode', 'programCode', 'programName', 'programType', 'shortName', 'description', 'durationYears', 'durationMonths', 'durationSemesters', 'creditMin', 'creditMax', 'specializations', 'specializationChargeRules', 'internshipApplicable', 'internshipDurationMonths', 'internshipSpecializations', 'batchYearDocuments'],
     fileFormat: 'xlsx',
   },
   {
@@ -66,16 +66,16 @@ const tabs: TabConfig[] = [
     label: 'Faculty/Staff',
     icon: Users,
     description: 'Upload faculty and staff members',
-    templateFields: ['employeeId', 'email', 'firstName', 'lastName', 'gender', 'designation', 'departmentCode', 'schoolCode', 'phone', 'joiningDate', 'userType'],
-    fileFormat: 'csv',
+    templateFields: ['empId', 'firstName', 'lastName', 'email', 'phoneNumber', 'schoolCode', 'departmentCode', 'designation', 'userType', 'password'],
+    fileFormat: 'xlsx',
   },
   {
     id: 'students',
     label: 'Students',
     icon: GraduationCap,
     description: 'Upload student records',
-    templateFields: ['enrollmentNumber', 'email', 'firstName', 'lastName', 'gender', 'programCode', 'batch', 'section', 'phone', 'admissionDate'],
-    fileFormat: 'csv',
+    templateFields: ['studentId', 'registrationNo', 'firstName', 'lastName', 'email', 'phone', 'programCode', 'sectionCode', 'currentSemester', 'password'],
+    fileFormat: 'xlsx',
   },
 ];
 
@@ -87,8 +87,9 @@ export default function BulkUploadManagement() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<BulkUploadResult | null>(null);
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [stats, setStats] = useState<UploadStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [dragActive, setDragActive] = useState(false);
@@ -130,11 +131,11 @@ export default function BulkUploadManagement() {
           break;
         case 'employees':
           blob = await bulkUploadService.downloadEmployeeTemplate();
-          filename = 'employees_template.csv';
+          filename = 'employees_template.xlsx';
           break;
         case 'students':
           blob = await bulkUploadService.downloadStudentTemplate();
-          filename = 'students_template.csv';
+          filename = 'students_template.xlsx';
           break;
       }
 
@@ -152,58 +153,37 @@ export default function BulkUploadManagement() {
   };
 
   const parsePreviewFile = async (selectedFile: File) => {
-    if (isExcelFile(selectedFile.name)) {
-      const XLSX = await import('xlsx');
-      const workbook = XLSX.read(await selectedFile.arrayBuffer(), { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      if (!firstSheetName) {
-        setPreviewData([]);
+    try {
+      setLoadingPreview(true);
+      setShowPreview(false);
+      
+      // Use server-side preview API
+      const response = await bulkUploadService.previewData(selectedFile);
+      
+      if (response.success && response.data.rows.length > 0) {
+        setPreviewData(response.data);
+        setShowPreview(true);
+      } else {
+        setPreviewData(null);
         setShowPreview(false);
-        return;
+        if (!response.success) {
+          toast({
+            type: 'warning',
+            message: 'Failed to preview file. Please ensure it is a valid Excel file.',
+          });
+        }
       }
-
-      const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(workbook.Sheets[firstSheetName], {
-        header: 1,
-        raw: false,
-        defval: '',
-      })
-        .map(row => row.map(cell => String(cell ?? '').trim()))
-        .filter(row => row.some(cell => cell));
-
-      if (rows.length < 2) {
-        setPreviewData([]);
-        setShowPreview(false);
-        return;
-      }
-
-      const headers = rows[0];
-      const preview = rows.slice(1, 6).map((values) => {
-        const row: Record<string, string> = {};
-        headers.forEach((header, idx) => {
-          row[header] = values[idx] || '';
-        });
-        return row;
+    } catch (error: any) {
+      logger.error('Failed to preview file:', error);
+      setPreviewData(null);
+      setShowPreview(false);
+      toast({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to preview file. Please check the file format.',
       });
-
-      setPreviewData(preview);
-      setShowPreview(true);
-      return;
+    } finally {
+      setLoadingPreview(false);
     }
-
-    const text = await selectedFile.text();
-    const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim());
-    const preview = lines.slice(1, 6).map(line => {
-      const values = line.split(',');
-      const row: Record<string, string> = {};
-      headers.forEach((header, idx) => {
-        row[header] = values[idx]?.trim() || '';
-      });
-      return row;
-    });
-
-    setPreviewData(preview);
-    setShowPreview(true);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -238,12 +218,14 @@ export default function BulkUploadManagement() {
     if (!isValidFile) {
       toast({
         type: 'warning',
-        message: requiresExcel ? 'Please upload an Excel file (.xlsx or .xls)' : 'Please upload a CSV file',
+        message: 'Please upload an Excel file (.xlsx or .xls)',
       });
       return;
     }
     setFile(selectedFile);
     setResult(null);
+    setPreviewData(null);
+    setShowPreview(false);
     parsePreviewFile(selectedFile);
   };
 
@@ -294,8 +276,9 @@ export default function BulkUploadManagement() {
   const clearFile = () => {
     setFile(null);
     setResult(null);
-    setPreviewData([]);
+    setPreviewData(null);
     setShowPreview(false);
+    setLoadingPreview(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -304,8 +287,8 @@ export default function BulkUploadManagement() {
   const activeTabConfig = tabs.find(t => t.id ===
    activeTab)!;
   const TabIcon = activeTabConfig.icon;
-  const acceptedFileExtensions = activeTabConfig.fileFormat === 'xlsx' ? '.xlsx,.xls' : '.csv';
-  const fileFormatLabel = activeTabConfig.fileFormat === 'xlsx' ? 'Excel' : 'CSV';
+  const acceptedFileExtensions = '.xlsx,.xls'; // All uploads are now Excel
+  const fileFormatLabel = 'Excel'; // All uploads are now Excel
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -427,10 +410,20 @@ export default function BulkUploadManagement() {
                 <div className="flex items-center justify-center gap-3">
                   <button
                     onClick={() => setShowPreview(!showPreview)}
-                    className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                    disabled={loadingPreview}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
-                    <Eye className="w-4 h-4" />
-                    {showPreview ? 'Hide Preview' : 'Preview Data'}
+                    {loadingPreview ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Loading Preview...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4" />
+                        {showPreview ? 'Hide Preview' : 'Preview Data'}
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={handleUpload}
@@ -469,17 +462,17 @@ export default function BulkUploadManagement() {
           </div>
 
           {/* Preview Table */}
-          {showPreview && previewData.length > 0 && (
+          {showPreview && previewData && previewData.rows.length > 0 && (
             <div className="mt-6 border border-gray-200 rounded-xl overflow-hidden">
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                <h4 className="font-medium text-gray-900">Data Preview (First 5 rows)</h4>
-                <span className="text-sm text-gray-500">{previewData.length} rows shown</span>
+                <h4 className="font-medium text-gray-900">Data Preview (First {previewData.previewRows} rows)</h4>
+                <span className="text-sm text-gray-500">{previewData.message}</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100">
                     <tr>
-                      {Object.keys(previewData[0] || {}).map(header => (
+                      {previewData.headers.map(header => (
                         <th key={header} className="px-4 py-2 text-left font-medium text-gray-700">
                           {header}
                         </th>
@@ -487,11 +480,11 @@ export default function BulkUploadManagement() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {previewData.map((row, idx) => (
+                    {previewData.rows.map((row, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
-                        {Object.values(row).map((value: any, cellIdx) => (
-                          <td key={cellIdx} className="px-4 py-2 text-gray-600">
-                            {value || '-'}
+                        {previewData.headers.map((header) => (
+                          <td key={header} className="px-4 py-2 text-gray-600">
+                            {row[header] || '-'}
                           </td>
                         ))}
                       </tr>
@@ -574,7 +567,7 @@ export default function BulkUploadManagement() {
             <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
               <li>First upload <strong>Schools</strong> (faculties)</li>
               <li>Then upload <strong>Departments</strong> (requires school codes)</li>
-              <li>Then upload <strong>Programmes</strong> (requires department codes)</li>
+              <li>Then upload <strong>Programmes</strong> (requires school and department codes)</li>
               <li>Upload <strong>Faculty/Staff</strong> (requires department/school codes)</li>
               <li>Finally upload <strong>Students</strong> (requires programme codes)</li>
             </ol>

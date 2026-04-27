@@ -51,7 +51,7 @@ export function NavigationProgressInner() {
   };
 
   // Detect route change → complete
-  const resolvedRoute = pathname + searchParams.toString();
+  const resolvedRoute = `${pathname ?? ''}${searchParams?.toString() ?? ''}`;
   const prevRouteRef = useRef(resolvedRoute);
   useEffect(() => {
     if (prevRouteRef.current !== resolvedRoute) {

@@ -61,7 +61,7 @@ const defaultForm: FormState = {
 };
 
 export default function ApplyStallPage() {
-  const { id: eventId } = useParams<{ id: string }>();
+  const { id: eventId } = useParams<{ id: string }>()!;
   const router = useRouter();
   const { toast } = useToast();
 

@@ -58,14 +58,14 @@ function resolveImageUrl(raw: string | null | undefined): string {
 }
 
 export default function EventDetailPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const id = params?.id as string;
 
   const { data: event, isLoading: loading } = useEvent(id);
   const { user } = useAuthStore();
 
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     return searchParams.get("tab") || "overview";

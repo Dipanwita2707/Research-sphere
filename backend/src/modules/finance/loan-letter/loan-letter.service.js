@@ -5,6 +5,21 @@ const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('.
 const REPRINT_ACTION = 'Loan letter reprinted';
 const LOAN_LETTER_APPLICATION_INDEX = 'loan_letter_application_number_unique_ci';
 
+let _loanLetterConstraintsReady = false;
+async function ensureLoanLetterConstraints() {
+  if (_loanLetterConstraintsReady) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ${LOAN_LETTER_APPLICATION_INDEX}
+      ON loan_letter (LOWER(application_number))
+    `);
+    _loanLetterConstraintsReady = true;
+  } catch (error) {
+    console.warn('ensureLoanLetterConstraints:', error.message);
+  }
+}
+ensureLoanLetterConstraints();
+
 function isUniqueViolation(error, targets = []) {
   if (!error) return false;
 
@@ -109,6 +124,7 @@ class LoanLetterService {
    * Create a new loan letter
    */
   async create({ applicationNumber, studentEmail, studentPhone, studentName, relationPrefix, relationName, programId, specializationId, selectedSemesters, transportIncluded, hostelIncluded, printedById }) {
+    await ensureLoanLetterConstraints();
     const normalizedApplicationNumber = String(applicationNumber || '').trim();
     const normalizedStudentEmail = studentEmail ? String(studentEmail).trim().toLowerCase() : null;
     const normalizedStudentPhone = studentPhone ? String(studentPhone).trim() : null;

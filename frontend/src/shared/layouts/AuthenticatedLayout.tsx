@@ -2,6 +2,7 @@
 
 import ProtectedRoute from '@/shared/providers/ProtectedRoute';
 import NavigationHeader from '@/shared/layouts/NavigationHeader';
+import { BugReportWidget } from '@/features/bug-reports/components/BugReportWidget';
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
@@ -17,6 +18,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
             {children}
           </div>
         </main>
+        {/* Bug Report Widget - Fixed position in bottom-right corner */}
+        <BugReportWidget />
       </div>
     </ProtectedRoute>
   );

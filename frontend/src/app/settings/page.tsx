@@ -232,6 +232,47 @@ export default function SettingsPage() {
                       }}
                     />
 
+                    {/* User Information */}
+                    <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Profile Information</h4>
+                      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-3">
+                        {user?.uid && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Employee UID:</span>
+                            <span className="text-sm text-gray-900 dark:text-white font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded border">
+                              {user.uid}
+                            </span>
+                          </div>
+                        )}
+                        {(user?.student?.registrationNo || user?.employee?.empId || user?.employeeDetails?.employeeId) && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {user?.student?.registrationNo ? 'Registration Number:' : 'Employee ID:'}
+                            </span>
+                            <span className="text-sm text-gray-900 dark:text-white font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded border">
+                              {user?.student?.registrationNo || user?.employee?.empId || user?.employeeDetails?.employeeId}
+                            </span>
+                          </div>
+                        )}
+                        {user?.email && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Email:</span>
+                            <span className="text-sm text-gray-900 dark:text-white">
+                              {user.email}
+                            </span>
+                          </div>
+                        )}
+                        {user?.role?.name && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Role:</span>
+                            <span className="text-sm text-gray-900 dark:text-white capitalize">
+                              {user.role.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                       <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">About Profile Photos</h4>
                       <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">

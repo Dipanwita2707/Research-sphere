@@ -83,7 +83,7 @@ const INDEXING_CATEGORIES = [
 
 export default function TrackerDetailPage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const id = params?.id as string;
   const { user } = useAuthStore();
   

@@ -457,8 +457,9 @@ function KpiDrilldownDrawer({
 
 export default function SchoolAnalyticsPage() {
   const router = useRouter();
-  const { schoolId } = useParams<{ schoolId: string }>();
-  const searchParams = useSearchParams();
+  const params = useParams<{ schoolId: string }>();
+  const schoolId = params?.schoolId ?? null;
+  const searchParams = useSearchParams()!;
 
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -468,9 +469,9 @@ export default function SchoolAnalyticsPage() {
   const [kpiDrawer, setKpiDrawer] = useState<KpiDrilldownType | null>(null);
   const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3)));
   const [toDate, setToDate] = useState(isoDate(new Date()));
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
-  const [departmentId, setDepartmentId] = useState(searchParams.get('departmentId') || '');
-  const [selectedDeptId, setSelectedDeptId] = useState(searchParams.get('departmentId') || '');
+  const [category, setCategory] = useState(searchParams?.get('category') || 'all');
+  const [departmentId, setDepartmentId] = useState(searchParams?.get('departmentId') || '');
+  const [selectedDeptId, setSelectedDeptId] = useState(searchParams?.get('departmentId') || '');
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdownResponse | null>(null);
   const [contributorPage, setContributorPage] = useState(0);
   const CONTRIBUTOR_PAGE_SIZE = 10;
@@ -529,8 +530,12 @@ export default function SchoolAnalyticsPage() {
   }, [schoolId, fromDate, toDate, category, departmentId]);
 
   useEffect(() => {
+    if (!schoolId) {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, schoolId]);
 
   const schoolInfo = data?.schoolWise?.[0] as any | null;
   const schoolName = schoolInfo?.schoolName ?? 'School Overview';
@@ -891,7 +896,7 @@ export default function SchoolAnalyticsPage() {
               category={category}
               onCategoryChange={setCategory}
               categoryOptions={CATEGORY_OPTIONS}
-              schoolId={schoolId}
+              schoolId={schoolId ?? undefined}
               onSchoolChange={(id) => {
                 if (id && id !== schoolId) {
                   router.push(`/drd/analytics/applicant/schools/${id}`);

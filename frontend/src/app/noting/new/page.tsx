@@ -227,7 +227,7 @@ function getInitialFromStore() {
 
 export default function NewNotePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const draftIdFromUrl = searchParams.get('draft');
   const { toast } = useToast();
   const { setForm, clearDraft, hydrateFromNote, setDraftId, getPayload, draftId } = useNotingDraftStore();

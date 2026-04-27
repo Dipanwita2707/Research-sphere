@@ -6,8 +6,11 @@ import {
   Save, Upload, X, CheckCircle, AlertCircle, Eye, Plus, Trash2,
   Building2, CreditCard, FileText, User, Code2, RotateCcw,
   ChevronDown, ChevronRight, Layers, FileUp, ImageIcon, History,
+  Crop,
 } from 'lucide-react';
 import LoanLetterTemplateAuditLog from './LoanLetterTemplateAuditLog';
+import ImageCropModal from './ImageCropModal';
+import DraggableImageCanvas from './DraggableImageCanvas';
 import { useLoanLetterTemplate } from '../hooks/useLoanLetterTemplate';
 import { LoanLetterTemplate, LoanLetterBankDetails } from '../services/loanLetterTemplate.service';
 import {
@@ -29,6 +32,29 @@ interface Props {
   onTemplateSaved?: (template: LoanLetterTemplate) => void;
 }
 
+function normalizeTemplateBodyHtml(html: string): string {
+  if (!html || typeof DOMParser === 'undefined') return html;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div id="root">${html}</div>`, 'text/html');
+  const root = doc.getElementById('root');
+  if (!root) return html;
+
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let current = walker.nextNode();
+  while (current) {
+    const textNode = current as Text;
+    const parentTag = textNode.parentElement?.tagName;
+    if (!parentTag || !['STYLE', 'SCRIPT'].includes(parentTag)) {
+      textNode.nodeValue = (textNode.nodeValue ?? '')
+        .replace(/\t/g, '\u00A0\u00A0\u00A0\u00A0')
+        .replace(/ {2,}/g, spaces => '\u00A0'.repeat(spaces.length));
+    }
+    current = walker.nextNode();
+  }
+
+  return root.innerHTML;
+}
+
 export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
   const { template, loading, saving, uploading, error, saveSuccess, saveTemplate, uploadHeaderImage, uploadWatermarkImage } = useLoanLetterTemplate();
   const [tab, setTab] = useState<EditorTab>('document');
@@ -39,6 +65,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
   const [docxError, setDocxError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Student: true });
+  const [cropTarget, setCropTarget] = useState<'header' | 'watermark' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const watermarkInputRef = useRef<HTMLInputElement>(null);
   const docxInputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +74,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
   useEffect(() => {
     if (template) {
       setDraft(template);
-      setDocBody(template.templateBody || DEFAULT_TEMPLATE_BODY);
+      setDocBody(normalizeTemplateBodyHtml(template.templateBody || DEFAULT_TEMPLATE_BODY));
     }
   }, [template]);
 
@@ -102,9 +129,15 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
         ...payload,
         templateBody: docBody || null,
         headerImageWidth: draft.headerImageWidth ?? 100,
+        headerImageAlign: draft.headerImageAlign ?? 'center',
+        headerImageX: draft.headerImageX ?? 50,
+        headerImageY: draft.headerImageY ?? 50,
+        headerInlineWithText: draft.headerInlineWithText ?? false,
         watermarkImageUrl: draft.watermarkImageUrl ?? null,
         watermarkOpacity: draft.watermarkOpacity ?? 20,
         watermarkWidth: draft.watermarkWidth ?? 30,
+        watermarkX: draft.watermarkX ?? 50,
+        watermarkY: draft.watermarkY ?? 50,
       };
       await saveTemplate(finalPayload);
       onTemplateSaved?.({ ...draft, templateBody: docBody || null });
@@ -133,6 +166,24 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
   }
   function removeWatermarkImage() {
     setDraft(prev => prev ? { ...prev, watermarkImageUrl: null } : prev);
+  }
+
+  /** Called when user confirms a crop — re-uploads the cropped blob */
+  async function handleCropConfirm(blob: Blob) {
+    if (!cropTarget) return;
+    const file = new File([blob], `${cropTarget}-cropped.png`, { type: 'image/png' });
+    if (cropTarget === 'header') {
+      try {
+        const url = await uploadHeaderImage(file);
+        setDraft(prev => prev ? { ...prev, headerImageUrl: url } : prev);
+      } catch { /* shown by hook */ }
+    } else {
+      try {
+        const url = await uploadWatermarkImage(file);
+        setDraft(prev => prev ? { ...prev, watermarkImageUrl: url } : prev);
+      } catch { /* shown by hook */ }
+    }
+    setCropTarget(null);
   }
 
   async function handleDocxFile(file: File | null) {
@@ -166,7 +217,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
         throw new Error(json.message || 'Failed to parse DOCX file.');
       }
       if (json.data?.html) {
-        setDocBody(json.data.html);
+        setDocBody(normalizeTemplateBodyHtml(json.data.html));
       } else {
         setDocxError('The document appears to be empty after conversion.');
       }
@@ -253,7 +304,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
               {docxLoading ? 'Importing&#x2026;' : 'Import DOCX'}
             </button>
             <input ref={docxInputRef} type="file" accept=".docx" className="hidden" onChange={e => handleDocxFile(e.target.files?.[0] ?? null)} />
-            <button onClick={() => { if (window.confirm('Reset to default template?')) setDocBody(DEFAULT_TEMPLATE_BODY); }}
+            <button onClick={() => { if (window.confirm('Reset to default template?')) setDocBody(normalizeTemplateBodyHtml(DEFAULT_TEMPLATE_BODY)); }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 dark:border-slate-600 dark:hover:bg-slate-700">
               <RotateCcw className="w-4 h-4 text-gray-500" />Reset to Default
             </button>
@@ -279,7 +330,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
               {showPreview ? (
                 <div className="rounded-lg border border-gray-200 bg-white p-6 overflow-auto max-h-[600px]" style={{ position: 'relative' }}>
                   <div className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Preview (sample data)</div>
-                  <div className="prose prose-sm max-w-none" style={{ fontFamily: 'Times New Roman, Times, serif', fontSize: 12 }}
+                  <div style={{ fontFamily: 'Times New Roman, Times, serif', fontSize: 14, lineHeight: 1.7, whiteSpace: 'break-spaces', tabSize: 8 }}
                     dangerouslySetInnerHTML={{ __html: renderTemplatePreview(docBody, {
                       ...draft,
                       headerImageUrl: draft.headerImageUrl ? getFileUrl(draft.headerImageUrl) : null,
@@ -287,7 +338,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
                     }) }} />
                 </div>
               ) : (
-                <DocumentBodyEditor value={docBody} onChange={setDocBody} quillRef={quillRef} />
+                <DocumentBodyEditor value={docBody} onChange={value => setDocBody(normalizeTemplateBodyHtml(value))} quillRef={quillRef} />
               )}
             </div>
 
@@ -341,16 +392,18 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
             </div>
 
             {draft.headerImageUrl ? (
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200 dark:bg-slate-800 dark:border-slate-700">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={getFileUrl(draft.headerImageUrl)}
-                    alt="Header"
-                    style={{ width: `${Math.min(draft.headerImageWidth ?? 100, 100)}%`, maxHeight: 120, objectFit: 'contain' }}
-                    className="rounded border border-gray-200 bg-white"
-                  />
-                </div>
+              <div className="space-y-4">
+                <DraggableImageCanvas
+                  imageUrl={getFileUrl(draft.headerImageUrl)}
+                  imageWidth={draft.headerImageWidth ?? 100}
+                  opacity={1}
+                  x={draft.headerImageX ?? 50}
+                  y={draft.headerImageY ?? 50}
+                  onChange={(nx, ny) => setDraft(prev => prev ? { ...prev, headerImageX: Math.round(nx), headerImageY: Math.round(ny) } : prev)}
+                  label="Header Position"
+                />
+
+                {/* Width slider */}
                 <div className="flex items-center gap-3">
                   <label className="text-xs font-medium text-gray-600 dark:text-slate-300 w-24 shrink-0">Width: {draft.headerImageWidth ?? 100}%</label>
                   <input
@@ -360,6 +413,28 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
                     className="flex-1 accent-primary-600"
                   />
                   <button onClick={() => set('headerImageWidth', 100)} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 border border-gray-200 rounded">Reset</button>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-gray-600 dark:text-slate-300 w-32 shrink-0">Image with text</span>
+                  <button
+                    onClick={() => set('headerInlineWithText', false)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${(draft.headerInlineWithText ?? false) ? 'border-gray-200 text-gray-500 hover:border-primary-300' : 'border-primary-500 bg-primary-50 text-primary-700'}`}>
+                    Separate line
+                  </button>
+                  <button
+                    onClick={() => set('headerInlineWithText', true)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${(draft.headerInlineWithText ?? false) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500 hover:border-primary-300'}`}>
+                    Same line as text
+                  </button>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => setCropTarget('header')}
+                    className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 px-2 py-1 border border-purple-200 rounded bg-purple-50 hover:bg-purple-100">
+                    <Crop className="w-3 h-3" />Crop Image
+                  </button>
                   <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 px-2 py-1 border border-primary-200 rounded">
                     <Upload className="w-3 h-3" />Replace
                   </button>
@@ -367,7 +442,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
                     <X className="w-3 h-3" />Remove
                   </button>
                 </div>
-                <p className="text-xs text-gray-400">Drag the slider to resize. Changes apply when you <strong>Save Template</strong>.</p>
+                <p className="text-xs text-gray-400">Drag, resize, and crop the header image. Use Same line as text when content beside the image should stay on the same line.</p>
               </div>
             ) : (
               <div onClick={() => fileInputRef.current?.click()}
@@ -388,25 +463,24 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
               <ImageIcon className="w-4 h-4 text-amber-500" />
               <h4 className="text-sm font-semibold text-gray-800 dark:text-white">Watermark Image</h4>
               <span className="ml-1 text-xs bg-amber-50 text-amber-600 border border-amber-200 rounded px-1.5 py-0.5">optional</span>
-              <span className="ml-auto text-xs text-gray-400">Printed as a centered background overlay</span>
+              <span className="ml-auto text-xs text-gray-400">Use <code className="bg-gray-100 rounded px-1">{'{{WATERMARK}}'}</code> in doc body</span>
             </div>
-            <p className="text-xs text-gray-500">When set, the watermark is printed behind the letter content (centre of page). Adjust opacity and size below.</p>
+            <p className="text-xs text-gray-500">Drag the watermark to any position on the document. Adjust opacity and size below.</p>
 
             {draft.watermarkImageUrl ? (
-              <div className="space-y-3">
-                <div className="relative flex items-center justify-center p-4 rounded-lg bg-gray-50 border border-gray-200 dark:bg-slate-800 dark:border-slate-700 min-h-[100px]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={getFileUrl(draft.watermarkImageUrl)}
-                    alt="Watermark preview"
-                    style={{
-                      width: `${Math.min(draft.watermarkWidth ?? 30, 100)}%`,
-                      opacity: (draft.watermarkOpacity ?? 20) / 100,
-                      objectFit: 'contain',
-                    }}
-                    className="rounded"
-                  />
-                </div>
+              <div className="space-y-4">
+                {/* Draggable canvas */}
+                <DraggableImageCanvas
+                  imageUrl={getFileUrl(draft.watermarkImageUrl)}
+                  imageWidth={draft.watermarkWidth ?? 30}
+                  opacity={(draft.watermarkOpacity ?? 20) / 100}
+                  x={draft.watermarkX ?? 50}
+                  y={draft.watermarkY ?? 50}
+                  onChange={(nx, ny) => setDraft(prev => prev ? { ...prev, watermarkX: Math.round(nx), watermarkY: Math.round(ny) } : prev)}
+                  label="Watermark Position"
+                />
+
+                {/* Opacity + size sliders */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
                     <label className="text-xs font-medium text-gray-600 dark:text-slate-300 w-24 shrink-0">Opacity: {draft.watermarkOpacity ?? 20}%</label>
@@ -427,7 +501,13 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={() => setCropTarget('watermark')}
+                    className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 px-2 py-1 border border-purple-200 rounded bg-purple-50 hover:bg-purple-100">
+                    <Crop className="w-3 h-3" />Crop Image
+                  </button>
                   <button onClick={() => watermarkInputRef.current?.click()} className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 px-2 py-1 border border-primary-200 rounded">
                     <Upload className="w-3 h-3" />Replace
                   </button>
@@ -450,6 +530,16 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
           </div>
 
         </div>
+      )}
+
+      {/* CROP MODAL */}
+      {cropTarget && draft && (
+        <ImageCropModal
+          imageUrl={getFileUrl(cropTarget === 'header' ? (draft.headerImageUrl ?? '') : (draft.watermarkImageUrl ?? ''))}
+          type={cropTarget}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropTarget(null)}
+        />
       )}
 
       {/* INSTITUTION TAB */}
@@ -537,7 +627,7 @@ export default function LoanLetterTemplateEditor({ onTemplateSaved }: Props) {
         <div className="space-y-3">
           <p className="text-xs text-gray-500 dark:text-slate-400">Full letter preview with sample data substituted. Save the template to persist changes.</p>
           <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white p-8 overflow-auto max-h-[700px]" style={{ position: 'relative' }}>
-            <div style={{ fontFamily: 'Times New Roman, Times, serif', fontSize: 12, lineHeight: 1.8 }}
+            <div style={{ fontFamily: 'Times New Roman, Times, serif', fontSize: 14, lineHeight: 1.7, whiteSpace: 'break-spaces', tabSize: 8 }}
               dangerouslySetInnerHTML={{ __html: renderTemplatePreview(docBody, {
                 ...draft,
                 headerImageUrl: draft.headerImageUrl ? getFileUrl(draft.headerImageUrl) : null,

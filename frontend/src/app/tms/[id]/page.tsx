@@ -108,7 +108,7 @@ function TimelineItem({ entry, isLast }: { entry: TmsTimelineEntry; isLast: bool
 }
 
 export default function TicketDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>()!;
   const router = useRouter();
   const { user } = useAuthStore();
   const { data: ticket, isLoading } = useTicketDetail(id);

@@ -112,7 +112,7 @@ const FIELD_TYPE_OPTIONS: { value: EventFieldType; label: string }[] = [
 ];
 
 export default function ManageEventPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const eventId = params.id as string;
@@ -125,7 +125,7 @@ export default function ManageEventPage() {
   const loading = eventLoading || prizesLoading || fieldsLoading;
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const [currentStep, setCurrentStep] = useState(() => {
     const stepParam = searchParams.get("step");
     if (stepParam) {
@@ -1268,7 +1268,7 @@ export default function ManageEventPage() {
    'paid' && participationType ===
    'individual' && (
                     <div id="field-registrationFee">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Registration Fee (₹) <span className="text-red-500">*</span>
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                       </label>
@@ -1298,7 +1298,7 @@ export default function ManageEventPage() {
    'paid' && participationType ===
    'team' && (
                     <div id="field-teamRegistrationFee">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Team Registration Fee (₹) <span className="text-red-500">*</span>
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                       </label>

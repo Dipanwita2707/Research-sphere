@@ -459,7 +459,8 @@ function TrackerWorkCard({ work }: { work: ProgressTrackerRecord }) {
    ────────────────────────────────────────────────────────────────── */
 export default function ApplicantProfilePage() {
   const router = useRouter();
-  const { personId } = useParams<{ personId: string }>();
+  const params = useParams<{ personId: string }>();
+  const personId = params?.personId ?? null;
 
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -491,8 +492,13 @@ export default function ApplicantProfilePage() {
   }, [personId, fromDate, toDate]);
 
   useEffect(() => {
+    if (!personId) {
+      setLoading(false);
+      setNotFound(true);
+      return;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, personId]);
 
   const filingCounts = person?.filingCounts;
   const approvalRate =
@@ -543,7 +549,7 @@ export default function ApplicantProfilePage() {
   return (
     <ProtectedRoute>
       {/* Drawer */}
-      {activeCategory && person && (
+      {activeCategory && person && personId && (
         <SubmissionsDrawer
           personId={personId}
           personName={person.applicantName}

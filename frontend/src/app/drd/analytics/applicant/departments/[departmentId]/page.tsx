@@ -55,8 +55,9 @@ function is403(err: unknown): boolean {
 
 export default function DepartmentAnalyticsPage() {
   const router = useRouter();
-  const { departmentId } = useParams<{ departmentId: string }>();
-  const searchParams = useSearchParams();
+  const params = useParams<{ departmentId: string }>();
+  const departmentId = params?.departmentId ?? null;
+  const searchParams = useSearchParams()!;
 
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -65,7 +66,7 @@ export default function DepartmentAnalyticsPage() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdownResponse | null>(null);
   const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3)));
   const [toDate, setToDate] = useState(isoDate(new Date()));
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
+  const [category, setCategory] = useState(searchParams?.get('category') || 'all');
 
   const fetchData = useCallback(async () => {
     if (!departmentId) return;
@@ -124,7 +125,7 @@ export default function DepartmentAnalyticsPage() {
   );
 
   const deptName = deptInfo?.departmentName ?? 'Department Overview';
-  const schoolId = schoolInfo?.schoolId ?? searchParams.get('schoolId') ?? '';
+  const schoolId = schoolInfo?.schoolId ?? searchParams?.get('schoolId') ?? '';
   const schoolName = schoolInfo?.schoolName ?? 'School';
 
   const people = useMemo(

@@ -19,9 +19,15 @@ export interface LoanLetterTemplate {
   refPrefix: string;
   headerImageUrl: string | null;
   headerImageWidth: number;
+  headerImageAlign: 'left' | 'center' | 'right';
+  headerImageX: number;
+  headerImageY: number;
+  headerInlineWithText: boolean;
   watermarkImageUrl: string | null;
   watermarkOpacity: number;
   watermarkWidth: number;
+  watermarkX: number;
+  watermarkY: number;
   templateBody: string | null;
   footerNotes: string[];
   bankDetails: LoanLetterBankDetails;
@@ -103,9 +109,15 @@ export const TEMPLATE_DEFAULTS: LoanLetterTemplate = {
   refPrefix: 'SGTU/Bank Loan',
   headerImageUrl: null,
   headerImageWidth: 100,
+  headerImageAlign: 'center' as const,
+  headerImageX: 50,
+  headerImageY: 50,
+  headerInlineWithText: false,
   watermarkImageUrl: null,
   watermarkOpacity: 20,
   watermarkWidth: 30,
+  watermarkX: 50,
+  watermarkY: 50,
   templateBody: null,
   footerNotes: [
     'Fee for Transport/Hostel/Mess/Medical is not included in the above, but will be a part of the bank loan and the same will be intimated to the bank from time to time.',

@@ -1,6 +1,141 @@
 const prisma = require('../../../shared/config/database');
 const cache = require('../../../shared/config/redis');
 
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function numberOrDefault(value, fallback) {
+  const parsed = numberOrNull(value);
+  return parsed === null ? fallback : parsed;
+}
+
+function normalizeProgramMetadata(metadata = {}, totalCredits = null) {
+  const safeMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {};
+
+  const rawCreditRange = safeMetadata.creditRange && typeof safeMetadata.creditRange === 'object'
+    ? safeMetadata.creditRange
+    : {};
+  const creditMin = numberOrNull(rawCreditRange.min);
+  const creditMax = numberOrNull(rawCreditRange.max ?? totalCredits);
+  const creditRange = creditMin !== null || creditMax !== null
+    ? { min: creditMin ?? undefined, max: creditMax ?? undefined }
+    : undefined;
+
+  const specializationChargeRules = Array.isArray(safeMetadata.specializationChargeRules)
+    ? safeMetadata.specializationChargeRules
+        .map((rule) => ({
+          specializationCode: String(rule.specializationCode || '').trim(),
+          specializationName: String(rule.specializationName || '').trim(),
+          batchYear: numberOrNull(rule.batchYear),
+          startSemester: numberOrNull(rule.startSemester),
+          requireNonZeroCharge: rule.requireNonZeroCharge !== false,
+          isActive: rule.isActive !== false,
+        }))
+        .filter((rule) => rule.specializationCode && rule.batchYear !== null && rule.startSemester !== null)
+    : [];
+
+  const batchYearDocuments = Array.isArray(safeMetadata.batchYearDocuments)
+    ? safeMetadata.batchYearDocuments
+        .map((document) => ({
+          batchYear: numberOrNull(document.batchYear),
+          admissionCapacity: numberOrNull(document.admissionCapacity),
+          fileName: String(document.fileName || '').trim(),
+          filePath: String(document.filePath || '').trim(),
+          fileSize: numberOrNull(document.fileSize) ?? undefined,
+          mimeType: document.mimeType || undefined,
+          uploadedAt: document.uploadedAt || new Date().toISOString(),
+        }))
+        .filter((document) => document.batchYear !== null && document.fileName && document.filePath)
+    : [];
+
+  const internshipSpecializations = Array.isArray(safeMetadata.internshipSpecializations)
+    ? safeMetadata.internshipSpecializations
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    : [];
+  const internshipDurationMonths = numberOrNull(safeMetadata.internshipDurationMonths);
+
+  return {
+    ...safeMetadata,
+    ...(creditRange ? { creditRange } : {}),
+    specializationChargeRules,
+    batchYearDocuments,
+    internshipApplicable: safeMetadata.internshipApplicable === true,
+    ...(internshipDurationMonths !== null ? { internshipDurationMonths } : {}),
+    internshipSpecializations,
+  };
+}
+
+function parseProgrammeSpecializations(value) {
+  if (!value) return [];
+  return String(value)
+    .split(/[|;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseSpecializationChargeRules(value, programCode, specializations) {
+  if (!value) return [];
+  return String(value)
+    .split(/[|;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const [nameOrCode, batchYear, startSemester] = item.split(':').map((part) => (part || '').trim());
+      const specIndex = specializations.findIndex((name, index) => (
+        name.toLowerCase() === nameOrCode.toLowerCase()
+        || `${programCode}-SP${index + 1}`.toLowerCase() === nameOrCode.toLowerCase()
+      ));
+      if (specIndex < 0) return null;
+      return {
+        specializationCode: `${programCode}-SP${specIndex + 1}`,
+        specializationName: specializations[specIndex],
+        batchYear: numberOrNull(batchYear),
+        startSemester: numberOrNull(startSemester),
+        requireNonZeroCharge: true,
+      };
+    })
+    .filter((rule) => rule && rule.batchYear !== null && rule.startSemester !== null);
+}
+
+function parseBatchYearDocuments(value) {
+  if (!value) return [];
+  return String(value)
+    .split(/[|;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const [batchYear, filePath, fileName] = item.split(':').map((part) => (part || '').trim());
+      return {
+        batchYear: numberOrNull(batchYear),
+        filePath,
+        fileName: fileName || (filePath ? filePath.split('/').pop() : ''),
+        uploadedAt: new Date().toISOString(),
+      };
+    })
+    .filter((document) => document.batchYear !== null && document.filePath && document.fileName);
+}
+
+function mapProgramType(value) {
+  const programTypeMapping = {
+    UG: 'undergraduate',
+    PG: 'postgraduate',
+    PhD: 'doctoral',
+    Diploma: 'diploma',
+    Certificate: 'certificate',
+    undergraduate: 'undergraduate',
+    postgraduate: 'postgraduate',
+    doctoral: 'doctoral',
+    doctorate: 'doctoral',
+    diploma: 'diploma',
+    certificate: 'certificate',
+  };
+  return programTypeMapping[value] || programTypeMapping[String(value || '').trim()];
+}
+
 /**
  * Get all programs
  */
@@ -243,20 +378,7 @@ exports.createProgram = async (req, res) => {
     }
 
     // Map programType to enum values
-    const programTypeMapping = {
-      'UG': 'undergraduate',
-      'PG': 'postgraduate',
-      'PhD': 'doctoral',
-      'Diploma': 'diploma',
-      'Certificate': 'certificate',
-      'undergraduate': 'undergraduate',
-      'postgraduate': 'postgraduate',
-      'doctoral': 'doctoral',
-      'diploma': 'diploma',
-      'certificate': 'certificate'
-    };
-
-    const mappedProgramType = programTypeMapping[programType];
+    const mappedProgramType = mapProgramType(programType);
     if (!mappedProgramType) {
       return res.status(400).json({
         success: false,
@@ -302,6 +424,9 @@ exports.createProgram = async (req, res) => {
       }
     }
 
+    const normalizedMetadata = normalizeProgramMetadata(metadata, totalCredits);
+    const normalizedTotalCredits = numberOrNull(normalizedMetadata.creditRange?.max ?? totalCredits ?? normalizedMetadata.creditRange?.min);
+
     const program = await prisma.program.create({
       data: {
         department: { connect: { id: departmentId } },
@@ -310,15 +435,15 @@ exports.createProgram = async (req, res) => {
         programType: mappedProgramType,
         shortName,
         description,
-        durationYears: durationYears != null && durationYears !== '' ? Number(durationYears) : 4,
-        durationMonths: durationMonths != null && durationMonths !== '' ? Number(durationMonths) : null,
-        durationSemesters: durationSemesters != null && durationSemesters !== '' ? Number(durationSemesters) : 8,
-        totalCredits: totalCredits != null && totalCredits !== '' ? Number(totalCredits) : null,
-        admissionCapacity: admissionCapacity != null ? Number(admissionCapacity) : 0,
+        durationYears: numberOrDefault(durationYears, 4),
+        durationMonths: numberOrNull(durationMonths),
+        durationSemesters: numberOrDefault(durationSemesters, 8),
+        totalCredits: normalizedTotalCredits,
+        admissionCapacity: numberOrDefault(admissionCapacity, 0),
         ...(programCoordinatorId && { programCoordinator: { connect: { id: programCoordinatorId } } }),
         accreditationBody: accreditationBody || null,
         accreditationStatus: accreditationStatus || null,
-        metadata: metadata ?? {},
+        metadata: normalizedMetadata,
         isActive: true,
       },
       include: {
@@ -469,20 +594,7 @@ exports.updateProgram = async (req, res) => {
     // Map programType to enum values if provided
     let mappedProgramType = programType;
     if (programType) {
-      const programTypeMapping = {
-        'UG': 'undergraduate',
-        'PG': 'postgraduate',
-        'PhD': 'doctoral',
-        'Diploma': 'diploma',
-        'Certificate': 'certificate',
-        'undergraduate': 'undergraduate',
-        'postgraduate': 'postgraduate',
-        'doctoral': 'doctoral',
-        'diploma': 'diploma',
-        'certificate': 'certificate'
-      };
-
-      mappedProgramType = programTypeMapping[programType];
+      mappedProgramType = mapProgramType(programType);
       if (!mappedProgramType) {
         return res.status(400).json({
           success: false,
@@ -490,6 +602,13 @@ exports.updateProgram = async (req, res) => {
         });
       }
     }
+
+    const normalizedMetadata = metadata !== undefined
+      ? normalizeProgramMetadata(metadata, totalCredits)
+      : undefined;
+    const normalizedTotalCredits = totalCredits !== undefined || normalizedMetadata?.creditRange
+      ? numberOrNull(normalizedMetadata?.creditRange?.max ?? totalCredits ?? normalizedMetadata?.creditRange?.min)
+      : undefined;
 
     const program = await prisma.program.update({
       where: { id },
@@ -500,16 +619,16 @@ exports.updateProgram = async (req, res) => {
         ...(mappedProgramType && { programType: mappedProgramType }),
         ...(shortName !== undefined && { shortName }),
         ...(description !== undefined && { description }),
-        ...(durationYears !== undefined && { durationYears }),
-        ...(durationMonths !== undefined && { durationMonths: durationMonths !== '' ? Number(durationMonths) : null }),
-        ...(durationSemesters !== undefined && { durationSemesters }),
-        ...(totalCredits !== undefined && { totalCredits }),
-        ...(admissionCapacity !== undefined && { admissionCapacity }),
+        ...(durationYears !== undefined && { durationYears: numberOrDefault(durationYears, existingProgram.durationYears) }),
+        ...(durationMonths !== undefined && { durationMonths: numberOrNull(durationMonths) }),
+        ...(durationSemesters !== undefined && { durationSemesters: numberOrDefault(durationSemesters, existingProgram.durationSemesters) }),
+        ...(normalizedTotalCredits !== undefined && { totalCredits: normalizedTotalCredits }),
+        ...(admissionCapacity !== undefined && { admissionCapacity: numberOrDefault(admissionCapacity, 0) }),
         ...(currentEnrollment !== undefined && { currentEnrollment }),
         ...(programCoordinatorId !== undefined && { programCoordinatorId: programCoordinatorId || null }),
         ...(accreditationBody !== undefined && { accreditationBody }),
         ...(accreditationStatus !== undefined && { accreditationStatus }),
-        ...(metadata !== undefined && { metadata }),
+        ...(normalizedMetadata !== undefined && { metadata: normalizedMetadata }),
       },
       include: {
         department: {
@@ -866,20 +985,48 @@ exports.bulkCreate = async (req, res) => {
         results.errors.push({ row: rowNum, programCode: code, errors: [`Department with id ${row.departmentId} not found`] });
         continue;
       }
+      const mappedProgramType = mapProgramType(row.programType);
+      if (!mappedProgramType) {
+        results.errors.push({ row: rowNum, programCode: code, errors: ['Invalid programme type'] });
+        continue;
+      }
+      const specializations = parseProgrammeSpecializations(row.specializations);
+      const creditMin = numberOrNull(row.creditMin);
+      const creditMax = numberOrNull(row.creditMax ?? row.totalCredits);
+      const metadata = normalizeProgramMetadata({
+        ...(row.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+        creditRange: creditMin !== null || creditMax !== null
+          ? { min: creditMin ?? undefined, max: creditMax ?? undefined }
+          : undefined,
+        specializationChargeRules: parseSpecializationChargeRules(row.specializationChargeRules, code, specializations),
+        batchYearDocuments: parseBatchYearDocuments(row.batchYearDocuments),
+      }, creditMax ?? creditMin);
       try {
         const created = await prisma.program.create({
           data: {
             programCode: code,
             programName: row.programName,
-            programType: row.programType,
+            programType: mappedProgramType,
             departmentId: row.departmentId,
-            durationYears: row.durationYears ? Number(row.durationYears) : null,
-            durationSemesters: row.durationSemesters ? Number(row.durationSemesters) : null,
+            durationYears: row.durationYears ? Number(row.durationYears) : 4,
+            durationSemesters: row.durationSemesters ? Number(row.durationSemesters) : 8,
             durationMonths: row.durationMonths ? Number(row.durationMonths) : null,
+            totalCredits: creditMax ?? creditMin,
             description: row.description || null,
+            metadata,
             isActive: true,
           },
         });
+        if (specializations.length > 0) {
+          await prisma.programSpecialization.createMany({
+            data: specializations.map((specializationName, index) => ({
+              programId: created.id,
+              specializationCode: `${code}-SP${index + 1}`,
+              specializationName,
+              isActive: true,
+            })),
+          });
+        }
         results.created.push({ row: rowNum, programCode: code, id: created.id });
       } catch (e) {
         results.errors.push({ row: rowNum, programCode: code, errors: [e.message] });

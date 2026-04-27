@@ -450,6 +450,7 @@ export default function NavigationHeader() {
         // Analytics & Reports
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
+        { name: '🐛 Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
         
         // DSW - Division of Student Welfare
         {

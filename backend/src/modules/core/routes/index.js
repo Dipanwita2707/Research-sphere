@@ -40,6 +40,7 @@ const notingModule = require('../../noting');
 const dswModule = require('../../dsw');
 const eventManagementModule = require('../../event-management/routes/event.routes');
 const tmsModule = require('../../tms');
+const bugReportsModule = require('../../bug-reports');
 
 // =====================================
 // MOUNT CORE ROUTES
@@ -75,6 +76,8 @@ router.use('/noting', notingModule);
 router.use('/dsw', dswModule);
 router.use('/events', eventManagementModule);
 router.use('/tms', tmsModule);
+router.use('/bug-reports', bugReportsModule);
+router.use('/admin/bug-reports', require('../../bug-reports/routes/admin.routes'));
 
 // =====================================
 // BACKWARD COMPATIBILITY ROUTES

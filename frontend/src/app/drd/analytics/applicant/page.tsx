@@ -151,7 +151,7 @@ function LeaderboardTable({ people, router }: { people: any[]; router: ReturnTyp
 
 export default function ApplicantAnalyticsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
 
   const [accessDenied, setAccessDenied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -160,9 +160,9 @@ export default function ApplicantAnalyticsPage() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdownResponse | null>(null);
   const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3)));
   const [toDate, setToDate] = useState(isoDate(new Date()));
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
-  const [schoolId, setSchoolId] = useState(searchParams.get('schoolId') || '');
-  const [departmentId, setDepartmentId] = useState(searchParams.get('departmentId') || '');
+  const [category, setCategory] = useState(searchParams?.get('category') || 'all');
+  const [schoolId, setSchoolId] = useState(searchParams?.get('schoolId') || '');
+  const [departmentId, setDepartmentId] = useState(searchParams?.get('departmentId') || '');
 
   const fetchData = useCallback(async () => {
     setLoading(true);

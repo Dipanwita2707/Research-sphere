@@ -49,7 +49,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
 };
 
 export default function EditContributionPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { user } = useAuthStore();
   const { toast } = useToast();

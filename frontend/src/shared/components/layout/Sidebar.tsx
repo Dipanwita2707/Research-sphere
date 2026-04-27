@@ -25,7 +25,8 @@ import {
   Presentation,
   MessageCircle,
   Shield,
-  Receipt
+  Receipt,
+  Bug
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -199,6 +200,7 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
       name: 'Admin', href: '/admin', icon: Users, adminOnly: true,
       subItems: [
         { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+        { name: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },
         { name: 'Bulk Upload', href: '/admin/bulk-upload', icon: Upload },
         { name: 'Schools', href: '/admin/schools', icon: GraduationCap },
         { name: 'Departments', href: '/admin/departments', icon: Building },
@@ -252,7 +254,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const { user } = useAuthStore();
   const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Administrative']); // Admin, Research & IPR, and Administrative expanded by default
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
@@ -315,8 +317,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       <nav className="flex-1 py-4 overflow-y-auto">
         {filteredNavItems.map((item: NavItem) => {
           const Icon = item.icon;
-          const isActive = pathname ===
-   item.href || pathname.startsWith(item.href + '/');
+          const isActive = pathname === item.href || (pathname && pathname.startsWith(item.href + '/'));
           const isExpanded = expandedItems.includes(item.name);
           const hasSubItems = item.subItems && item.subItems.length > 0;
           

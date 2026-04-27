@@ -88,7 +88,7 @@ const getPendingDrdReviews = async (req, res) => {
         assignedSchoolIds = (directPermission?.assignedSchoolIds || []).filter(id => id !== null && id !== undefined);
       }
     } catch (permError) {
-      console.log('Note: Error fetching school assignments:', permError.message);
+      // Error fetching school assignments - continue with empty array
     }
 
     const permissions = mergedPermissions;

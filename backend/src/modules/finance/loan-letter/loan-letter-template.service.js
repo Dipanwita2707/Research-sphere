@@ -27,6 +27,39 @@ async function ensureAuditTable() {
 // Kick off immediately so it's ready before the first request
 ensureAuditTable();
 
+// Add new image-design columns if they don't exist yet (idempotent)
+async function ensureImageDesignColumns() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='loan_letter_template' AND column_name='header_image_align') THEN
+          ALTER TABLE loan_letter_template ADD COLUMN header_image_align VARCHAR(16) DEFAULT 'center';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='loan_letter_template' AND column_name='header_image_x') THEN
+          ALTER TABLE loan_letter_template ADD COLUMN header_image_x INT DEFAULT 50;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='loan_letter_template' AND column_name='header_image_y') THEN
+          ALTER TABLE loan_letter_template ADD COLUMN header_image_y INT DEFAULT 50;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='loan_letter_template' AND column_name='header_inline_with_text') THEN
+          ALTER TABLE loan_letter_template ADD COLUMN header_inline_with_text BOOLEAN DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='loan_letter_template' AND column_name='watermark_x') THEN
+          ALTER TABLE loan_letter_template ADD COLUMN watermark_x INT DEFAULT 50;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='loan_letter_template' AND column_name='watermark_y') THEN
+          ALTER TABLE loan_letter_template ADD COLUMN watermark_y INT DEFAULT 50;
+        END IF;
+      END
+      $$
+    `);
+  } catch (err) {
+    console.warn('ensureImageDesignColumns:', err.message);
+  }
+}
+ensureImageDesignColumns();
+
 const DEFAULTS = {
   universityName: 'SHREE GURU GOBIND SINGH TRICENTENARY UNIVERSITY (SGT UNIVERSITY \u00ae)',
   universityShort: 'SGT University \u00ae',
@@ -36,9 +69,15 @@ const DEFAULTS = {
   refPrefix: 'SGTU/Bank Loan',
   headerImageUrl: null,
   headerImageWidth: 100,
+  headerImageAlign: 'center',
+  headerImageX: 50,
+  headerImageY: 50,
+  headerInlineWithText: false,
   watermarkImageUrl: null,
   watermarkOpacity: 20,
   watermarkWidth: 30,
+  watermarkX: 50,
+  watermarkY: 50,
   footerNotes: [
     'Fee for Transport/Hostel/Mess/Medical is not included in the above, but will be a part of the bank loan and the same will be intimated to the bank from time to time.',
   ],
@@ -66,15 +105,21 @@ async function getTemplate() {
     let imageFields = {};
     try {
       const rows = await prisma.$queryRaw`
-        SELECT header_image_width, watermark_image_url, watermark_opacity, watermark_width
+        SELECT header_image_width, header_image_align, header_image_x, header_image_y, header_inline_with_text, watermark_image_url, watermark_opacity, watermark_width, watermark_x, watermark_y
         FROM loan_letter_template WHERE id = ${SINGLETON_ID}
       `;
       if (rows && rows[0]) {
         imageFields = {
           headerImageWidth: rows[0].header_image_width ?? 100,
+          headerImageAlign: rows[0].header_image_align ?? 'center',
+          headerImageX: rows[0].header_image_x ?? 50,
+          headerImageY: rows[0].header_image_y ?? 50,
+          headerInlineWithText: rows[0].header_inline_with_text ?? false,
           watermarkImageUrl: rows[0].watermark_image_url ?? null,
           watermarkOpacity: rows[0].watermark_opacity ?? 20,
           watermarkWidth: rows[0].watermark_width ?? 30,
+          watermarkX: rows[0].watermark_x ?? 50,
+          watermarkY: rows[0].watermark_y ?? 50,
         };
       }
     } catch (_) { /* columns may not exist yet — fall back to defaults */ }
@@ -100,9 +145,15 @@ const ALLOWED_FIELDS = [
 // Fields that map to new raw SQL columns not yet in the Prisma-generated client
 const RAW_IMAGE_FIELDS = {
   headerImageWidth: 'header_image_width',
+  headerImageAlign: 'header_image_align',
+  headerImageX: 'header_image_x',
+  headerImageY: 'header_image_y',
+  headerInlineWithText: 'header_inline_with_text',
   watermarkImageUrl: 'watermark_image_url',
   watermarkOpacity: 'watermark_opacity',
   watermarkWidth: 'watermark_width',
+  watermarkX: 'watermark_x',
+  watermarkY: 'watermark_y',
 };
 
 // Human-readable labels for auditable fields
@@ -115,9 +166,15 @@ const FIELD_LABELS = {
   refPrefix: 'Reference Prefix',
   headerImageUrl: 'Header Image',
   headerImageWidth: 'Header Image Width',
+  headerImageAlign: 'Header Image Alignment',
+  headerImageX: 'Header Position X',
+  headerImageY: 'Header Position Y',
+  headerInlineWithText: 'Header Inline With Text',
   watermarkImageUrl: 'Watermark Image',
   watermarkOpacity: 'Watermark Opacity',
   watermarkWidth: 'Watermark Size',
+  watermarkX: 'Watermark Position X',
+  watermarkY: 'Watermark Position Y',
   templateBody: 'Document Body',
   footerNotes: 'Footer Notes',
   bankDetails: 'Bank Details',

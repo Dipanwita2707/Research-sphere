@@ -69,14 +69,12 @@ export function useSocket(options: UseSocketOptions = {}) {
 
     // Connection events
     socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
       setIsConnected(true);
       setConnectionError(null);
       onConnect?.();
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
       setIsConnected(false);
       onDisconnect?.();
     });

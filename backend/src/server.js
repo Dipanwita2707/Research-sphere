@@ -7,7 +7,8 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const log = require('./shared/utils/logger');
+const { createModuleLogger } = require('./shared/utils/logger');
+const log = createModuleLogger('server');
 
 const config = require("./shared/config/app.config");
 const errorHandler = require("./shared/middleware/errorHandler");
@@ -130,7 +131,7 @@ if (shouldLogRequests) {
     res.on("finish", () => {
       const duration = Date.now() - start;
       const path = req.originalUrl || req.url;
-      log.req(req.method, path, res.statusCode, duration);
+      log.logApiCall(req.method, path, req.user?.id || 'anonymous', res.statusCode, duration);
     });
     next();
   });

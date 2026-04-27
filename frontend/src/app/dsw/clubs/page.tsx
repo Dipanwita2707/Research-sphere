@@ -26,7 +26,7 @@ import { useAuthStore } from "@/shared/auth/authStore";
 
 export default function AllClubsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
 
   const [filters, setFilters] = useState<ClubFilters>({
     page: 1,

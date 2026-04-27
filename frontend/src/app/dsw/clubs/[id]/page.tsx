@@ -632,11 +632,11 @@ interface ConfirmDeleteState {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ClubDetailsPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const clubId = params.id as string;
 
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const rawTab = searchParams.get("tab") as TabKey | null;
   const validTabs: TabKey[] = ["overview", "team", "details", "applications", "events"];
   const activeTab: TabKey =

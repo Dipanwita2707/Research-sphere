@@ -282,21 +282,22 @@ class AuditService {
       });
 
       const auditLogData = {
-        performedByName: nameSnapshot,
-        performedByRole: roleSnapshot,
         action,
-        description: finalDescription,
         actionType,
         module,
         category,
         severity,
         targetTable,
         targetId: isUuid(targetId) ? targetId : null,
-        entityId: entityId || targetId || null,
-        entityName,
         details: {
           ...(toSerializable(details) || {}),
-          changedFields
+          changedFields,
+          performedByName: nameSnapshot,
+          performedByRole: roleSnapshot,
+          description: finalDescription,
+          status: normalizedStatus,
+          entityId: entityId || targetId || null,
+          entityName
         },
         ipAddress,
         userAgent,
@@ -306,7 +307,6 @@ class AuditService {
         requestPath,
         requestMethod,
         responseStatus,
-        status: normalizedStatus,
         duration,
         errorMessage,
         metadata: toSerializable(metadata)

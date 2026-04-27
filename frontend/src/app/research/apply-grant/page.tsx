@@ -10,7 +10,7 @@ import GrantApplicationForm from '@/features/research-management/components/Gran
 import logger from '@/shared/utils/logger';
 
 export default function GrantApplyPage() {
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const router = useRouter();
   const editId = searchParams.get('edit');
   const { user } = useAuthStore();

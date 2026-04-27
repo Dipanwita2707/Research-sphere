@@ -10,6 +10,7 @@ import { programService, Program, Specialization } from '@/features/admin-manage
 interface HeadRow {
   tempId: string;
   headName: string;
+  totalAmount: string;
   amounts: Record<number, string>;
 }
 
@@ -30,6 +31,7 @@ const makeAmountMap = (sems: number, source?: Record<number, string>): Record<nu
 const makeEmptyRow = (sems: number): HeadRow => ({
   tempId: Math.random().toString(36).slice(2),
   headName: '',
+  totalAmount: '',
   amounts: makeAmountMap(sems),
 });
 
@@ -49,7 +51,34 @@ const getSemesterNumbersFromHeaders = (headers: string[]) =>
     .sort((a, b) => a - b);
 
 const hasAnyHeadAmount = (head: HeadRow, semCount: number) =>
-  Array.from({ length: semCount }, (_, i) => Number(head.amounts[i + 1]) || 0).some(value => value > 0);
+  (Number(head.totalAmount) || 0) > 0
+  || Array.from({ length: semCount }, (_, i) => Number(head.amounts[i + 1]) || 0).some(value => value > 0);
+
+const getRowSemesterTotal = (head: HeadRow, semCount: number) =>
+  Array.from({ length: semCount }, (_, i) => Number(head.amounts[i + 1]) || 0).reduce((sum, value) => sum + value, 0);
+
+const getHeadRowIssues = (head: HeadRow, semCount: number, label: string) => {
+  const issues: string[] = [];
+  const name = head.headName.trim();
+  const total = Number(head.totalAmount) || 0;
+  const semTotal = getRowSemesterTotal(head, semCount);
+  const hasSemesterValue = Array.from({ length: semCount }, (_, i) => Number(head.amounts[i + 1]) || 0).some(value => value > 0);
+
+  if (!name && (total > 0 || hasSemesterValue)) {
+    issues.push(`${label}: head name is required.`);
+  }
+  if (name && total <= 0) {
+    issues.push(`${label} (${name}): total amount is required.`);
+  }
+  if (name && total > 0 && !hasSemesterValue) {
+    issues.push(`${label} (${name}): enter semester amounts.`);
+  }
+  if (name && total > 0 && semTotal !== total) {
+    issues.push(`${label} (${name}): semester total ${semTotal.toLocaleString('en-IN')} must match head total ${total.toLocaleString('en-IN')}.`);
+  }
+
+  return issues;
+};
 
 /** Minimal CSV line parser — handles double-quoted fields */
 function parseCSVLine(line: string): string[] {
@@ -100,12 +129,13 @@ interface SemGridProps {
   heads: HeadRow[];
   semCols: number[];
   onNameChange: (i: number, v: string) => void;
+  onTotalChange: (i: number, v: string) => void;
   onAmtChange: (i: number, sem: number, v: string) => void;
   onRemove: (i: number) => void;
   onAdd: () => void;
   onFillAll?: (i: number) => void;
 }
-function SemGrid({ heads, semCols, onNameChange, onAmtChange, onRemove, onAdd, onFillAll }: SemGridProps) {
+function SemGrid({ heads, semCols, onNameChange, onTotalChange, onAmtChange, onRemove, onAdd, onFillAll }: SemGridProps) {
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
 
   const focusCell = (rowIdx: number, colIdx: number) => {
@@ -120,6 +150,12 @@ function SemGrid({ heads, semCols, onNameChange, onAmtChange, onRemove, onAdd, o
   // Enter on head-name → jump to first sem amount of same row
   const onNameKeyDown = (e: React.KeyboardEvent, i: number) => {
     if (e.key === 'Enter') { e.preventDefault(); focusCell(i, 1); }
+  };
+
+  const onTotalKeyDown = (e: React.KeyboardEvent, rowIdx: number) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    focusCell(rowIdx, 2);
   };
 
   // Enter on a sem amount → move to next row head-name, or add a new row on last
@@ -150,6 +186,9 @@ function SemGrid({ heads, semCols, onNameChange, onAmtChange, onRemove, onAdd, o
             <tr className="bg-gray-100 border-b border-gray-200">
               <th className="sm:sticky sm:left-0 bg-gray-100 px-3 py-2 text-left font-medium text-gray-700 w-52 min-w-[200px]">
                 Particulars
+              </th>
+              <th className="px-3 py-2 text-right font-medium text-gray-700 min-w-[120px]">
+                Total
               </th>
               {semCols.map(s => (
                 <th key={s} className="px-3 py-2 text-right font-medium text-gray-700 min-w-[100px]">
@@ -182,6 +221,18 @@ function SemGrid({ heads, semCols, onNameChange, onAmtChange, onRemove, onAdd, o
                     </button>
                   )}
                 </td>
+                <td className="px-1.5 py-1.5">
+                  <input
+                    type="number"
+                    value={head.totalAmount}
+                    onChange={e => onTotalChange(i, e.target.value)}
+                    onKeyDown={e => onTotalKeyDown(e, i)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    min={0}
+                    step="1"
+                    placeholder="0"
+                  />
+                </td>
                 {semCols.map((s, si) => (
                   <td key={s} className="px-1.5 py-1.5">
                     <input
@@ -212,6 +263,9 @@ function SemGrid({ heads, semCols, onNameChange, onAmtChange, onRemove, onAdd, o
           <tfoot>
             <tr className="bg-gray-50 border-t-2 border-gray-300 font-semibold">
               <td className="sm:sticky sm:left-0 bg-gray-50 px-3 py-2 text-gray-800">Total</td>
+              <td className="px-3 py-2 text-right text-gray-800">
+                {heads.reduce((acc, h) => acc + (Number(h.totalAmount) || 0), 0).toLocaleString('en-IN')}
+              </td>
               {semCols.map(s => (
                 <td key={s} className="px-3 py-2 text-right text-gray-800">
                   {heads.reduce((acc, h) => acc + (Number(h.amounts[s]) || 0), 0).toLocaleString('en-IN')}
@@ -237,10 +291,12 @@ function SemGrid({ heads, semCols, onNameChange, onAmtChange, onRemove, onAdd, o
 // Also defined outside parent component for the same remount reason.
 interface SpecAddOnGridProps {
   semCols: number[];
+  totalAmount: string;
   amounts: Record<number, string>;
+  onTotalChange: (v: string) => void;
   onChange: (sem: number, v: string) => void;
 }
-function SpecAddOnGrid({ semCols, amounts, onChange }: SpecAddOnGridProps) {
+function SpecAddOnGrid({ semCols, totalAmount, amounts, onTotalChange, onChange }: SpecAddOnGridProps) {
   return (
     <div className="overflow-x-auto border border-blue-200 rounded-lg">
       <table className="text-sm min-w-max w-full">
@@ -248,6 +304,9 @@ function SpecAddOnGrid({ semCols, amounts, onChange }: SpecAddOnGridProps) {
           <tr className="bg-blue-50 border-b border-blue-200">
             <th className="sm:sticky sm:left-0 bg-blue-50 px-3 py-2 text-left font-medium text-blue-700 w-52 min-w-[200px]">
               Additional Fee (per semester)
+            </th>
+            <th className="px-3 py-2 text-right font-medium text-blue-700 min-w-[120px]">
+              Total
             </th>
             {semCols.map(s => (
               <th key={s} className="px-3 py-2 text-right font-medium text-blue-700 min-w-[100px]">
@@ -260,6 +319,17 @@ function SpecAddOnGrid({ semCols, amounts, onChange }: SpecAddOnGridProps) {
           <tr className="bg-white">
             <td className="sm:sticky sm:left-0 bg-white px-3 py-2 text-sm text-gray-400 italic">
               Added on top of base fee
+            </td>
+            <td className="px-1.5 py-1.5">
+              <input
+                type="number"
+                value={totalAmount}
+                onChange={e => onTotalChange(e.target.value)}
+                className="w-full px-2 py-1.5 border border-blue-300 rounded-md text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                min={0}
+                step="1"
+                placeholder="0"
+              />
             </td>
             {semCols.map(s => (
               <td key={s} className="px-1.5 py-1.5">
@@ -279,6 +349,7 @@ function SpecAddOnGrid({ semCols, amounts, onChange }: SpecAddOnGridProps) {
         <tfoot>
           <tr className="bg-blue-50 border-t border-blue-200 font-semibold">
             <td className="sm:sticky sm:left-0 bg-blue-50 px-3 py-2 text-blue-800">Total Add-on</td>
+            <td className="px-3 py-2 text-right text-blue-800">{(Number(totalAmount) || 0).toLocaleString('en-IN')}</td>
             {semCols.map(s => (
               <td key={s} className="px-3 py-2 text-right text-blue-800">
                 {(Number(amounts[s]) || 0).toLocaleString('en-IN')}
@@ -307,6 +378,7 @@ export default function AcademicFeeTab() {
   const [baseHeads, setBaseHeads] = useState<HeadRow[]>([]);
   const [specializations, setSpecializations] = useState<Specialization[]>([]);
   const [specAmounts, setSpecAmounts] = useState<Record<string, Record<number, string>>>({});
+  const [specTotals, setSpecTotals] = useState<Record<string, string>>({});
   const [specEnabled, setSpecEnabled] = useState<Record<string, boolean>>({});
 
   // bulk upload state
@@ -328,7 +400,7 @@ export default function AcademicFeeTab() {
   const handleFormProgramChange = useCallback(async (programId: string) => {
     setFormProgramId(programId);
     if (!programId) {
-      setTotalSemesters(0); setBaseHeads([]); setSpecializations([]); setSpecAmounts({}); setSpecEnabled({});
+      setTotalSemesters(0); setBaseHeads([]); setSpecializations([]); setSpecAmounts({}); setSpecTotals({}); setSpecEnabled({});
       return;
     }
     const prog = programs.find(p => p.id === programId);
@@ -345,15 +417,16 @@ export default function AcademicFeeTab() {
 
     setSpecializations(specs);
     const sa: Record<string, Record<number, string>> = {};
+    const st: Record<string, string> = {};
     const se: Record<string, boolean> = {};
-    specs.forEach(s => { sa[s.id] = sems > 0 ? makeSpecAmounts(sems) : {}; se[s.id] = false; });
-    setSpecAmounts(sa); setSpecEnabled(se);
+    specs.forEach(s => { sa[s.id] = sems > 0 ? makeSpecAmounts(sems) : {}; st[s.id] = ''; se[s.id] = false; });
+    setSpecAmounts(sa); setSpecTotals(st); setSpecEnabled(se);
   }, [programs]);
 
   const resetForm = () => {
     setShowForm(false); setEditingId(null); setFormProgramId('');
     setFormBatchYear(new Date().getFullYear()); setTotalSemesters(0);
-    setBaseHeads([]); setSpecializations([]); setSpecAmounts({}); setSpecEnabled({});
+    setBaseHeads([]); setSpecializations([]); setSpecAmounts({}); setSpecTotals({}); setSpecEnabled({});
     setFormSaveError(null);
   };
 
@@ -368,6 +441,7 @@ export default function AcademicFeeTab() {
     setBaseHeads(fs.heads.map(h => ({
       tempId: h.id || Math.random().toString(36).slice(2),
       headName: h.headName,
+      totalAmount: String(h.amount ?? ''),
       amounts: Object.fromEntries(Array.from({ length: sems }, (_, i) => [
         i + 1,
         String((h.semesterAmounts as any)?.[i + 1] ?? h.amount ?? ''),
@@ -378,6 +452,7 @@ export default function AcademicFeeTab() {
 
   // ── base head mutations ──────────────────────────────────────────────────
   const updBaseName = (i: number, v: string) => setBaseHeads(h => h.map((r, idx) => idx === i ? { ...r, headName: v } : r));
+  const updBaseTotal = (i: number, v: string) => setBaseHeads(h => h.map((r, idx) => idx === i ? { ...r, totalAmount: v } : r));
   const updBaseAmt = (i: number, sem: number, v: string) => setBaseHeads(h => h.map((r, idx) => idx === i ? { ...r, amounts: { ...r.amounts, [sem]: v } } : r));
   const remBaseRow = (i: number) => setBaseHeads(h => h.filter((_, idx) => idx !== i));
   const addBaseRow = () => setBaseHeads(h => [...h, makeEmptyRow(totalSemesters)]);
@@ -400,6 +475,7 @@ export default function AcademicFeeTab() {
     setBaseHeads(source.heads.map(h => ({
       tempId: Math.random().toString(36).slice(2),
       headName: h.headName,
+      totalAmount: '',
       amounts: makeAmountMap(totalSemesters),
     })));
     setCloneSourceId('');
@@ -420,6 +496,7 @@ export default function AcademicFeeTab() {
     setBaseHeads(fs.heads.map(h => ({
       tempId: Math.random().toString(36).slice(2),
       headName: h.headName,
+      totalAmount: String(h.amount ?? ''),
       amounts: Object.fromEntries(Array.from({ length: sems }, (_, i) => [
         i + 1,
         String((h.semesterAmounts as any)?.[i + 1] ?? h.amount ?? ''),
@@ -431,9 +508,10 @@ export default function AcademicFeeTab() {
       : await programService.getSpecializations(fs.programId).then(r => r.data || []).catch(() => []);
     setSpecializations(specs);
     const sa: Record<string, Record<number, string>> = {};
+    const st: Record<string, string> = {};
     const se: Record<string, boolean> = {};
-    specs.forEach(s => { sa[s.id] = sems > 0 ? makeSpecAmounts(sems) : {}; se[s.id] = false; });
-    setSpecAmounts(sa); setSpecEnabled(se);
+    specs.forEach(s => { sa[s.id] = sems > 0 ? makeSpecAmounts(sems) : {}; st[s.id] = ''; se[s.id] = false; });
+    setSpecAmounts(sa); setSpecTotals(st); setSpecEnabled(se);
     setShowForm(true);
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
   }, [programs]);
@@ -441,27 +519,48 @@ export default function AcademicFeeTab() {
   // ── spec amount mutations ────────────────────────────────────────────────
   const updSpecAmt = (sid: string, sem: number, v: string) =>
     setSpecAmounts(sa => ({ ...sa, [sid]: { ...sa[sid], [sem]: v } }));
+  const updSpecTotal = (sid: string, v: string) =>
+    setSpecTotals(current => ({ ...current, [sid]: v }));
 
   // ── build head payloads ──────────────────────────────────────────────────
   const buildHeads = (rows: HeadRow[]) =>
     rows.filter(h => h.headName.trim()).map(h => {
       const semesterAmounts: Record<number, number> = {};
-      let total = 0;
       for (let s = 1; s <= totalSemesters; s++) {
         const v = Number(h.amounts[s]) || 0;
-        semesterAmounts[s] = v; total += v;
+        semesterAmounts[s] = v;
       }
-      return { headName: h.headName.trim(), amount: total, semesterAmounts };
+      return { headName: h.headName.trim(), amount: Number(h.totalAmount) || 0, semesterAmounts };
     });
 
-  const buildSpecHead = (specName: string, amounts: Record<number, string>) => {
+  const buildSpecHead = (specName: string, totalAmount: string, amounts: Record<number, string>) => {
     const semesterAmounts: Record<number, number> = {};
-    let total = 0;
     for (let s = 1; s <= totalSemesters; s++) {
       const v = Number(amounts[s]) || 0;
-      semesterAmounts[s] = v; total += v;
+      semesterAmounts[s] = v;
     }
-    return [{ headName: `${specName} Additional Fee`, amount: total, semesterAmounts }];
+    return [{ headName: `${specName} Additional Fee`, amount: Number(totalAmount) || 0, semesterAmounts }];
+  };
+
+  const getSpecializationChargeRule = (spec: Specialization) => {
+    const program = programs.find(p => p.id === formProgramId);
+    const rules = program?.metadata?.specializationChargeRules || [];
+    return rules.find(rule =>
+      Number(rule.batchYear) === Number(formBatchYear) &&
+      (rule.specializationCode === spec.specializationCode || rule.specializationName === spec.specializationName)
+    );
+  };
+
+  const getSpecializationChargeRuleIssue = (spec: Specialization) => {
+    const rule = getSpecializationChargeRule(spec);
+    if (!rule) return null;
+    const amounts = specAmounts[spec.id] || {};
+    for (let semester = rule.startSemester; semester <= totalSemesters; semester++) {
+      if ((Number(amounts[semester]) || 0) <= 0) {
+        return `${spec.specializationCode} requires a non-zero add-on charge from semester ${rule.startSemester} for batch year ${formBatchYear}.`;
+      }
+    }
+    return null;
   };
 
   const handleSave = async () => {
@@ -482,18 +581,40 @@ export default function AcademicFeeTab() {
     }
 
     try {
+      const baseIssues = baseHeads.flatMap((head, index) => getHeadRowIssues(head, totalSemesters, `Base row ${index + 1}`));
+      if (baseIssues.length > 0) {
+        setFormSaveError(baseIssues[0]);
+        return;
+      }
+
       const mainHeads = buildHeads(baseHeads);
       if (editingId) {
         await update(editingId, { heads: mainHeads });
       } else {
+        const specIssues = specializations
+          .filter(spec => specEnabled[spec.id])
+          .flatMap(spec => [
+            ...getHeadRowIssues({
+              tempId: spec.id,
+              headName: `${spec.specializationName} Additional Fee`,
+              totalAmount: specTotals[spec.id] || '',
+              amounts: specAmounts[spec.id] || {},
+            }, totalSemesters, `${spec.specializationCode} add-on`),
+            getSpecializationChargeRuleIssue(spec),
+          ].filter(Boolean) as string[]);
+        if (specIssues.length > 0) {
+          setFormSaveError(specIssues[0]);
+          return;
+        }
+
         const specializationStructures = specializations
           .filter(spec => specEnabled[spec.id])
           .map(spec => {
             const amounts = specAmounts[spec.id] || {};
             return {
               specializationId: spec.id,
-              heads: buildSpecHead(spec.specializationName, amounts),
-              hasAmount: Object.values(amounts).some(v => Number(v) > 0),
+              heads: buildSpecHead(spec.specializationName, specTotals[spec.id] || '', amounts),
+              hasAmount: (Number(specTotals[spec.id]) || 0) > 0 || Object.values(amounts).some(v => Number(v) > 0),
             };
           })
           .filter(structure => structure.hasAmount)
@@ -567,10 +688,13 @@ export default function AcademicFeeTab() {
     for (const head of draft.heads) {
       const hasName = Boolean(head.headName.trim());
       const hasAmount = hasAnyHeadAmount(head, semCount);
+      const rowIssues = getHeadRowIssues(head, semCount, `Head row ${validHeadCount + unnamedRows + zeroAmountRows + 1}`);
 
       if (hasName && hasAmount) validHeadCount++;
       else if (!hasName && hasAmount) unnamedRows++;
       else if (hasName && !hasAmount) zeroAmountRows++;
+
+      issues.push(...rowIssues);
     }
 
     if (unnamedRows > 0) issues.push(`${unnamedRows} row(s) have semester amounts but no head name.`);
@@ -621,6 +745,13 @@ export default function AcademicFeeTab() {
     }));
   };
 
+  const handleBulkDraftTotalChange = (draftId: string, headIndex: number, value: string) => {
+    updateBulkDraft(draftId, draft => ({
+      ...draft,
+      heads: draft.heads.map((head, index) => index === headIndex ? { ...head, totalAmount: value } : head),
+    }));
+  };
+
   const handleBulkDraftAmountChange = (draftId: string, headIndex: number, sem: number, value: string) => {
     updateBulkDraft(draftId, draft => ({
       ...draft,
@@ -661,6 +792,7 @@ export default function AcademicFeeTab() {
               batchYear: draft.batchYear,
               specializationCode: review.specialization?.specializationCode || '',
               headName: head.headName.trim(),
+              totalAmount: Number(head.totalAmount) || 0,
             };
 
             for (let sem = 1; sem <= review.semCount; sem++) {
@@ -797,6 +929,7 @@ export default function AcademicFeeTab() {
         draft.heads.push({
           tempId: Math.random().toString(36).slice(2),
           headName,
+          totalAmount: row['totalamount'] || row['total'] || '',
           amounts: makeAmountMap(
             matchedProgram?.durationSemesters || Math.max(...draft.uploadedSemesterNumbers, 1),
             Object.fromEntries(semesterNumbers.map(sem => [sem, row[`sem${sem}`] || ''])),
@@ -1052,6 +1185,7 @@ export default function AcademicFeeTab() {
                     heads={draft.heads}
                     semCols={Array.from({ length: review.semCount }, (_, index) => index + 1)}
                     onNameChange={(headIndex, value) => handleBulkDraftNameChange(draft.tempId, headIndex, value)}
+                    onTotalChange={(headIndex, value) => handleBulkDraftTotalChange(draft.tempId, headIndex, value)}
                     onAmtChange={(headIndex, sem, value) => handleBulkDraftAmountChange(draft.tempId, headIndex, sem, value)}
                     onRemove={(headIndex) => handleBulkDraftRemoveHead(draft.tempId, headIndex)}
                     onAdd={() => handleBulkDraftAddHead(draft.tempId)}
@@ -1147,6 +1281,7 @@ export default function AcademicFeeTab() {
                   heads={baseHeads}
                   semCols={semCols}
                   onNameChange={updBaseName}
+                  onTotalChange={updBaseTotal}
                   onAmtChange={updBaseAmt}
                   onRemove={remBaseRow}
                   onAdd={addBaseRow}
@@ -1163,7 +1298,9 @@ export default function AcademicFeeTab() {
                     Enable a specialization to enter additional per-semester charges on top of the base fees above.
                   </p>
                   <div className="space-y-3">
-                    {specializations.map(spec => (
+                    {specializations.map(spec => {
+                      const chargeRule = getSpecializationChargeRule(spec);
+                      return (
                       <div key={spec.id} className="border border-gray-200 rounded-xl overflow-hidden">
                         <label className="flex cursor-pointer select-none flex-col gap-2 bg-gray-50 px-4 py-3 transition-colors hover:bg-gray-100 sm:flex-row sm:items-center sm:gap-3">
                           <input type="checkbox" checked={specEnabled[spec.id] || false}
@@ -1174,20 +1311,23 @@ export default function AcademicFeeTab() {
                             <span className="text-sm text-gray-500">— {spec.specializationName}</span>
                           </div>
                           <span className="text-xs text-gray-400 sm:ml-auto">
-                            {specEnabled[spec.id] ? 'Enter add-on amounts below' : 'Click to add extra fees'}
+                            {chargeRule ? `Required from sem ${chargeRule.startSemester}` : specEnabled[spec.id] ? 'Enter add-on amounts below' : 'Click to add extra fees'}
                           </span>
                         </label>
                         {specEnabled[spec.id] && (
                           <div className="p-4 bg-blue-50/30 border-t border-gray-200">
                             <SpecAddOnGrid
                               semCols={semCols}
+                              totalAmount={specTotals[spec.id] || ''}
                               amounts={specAmounts[spec.id] || {}}
+                              onTotalChange={value => updSpecTotal(spec.id, value)}
                               onChange={(sem, v) => updSpecAmt(spec.id, sem, v)}
                             />
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

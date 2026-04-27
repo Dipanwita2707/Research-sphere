@@ -77,15 +77,7 @@ const requireResearchAccess = async (req, res, next) => {
                            mergedPermissions.conference_approve === true ||
                            mergedPermissions.grant_approve === true;
 
-    console.log(`User ${userId} Research Access Check:`, { 
-      hasReviewPerm, 
-      hasApprovePerm, 
-      permissions: mergedPermissions,
-      source: 'merged from req.user (includes role-based)'
-    });
-
     if (!hasReviewPerm && !hasApprovePerm) {
-      console.log(`Access denied for user ${userId} - No research permissions`);
       return res.status(403).json({
         success: false,
         message: 'Access denied - review or approve permission required'

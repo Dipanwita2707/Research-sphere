@@ -32,7 +32,8 @@ import {
   Store,
   QrCode,
   Award,
-  Receipt
+  Receipt,
+  Bug
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -272,6 +273,7 @@ const getNavItems = (
       name: 'Admin', href: '/admin', icon: Users, adminOnly: true,
       subItems: [
         { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+        { name: 'Bug Reports', href: '/admin/bug-reports', icon: Bug },
         { name: 'Bulk Upload', href: '/admin/bulk-upload', icon: Upload },
         { name: 'Schools', href: '/admin/schools', icon: GraduationCap },
         { name: 'Departments', href: '/admin/departments', icon: Building },
@@ -421,8 +423,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       <nav className="flex-1 py-4 overflow-y-auto">
         {filteredNavItems.map((item: NavItem) => {
           const Icon = item.icon;
-          const isActive = pathname ===
-   item.href || pathname.startsWith(item.href + '/');
+          const isActive = pathname === item.href || (pathname && pathname.startsWith(item.href + '/'));
           const isExpanded = expandedItems.includes(item.name);
           const hasSubItems = item.subItems && item.subItems.length > 0;
           

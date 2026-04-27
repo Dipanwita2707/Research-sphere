@@ -52,7 +52,7 @@ function statusBadge(status: string) {
 
 export default function ReviewerDetailPage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const reviewerId = params?.reviewerId as string;
 
   const [loading, setLoading] = useState(true);

@@ -1,6 +1,10 @@
 const prisma = require('../../../shared/config/database');
 const bcrypt = require('bcryptjs');
 const XLSX = require('xlsx');
+const { createModuleLogger } = require('../../../shared/utils/logger');
+const { parseErrorWithContext, isValidationError, isSystemError } = require('../../../shared/utils/prismaErrorHandler');
+
+const log = createModuleLogger('bulk-upload');
 
 /**
  * Format bulk upload response consistently
@@ -27,9 +31,202 @@ function formatBulkUploadResponse(rows, results) {
 
 function sendExcelTemplate(res, headers, sampleRows, fileName, sheetName) {
   const workbook = XLSX.utils.book_new();
+  
+  // Create worksheet with headers and sample data
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-  worksheet['!cols'] = headers.map((header) => ({ wch: Math.max(header.length + 4, 18) }));
+  
+  // Define fields that should support multi-line content
+  const multiLineFields = [
+    'description', 'programName', 'departmentName', 'facultyName', 'shortName',
+    'headName', 'specializations', 'internshipSpecializations', 'contactEmail',
+    'officeLocation', 'websiteUrl', 'firstName', 'lastName', 'designation'
+  ];
+  
+  // Set column widths and formatting for better readability
+  worksheet['!cols'] = headers.map((header, index) => {
+    const cleanHeader = header.replace(/\*$/, ''); // Remove asterisk for comparison
+    const isMultiLine = multiLineFields.includes(cleanHeader);
+    
+    return { 
+      wch: isMultiLine ? Math.max(header.length + 8, 25) : Math.max(header.length + 4, 18)
+    };
+  });
+  
+  // Set default row height for data rows to accommodate multi-line content
+  worksheet['!rows'] = [];
+  for (let i = 0; i <= sampleRows.length; i++) {
+    worksheet['!rows'][i] = { hpt: i === 0 ? 25 : 35 }; // Header row: 25pt, Data rows: 35pt
+  }
+  
+  // Add header formatting (make headers bold)
+  const headerRange = XLSX.utils.decode_range(worksheet['!ref']);
+  for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+    if (!worksheet[cellAddress]) continue;
+    
+    const header = headers[col];
+    const cleanHeader = header.replace(/\*$/, '');
+    const isMultiLine = multiLineFields.includes(cleanHeader);
+    
+    // Set cell style for headers
+    worksheet[cellAddress].s = {
+      font: { bold: true },
+      fill: { fgColor: { rgb: "E6E6FA" } }, // Light purple background
+      alignment: { 
+        horizontal: "center",
+        vertical: "center",
+        wrapText: true
+      }
+    };
+    
+    // Set formatting for data cells in multi-line columns
+    if (isMultiLine) {
+      for (let row = 1; row <= sampleRows.length; row++) {
+        const dataCellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+        if (worksheet[dataCellAddress]) {
+          worksheet[dataCellAddress].s = {
+            alignment: { 
+              vertical: "top",
+              wrapText: true
+            }
+          };
+        }
+      }
+    }
+  }
+  
+  // Add data validation and comments for specific fields
+  if (sheetName === 'Schools') {
+    // Add comment for facultyType field
+    const facultyTypeCell = 'C2'; // Assuming facultyType is in column C
+    if (worksheet[facultyTypeCell]) {
+      worksheet[facultyTypeCell].c = [{
+        a: 'System',
+        t: 'Valid values: engineering, management, arts, science, medical, law, other'
+      }];
+    }
+  }
+  
+  if (sheetName === 'Employees') {
+    // Add comment for userType field
+    const userTypeCell = 'I2'; // Assuming userType is in column I
+    if (worksheet[userTypeCell]) {
+      worksheet[userTypeCell].c = [{
+        a: 'System',
+        t: 'Valid values: faculty, staff, admin'
+      }];
+    }
+  }
+  
+  // Add instructions sheet with comprehensive guidance
+  const instructionsData = [
+    ['SGT UNIVERSITY BULK UPLOAD INSTRUCTIONS'],
+    [''],
+    ['📋 BASIC INSTRUCTIONS:'],
+    ['1. Fill in the data starting from row 2 (keep the headers in row 1)'],
+    ['2. Required fields are marked with * in the template'],
+    ['3. Do not modify the header row'],
+    ['4. Save the file and upload it using the bulk upload feature'],
+    [''],
+    ['📝 MULTI-LINE CONTENT SUPPORT:'],
+    ['• For fields like descriptions, names, specializations, etc.'],
+    ['• Press ALT + ENTER to create new lines within the same cell'],
+    ['• Example: "Computer Science\\nArtificial Intelligence" (use ALT+ENTER instead of \\n)'],
+    ['• Cells are pre-configured with text wrapping for better display'],
+    [''],
+    ['⌨️ EXCEL KEYBOARD SHORTCUTS:'],
+    ['• ALT + ENTER: Create new line within cell (recommended)'],
+    ['• F2: Enter edit mode for the selected cell'],
+    ['• CTRL + ENTER: Finish editing and stay in same cell'],
+    ['• ESC: Cancel editing and revert changes'],
+    [''],
+    ['📊 FIELD-SPECIFIC GUIDELINES:'],
+    ['• Names (firstName, lastName): Can include titles, prefixes'],
+    ['• Descriptions: Use ALT+ENTER for detailed multi-line descriptions'],
+    ['• Specializations: Separate multiple items with | or use ALT+ENTER'],
+    ['• Email addresses: Must be unique across the system'],
+    ['• Phone numbers: Include country code if international'],
+    ['• Codes (studentId, empId, etc.): Must be unique identifiers'],
+    [''],
+    ['⚠️ IMPORTANT NOTES:'],
+    ['• Email addresses must be unique across the system'],
+    ['• IDs must be unique (empId, studentId, facultyCode, etc.)'],
+    ['• Use exact values for dropdown fields (see comments in cells)'],
+    ['• Leave optional fields empty if not applicable'],
+    ['• Multi-line content is supported in description and name fields'],
+    [''],
+    ['🔧 EXCEL SETTINGS (Optional):'],
+    ['• File → Options → Advanced → "After pressing Enter, move selection"'],
+    ['• Uncheck this option to prevent automatic cell movement'],
+    ['• Or change direction preference (Down/Right/Up/Left)'],
+    [''],
+    ['📞 SUPPORT:'],
+    ['For technical support or questions about bulk upload,'],
+    ['contact the system administrator or IT helpdesk.']
+  ];
+  
+  const instructionsSheet = XLSX.utils.aoa_to_sheet(instructionsData);
+  
+  // Set column width and formatting for instructions
+  instructionsSheet['!cols'] = [{ wch: 70 }]; // Wide column for instructions
+  
+  // Set row heights for better readability
+  instructionsSheet['!rows'] = instructionsData.map((row, index) => {
+    if (row[0] && row[0].includes('INSTRUCTIONS')) return { hpt: 30 }; // Title rows
+    if (row[0] && row[0].includes(':')) return { hpt: 25 }; // Section headers
+    if (row[0] === '') return { hpt: 15 }; // Empty rows
+    return { hpt: 20 }; // Regular rows
+  });
+  
+  // Format the instructions sheet
+  instructionsData.forEach((row, rowIndex) => {
+    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: 0 });
+    if (!instructionsSheet[cellAddress]) return;
+    
+    const cellValue = row[0];
+    let cellStyle = {
+      alignment: { vertical: "top", wrapText: true }
+    };
+    
+    // Style different types of content
+    if (cellValue && cellValue.includes('INSTRUCTIONS')) {
+      // Main title
+      cellStyle = {
+        ...cellStyle,
+        font: { bold: true, size: 16, color: { rgb: "1F4E79" } },
+        fill: { fgColor: { rgb: "D9E2F3" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true }
+      };
+    } else if (cellValue && cellValue.match(/^[📋📝⌨️📊⚠️🔧📞]/)) {
+      // Section headers with emojis
+      cellStyle = {
+        ...cellStyle,
+        font: { bold: true, size: 12, color: { rgb: "2F5597" } },
+        fill: { fgColor: { rgb: "F2F2F2" } }
+      };
+    } else if (cellValue && cellValue.startsWith('•')) {
+      // Bullet points
+      cellStyle = {
+        ...cellStyle,
+        font: { size: 10 },
+        alignment: { ...cellStyle.alignment, indent: 1 }
+      };
+    } else if (cellValue && cellValue.match(/^\d+\./)) {
+      // Numbered lists
+      cellStyle = {
+        ...cellStyle,
+        font: { size: 11, bold: true }
+      };
+    }
+    
+    instructionsSheet[cellAddress].s = cellStyle;
+  });
+  
+  // Add sheets to workbook
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
+  
+  // Generate buffer
   const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -43,9 +240,9 @@ function sendExcelTemplate(res, headers, sampleRows, fileName, sheetName) {
 exports.getSchoolTemplate = async (req, res) => {
   try {
     const headers = [
-      'facultyCode',
-      'facultyName',
-      'facultyType',
+      'facultyCode*',
+      'facultyName*',
+      'facultyType*',
       'shortName',
       'description',
       'establishedYear',
@@ -57,20 +254,20 @@ exports.getSchoolTemplate = async (req, res) => {
 
     const sampleRows = [[
       'SOCS',
-      'School of Computer Science',
-      'school',
+      'School of Computer Science\nAdvanced Computing & AI',
+      'science',
       'SCS',
-      'School offering computer science programs',
+      'School offering computer science programs\nSpecializing in AI, ML, and Data Science',
       '2010',
       'socs@sgtuniversity.ac.in',
       '1234567890',
-      'Block A, Floor 2',
+      'Block A, Floor 2\nRoom 201-205',
       'https://sgtuniversity.ac.in/socs',
     ]];
 
     sendExcelTemplate(res, headers, sampleRows, 'schools_template.xlsx', 'Schools');
   } catch (error) {
-    console.error('Get school template error:', error);
+    log.logError('get_school_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
   }
 };
@@ -81,9 +278,9 @@ exports.getSchoolTemplate = async (req, res) => {
 exports.getDepartmentTemplate = async (req, res) => {
   try {
     const headers = [
-      'schoolCode',
-      'departmentCode',
-      'departmentName',
+      'schoolCode*',
+      'departmentCode*',
+      'departmentName*',
       'shortName',
       'description',
       'establishedYear',
@@ -106,7 +303,7 @@ exports.getDepartmentTemplate = async (req, res) => {
 
     sendExcelTemplate(res, headers, sampleRows, 'departments_template.xlsx', 'Departments');
   } catch (error) {
-    console.error('Get department template error:', error);
+    log.logError('get_department_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
   }
 };
@@ -117,53 +314,73 @@ exports.getDepartmentTemplate = async (req, res) => {
 exports.getProgrammeTemplate = async (req, res) => {
   try {
     const headers = [
-      'departmentCode',
-      'programCode',
-      'programName',
-      'programType',
+      'schoolCode*',
+      'departmentCode*',
+      'programCode*',
+      'programName*',
+      'programType*',
       'shortName',
       'description',
       'durationYears',
+      'durationMonths',
       'durationSemesters',
+      'creditMin',
+      'creditMax',
+      'specializations',
+      'specializationChargeRules',
+      'internshipApplicable',
+      'internshipDurationMonths',
+      'internshipSpecializations',
+      'batchYearDocuments',
     ];
 
     const sampleRows = [[
+      'SOCS',
       'CS',
       'BTECH-CS',
-      'B.Tech Computer Science',
+      'B.Tech Computer Science\nArtificial Intelligence',
       'undergraduate',
       'B.Tech CS',
-      'Bachelor of Technology in Computer Science',
+      'Bachelor of Technology in Computer Science\nFocusing on modern computing technologies\nand artificial intelligence applications',
       '4',
+      '48',
       '8',
+      '140',
+      '160',
+      'AI and ML\nData Science\nCybersecurity',
+      'AI and ML:2026:3|Data Science:2026:5',
+      'Yes',
+      '6',
+      'AI and ML\nData Science',
+      '2026:60:programmes/btech-cs/batch-2026/approval.pdf:approval.pdf',
     ]];
 
     sendExcelTemplate(res, headers, sampleRows, 'programmes_template.xlsx', 'Programmes');
   } catch (error) {
-    console.error('Get programme template error:', error);
+    log.logError('get_programme_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
   }
 };
 
 /**
- * Generate CSV template for employees
+ * Generate Excel template for employees
  */
 exports.getEmployeeTemplate = async (req, res) => {
   try {
     const headers = [
-      'empId',
-      'firstName',
+      'empId*',
+      'firstName*',
       'lastName',
-      'email',
+      'email*',
       'phoneNumber',
       'schoolCode',
       'departmentCode',
       'designation',
-      'userType',
+      'userType*',
       'password',
     ];
 
-    const sampleData = [
+    const sampleRows = [[
       'EMP001',
       'John',
       'Doe',
@@ -174,57 +391,63 @@ exports.getEmployeeTemplate = async (req, res) => {
       'Assistant Professor',
       'faculty',
       'Welcome@123',
-    ];
+    ]];
 
-    const csv = headers.join(',') + '\n' + sampleData.join(',');
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=employees_template.csv');
-    res.send(csv);
+    sendExcelTemplate(res, headers, sampleRows, 'employees_template.xlsx', 'Employees');
   } catch (error) {
-    console.error('Get employee template error:', error);
+    log.logError('get_employee_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
   }
 };
 
 /**
- * Generate CSV template for students
+ * Generate Excel template for students
  */
 exports.getStudentTemplate = async (req, res) => {
   try {
     const headers = [
-      'studentId',
+      'studentId*',
       'registrationNo',
-      'firstName',
+      'firstName*',
       'lastName',
-      'email',
+      'email*',
       'phone',
-      'programCode',
+      'programCode*',
       'sectionCode',
       'currentSemester',
       'password',
     ];
 
-    const sampleData = [
-      'STU2025001',
-      'REG2025001',
-      'Jane',
-      'Smith',
-      'jane.smith@student.sgtuniversity.ac.in',
-      '9876543210',
-      'BTECH-CS',
-      'CS-A',
-      '1',
-      'Welcome@123',
+    const sampleRows = [
+      [
+        'STU2025001',
+        'REG2025001',
+        'Jane',
+        'Smith',
+        'jane.smith@student.sgtuniversity.ac.in',
+        '9876543210',
+        'BTECH-CS',
+        'CS-A',
+        '1',
+        'Welcome@123',
+      ],
+      [
+        'STU2025002',
+        'REG2025002',
+        'John',
+        'Doe',
+        'john.doe@student.sgtuniversity.ac.in',
+        '9876543211',
+        'BTECH-CS',
+        '', // Empty sectionCode to show it's optional
+        '1',
+        'Welcome@123',
+      ]
     ];
 
-    const csv = headers.join(',') + '\n' + sampleData.join(',');
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=students_template.csv');
-    res.send(csv);
+    sendExcelTemplate(res, headers, sampleRows, 'students_template.xlsx', 'Students');
   } catch (error) {
-    console.error('Get student template error:', error);
+    log.logError('get_student_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
   }
 };
@@ -260,7 +483,11 @@ function parseTabularRows(matrix) {
 
   if (normalizedRows.length < 2) return { headers: [], rows: [] };
 
-  const headers = normalizedRows[0].map((header) => header.replace(/^"|"$/g, ''));
+  // Clean headers by removing asterisks and quotes
+  const headers = normalizedRows[0].map((header) => 
+    header.replace(/^"|"$/g, '').replace(/\*$/, '')
+  );
+  
   const rows = normalizedRows.slice(1).map((values) => {
     const row = {};
     headers.forEach((header, index) => {
@@ -295,6 +522,86 @@ function parseUploadedFile(file) {
   return parseCSV(file.buffer.toString('utf-8'));
 }
 
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseBoolean(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  return ['true', 'yes', '1', 'y', 'on'].includes(raw);
+}
+
+function parseProgrammeSpecializations(value) {
+  if (!value) return [];
+  return String(value)
+    .split(/[|;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseSpecializationChargeRules(value, programCode, specializations) {
+  if (!value) return [];
+  return String(value)
+    .split(/[|;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const [nameOrCode, batchYear, startSemester] = item.split(':').map((part) => (part || '').trim());
+      const specIndex = specializations.findIndex((name, index) => (
+        name.toLowerCase() === nameOrCode.toLowerCase()
+        || `${programCode}-SP${index + 1}`.toLowerCase() === nameOrCode.toLowerCase()
+      ));
+      if (specIndex < 0) return null;
+      return {
+        specializationCode: `${programCode}-SP${specIndex + 1}`,
+        specializationName: specializations[specIndex],
+        batchYear: numberOrNull(batchYear),
+        startSemester: numberOrNull(startSemester),
+        requireNonZeroCharge: true,
+      };
+    })
+    .filter((rule) => rule && rule.batchYear !== null && rule.startSemester !== null);
+}
+
+function parseBatchYearDocuments(value) {
+  if (!value) return [];
+  return String(value)
+    .split(/[|;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const [batchYear, admissionCapacity, filePath, fileName] = item.split(':').map((part) => (part || '').trim());
+      return {
+        batchYear: numberOrNull(batchYear),
+        admissionCapacity: numberOrNull(admissionCapacity),
+        filePath,
+        fileName: fileName || (filePath ? filePath.split('/').pop() : ''),
+        uploadedAt: new Date().toISOString(),
+      };
+    })
+    .filter((document) => document.batchYear !== null && document.filePath && document.fileName);
+}
+
+function mapProgramType(value) {
+  const raw = String(value || '').trim();
+  const programTypeMapping = {
+    UG: 'undergraduate',
+    PG: 'postgraduate',
+    PhD: 'doctoral',
+    Diploma: 'diploma',
+    Certificate: 'certificate',
+    undergraduate: 'undergraduate',
+    postgraduate: 'postgraduate',
+    doctoral: 'doctoral',
+    doctorate: 'doctoral',
+    diploma: 'diploma',
+    certificate: 'certificate',
+  };
+  return programTypeMapping[raw] || programTypeMapping[raw.toLowerCase()];
+}
+
 /**
  * Bulk upload schools
  */
@@ -303,10 +610,15 @@ exports.bulkUploadSchools = async (req, res) => {
     let parsedData;
     if (req.file) {
       parsedData = parseUploadedFile(req.file);
-    } else if (req.body.csvContent) {
-      parsedData = parseCSV(req.body.csvContent);
+    } else if (req.body.excelContent) {
+      // Handle base64 encoded Excel content if needed
+      parsedData = parseUploadedFile({
+        buffer: Buffer.from(req.body.excelContent, 'base64'),
+        originalname: 'upload.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
     } else {
-      return res.status(400).json({ success: false, message: 'Spreadsheet file or CSV content is required' });
+      return res.status(400).json({ success: false, message: 'Excel file is required' });
     }
 
     const { rows } = parsedData;
@@ -341,13 +653,13 @@ exports.bulkUploadSchools = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `School with code ${row.facultyCode} already exists`,
+            error: `School with code '${row.facultyCode}' already exists. Please use a different school code or update the existing record.`,
           });
           continue;
         }
 
         // Validate facultyType
-        const validTypes = ['school', 'faculty', 'institute', 'center'];
+        const validTypes = ['engineering', 'management', 'arts', 'science', 'medical', 'law', 'other'];
         if (!validTypes.includes(row.facultyType.toLowerCase())) {
           results.failed.push({
             row: rowNumber,
@@ -379,18 +691,43 @@ exports.bulkUploadSchools = async (req, res) => {
           data: school,
         });
       } catch (error) {
+        // Log the technical error for debugging
+        log.logError('bulk_upload_schools_row_error', error, {
+          rowNumber,
+          rowData: row,
+          operation: 'create school'
+        });
+
+        // Provide user-friendly error message
+        const userMessage = parseErrorWithContext(error, 'create school', row);
         results.failed.push({
           row: rowNumber,
           data: row,
-          error: error.message,
+          error: userMessage,
         });
       }
     }
 
     res.json(formatBulkUploadResponse(rows, results));
   } catch (error) {
-    console.error('Bulk upload schools error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process bulk upload' });
+    log.logError('bulk_upload_schools_error', error, {
+      userId: req.user?.id,
+      hasFile: !!req.file,
+      hasCsvContent: !!req.body.csvContent
+    });
+    
+    // Provide user-friendly error message
+    if (isSystemError(error)) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'System error occurred. Please try again later or contact support if the problem persists.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to process school bulk upload. Please check your file format and data.' 
+      });
+    }
   }
 };
 
@@ -402,10 +739,15 @@ exports.bulkUploadDepartments = async (req, res) => {
     let parsedData;
     if (req.file) {
       parsedData = parseUploadedFile(req.file);
-    } else if (req.body.csvContent) {
-      parsedData = parseCSV(req.body.csvContent);
+    } else if (req.body.excelContent) {
+      // Handle base64 encoded Excel content if needed
+      parsedData = parseUploadedFile({
+        buffer: Buffer.from(req.body.excelContent, 'base64'),
+        originalname: 'upload.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
     } else {
-      return res.status(400).json({ success: false, message: 'Spreadsheet file or CSV content is required' });
+      return res.status(400).json({ success: false, message: 'Excel file is required' });
     }
 
     const { rows } = parsedData;
@@ -455,7 +797,7 @@ exports.bulkUploadDepartments = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `Department with code ${row.departmentCode} already exists`,
+            error: `Department with code '${row.departmentCode}' already exists. Please use a different department code or update the existing record.`,
           });
           continue;
         }
@@ -481,18 +823,43 @@ exports.bulkUploadDepartments = async (req, res) => {
           data: department,
         });
       } catch (error) {
+        // Log the technical error for debugging
+        log.logError('bulk_upload_departments_row_error', error, {
+          rowNumber,
+          rowData: row,
+          operation: 'create department'
+        });
+
+        // Provide user-friendly error message
+        const userMessage = parseErrorWithContext(error, 'create department', row);
         results.failed.push({
           row: rowNumber,
           data: row,
-          error: error.message,
+          error: userMessage,
         });
       }
     }
 
     res.json(formatBulkUploadResponse(rows, results));
   } catch (error) {
-    console.error('Bulk upload departments error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process bulk upload' });
+    log.logError('bulk_upload_departments_error', error, {
+      userId: req.user?.id,
+      hasFile: !!req.file,
+      hasCsvContent: !!req.body.csvContent
+    });
+    
+    // Provide user-friendly error message
+    if (isSystemError(error)) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'System error occurred. Please try again later or contact support if the problem persists.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to process department bulk upload. Please check your file format and data.' 
+      });
+    }
   }
 };
 
@@ -504,10 +871,15 @@ exports.bulkUploadProgrammes = async (req, res) => {
     let parsedData;
     if (req.file) {
       parsedData = parseUploadedFile(req.file);
-    } else if (req.body.csvContent) {
-      parsedData = parseCSV(req.body.csvContent);
+    } else if (req.body.excelContent) {
+      // Handle base64 encoded Excel content if needed
+      parsedData = parseUploadedFile({
+        buffer: Buffer.from(req.body.excelContent, 'base64'),
+        originalname: 'upload.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
     } else {
-      return res.status(400).json({ success: false, message: 'Spreadsheet file or CSV content is required' });
+      return res.status(400).json({ success: false, message: 'Excel file is required' });
     }
 
     const { rows } = parsedData;
@@ -518,9 +890,19 @@ exports.bulkUploadProgrammes = async (req, res) => {
 
     const results = { success: [], failed: [] };
 
+    const schools = await prisma.facultySchoolList.findMany({
+      select: { id: true, facultyCode: true },
+    });
+    const schoolMap = new Map(schools.map((school) => [String(school.facultyCode).trim().toUpperCase(), school.id]));
+
     // Cache departments for lookup
-    const departments = await prisma.department.findMany();
-    const deptMap = new Map(departments.map(d => [d.departmentCode, d.id]));
+    const departments = await prisma.department.findMany({
+      select: { id: true, departmentCode: true, facultyId: true },
+    });
+    const deptMap = new Map(departments.map((department) => [
+      `${department.facultyId}:${String(department.departmentCode).trim().toUpperCase()}`,
+      department.id,
+    ]));
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -528,43 +910,58 @@ exports.bulkUploadProgrammes = async (req, res) => {
 
       try {
         // Validate required fields
-        if (!row.departmentCode || !row.programCode || !row.programName || !row.programType) {
+        if (!row.schoolCode || !row.departmentCode || !row.programCode || !row.programName || !row.programType) {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: 'Missing required fields: departmentCode, programCode, programName, or programType',
+            error: 'Missing required fields: schoolCode, departmentCode, programCode, programName, or programType',
+          });
+          continue;
+        }
+
+        const schoolCode = String(row.schoolCode).trim().toUpperCase();
+        const departmentCode = String(row.departmentCode).trim().toUpperCase();
+        const programCode = String(row.programCode).trim().toUpperCase();
+
+        const schoolId = schoolMap.get(schoolCode);
+        if (!schoolId) {
+          results.failed.push({
+            row: rowNumber,
+            data: row,
+            error: `School with code ${row.schoolCode} not found`,
           });
           continue;
         }
 
         // Find department
-        const deptId = deptMap.get(row.departmentCode);
+        const deptId = deptMap.get(`${schoolId}:${departmentCode}`);
         if (!deptId) {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `Department with code ${row.departmentCode} not found`,
+            error: `Department with code ${row.departmentCode} not found in school ${row.schoolCode}`,
           });
           continue;
         }
 
         // Check if programme already exists
         const existing = await prisma.program.findUnique({
-          where: { programCode: row.programCode },
+          where: { programCode },
         });
 
         if (existing) {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `Programme with code ${row.programCode} already exists`,
+            error: `Programme with code '${row.programCode}' already exists. Please use a different program code or update the existing record.`,
           });
           continue;
         }
 
         // Validate programType
-        const validTypes = ['undergraduate', 'postgraduate', 'diploma', 'certificate', 'doctorate', 'integrated'];
-        if (!validTypes.includes(row.programType.toLowerCase())) {
+        const mappedProgramType = mapProgramType(row.programType);
+        const validTypes = ['undergraduate', 'postgraduate', 'doctoral', 'diploma', 'certificate'];
+        if (!mappedProgramType) {
           results.failed.push({
             row: rowNumber,
             data: row,
@@ -573,38 +970,92 @@ exports.bulkUploadProgrammes = async (req, res) => {
           continue;
         }
 
+        const specializations = parseProgrammeSpecializations(row.specializations);
+        const creditMin = numberOrNull(row.creditMin);
+        const creditMax = numberOrNull(row.creditMax || row.totalCredits);
+        const internshipSpecializations = parseProgrammeSpecializations(row.internshipSpecializations);
+        const metadata = {
+          creditRange: creditMin !== null || creditMax !== null
+            ? { min: creditMin ?? undefined, max: creditMax ?? undefined }
+            : undefined,
+          specializationChargeRules: parseSpecializationChargeRules(row.specializationChargeRules, programCode, specializations),
+          batchYearDocuments: parseBatchYearDocuments(row.batchYearDocuments),
+          internshipApplicable: parseBoolean(row.internshipApplicable),
+          internshipDurationMonths: numberOrNull(row.internshipDurationMonths),
+          internshipSpecializations,
+        };
+
         // Create programme
         const programme = await prisma.program.create({
           data: {
             departmentId: deptId,
-            programCode: row.programCode,
+            programCode,
             programName: row.programName,
-            programType: row.programType.toLowerCase(),
+            programType: mappedProgramType,
             shortName: row.shortName || null,
             description: row.description || null,
             durationYears: row.durationYears ? parseInt(row.durationYears) : 4,
+            durationMonths: row.durationMonths ? parseInt(row.durationMonths) : null,
             durationSemesters: row.durationSemesters ? parseInt(row.durationSemesters) : 8,
+            totalCredits: creditMax ?? creditMin,
+            metadata,
             isActive: true,
           },
         });
+
+        if (specializations.length > 0) {
+          await prisma.programSpecialization.createMany({
+            data: specializations.map((specializationName, index) => ({
+              programId: programme.id,
+              specializationCode: `${programCode}-SP${index + 1}`,
+              specializationName,
+              isActive: true,
+            })),
+          });
+        }
 
         results.success.push({
           row: rowNumber,
           data: programme,
         });
       } catch (error) {
+        // Log the technical error for debugging
+        log.logError('bulk_upload_programmes_row_error', error, {
+          rowNumber,
+          rowData: row,
+          operation: 'create programme'
+        });
+
+        // Provide user-friendly error message
+        const userMessage = parseErrorWithContext(error, 'create programme', row);
         results.failed.push({
           row: rowNumber,
           data: row,
-          error: error.message,
+          error: userMessage,
         });
       }
     }
 
     res.json(formatBulkUploadResponse(rows, results));
   } catch (error) {
-    console.error('Bulk upload programmes error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process bulk upload' });
+    log.logError('bulk_upload_programmes_error', error, {
+      userId: req.user?.id,
+      hasFile: !!req.file,
+      hasCsvContent: !!req.body.csvContent
+    });
+    
+    // Provide user-friendly error message
+    if (isSystemError(error)) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'System error occurred. Please try again later or contact support if the problem persists.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to process programme bulk upload. Please check your file format and data.' 
+      });
+    }
   }
 };
 
@@ -613,20 +1064,30 @@ exports.bulkUploadProgrammes = async (req, res) => {
  */
 exports.bulkUploadEmployees = async (req, res) => {
   try {
-    // Handle both file upload and direct csvContent
-    let csvContent;
+    log.logAction('bulk_upload_employees_start', 'Starting employee bulk upload', {
+      userId: req.user?.id,
+      hasFile: !!req.file,
+      hasExcelContent: !!req.body.excelContent
+    });
+    
+    let parsedData;
     if (req.file) {
-      csvContent = req.file.buffer.toString('utf-8');
-    } else if (req.body.csvContent) {
-      csvContent = req.body.csvContent;
+      parsedData = parseUploadedFile(req.file);
+    } else if (req.body.excelContent) {
+      // Handle base64 encoded Excel content if needed
+      parsedData = parseUploadedFile({
+        buffer: Buffer.from(req.body.excelContent, 'base64'),
+        originalname: 'upload.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
     } else {
-      return res.status(400).json({ success: false, message: 'CSV file or content is required' });
+      return res.status(400).json({ success: false, message: 'Excel file is required' });
     }
 
-    const { headers, rows } = parseCSV(csvContent);
+    const { rows } = parsedData;
     
     if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in CSV' });
+      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
     }
 
     const results = { success: [], failed: [] };
@@ -661,7 +1122,7 @@ exports.bulkUploadEmployees = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `Employee with ID ${row.empId} already exists`,
+            error: `Employee with ID '${row.empId}' already exists. Please use a different employee ID or update the existing record.`,
           });
           continue;
         }
@@ -675,7 +1136,7 @@ exports.bulkUploadEmployees = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `User with email ${row.email} already exists`,
+            error: `User with email '${row.email}' already exists. Please use a different email address or update the existing record.`,
           });
           continue;
         }
@@ -686,7 +1147,7 @@ exports.bulkUploadEmployees = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `Invalid userType. Must be one of: ${validUserTypes.join(', ')}`,
+            error: `Invalid userType '${row.userType}'. Must be one of: ${validUserTypes.join(', ')}. Please check the spelling and case.`,
           });
           continue;
         }
@@ -701,7 +1162,7 @@ exports.bulkUploadEmployees = async (req, res) => {
             results.failed.push({
               row: rowNumber,
               data: row,
-              error: `School with code ${row.schoolCode} not found`,
+              error: `School with code '${row.schoolCode}' not found. Please verify the school code exists in the system or create the school first.`,
             });
             continue;
           }
@@ -713,7 +1174,7 @@ exports.bulkUploadEmployees = async (req, res) => {
             results.failed.push({
               row: rowNumber,
               data: row,
-              error: `Department with code ${row.departmentCode} not found`,
+              error: `Department with code '${row.departmentCode}' not found. Please verify the department code exists in the system or create the department first.`,
             });
             continue;
           }
@@ -723,6 +1184,14 @@ exports.bulkUploadEmployees = async (req, res) => {
         const password = row.password || 'Welcome@123';
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Map userType to role
+        const roleMapping = {
+          'faculty': 'faculty',
+          'staff': 'staff',
+          'admin': 'admin'
+        };
+        const role = roleMapping[row.userType.toLowerCase()] || 'staff';
+
         // Create user and employee in transaction
         const result = await prisma.$transaction(async (tx) => {
           // Create UserLogin
@@ -731,9 +1200,8 @@ exports.bulkUploadEmployees = async (req, res) => {
               uid: row.empId,
               email: row.email,
               passwordHash: hashedPassword,
-              userType: row.userType.toLowerCase(),
-              isActive: true,
-              isEmailVerified: true,
+              role: role,
+              status: 'active',
             },
           });
 
@@ -767,18 +1235,50 @@ exports.bulkUploadEmployees = async (req, res) => {
           },
         });
       } catch (error) {
+        // Log the technical error for debugging
+        log.logError('bulk_upload_employees_row_error', error, {
+          rowNumber,
+          rowData: row,
+          operation: 'create employee'
+        });
+
+        // Provide user-friendly error message
+        const userMessage = parseErrorWithContext(error, 'create employee', row);
         results.failed.push({
           row: rowNumber,
           data: row,
-          error: error.message,
+          error: userMessage,
         });
       }
     }
 
+    log.logAction('bulk_upload_employees_complete', 'Employee bulk upload completed', {
+      userId: req.user?.id,
+      totalRows: rows.length,
+      successCount: results.success.length,
+      failedCount: results.failed.length
+    });
+
     res.json(formatBulkUploadResponse(rows, results));
   } catch (error) {
-    console.error('Bulk upload employees error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process bulk upload' });
+    log.logError('bulk_upload_employees_error', error, {
+      userId: req.user?.id,
+      hasFile: !!req.file,
+      hasExcelContent: !!req.body.excelContent
+    });
+    
+    // Provide user-friendly error message
+    if (isSystemError(error)) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'System error occurred. Please try again later or contact support if the problem persists.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to process employee bulk upload. Please check your Excel file format and data.' 
+      });
+    }
   }
 };
 
@@ -787,20 +1287,24 @@ exports.bulkUploadEmployees = async (req, res) => {
  */
 exports.bulkUploadStudents = async (req, res) => {
   try {
-    // Handle both file upload and direct csvContent
-    let csvContent;
+    let parsedData;
     if (req.file) {
-      csvContent = req.file.buffer.toString('utf-8');
-    } else if (req.body.csvContent) {
-      csvContent = req.body.csvContent;
+      parsedData = parseUploadedFile(req.file);
+    } else if (req.body.excelContent) {
+      // Handle base64 encoded Excel content if needed
+      parsedData = parseUploadedFile({
+        buffer: Buffer.from(req.body.excelContent, 'base64'),
+        originalname: 'upload.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
     } else {
-      return res.status(400).json({ success: false, message: 'CSV file or content is required' });
+      return res.status(400).json({ success: false, message: 'Excel file is required' });
     }
 
-    const { headers, rows } = parseCSV(csvContent);
+    const { rows } = parsedData;
     
     if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in CSV' });
+      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
     }
 
     const results = { success: [], failed: [] };
@@ -817,11 +1321,11 @@ exports.bulkUploadStudents = async (req, res) => {
 
       try {
         // Validate required fields
-        if (!row.studentId || !row.firstName || !row.email || !row.programCode || !row.sectionCode) {
+        if (!row.studentId || !row.firstName || !row.email || !row.programCode) {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: 'Missing required fields: studentId, firstName, email, programCode, or sectionCode',
+            error: 'Missing required fields: studentId, firstName, email, or programCode',
           });
           continue;
         }
@@ -835,7 +1339,7 @@ exports.bulkUploadStudents = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `Student with ID ${row.studentId} already exists`,
+            error: `Student with ID '${row.studentId}' already exists. Please use a different student ID or update the existing record.`,
           });
           continue;
         }
@@ -849,7 +1353,7 @@ exports.bulkUploadStudents = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `User with email ${row.email} already exists`,
+            error: `User with email '${row.email}' already exists. Please use a different email address or update the existing record.`,
           });
           continue;
         }
@@ -860,20 +1364,23 @@ exports.bulkUploadStudents = async (req, res) => {
           results.failed.push({
             row: rowNumber,
             data: row,
-            error: `Programme with code ${row.programCode} not found`,
+            error: `Programme with code '${row.programCode}' not found. Please verify the program code exists in the system or create the program first.`,
           });
           continue;
         }
 
-        // Get section ID
-        const sectionId = sectionMap.get(`${programId}-${row.sectionCode}`);
-        if (!sectionId) {
-          results.failed.push({
-            row: rowNumber,
-            data: row,
-            error: `Section ${row.sectionCode} not found for programme ${row.programCode}`,
-          });
-          continue;
+        // Get section ID (optional - can be null if no section specified)
+        let sectionId = null;
+        if (row.sectionCode && row.sectionCode.trim()) {
+          sectionId = sectionMap.get(`${programId}-${row.sectionCode.trim()}`);
+          if (!sectionId) {
+            results.failed.push({
+              row: rowNumber,
+              data: row,
+              error: `Section '${row.sectionCode}' not found for programme '${row.programCode}'. Please verify the section exists or create it first, or leave sectionCode empty if not applicable.`,
+            });
+            continue;
+          }
         }
 
         // Hash password
@@ -888,9 +1395,8 @@ exports.bulkUploadStudents = async (req, res) => {
               uid: row.studentId,
               email: row.email,
               passwordHash: hashedPassword,
-              userType: 'student',
-              isActive: true,
-              isEmailVerified: true,
+              role: 'student',
+              status: 'active',
             },
           });
 
@@ -906,7 +1412,7 @@ exports.bulkUploadStudents = async (req, res) => {
               email: row.email,
               phone: row.phone || null,
               programId: programId,
-              sectionId: sectionId,
+              sectionId: sectionId, // Can be null if no section specified
               currentSemester: row.currentSemester ? parseInt(row.currentSemester) : 1,
               isActive: true,
             },
@@ -925,18 +1431,95 @@ exports.bulkUploadStudents = async (req, res) => {
           },
         });
       } catch (error) {
+        // Log the technical error for debugging
+        log.logError('bulk_upload_students_row_error', error, {
+          rowNumber,
+          rowData: row,
+          operation: 'create student'
+        });
+
+        // Provide user-friendly error message
+        const userMessage = parseErrorWithContext(error, 'create student', row);
         results.failed.push({
           row: rowNumber,
           data: row,
-          error: error.message,
+          error: userMessage,
         });
       }
     }
 
     res.json(formatBulkUploadResponse(rows, results));
   } catch (error) {
-    console.error('Bulk upload students error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process bulk upload' });
+    log.logError('bulk_upload_students_error', error, {
+      userId: req.user?.id,
+      hasFile: !!req.file,
+      hasExcelContent: !!req.body.excelContent
+    });
+    
+    // Provide user-friendly error message
+    if (isSystemError(error)) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'System error occurred. Please try again later or contact support if the problem persists.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to process student bulk upload. Please check your Excel file format and data.' 
+      });
+    }
+  }
+};
+
+/**
+ * Preview Excel file data before upload
+ */
+exports.previewExcelData = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Excel file is required for preview' });
+    }
+
+    // Parse the uploaded Excel file
+    const parsedData = parseUploadedFile(req.file);
+    const { headers, rows } = parsedData;
+
+    if (rows.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          headers: [],
+          rows: [],
+          totalRows: 0,
+          previewRows: 0,
+          message: 'No data rows found in the uploaded file'
+        }
+      });
+    }
+
+    // Limit preview to first 10 rows for performance
+    const previewRows = rows.slice(0, 10);
+    
+    res.json({
+      success: true,
+      data: {
+        headers,
+        rows: previewRows,
+        totalRows: rows.length,
+        previewRows: previewRows.length,
+        message: `Showing first ${previewRows.length} of ${rows.length} rows`
+      }
+    });
+  } catch (error) {
+    log.logError('preview_excel_data_error', error, {
+      userId: req.user?.id,
+      fileName: req.file?.originalname
+    });
+    
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to preview Excel file. Please ensure it is a valid Excel file (.xlsx).' 
+    });
   }
 };
 
@@ -964,7 +1547,7 @@ exports.getUploadStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get upload stats error:', error);
+    log.logError('get_upload_stats_error', error);
     res.status(500).json({ success: false, message: 'Failed to get stats' });
   }
 };

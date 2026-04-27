@@ -119,16 +119,23 @@ export default function LoanLetterPrintView({
             @page { size: A4 portrait; margin: 1.5cm; }
             body * { visibility: hidden !important; }
             #loan-letter-print, #loan-letter-print * { visibility: visible !important; }
-            #loan-letter-print { position: absolute; top: 0; left: 0; width: 100%; }
+            #loan-letter-print {
+              position: fixed !important;
+              inset: 0 !important;
+              width: auto !important;
+              max-width: none !important;
+              margin: 0 !important;
+              border: none !important;
+              border-radius: 0 !important;
+              background: white !important;
+              box-shadow: none !important;
+            }
             .ll-ph, .ll-ph-special { all: unset; }
             .no-print { display: none !important; }
           }
           @media print {
             #loan-letter-print [data-watermark] {
               position: fixed !important;
-              top: 50% !important;
-              left: 50% !important;
-              transform: translate(-50%, -50%) !important;
               z-index: 0 !important;
             }
           }
@@ -150,9 +157,12 @@ export default function LoanLetterPrintView({
           {/* Watermark overlay — only when {{WATERMARK}} not placed inline in body */}
           {resolvedTmpl.watermarkImageUrl && !watermarkInBody && (
             <div data-watermark style={{
-              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              pointerEvents: 'none', zIndex: 0,
+              position: 'absolute',
+              top: `${resolvedTmpl.watermarkY ?? 50}%`,
+              left: `${resolvedTmpl.watermarkX ?? 50}%`,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'none',
+              zIndex: 0,
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -169,15 +179,23 @@ export default function LoanLetterPrintView({
           <div className="p-8" style={{ position: 'relative', zIndex: 1 }}>
             {/* Auto-show header only if {{LETTERHEAD}} is NOT used in the template body */}
             {resolvedTmpl.headerImageUrl && !letterheadInBody && (
-              <div className="text-center mb-4">
+              <div className="mb-4" style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={resolvedTmpl.headerImageUrl} alt="Letterhead"
-                  style={{ width: `${resolvedTmpl.headerImageWidth ?? 100}%`, maxHeight: 96, objectFit: 'contain', margin: '0 auto' }} />
+                  style={{
+                    position: 'absolute',
+                    left: `${resolvedTmpl.headerImageX ?? 50}%`,
+                    top: `${resolvedTmpl.headerImageY ?? 50}%`,
+                    transform: 'translate(-50%, -50%)',
+                    width: `${resolvedTmpl.headerImageWidth ?? 100}%`,
+                    maxHeight: 160,
+                    objectFit: 'contain',
+                  }} />
               </div>
             )}
             {/* Rendered template body — placeholders already substituted */}
             <div
-              style={{ fontFamily: 'Times New Roman, Times, serif', fontSize: 12, lineHeight: 1.8 }}
+              style={{ fontFamily: 'Times New Roman, Times, serif', fontSize: 14, lineHeight: 1.7, whiteSpace: 'break-spaces', tabSize: 8 }}
               dangerouslySetInnerHTML={{ __html: renderedBody }}
             />
             <div className="flex justify-between text-[9px] text-gray-500 border-t border-gray-300 pt-2 mt-4 no-print">

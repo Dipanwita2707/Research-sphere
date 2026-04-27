@@ -109,7 +109,7 @@ const statusLabels: Record<string, string> = {
 };
 
 function IprApplicationDetailContent() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const applicationId = params.id as string;

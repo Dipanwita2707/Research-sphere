@@ -32,7 +32,7 @@ interface UserSearchResult {
 }
 
 export default function VolunteersPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const eventId = params.id as string;

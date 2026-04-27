@@ -95,8 +95,8 @@ const CATEGORY_OPTIONS = [
 export default function NotingListPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const pathname = usePathname() ?? '/noting';
+  const searchParams = useSearchParams()!;
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [deletingId, setDeletingId] = useState<string | null>(null);

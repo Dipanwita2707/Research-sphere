@@ -43,9 +43,9 @@ const EventSettings = dynamic(() => import('@/features/event-management/componen
 const CouponManagement = dynamic(() => import('@/features/event-management/components/CouponManagement'), { loading: () => <TabLoader /> });
 
 export default function EventManagementPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const { toast } = useToast();
   const eventId = params.id as string;
 

@@ -39,7 +39,7 @@ interface ActivityEntry {
 }
 
 export default function VolunteerActivityDetailPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const eventId = params?.id as string;
   const volunteerId = params?.volunteerId as string;
   const { toast } = useToast();

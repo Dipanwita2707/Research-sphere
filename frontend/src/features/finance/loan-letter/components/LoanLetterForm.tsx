@@ -116,7 +116,7 @@ export default function LoanLetterForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Student Mobile Number</label>
           <input
             type="tel"
             value={form.studentPhone}

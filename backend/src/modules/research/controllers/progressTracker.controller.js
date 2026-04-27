@@ -378,8 +378,6 @@ const updateTracker = async (req, res) => {
       currentStatus
     } = req.body;
 
-    console.log('updateTracker called with:', { id, toStatus, newStatus, currentStatus });
-
     // If status change is requested, delegate to updateTrackerStatus
     const targetStatus = toStatus || newStatus || currentStatus;
     if (targetStatus) {
@@ -388,11 +386,8 @@ const updateTracker = async (req, res) => {
         where: { id }
       });
       
-      console.log('Current tracker status:', tracker?.currentStatus, 'Target status:', targetStatus);
-      
       if (tracker && tracker.currentStatus !== targetStatus) {
         // Status is changing, use status update logic
-        console.log('Delegating to updateTrackerStatus');
         return updateTrackerStatus(req, res);
       }
     }
@@ -419,7 +414,6 @@ const updateTracker = async (req, res) => {
 
     // Don't allow updates if already linked to a contribution
     if (tracker.researchContributionId) {
-      console.log('Tracker already linked to contribution');
       return res.status(400).json({
         success: false,
         message: 'Cannot update tracker that has been submitted for incentive'

@@ -133,7 +133,7 @@ const MIN_SIDEBAR_PX = 248;
 const DEFAULT_MAIN_RATIO = 0.58;
 
 export default function NoteDetailPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const id = params?.id as string;
   const { toast } = useToast();

@@ -4,11 +4,15 @@
  */
 const { contributionRepo, contributionService } = require('../services/index');
 const { downloadFromS3 } = require('../../../shared/utils/s3');
+const { createModuleLogger } = require('../../../shared/utils/logger');
+
+// Create module-specific logger
+const logger = createModuleLogger('research');
 
 const _err = (res, error, fallback = 'Operation failed') => {
   const code = error.statusCode || 500;
   if (code < 500) return res.status(code).json({ success: false, message: error.message });
-  console.error(error);
+  logger.error(error.message || error, { stack: error.stack, statusCode: code });
   return res.status(500).json({ success: false, message: fallback, error: error.message });
 };
 
@@ -167,12 +171,24 @@ function buildContributionSummary(contributions = []) {
 
 exports.createResearchContribution = async (req, res) => {
   try {
+    logger.logUserAction(req.user.id, 'create_contribution', 'Creating new research contribution', {
+      publicationType: req.body.publicationType,
+      title: req.body.title
+    });
+    
     const body = { ...req.body };
     const cats = body.indexingCategories || [];
     if (cats.includes('subsidiary_if_above_20') && !body.subsidiaryImpactFactor && body.impactFactor) body.subsidiaryImpactFactor = body.impactFactor;
     const contribution = await contributionService.createContribution({ ...body, userId: req.user.id, userRole: req.user.role, request: req }, { manuscriptFilePath: body.manuscriptFilePath, supportingDocsFilePaths: body.supportingDocsFilePaths });
+    
+    logger.logUserAction(req.user.id, 'create_contribution_success', 'Research contribution created successfully', {
+      contributionId: contribution.id,
+      applicationNumber: contribution.applicationNumber
+    });
+    
     res.status(201).json({ success: true, message: 'Research contribution created successfully', data: contribution });
   } catch (error) {
+    logger.logError('create_contribution', error, { userId: req.user.id });
     if (error.validationErrors) return res.status(400).json({ success: false, message: error.message, errors: error.validationErrors });
     _err(res, error, 'Failed to create research contribution');
   }
@@ -346,9 +362,22 @@ exports.updateResearchContribution = async (req, res) => {
 
 exports.submitResearchContribution = async (req, res) => {
   try {
+    logger.logUserAction(req.user.id, 'submit_contribution', 'Submitting research contribution for review', {
+      contributionId: req.params.id
+    });
+    
     const result = await contributionService.submitContribution(req.params.id, req.user.id, req);
+    
+    logger.logUserAction(req.user.id, 'submit_contribution_success', 'Research contribution submitted successfully', {
+      contributionId: req.params.id,
+      status: result.data?.status
+    });
+    
     res.status(200).json({ success: true, message: result.message, data: result.data });
-  } catch (error) { _err(res, error, 'Failed to submit research contribution'); }
+  } catch (error) { 
+    logger.logError('submit_contribution', error, { userId: req.user.id, contributionId: req.params.id });
+    _err(res, error, 'Failed to submit research contribution'); 
+  }
 };
 
 exports.mentorApproveContribution = async (req, res) => {
@@ -460,7 +489,7 @@ exports.calculateIncentives = async (...args) => {
     const calc = new IncentiveCalculator(prisma);
     return await calc.calculate({ contributionData: args[0], publicationType: args[1], authorRole: args[2], isStudent: args[3], sjrValue: args[4], coAuthorCount: args[5], totalAuthors: args[6], isInternal: args[7], internalCoAuthorCount: args[8], externalFirstCorrespondingPct: args[9], internalEmployeeCoAuthorCount: args[10] });
   } catch (error) {
-    console.error('[calculateIncentives] Error:', error);
+    logger.error('Error calculating incentives', { error: error.message, stack: error.stack });
     return { totalPoolAmount: 0, totalPoolPoints: 0, incentiveAmount: 0, points: 0 };
   }
 };

@@ -144,7 +144,7 @@ exports.downloadAcademicTemplate = async (req, res) => {
 
     const templateSems = Math.max(...programs.map(p => p.durationSemesters || 0), 8);
     const semHeaders = Array.from({ length: templateSems }, (_, i) => `sem${i + 1}`);
-    const allHeaders = ['programCode', 'programName', 'batchYear', 'specializationCode', 'headName', ...semHeaders];
+    const allHeaders = ['programCode', 'programName', 'batchYear', 'specializationCode', 'headName', 'totalAmount', ...semHeaders];
     const totalCols = allHeaders.length;
     const currentYear = String(new Date().getFullYear());
     const blankSems = Array(templateSems).fill('');
@@ -159,6 +159,7 @@ exports.downloadAcademicTemplate = async (req, res) => {
       { width: 12 },
       { width: 22 },
       { width: 38 },
+      { width: 14 },
       ...Array.from({ length: templateSems }, () => ({ width: 13 })),
     ];
 
@@ -229,14 +230,14 @@ exports.downloadAcademicTemplate = async (req, res) => {
       const activeSpecs = (prog.specializations || []).filter(s => s.isActive);
 
       // First head row — carries programme identity (programCode / programName / batchYear)
-      addDataRow([prog.programCode, prog.programName, currentYear, '', 'Tuition Fee', ...blankSems], true);
+      addDataRow([prog.programCode, prog.programName, currentYear, '', 'Tuition Fee', '', ...blankSems], true);
 
       // Second head row — leaves programme columns blank to show the carry-forward convention
-      addDataRow(['', '', '', '', 'Development Fee', ...blankSems], false);
+      addDataRow(['', '', '', '', 'Development Fee', '', ...blankSems], false);
 
       // Specialization rows — also leave programme columns blank
       for (const spec of activeSpecs) {
-        addDataRow(['', '', '', spec.specializationCode, `${spec.specializationName} Additional Fee`, ...blankSems], false);
+        addDataRow(['', '', '', spec.specializationCode, `${spec.specializationName} Additional Fee`, '', ...blankSems], false);
       }
 
       // Thin grey separator between programme groups (fully empty row — parser skips it)
@@ -255,7 +256,7 @@ exports.downloadAcademicTemplate = async (req, res) => {
 
 /**
  * Bulk create ACADEMIC fee structures from CSV row data.
- * Expects body: { rows: [{ programCode, batchYear, specializationCode, headName, sem1..sem8 }] }
+ * Expects body: { rows: [{ programCode, batchYear, specializationCode, headName, totalAmount, sem1..sem8 }] }
  */
 exports.bulkCreate = async (req, res) => {
   try {
