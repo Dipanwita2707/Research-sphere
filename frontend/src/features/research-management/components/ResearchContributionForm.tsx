@@ -80,8 +80,8 @@ const INDEXING_CATEGORIES = [
   { 
     value: 'scopus', 
     label: 'SCOPUS',
-    description: 'SCOPUS indexed - requires Quartile, SJR, and Impact Factor',
-    requiredFields: ['quartile', 'sjr', 'impactFactor']
+    description: 'SCOPUS indexed - requires Quartile and SJR',
+    requiredFields: ['quartile', 'sjr']
   },
   { 
     value: 'scie_wos', 
@@ -1713,12 +1713,45 @@ export default function ResearchContributionForm({ publicationType, contribution
   
   // Current contribution ID (after first save)
   const [currentId, setCurrentId] = useState<string | null>(contributionId || null);
+  const currentIdRef = useRef<string | null>(contributionId || null);
+  const createRequestRef = useRef<Promise<string> | null>(null);
+  const submitLockRef = useRef(false);
   
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
+
+  useEffect(() => {
+    currentIdRef.current = currentId;
+  }, [currentId]);
+
+  const persistContributionDraft = useCallback(async (data: ReturnType<typeof buildSubmitData>) => {
+    if (currentIdRef.current) {
+      await researchService.updateContribution(currentIdRef.current, data);
+      return currentIdRef.current;
+    }
+
+    if (!createRequestRef.current) {
+      createRequestRef.current = (async () => {
+        const createResponse = await researchService.createContribution(data);
+        const newId = createResponse.data?.id;
+
+        if (!newId) {
+          throw new Error('Failed to create contribution');
+        }
+
+        currentIdRef.current = newId;
+        setCurrentId(newId);
+        return newId;
+      })().finally(() => {
+        createRequestRef.current = null;
+      });
+    }
+
+    return createRequestRef.current;
+  }, []);
 
   useEffect(() => {
     fetchSchools();
@@ -1805,28 +1838,17 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     if (autoSaveEnabled && isFormDirty && formData.title) {
       autoSaveInterval = setInterval(async () => {
+        if (submitLockRef.current) return;
+
         logger.debug('[Auto-save] Starting auto-save. Current ID:', currentId);
         try {
           setAutoSaving(true);
+
           const data = buildSubmitData();
-          
-          if (currentId) {
-            logger.debug('[Auto-save] Updating existing contribution:', currentId);
-            await researchService.updateContribution(currentId, data);
-            setIsFormDirty(false);
-            setLastAutoSave(new Date());
-          } else {
-            logger.debug('[Auto-save] Creating new contribution');
-            const response = await researchService.createContribution(data);
-            if (response.data?.id) {
-              logger.debug('[Auto-save] New contribution created with ID:', response.data.id);
-              setCurrentId(response.data.id);
-              setIsFormDirty(false);
-              setLastAutoSave(new Date());
-            } else {
-              logger.error('[Auto-save] No ID returned from create');
-            }
-          }
+          const savedId = await persistContributionDraft(data);
+          logger.debug('[Auto-save] Contribution persisted with ID:', savedId);
+          setIsFormDirty(false);
+          setLastAutoSave(new Date());
         } catch (error) {
           logger.error('[Auto-save] Auto-save failed:', error);
         } finally {
@@ -1840,7 +1862,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         clearInterval(autoSaveInterval);
       }
     };
-  }, [autoSaveEnabled, isFormDirty, formData.title, currentId]);
+  }, [autoSaveEnabled, isFormDirty, formData.title, currentId, persistContributionDraft]);
   
   // Mark form as dirty when any field changes
   useEffect(() => {
@@ -3267,6 +3289,10 @@ export default function ResearchContributionForm({ publicationType, contribution
   };
 
   const handleSubmit = async () => {
+    if (submitLockRef.current || submitting || saving || autoSaving) {
+      return;
+    }
+
     // Validate required fields
     if (!formData.title) {
       setError('Title is required');
@@ -3354,20 +3380,14 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     
     try {
+      submitLockRef.current = true;
       setSubmitting(true);
       setError(null);
-      
+
       const data = buildSubmitData();
-      
+
       // First save/create
-      let id = currentId;
-      if (!id) {
-        const createResponse = await researchService.createContribution(data);
-        id = createResponse.data?.id;
-        setCurrentId(id);
-      } else {
-        await researchService.updateContribution(id, data);
-      }
+      const id = await persistContributionDraft(data);
       
       if (!id) {
         throw new Error('Failed to create contribution');
@@ -3404,6 +3424,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       setError(extractErrorMessage(error));
     } finally {
       setSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 

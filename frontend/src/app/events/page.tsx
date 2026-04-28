@@ -147,10 +147,13 @@ export default function EventsPage() {
   const [filters, setFilters] = useState<EventFilters>({});
   const [registrationDayFilter, setRegistrationDayFilter] = useState<'all' | DayPhase>('all');
   const [eventDayFilter, setEventDayFilter] = useState<'all' | DayPhase>('all');
-  const debouncedSearch = useDebounce(searchInput, {
-    delay: 300,
-    onSettle: () => setPage(1),
-  });
+  const debouncedSearch = useDebounce(searchInput, 300);
+  
+  // Reset page when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+  
   const { data: myClubsData } = useMyClubs();
   const isClubChairperson = !!(
     isStudent &&

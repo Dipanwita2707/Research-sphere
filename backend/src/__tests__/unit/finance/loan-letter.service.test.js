@@ -174,7 +174,9 @@ describe('loan-letter.service', () => {
     expect(result.feeBreakdown).toEqual(
       expect.objectContaining({
         selectedSemesters: [1, 2],
-        grandTotal: 2500,
+        selectedYears: 1,
+        selectedAccommodationMonths: 11,
+        grandTotal: 12500,
       })
     );
     expect(result.feeBreakdown.academic).toEqual([
@@ -190,8 +192,24 @@ describe('loan-letter.service', () => {
       },
     ]);
     expect(result.feeBreakdown.specialization[0].total).toBe(300);
-    expect(result.feeBreakdown.transport[0]).toEqual({ headName: 'Bus', amount: 400 });
-    expect(result.feeBreakdown.hostel[0]).toEqual({ headName: 'Hostel', amount: 600 });
+    expect(result.feeBreakdown.transport[0]).toEqual(
+      expect.objectContaining({
+        headName: 'Bus',
+        amount: 400,
+        months: 11,
+        years: 1,
+        yearlyTotal: 4400,
+      })
+    );
+    expect(result.feeBreakdown.hostel[0]).toEqual(
+      expect.objectContaining({
+        headName: 'Hostel',
+        amount: 600,
+        months: 11,
+        years: 1,
+        yearlyTotal: 6600,
+      })
+    );
   });
 
   test('recordReprint() writes an audit entry and returns refreshed letter data', async () => {

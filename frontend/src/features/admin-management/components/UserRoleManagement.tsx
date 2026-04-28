@@ -49,6 +49,114 @@ import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 
 type ActiveTab = 'roles' | 'users';
 
+interface ScopeOption {
+  id: string;
+  label: string;
+}
+
+interface ScopeOptionGroup {
+  id: string;
+  label: string;
+  options: ScopeOption[];
+}
+
+function ScopeCheckboxList({
+  options,
+  selectedIds,
+  onToggle,
+}: {
+  options: ScopeOption[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  if (options.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2 py-3 text-center text-[10px] text-gray-400 dark:text-gray-500">
+        No options available
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-h-24 space-y-1 overflow-y-auto rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2">
+      {options.map((option) => {
+        const isChecked = selectedIds.includes(option.id);
+        return (
+          <label
+            key={option.id}
+            className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] transition-colors ${
+              isChecked
+                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-600/60'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={() => onToggle(option.id)}
+              className="h-3 w-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="truncate">{option.label}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScopeCheckboxGroupList({
+  groups,
+  selectedIds,
+  onToggle,
+}: {
+  groups: ScopeOptionGroup[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  const nonEmptyGroups = groups.filter(group => group.options.length > 0);
+
+  if (nonEmptyGroups.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-gray-300 dark:border-gray-600 px-2 py-3 text-center text-[10px] text-gray-400 dark:text-gray-500">
+        No departments available
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-h-24 space-y-2 overflow-y-auto rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2">
+      {nonEmptyGroups.map((group) => (
+        <div key={group.id}>
+          <p className="mb-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{group.label}</p>
+          <div className="space-y-1">
+            {group.options.map((option) => {
+              const isChecked = selectedIds.includes(option.id);
+              return (
+                <label
+                  key={option.id}
+                  className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[10px] transition-colors ${
+                    isChecked
+                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-600/60'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => onToggle(option.id)}
+                    className="h-3 w-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="truncate">{option.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function UserRoleManagement() {
   const { toast } = useToast();
   const { confirmAction } = useConfirm();
@@ -1969,23 +2077,14 @@ export default function UserRoleManagement() {
                                                             {/* School multi-select */}
                                                             <div>
                                                               <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Schools</label>
-                                                              <select
-                                                                multiple
-                                                                value={catSchools}
-                                                                onChange={(e) => {
-                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
-                                                                  setAnalyticsScope(prev => {
-                                                                    const s = prev[deptKey] || emptyScope();
-                                                                    return { ...prev, [deptKey]: { ...s, [cat.schoolsField]: selected } };
-                                                                  });
-                                                                }}
-                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
-                                                              >
-                                                                {schools.map(s => (
-                                                                  <option key={s.id} value={s.id}>{s.facultyCode || s.facultyName}</option>
-                                                                ))}
-                                                              </select>
+                                                              <ScopeCheckboxList
+                                                                options={schools.map(s => ({
+                                                                  id: s.id,
+                                                                  label: s.facultyCode || s.facultyName,
+                                                                }))}
+                                                                selectedIds={catSchools}
+                                                                onToggle={(id) => toggleScopeItem(deptKey, cat.schoolsField, id)}
+                                                              />
                                                               {catSchools.length > 0 && (
                                                                 <span className="text-[9px] text-blue-600 dark:text-blue-400">{catSchools.length} selected</span>
                                                               )}
@@ -1993,33 +2092,17 @@ export default function UserRoleManagement() {
                                                             {/* Department multi-select */}
                                                             <div>
                                                               <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Departments</label>
-                                                              <select
-                                                                multiple
-                                                                value={catDepts}
-                                                                onChange={(e) => {
-                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
-                                                                  setAnalyticsScope(prev => {
-                                                                    const s = prev[deptKey] || emptyScope();
-                                                                    return { ...prev, [deptKey]: { ...s, [cat.deptsField]: selected } };
-                                                                  });
-                                                                }}
-                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
-                                                              >
-                                                                {schools.map(s => {
-                                                                  const schoolDepts = departments.filter(d => d.facultyId ===
-   s.id);
-                                                                  if (schoolDepts.length ===
-   0) return null;
-                                                                  return (
-                                                                    <optgroup key={s.id} label={s.facultyCode || s.facultyName}>
-                                                                      {schoolDepts.map(d => (
-                                                                        <option key={d.id} value={d.id}>{d.departmentName}</option>
-                                                                      ))}
-                                                                    </optgroup>
-                                                                  );
-                                                                })}
-                                                              </select>
+                                                              <ScopeCheckboxGroupList
+                                                                groups={schools.map(s => ({
+                                                                  id: s.id,
+                                                                  label: s.facultyCode || s.facultyName,
+                                                                  options: departments
+                                                                    .filter(d => d.facultyId === s.id)
+                                                                    .map(d => ({ id: d.id, label: d.departmentName })),
+                                                                }))}
+                                                                selectedIds={catDepts}
+                                                                onToggle={(id) => toggleScopeItem(deptKey, cat.deptsField, id)}
+                                                              />
                                                               {catDepts.length > 0 && (
                                                                 <span className="text-[9px] text-blue-600 dark:text-blue-400">{catDepts.length} selected</span>
                                                               )}
@@ -2029,7 +2112,7 @@ export default function UserRoleManagement() {
                                                       );
                                                     })}
                                                   </div>
-                                                  <p className="text-[9px] text-gray-400 mt-2 italic">Hold Ctrl/Cmd to select multiple. Leave empty = all access.</p>
+                                                  <p className="text-[9px] text-gray-400 mt-2 italic">Use the checkboxes to select multiple. Leave empty = all access.</p>
                                                 </div>
                                               </div>
                                             );
@@ -2672,23 +2755,25 @@ export default function UserRoleManagement() {
                                                             {/* School multi-select */}
                                                             <div>
                                                               <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Schools</label>
-                                                              <select
-                                                                multiple
-                                                                value={scope.schools}
-                                                                onChange={(e) => {
-                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
-                                                                  setRoleAnalyticsScope(prev => ({
-                                                                    ...prev,
-                                                                    [cat.id]: { ...(prev[cat.id] as RoleAnalyticsCategoryScope || { schools: [], departments: [] }), schools: selected },
-                                                                  }));
+                                                              <ScopeCheckboxList
+                                                                options={schools.map(s => ({
+                                                                  id: s.id,
+                                                                  label: s.facultyCode || s.facultyName,
+                                                                }))}
+                                                                selectedIds={scope.schools}
+                                                                onToggle={(id) => {
+                                                                  setRoleAnalyticsScope(prev => {
+                                                                    const current = (prev[cat.id] as RoleAnalyticsCategoryScope | undefined) || { schools: [], departments: [] };
+                                                                    const schoolsForCategory = current.schools.includes(id)
+                                                                      ? current.schools.filter(item => item !== id)
+                                                                      : [...current.schools, id];
+                                                                    return {
+                                                                      ...prev,
+                                                                      [cat.id]: { ...current, schools: schoolsForCategory },
+                                                                    };
+                                                                  });
                                                                 }}
-                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
-                                                              >
-                                                                {schools.map(s => (
-                                                                  <option key={s.id} value={s.id}>{s.facultyCode || s.facultyName}</option>
-                                                                ))}
-                                                              </select>
+                                                              />
                                                               {scope.schools.length > 0 && (
                                                                 <span className="text-[9px] text-blue-600 dark:text-blue-400">{scope.schools.length} selected</span>
                                                               )}
@@ -2696,33 +2781,28 @@ export default function UserRoleManagement() {
                                                             {/* Department multi-select */}
                                                             <div>
                                                               <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Departments</label>
-                                                              <select
-                                                                multiple
-                                                                value={scope.departments}
-                                                                onChange={(e) => {
-                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
-                                                                  setRoleAnalyticsScope(prev => ({
-                                                                    ...prev,
-                                                                    [cat.id]: { ...(prev[cat.id] as RoleAnalyticsCategoryScope || { schools: [], departments: [] }), departments: selected },
-                                                                  }));
+                                                              <ScopeCheckboxGroupList
+                                                                groups={schools.map(s => ({
+                                                                  id: s.id,
+                                                                  label: s.facultyCode || s.facultyName,
+                                                                  options: departments
+                                                                    .filter(d => d.facultyId === s.id)
+                                                                    .map(d => ({ id: d.id, label: d.departmentName })),
+                                                                }))}
+                                                                selectedIds={scope.departments}
+                                                                onToggle={(id) => {
+                                                                  setRoleAnalyticsScope(prev => {
+                                                                    const current = (prev[cat.id] as RoleAnalyticsCategoryScope | undefined) || { schools: [], departments: [] };
+                                                                    const departmentsForCategory = current.departments.includes(id)
+                                                                      ? current.departments.filter(item => item !== id)
+                                                                      : [...current.departments, id];
+                                                                    return {
+                                                                      ...prev,
+                                                                      [cat.id]: { ...current, departments: departmentsForCategory },
+                                                                    };
+                                                                  });
                                                                 }}
-                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
-                                                              >
-                                                                {schools.map(s => {
-                                                                  const schoolDepts = departments.filter(d => d.facultyId ===
-   s.id);
-                                                                  if (schoolDepts.length ===
-   0) return null;
-                                                                  return (
-                                                                    <optgroup key={s.id} label={s.facultyCode || s.facultyName}>
-                                                                      {schoolDepts.map(d => (
-                                                                        <option key={d.id} value={d.id}>{d.departmentName}</option>
-                                                                      ))}
-                                                                    </optgroup>
-                                                                  );
-                                                                })}
-                                                              </select>
+                                                              />
                                                               {scope.departments.length > 0 && (
                                                                 <span className="text-[9px] text-blue-600 dark:text-blue-400">{scope.departments.length} selected</span>
                                                               )}
@@ -2732,7 +2812,7 @@ export default function UserRoleManagement() {
                                                       );
                                                     })}
                                                   </div>
-                                                  <p className="text-[9px] text-gray-400 mt-2 italic">Hold Ctrl/Cmd to select multiple. Leave empty = all access.</p>
+                                                  <p className="text-[9px] text-gray-400 mt-2 italic">Use the checkboxes to select multiple. Leave empty = all access.</p>
                                                 </div>
                                               </div>
                                             );

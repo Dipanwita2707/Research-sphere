@@ -4,18 +4,36 @@ import { authService, User } from '@/shared/services/auth.service';
 import { logger } from '@/shared/utils/logger';
 
 let authCheckInFlight: Promise<void> | null = null;
+export const AUTH_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+
+const getSessionExpiry = (timestamp = Date.now()) => timestamp + AUTH_INACTIVITY_TIMEOUT_MS;
+const isSessionExpiredAt = (sessionExpiresAt: number | null) =>
+  typeof sessionExpiresAt === 'number' && sessionExpiresAt <= Date.now();
+
+const clearedAuthState = {
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  isLoading: false,
+  lastActivityAt: null,
+  sessionExpiresAt: null,
+};
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  lastActivityAt: number | null;
+  sessionExpiresAt: number | null;
   setUser: (user: User | null) => void;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshUser: () => Promise<void>;
   getToken: () => string | null;
+  markActivity: () => void;
+  isSessionExpired: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -25,13 +43,42 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      lastActivityAt: null,
+      sessionExpiresAt: null,
 
       setUser: (user) => {
         logger.debug('AuthStore - setUser called with:', user);
-        set({ user, isAuthenticated: !!user, isLoading: false });
+        if (!user) {
+          set({ ...clearedAuthState });
+          return;
+        }
+
+        const timestamp = Date.now();
+        set({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          lastActivityAt: timestamp,
+          sessionExpiresAt: getSessionExpiry(timestamp),
+        });
       },
 
       getToken: () => get().token ?? null,
+
+      markActivity: () => {
+        const state = get();
+        if (!state.isAuthenticated) {
+          return;
+        }
+
+        const timestamp = Date.now();
+        set({
+          lastActivityAt: timestamp,
+          sessionExpiresAt: getSessionExpiry(timestamp),
+        });
+      },
+
+      isSessionExpired: () => isSessionExpiredAt(get().sessionExpiresAt),
 
       login: async (username, password) => {
         logger.debug('AuthStore - login started');
@@ -39,11 +86,19 @@ export const useAuthStore = create<AuthState>()(
           const response = await authService.login({ username, password });
           logger.debug('AuthStore - login response:', response);
           const token = (response as { token?: string }).token ?? null;
-          set({ user: response.user, token, isAuthenticated: true, isLoading: false });
+          const timestamp = Date.now();
+          set({
+            user: response.user,
+            token,
+            isAuthenticated: true,
+            isLoading: false,
+            lastActivityAt: timestamp,
+            sessionExpiresAt: getSessionExpiry(timestamp),
+          });
           logger.debug('AuthStore - state after login:', get());
         } catch (error) {
           logger.error('AuthStore - login error:', error);
-          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          set({ ...clearedAuthState });
           throw error;
         }
       },
@@ -53,7 +108,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           await authService.logout();
         } finally {
-          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          set({ ...clearedAuthState });
         }
       },
 
@@ -64,8 +119,23 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const state = get();
-        // If we already have user data from persisted state, trust it
-        // The ProtectedRoute components will handle validation on navigation
+        if (isSessionExpiredAt(state.sessionExpiresAt)) {
+          logger.debug('AuthStore - Session expired locally, clearing persisted auth state');
+          authCheckInFlight = (async () => {
+            set({ isLoading: true });
+            try {
+              await authService.logout();
+            } catch (error) {
+              logger.warn('AuthStore - logout after inactivity expiry failed:', error);
+            } finally {
+              set({ ...clearedAuthState });
+              authCheckInFlight = null;
+            }
+          })();
+
+          return authCheckInFlight;
+        }
+
         if (state.user && state.isAuthenticated) {
           logger.debug('AuthStore - Using persisted auth state for user:', state.user.username);
           set({ isLoading: false });
@@ -79,7 +149,14 @@ export const useAuthStore = create<AuthState>()(
           try {
             const user = await authService.getCurrentUser();
             logger.debug('AuthStore - user fetched from server:', user);
-            set({ user, isAuthenticated: true, isLoading: false });
+            const timestamp = Date.now();
+            set({
+              user,
+              isAuthenticated: true,
+              isLoading: false,
+              lastActivityAt: timestamp,
+              sessionExpiresAt: getSessionExpiry(timestamp),
+            });
           } catch (error: any) {
             logger.error('AuthStore - checkAuth error:', error);
             logger.error('AuthStore - Error details:', {
@@ -88,7 +165,7 @@ export const useAuthStore = create<AuthState>()(
               statusText: error.response?.statusText,
               data: error.response?.data
             });
-            set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+            set({ ...clearedAuthState });
           } finally {
             authCheckInFlight = null;
           }
@@ -103,16 +180,29 @@ export const useAuthStore = create<AuthState>()(
         try {
           const user = await authService.getCurrentUser();
           logger.debug('AuthStore - refreshUser: Fresh user data received:', user);
-          set({ user, isAuthenticated: true, isLoading: false });
+          const timestamp = Date.now();
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            lastActivityAt: timestamp,
+            sessionExpiresAt: getSessionExpiry(timestamp),
+          });
         } catch (error) {
           logger.error('AuthStore - refreshUser error:', error);
-          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          set({ ...clearedAuthState });
         }
       },
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
+        lastActivityAt: state.lastActivityAt,
+        sessionExpiresAt: state.sessionExpiresAt,
+      }),
     }
   )
 );

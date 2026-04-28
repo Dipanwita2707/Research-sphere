@@ -115,3 +115,16 @@ exports.getProgressTrackerRecords = async (req, res) =>
       userId,
     });
   });
+
+exports.getContributionsList = async (req, res) =>
+  handle(res, () => {
+    const { from, to, schoolId, departmentId, publicationType, status } = req.query;
+    return service.getContributionsList(req.user, {
+      from,
+      to,
+      schoolId,
+      departmentId,
+      publicationType,
+      status,
+    });
+  });

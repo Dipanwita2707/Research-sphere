@@ -177,7 +177,8 @@ export type TrackerPubType =
   | 'book'
   | 'book_chapter'
   | 'conference_paper'
-  | 'grant_proposal';
+  | 'grant_proposal'
+  | 'ipr';
 
 export interface ProgressTrackerFilters {
   from?: string;
@@ -336,6 +337,43 @@ export interface CategoryBreakdownItem {
   [key: string]: string | number;
 }
 
+export interface ContributionRecord {
+  id: string;
+  applicationNumber: string | null;
+  title: string;
+  publicationType: TrackerPubType;
+  status: string;
+  submittedAt: string | null;
+  updatedAt: string | null;
+  userId: string | null;
+  userName: string;
+  schoolId: string | null;
+  schoolName: string;
+  departmentId: string | null;
+  departmentName: string;
+}
+
+export interface ContributionsListResponse {
+  meta: {
+    analyticsType: 'contributions_list';
+    scopeApplied: {
+      schoolIds: string[];
+      departmentIds: string[];
+      scopeLevel: string;
+      resolution: string;
+    };
+    timeRange: { from: string; to: string };
+    filters: {
+      publicationType?: string;
+      schoolId?: string;
+      departmentId?: string;
+      status?: string;
+    };
+  };
+  totalCount: number;
+  records: ContributionRecord[];
+}
+
 export interface CategoryBreakdownResponse {
   research: CategoryBreakdownItem[];
   book: CategoryBreakdownItem[];
@@ -440,6 +478,21 @@ class DrdAnalyticsService {
   async getProgressTrackerRecords(filters?: ProgressTrackerFilters & { status?: string; userId?: string }) {
     const response = await api.get<{ success: boolean; data: ProgressTrackerRecordsResponse }>(
       `${this.baseUrl}/progress-tracker/records`,
+      { params: filters }
+    );
+    return response.data;
+  }
+
+  async getContributionsList(filters?: {
+    from?: string;
+    to?: string;
+    schoolId?: string;
+    departmentId?: string;
+    publicationType?: string;
+    status?: string;
+  }) {
+    const response = await api.get<{ success: boolean; data: ContributionsListResponse }>(
+      `${this.baseUrl}/applicant/contributions`,
       { params: filters }
     );
     return response.data;

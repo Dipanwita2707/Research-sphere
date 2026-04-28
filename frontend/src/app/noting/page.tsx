@@ -197,16 +197,14 @@ export default function NotingListPage() {
     [router, pathname, searchParams],
   );
 
-  const debouncedSearch = useDebounce(searchInput, {
-    delay: 350,
-    onSettle: (v) => {
-      const str = (v as string) || "";
-      const current = searchParams.get("search") ?? "";
-      if (str ===
-   current) return;
-      setParams({ search: str || undefined, page: undefined });
-    },
-  });
+  const debouncedSearch = useDebounce(searchInput, 350);
+  
+  // Handle search changes
+  useEffect(() => {
+    const current = searchParams.get("search") ?? "";
+    if (debouncedSearch === current) return;
+    setParams({ search: debouncedSearch || undefined, page: undefined });
+  }, [debouncedSearch, searchParams, setParams]);
 
   useEffect(() => {
     if (!status) return;

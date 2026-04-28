@@ -704,15 +704,16 @@ export default function NavigationHeader() {
   }
 
   // =====================================
-    // SYSTEM & COMMUNICATION - Chat + Mail grouped
+  // SYSTEM & COMMUNICATION - Chat + Mail grouped
+  // HIDDEN: Under development - not revealed to users yet
   // =====================================
-    menuItems.push({
-    name: 'System & Communication',
-    subItems: [
-      { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
-      { name: '📧 Mail', href: '/mail', description: 'Open the mail system' },
-    ],
-  });
+  // menuItems.push({
+  //   name: 'System & Communication',
+  //   subItems: [
+  //     { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
+  //     { name: '📧 Mail', href: '/mail', description: 'Open the mail system' },
+  //   ],
+  // });
 
   // ── Active-route helper ──────────────────────────────────────────────────
   /** Returns true if this item or any descendant href matches the current path */

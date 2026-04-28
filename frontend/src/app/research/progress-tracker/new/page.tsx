@@ -40,8 +40,8 @@ const INDEXING_CATEGORIES = [
   { 
     value: 'scopus', 
     label: 'SCOPUS',
-    description: 'SCOPUS indexed - requires Quartile, SJR, and Impact Factor',
-    requiredFields: ['quartile', 'sjr', 'impactFactor']
+    description: 'SCOPUS indexed - requires Quartile and SJR',
+    requiredFields: ['quartile', 'sjr']
   },
   { 
     value: 'scie_wos', 
@@ -57,8 +57,8 @@ const INDEXING_CATEGORIES = [
   },
   { 
     value: 'naas_rating_6_plus', 
-    label: 'NAAS (Rating â‰¥ 6)',
-    description: 'NAAS rated journals - requires Rating â‰¥ 6',
+    label: 'NAAS (Rating ≥ 6)',
+    description: 'NAAS rated journals - requires Rating ≥ 6',
     requiredFields: ['naasRating']
   },
   { 
@@ -595,11 +595,11 @@ export default function NewTrackerPage() {
                   <p className="text-sm text-blue-700 mt-1">
                     <span className="font-medium">Original Tracking #:</span> {prefillTracker.trackingNumber}
                     {rejData?.rejectionReason && (
-                      <> â€¢ <span className="font-medium">Rejection Reason:</span> {rejData.rejectionReason}</>
+                      <> • <span className="font-medium">Rejection Reason:</span> {rejData.rejectionReason}</>
                     )}
                   </p>
                   <p className="text-xs text-blue-600 mt-2">
-                    ðŸ’¡ Form has been pre-filled. Review and update the details as needed. A new tracking number will be assigned.
+                    💡 Form has been pre-filled. Review and update the details as needed. A new tracking number will be assigned.
                   </p>
                 </div>
                 <button
@@ -964,7 +964,7 @@ export default function NewTrackerPage() {
                           <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                               NAAS Rating <span className="text-red-500">*</span>
-                              <span className="text-xs text-amber-600 ml-1">(Must be â‰¥ 6 and â‰¤ 10)</span>
+                              <span className="text-xs text-amber-600 ml-1">(Must be ≥ 6 and ≤ 10)</span>
                             </label>
                             <input
                               type="number"
@@ -1022,11 +1022,11 @@ export default function NewTrackerPage() {
                     }}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                     required
-                  >                    <option value="writing">âœï¸ Writing</option>                    <option value="communicated">ï¿½ Communicated</option>
-                    <option value="submitted">ðŸ“¤ Submitted</option>
-                    <option value="accepted">ðŸŽ‰ Accepted</option>
-                    <option value="rejected">âŒ Rejected</option>
-                    <option value="published">ðŸ“° Published</option>
+                  >                    <option value="writing">✍️ Writing</option>                    <option value="communicated">📞 Communicated</option>
+                    <option value="submitted">📤 Submitted</option>
+                    <option value="accepted">🎉 Accepted</option>
+                    <option value="rejected">❌ Rejected</option>
+                    <option value="published">📰 Published</option>
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     Select your current progress stage. You can update this anytime.
@@ -1038,7 +1038,7 @@ export default function NewTrackerPage() {
    'conference_paper' && (
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                      ðŸŽ¤ Conference Type
+                      🎤 Conference Type
                     </h4>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1068,7 +1068,7 @@ export default function NewTrackerPage() {
                 {currentStatus && (selectedType !== 'conference_paper' || conferenceSubType) && (
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                      ðŸ“‹ Additional Details for "{statusLabels[currentStatus]}" Stage
+                      📋 Additional Details for "{statusLabels[currentStatus]}" Stage
                     </h4>
                     
                     {selectedType ===
@@ -1118,11 +1118,11 @@ export default function NewTrackerPage() {
               </svg>
               <div className="text-sm text-blue-800 dark:text-blue-300 space-y-2">
                 <div>
-                  <p className="font-medium">ðŸ“Š Progress Tracking & Updates</p>
+                  <p className="font-medium">📊 Progress Tracking & Updates</p>
                   <p>After creating this tracker, you can update your progress anytime. All changes will be recorded in the history timeline.</p>
                 </div>
                 <div>
-                  <p className="font-medium">ðŸ“Ž Document Uploads</p>
+                  <p className="font-medium">📎 Document Uploads</p>
                   <p>You can upload documents (drafts, communication proof, etc.) after creating the tracker using the "Attach Documents" section.</p>
                 </div>
               </div>

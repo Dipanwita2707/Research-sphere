@@ -82,6 +82,7 @@ const PUB_TYPE_META: Record<TrackerPubType, { label: string; icon: React.ReactNo
   book_chapter: { label: 'Book Chapter', icon: <BookOpen className="h-4 w-4" />, chipClass: 'border-purple-200 bg-purple-50 text-purple-700' },
   conference_paper: { label: 'Conference Paper', icon: <Layers3 className="h-4 w-4" />, chipClass: 'border-teal-200 bg-teal-50 text-teal-700' },
   grant_proposal: { label: 'Grant Proposal', icon: <Target className="h-4 w-4" />, chipClass: 'border-orange-200 bg-orange-50 text-orange-700' },
+  ipr: { label: 'IPR / Patent', icon: <Layers3 className="h-4 w-4" />, chipClass: 'border-rose-200 bg-rose-50 text-rose-700' },
 };
 
 const PUB_TYPE_OPTIONS = [

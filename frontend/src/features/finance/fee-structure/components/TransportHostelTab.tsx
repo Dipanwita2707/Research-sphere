@@ -90,6 +90,10 @@ export default function TransportHostelTab({ type }: Props) {
           </button>
         )}
       </div>
+      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+        <p><strong>Amount is monthly.</strong> Enter per-month {label.toLowerCase()} charge here.</p>
+        <p className="mt-1">Loan letter printing rule: for each academic year block, selected one semester = 6 months, selected both semesters = 11 months.</p>
+      </div>
 
       {error && <div className="mb-4 rounded-lg p-3 bg-red-50 text-red-700 text-sm">{error}</div>}
 
@@ -128,7 +132,7 @@ export default function TransportHostelTab({ type }: Props) {
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Head Name</th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 w-44">Amount (₹)</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 w-44">Monthly Amount (₹)</th>
                     <th className="w-10" />
                   </tr>
                 </thead>
@@ -210,7 +214,7 @@ export default function TransportHostelTab({ type }: Props) {
               <tr className="border-b border-gray-200 bg-gray-50 text-left">
                 <th className="px-4 py-3 font-medium text-gray-600">Batch Year</th>
                 <th className="px-4 py-3 font-medium text-gray-600">Fee Heads</th>
-                <th className="px-4 py-3 font-medium text-gray-600 text-right">Total Amount</th>
+                <th className="px-4 py-3 font-medium text-gray-600 text-right">Total Monthly Amount</th>
                 <th className="px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="px-4 py-3 font-medium text-gray-600 text-right">Actions</th>
               </tr>

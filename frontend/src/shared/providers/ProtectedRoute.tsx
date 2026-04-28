@@ -7,15 +7,15 @@ import { logger } from '@/shared/utils/logger';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
-  // Lazy init: if auth is already in store, skip spinner entirely
-  const [isInitialized, setIsInitialized] = useState(() => !!(isAuthenticated && user));
+  const { isAuthenticated, isLoading, user, checkAuth, isSessionExpired } = useAuthStore();
+  const sessionExpired = isSessionExpired();
+  const [isInitialized, setIsInitialized] = useState(() => !!(isAuthenticated && user && !sessionExpired));
   const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
     if (isInitialized) return; // already done synchronously
     const initAuth = async () => {
-      if (isAuthenticated && user) {
+      if (!sessionExpired && isAuthenticated && user) {
         logger.debug('ProtectedRoute - Already authenticated with user');
         setIsInitialized(true);
         return;
@@ -24,9 +24,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       setIsInitialized(true);
     };
     if (!isLoading) {
-      initAuth();
+      void initAuth();
     }
-  }, [checkAuth, isInitialized, isLoading, isAuthenticated, user]);
+  }, [checkAuth, isInitialized, isLoading, isAuthenticated, sessionExpired, user]);
 
   useEffect(() => {
     if (isInitialized && !isLoading && !isAuthenticated) {

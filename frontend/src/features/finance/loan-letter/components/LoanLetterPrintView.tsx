@@ -77,6 +77,10 @@ export default function LoanLetterPrintView({
     .sort(([a], [b]) => Number(a) - Number(b))
     .map(([yIdx, sems]) => ({ yearIdx: Number(yIdx), sems }));
   const selectedYearCount = yearGroups.length || feeBreakdown?.selectedYears || 1;
+  const selectedAccommodationMonths =
+    feeBreakdown?.selectedAccommodationMonths
+    || yearGroups.reduce((sum, group) => sum + (group.sems.length >= 2 ? 11 : 6), 0)
+    || (selectedYearCount * 11);
 
   const semTotals: Record<number, number> = {};
   selectedSemesters.forEach(sem => {
@@ -324,10 +328,13 @@ export default function LoanLetterPrintView({
           <div className="text-[10px] leading-relaxed space-y-1 mb-4">
             {tmpl.footerNotes.map((n, i) => <p key={i}>* {n}</p>)}
             {letter.transportIncluded && feeBreakdown && feeBreakdown.transport.length > 0 && (
-              <p>* Transport fee per year: ₹{feeBreakdown.transport.reduce((s, h) => s + (h.yearlyTotal ?? (h.amount * selectedYearCount)), 0).toLocaleString('en-IN')} ({selectedYearCount} year{selectedYearCount > 1 ? 's' : ''})</p>
+              <p>* Transport fee for selected duration: ₹{feeBreakdown.transport.reduce((s, h) => s + (h.yearlyTotal ?? (h.amount * selectedAccommodationMonths)), 0).toLocaleString('en-IN')} ({selectedAccommodationMonths} month{selectedAccommodationMonths > 1 ? 's' : ''})</p>
             )}
             {letter.hostelIncluded && feeBreakdown && feeBreakdown.hostel.length > 0 && (
-              <p>* Hostel fee per year: ₹{feeBreakdown.hostel.reduce((s, h) => s + (h.yearlyTotal ?? (h.amount * selectedYearCount)), 0).toLocaleString('en-IN')} ({selectedYearCount} year{selectedYearCount > 1 ? 's' : ''})</p>
+              <p>* Hostel fee for selected duration: ₹{feeBreakdown.hostel.reduce((s, h) => s + (h.yearlyTotal ?? (h.amount * selectedAccommodationMonths)), 0).toLocaleString('en-IN')} ({selectedAccommodationMonths} month{selectedAccommodationMonths > 1 ? 's' : ''})</p>
+            )}
+            {(letter.transportIncluded || letter.hostelIncluded) && (
+              <p>* Billing basis: configured amount is monthly. Per academic year block, one selected semester is billed for 6 months; both semesters selected are billed for 11 months.</p>
             )}
           </div>
           <div className="no-print h-12 border border-dashed border-gray-300 rounded mb-4 flex items-center justify-center text-[10px] text-gray-400">

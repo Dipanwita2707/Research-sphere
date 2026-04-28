@@ -50,6 +50,25 @@ function latestFeeStructure(where) {
   });
 }
 
+function getAccommodationBillingWindow(selectedSemesters = []) {
+  const semesterCountByYear = new Map();
+
+  selectedSemesters.forEach((semester) => {
+    const sem = Number(semester);
+    if (!Number.isFinite(sem) || sem < 1) return;
+
+    const yearIndex = Math.floor((sem - 1) / 2);
+    semesterCountByYear.set(yearIndex, (semesterCountByYear.get(yearIndex) || 0) + 1);
+  });
+
+  const yearCount = semesterCountByYear.size || 1;
+  const monthCount = semesterCountByYear.size > 0
+    ? Array.from(semesterCountByYear.values()).reduce((sum, count) => sum + (count >= 2 ? 11 : 6), 0)
+    : 11;
+
+  return { yearCount, monthCount };
+}
+
 async function allocateLoanLetterSequence(tx, year) {
   const rows = await tx.$queryRaw`
     INSERT INTO "loan_letter_counter" ("counter_year", "last_value", "updated_at")
@@ -128,6 +147,18 @@ class LoanLetterService {
     const normalizedApplicationNumber = String(applicationNumber || '').trim();
     const normalizedStudentEmail = studentEmail ? String(studentEmail).trim().toLowerCase() : null;
     const normalizedStudentPhone = studentPhone ? String(studentPhone).trim() : null;
+
+    // Validate: must start with SGT (case-insensitive) and be alphanumeric only
+    if (!normalizedApplicationNumber) {
+      throw { status: 400, message: 'Application number is required' };
+    }
+    if (!/^[Ss][Gg][Tt][A-Za-z0-9]+$/.test(normalizedApplicationNumber)) {
+      throw {
+        status: 400,
+        code: 'INVALID_APPLICATION_NUMBER',
+        message: 'Application number must start with "SGT" (case-insensitive) and contain only alphanumeric characters (no spaces or special characters)',
+      };
+    }
 
     const existingLetter = await prisma.loanLetter.findFirst({
       where: {
@@ -439,22 +470,23 @@ class LoanLetterService {
     const academicHeads = mapHeads(baseAcademic?.heads || []);
     const specializationHeads = mapHeads(specFeeStructure?.heads || []);
 
-    // Transport/Hostel are flat (not semester-split) — keep as flat amount
-    const selectedYears = new Set(selectedSemesters.map((sem) => Math.floor((Number(sem) - 1) / 2)));
-    const transportYears = selectedYears.size || 1;
-    const hostelYears = selectedYears.size || 1;
+    // Transport/Hostel heads are stored as monthly charges.
+    // Billing rule: single semester in an academic year => 6 months, full year => 11 months.
+    const { yearCount: selectedYearCount, monthCount: selectedAccommodationMonths } = getAccommodationBillingWindow(selectedSemesters);
 
     const transportHeads = (transportFeeStructure?.heads || []).map(h => ({
       headName: h.headName,
       amount: Number(h.amount) || 0,
-      yearlyTotal: (Number(h.amount) || 0) * transportYears,
-      years: transportYears,
+      yearlyTotal: (Number(h.amount) || 0) * selectedAccommodationMonths,
+      years: selectedYearCount,
+      months: selectedAccommodationMonths,
     }));
     const hostelHeads = (hostelFeeStructure?.heads || []).map(h => ({
       headName: h.headName,
       amount: Number(h.amount) || 0,
-      yearlyTotal: (Number(h.amount) || 0) * hostelYears,
-      years: hostelYears,
+      yearlyTotal: (Number(h.amount) || 0) * selectedAccommodationMonths,
+      years: selectedYearCount,
+      months: selectedAccommodationMonths,
     }));
 
     const academicTotal = academicHeads.reduce((s, h) => s + h.total, 0);
@@ -472,7 +504,8 @@ class LoanLetterService {
         hostel: hostelHeads,
         grandTotal,
         selectedSemesters,
-          selectedYears: transportYears,
+        selectedYears: selectedYearCount,
+        selectedAccommodationMonths,
       },
     }, reprintMap);
   }

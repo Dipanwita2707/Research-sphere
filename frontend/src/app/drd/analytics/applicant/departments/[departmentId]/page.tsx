@@ -18,6 +18,7 @@ import {
   TrendChartPanel,
   AnalyticsPieChart,
   AnalyticsPipelineChart,
+  AnalyticsPapersTable,
 } from '@/components/analytics';
 import {
   AlertCircle,
@@ -25,6 +26,7 @@ import {
   Building2,
   CheckCircle2,
   Layers3,
+  LayoutList,
   Printer,
   RefreshCw,
   Sparkles,
@@ -64,9 +66,10 @@ export default function DepartmentAnalyticsPage() {
   const [data, setData] = useState<DrdAnalyticsResponse | null>(null);
   const [trackerData, setTrackerData] = useState<ProgressTrackerAnalyticsData | null>(null);
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdownResponse | null>(null);
-  const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3)));
-  const [toDate, setToDate] = useState(isoDate(new Date()));
+  const [fromDate, setFromDate] = useState(searchParams?.get('from') || isoDate(new Date(Date.now() - 365 * 86400e3)));
+  const [toDate, setToDate] = useState(searchParams?.get('to') || isoDate(new Date()));
   const [category, setCategory] = useState(searchParams?.get('category') || 'all');
+  const [viewMode, setViewMode] = useState<'overview' | 'papers'>('overview');
 
   const fetchData = useCallback(async () => {
     if (!departmentId) return;
@@ -334,8 +337,37 @@ export default function DepartmentAnalyticsPage() {
             }}
           />
 
+          {/* View mode tabs */}
+          <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-6 sm:px-8 lg:px-12 xl:px-16">
+            <div className="flex gap-0">
+              {([
+                { key: 'overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" /> },
+                { key: 'papers', label: 'Papers & Trackers', icon: <LayoutList className="w-3.5 h-3.5" /> },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setViewMode(tab.key)}
+                  className={`inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                    viewMode === tab.key
+                      ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="px-6 py-6 sm:px-8 lg:px-12 xl:px-16 space-y-6">
-            {loading ? (
+            {viewMode === 'papers' ? (
+              <AnalyticsPapersTable
+                scope={departmentId ? { type: 'department', id: departmentId } : null}
+                fromDate={fromDate}
+                toDate={toDate}
+              />
+            ) : loading ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 animate-pulse">

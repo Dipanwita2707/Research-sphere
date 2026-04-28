@@ -114,14 +114,21 @@ function generateFooterNotesHtml(template: LoanLetterTemplate, letter: LoanLette
   const yearMap: Record<number, number[]> = {};
   semesters.forEach(s => { const y = getYearIdx(s); (yearMap[y] ??= []).push(s); });
   const yearCount = Object.keys(yearMap).length || fb?.selectedYears || 1;
+  const accommodationMonths = fb?.selectedAccommodationMonths
+    || Object.values(yearMap).reduce((sum, sems) => sum + (sems.length >= 2 ? 11 : 6), 0)
+    || (yearCount * 11);
 
   if (letter.transportIncluded && fb?.transport?.length) {
-    const total = fb.transport.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * yearCount), 0);
-    notes.push(`Transport fee per year: ₹${total.toLocaleString('en-IN')} (${yearCount} year${yearCount > 1 ? 's' : ''})`);
+    const total = fb.transport.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * accommodationMonths), 0);
+    notes.push(`Transport fee for selected duration: ₹${total.toLocaleString('en-IN')} (${accommodationMonths} month${accommodationMonths > 1 ? 's' : ''})`);
   }
   if (letter.hostelIncluded && fb?.hostel?.length) {
-    const total = fb.hostel.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * yearCount), 0);
-    notes.push(`Hostel fee per year: ₹${total.toLocaleString('en-IN')} (${yearCount} year${yearCount > 1 ? 's' : ''})`);
+    const total = fb.hostel.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * accommodationMonths), 0);
+    notes.push(`Hostel fee for selected duration: ₹${total.toLocaleString('en-IN')} (${accommodationMonths} month${accommodationMonths > 1 ? 's' : ''})`);
+  }
+
+  if (letter.transportIncluded || letter.hostelIncluded) {
+    notes.push('Billing basis: configured amount is monthly. Per academic year block, one selected semester is billed for 6 months; both semesters selected are billed for 11 months.');
   }
 
   return notes.map(n => `<p style="font-size:10px;margin:2px 0;">* ${n}</p>`).join('');
@@ -144,6 +151,9 @@ export function buildSubstitutionMap(
   const yearMap: Record<number, number[]> = {};
   semesters.forEach(s => { const y = getYearIdx(s); (yearMap[y] ??= []).push(s); });
   const yearCount = Object.keys(yearMap).length || fb?.selectedYears || 1;
+  const accommodationMonths = fb?.selectedAccommodationMonths
+    || Object.values(yearMap).reduce((sum, sems) => sum + (sems.length >= 2 ? 11 : 6), 0)
+    || (yearCount * 11);
 
   const semestersDisplay = semesters.map(s => ROMAN[s - 1] ?? s).join(', ');
   const academicYearsDisplay = Object.keys(yearMap)
@@ -157,10 +167,10 @@ export function buildSubstitutionMap(
 
   const grandTotal = fb?.grandTotal ?? 0;
   const transportTotal = letter.transportIncluded && fb?.transport
-    ? fb.transport.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * yearCount), 0)
+    ? fb.transport.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * accommodationMonths), 0)
     : 0;
   const hostelTotal = letter.hostelIncluded && fb?.hostel
-    ? fb.hostel.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * yearCount), 0)
+    ? fb.hostel.reduce((acc, h) => acc + (h.yearlyTotal ?? h.amount * accommodationMonths), 0)
     : 0;
 
   const b = template.bankDetails ?? {};

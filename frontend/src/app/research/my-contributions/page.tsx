@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { researchService, ResearchContribution, ResearchPublicationType, GrantApplication } from '@/features/research-management/services/research.service';
 import { grantPolicyService, GrantIncentivePolicy } from '@/features/research-management/services/grantPolicy.service';
+import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import { extractErrorMessage } from '@/shared/types/api.types';
@@ -65,6 +66,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
 
 export default function MyContributionsPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const { toast } = useToast();
   const { confirmDelete, confirmAction } = useConfirm();
   const [contributions, setContributions] = useState<ResearchContribution[]>([]);
@@ -119,6 +121,17 @@ export default function MyContributionsPage() {
     }
   };
 
+  const getMyContributionShare = useCallback((contribution: ResearchContribution) => {
+    const currentAuthor = contribution.authors?.find((author) => author.userId === user?.id);
+
+    return {
+      estimatedIncentive: Number(currentAuthor?.incentiveShare ?? contribution.calculatedIncentiveAmount ?? 0),
+      estimatedPoints: Number(currentAuthor?.pointsShare ?? contribution.calculatedPoints ?? 0),
+      creditedIncentive: Number(currentAuthor?.incentiveShare ?? contribution.incentiveAmount ?? 0),
+      creditedPoints: Number(currentAuthor?.pointsShare ?? contribution.pointsAwarded ?? 0),
+    };
+  }, [user?.id]);
+
   // Calculate stats whenever contributions or grants change
   useEffect(() => {
     const actionRequiredStatuses = ['changes_required'];
@@ -131,11 +144,11 @@ export default function MyContributionsPage() {
     
     // Calculate total incentives (credited only)
     const creditedIncentives = completedContribs.reduce((sum: number, c: ResearchContribution) => 
-      sum + (Number(c.incentiveAmount) || 0), 0
+      sum + getMyContributionShare(c).creditedIncentive, 0
     );
     
     const creditedPoints = completedContribs.reduce((sum: number, c: ResearchContribution) => 
-      sum + (Number(c.pointsAwarded) || 0), 0
+      sum + getMyContributionShare(c).creditedPoints, 0
     );
     
     // Add grant stats - calculate individual applicant's share
@@ -214,7 +227,7 @@ export default function MyContributionsPage() {
       totalIncentives: creditedIncentives + totalGrantIncentives,
       totalPoints: creditedPoints + totalGrantPoints,
     });
-  }, [contributions, grants]);
+  }, [contributions, getMyContributionShare, grants]);
 
   const getFilteredContributions = useCallback(() => {
     if (!Array.isArray(contributions)) return [];
@@ -635,9 +648,11 @@ export default function MyContributionsPage() {
                               {grant.title}
                             </h3>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                              <span className="inline-flex items-center">
-                                <span className="font-medium text-gray-700 dark:text-gray-300">{grant.agencyName || 'N/A'}</span>
-                              </span>
+                              {grant.agencyName && (
+                                <span className="inline-flex items-center">
+                                  <span className="font-medium text-gray-700 dark:text-gray-300">{grant.agencyName}</span>
+                                </span>
+                              )}
                               {grant.submittedAmount && (
                                 <span className="inline-flex items-center gap-1">
                                   <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
@@ -716,6 +731,7 @@ export default function MyContributionsPage() {
               const PubTypeIcon = pubTypeConfig?.icon || FileText;
               const isExpanded = expandedApp ===
    contribution.id;
+              const contributionShare = getMyContributionShare(contribution);
               
               return (
                 <div key={contribution.id} className="relative">
@@ -760,18 +776,18 @@ export default function MyContributionsPage() {
                             </div>
                             
                             {/* Incentives Display */}
-                            {contribution.calculatedIncentiveAmount && (
+                            {(contributionShare.estimatedIncentive > 0 || contributionShare.estimatedPoints > 0) && (
                               <div className="flex items-center gap-3 mt-2">
-                                {['approved', 'completed'].includes(contribution.status) && contribution.incentiveAmount ? (
+                                {['approved', 'completed'].includes(contribution.status) && contributionShare.creditedIncentive > 0 ? (
                                   <>
                                     <span className="inline-flex items-center px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
                                       <Coins className="w-3.5 h-3.5 mr-1.5" />
-                                      ₹{Number(contribution.incentiveAmount).toLocaleString()}
+                                      ₹{contributionShare.creditedIncentive.toLocaleString()}
                                     </span>
-                                    {contribution.pointsAwarded && (
+                                    {contributionShare.creditedPoints > 0 && (
                                       <span className="inline-flex items-center px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium">
                                         <Award className="w-3.5 h-3.5 mr-1.5" />
-                                        {contribution.pointsAwarded} pts
+                                        {contributionShare.creditedPoints} pts
                                       </span>
                                     )}
                                     <span className="text-xs text-green-600 font-medium">✓ Credited</span>
@@ -780,12 +796,12 @@ export default function MyContributionsPage() {
                                   <>
                                     <span className="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
                                       <Coins className="w-3.5 h-3.5 mr-1.5" />
-                                      ₹{Number(contribution.calculatedIncentiveAmount).toLocaleString()}
+                                      ₹{contributionShare.estimatedIncentive.toLocaleString()}
                                     </span>
-                                    {contribution.calculatedPoints && (
+                                    {contributionShare.estimatedPoints > 0 && (
                                       <span className="inline-flex items-center px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium">
                                         <Award className="w-3.5 h-3.5 mr-1.5" />
-                                        {contribution.calculatedPoints} pts
+                                        {contributionShare.estimatedPoints} pts
                                       </span>
                                     )}
                                     <span className="text-xs text-gray-500 dark:text-gray-400">Estimated</span>

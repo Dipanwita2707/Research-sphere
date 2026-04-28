@@ -40,8 +40,8 @@ const INDEXING_CATEGORIES = [
   { 
     value: 'scopus', 
     label: 'SCOPUS',
-    description: 'SCOPUS indexed - requires Quartile, SJR, and Impact Factor',
-    requiredFields: ['quartile', 'sjr', 'impactFactor']
+    description: 'SCOPUS indexed - requires Quartile and SJR',
+    requiredFields: ['quartile', 'sjr']
   },
   { 
     value: 'scie_wos', 

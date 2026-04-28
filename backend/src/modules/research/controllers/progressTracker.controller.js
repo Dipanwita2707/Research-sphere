@@ -5,6 +5,7 @@
  */
 
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
 
 function _getIp(req) {
@@ -177,6 +178,9 @@ const createTracker = async (req, res) => {
       ipAddress: _getIp(req),
       userAgent: req.headers['user-agent'],
     }).catch(() => {});
+
+    // Invalidate DRD analytics cache so new tracker appears immediately
+    cache.delPattern('drd:tracker:*').catch(() => {});
 
     return res.status(201).json({
       success: true,
@@ -520,6 +524,9 @@ const updateTracker = async (req, res) => {
       }).catch(() => {});
     }
 
+    // Invalidate DRD analytics cache so updates appear immediately
+    cache.delPattern('drd:tracker:*').catch(() => {});
+
     return res.json({
       success: true,
       message: 'Tracker updated successfully',
@@ -676,6 +683,9 @@ const updateTrackerStatus = async (req, res) => {
       ipAddress: _getIp(req),
       userAgent: req.headers['user-agent'],
     }).catch(() => {});
+
+    // Invalidate DRD analytics cache so status change appears immediately
+    cache.delPattern('drd:tracker:*').catch(() => {});
 
     return res.json({
       success: true,

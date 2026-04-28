@@ -69,11 +69,7 @@ class ContributionService {
 
     if (categories.includes('scopus')) {
       if (!data.quartile) errors.push('Quartile is required when SCOPUS category is selected');
-      if (!data.impactFactor) errors.push('Impact Factor is required when SCOPUS category is selected');
-    }
-
-    if (categories.includes('scie_wos')) {
-      if (!data.sjr) errors.push('SJR is required when SCIE/SCI (WOS) category is selected');
+      if (!data.sjr) errors.push('SJR is required when SCOPUS category is selected');
     }
 
     if (categories.includes('naas_rating_6_plus')) {

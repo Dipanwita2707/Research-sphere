@@ -66,11 +66,12 @@ export interface LoanLetter {
   feeBreakdown?: {
     academic: { headName: string; semesterAmounts: Record<number, number>; total: number }[];
     specialization: { headName: string; semesterAmounts: Record<number, number>; total: number }[];
-    transport: { headName: string; amount: number; yearlyTotal?: number; years?: number }[];
-    hostel: { headName: string; amount: number; yearlyTotal?: number; years?: number }[];
+    transport: { headName: string; amount: number; yearlyTotal?: number; years?: number; months?: number }[];
+    hostel: { headName: string; amount: number; yearlyTotal?: number; years?: number; months?: number }[];
     grandTotal: number;
     selectedSemesters: number[];
     selectedYears?: number;
+    selectedAccommodationMonths?: number;
   };
 }
 

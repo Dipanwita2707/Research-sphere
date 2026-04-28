@@ -207,11 +207,15 @@ export interface ResearchProgressTracker {
   };
   school?: {
     id: string;
-    name: string;
+    name?: string;
+    facultyName?: string;
+    shortName?: string;
   };
   department?: {
     id: string;
-    name: string;
+    name?: string;
+    departmentName?: string;
+    shortName?: string;
   };
   statusHistory?: StatusHistoryEntry[];
   researchContribution?: {
