@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/shared/api/api';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
-import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, AlertCircle, X, Key } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, UserCheck, UserX, AlertCircle, X, Key, Upload } from 'lucide-react';
 import { centralDepartmentService, CentralDepartment } from '@/features/admin-management/services/centralDepartment.service';
 import { validateCreateEmployee, validateUpdateEmployee } from '@/shared/validations/employee.validation';
 
@@ -59,6 +60,7 @@ interface Employee {
 
 export default function EmployeeManagement() {
   const { toast } = useToast();
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -471,12 +473,23 @@ export default function EmployeeManagement() {
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
           <button
+            type="button"
             onClick={() => handleOpenModal()}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center justify-center"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Employee
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/admin/bulk-upload')}
+            className="border border-blue-200 text-blue-700 px-4 py-2 rounded-md hover:bg-blue-50 flex items-center justify-center dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-950/30"
+          >
+            <Upload className="w-5 h-5 mr-2" />
+            Bulk Upload
           </button>
         </div>
       </div>

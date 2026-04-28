@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/shared/api/api';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
@@ -8,7 +9,7 @@ import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
 import { 
   GraduationCap, Plus, Edit, Search, Filter, UserCheck, UserX, 
-  Key, ChevronDown, X, Loader2, AlertCircle, CheckCircle 
+  Key, ChevronDown, X, Loader2, AlertCircle, CheckCircle, Upload
 } from 'lucide-react';
 import { validateCreateStudent, validateUpdateStudent } from '@/shared/validations/student.validation';
 
@@ -74,6 +75,7 @@ interface Student {
 export default function StudentManagement() {
   const { toast } = useToast();
   const { confirmDelete } = useConfirm();
+  const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
@@ -382,7 +384,7 @@ export default function StudentManagement() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
               <GraduationCap className="w-6 h-6 text-white" />
@@ -392,13 +394,23 @@ export default function StudentManagement() {
               <p className="text-sm text-gray-500">Add, edit, and manage students</p>
             </div>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all shadow-lg"
-          >
-            <Plus className="w-5 h-5" />
-            Add Student
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push('/admin/bulk-upload')}
+              className="flex items-center gap-2 px-4 py-2 border border-orange-200 text-orange-700 rounded-lg hover:bg-orange-50 transition-all shadow-sm"
+            >
+              <Upload className="w-5 h-5" />
+              Bulk Upload
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+              Add Student
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
