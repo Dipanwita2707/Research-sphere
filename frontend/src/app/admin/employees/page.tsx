@@ -5,7 +5,7 @@ import api from '@/shared/api/api';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
-import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, AlertCircle, X } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, AlertCircle, X, Key } from 'lucide-react';
 import { centralDepartmentService, CentralDepartment } from '@/features/admin-management/services/centralDepartment.service';
 import { validateCreateEmployee, validateUpdateEmployee } from '@/shared/validations/employee.validation';
 
@@ -72,6 +72,7 @@ export default function EmployeeManagement() {
   const [filterDesignation, setFilterDesignation] = useState('all');
   const [designations, setDesignations] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -368,6 +369,22 @@ export default function EmployeeManagement() {
     }
   };
 
+  const handleResetPassword = async (employee: Employee) => {
+    const name = employee.employeeDetails?.displayName || employee.uid;
+    const confirmed = confirm(`Are you sure you want to reset password for "${name}" to default (Welcome@123)?`);
+    if (!confirmed) return;
+
+    try {
+      setResettingId(employee.id);
+      await api.patch(`/employees/${employee.id}/reset-password`, {});
+      toast({ type: 'success', message: 'Password reset successfully' });
+    } catch (error: unknown) {
+      toast({ type: 'error', message: extractErrorMessage(error) || 'Failed to reset password' });
+    } finally {
+      setResettingId(null);
+    }
+  };
+
   const handleOpenDetailsModal = (employee: Employee) => {
     setSelectedEmployee(employee);
     setShowDetailsModal(true);
@@ -597,6 +614,21 @@ export default function EmployeeManagement() {
                     title="Edit"
                   >
                     <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleResetPassword(employee);
+                    }}
+                    disabled={resettingId === employee.id}
+                    className="text-amber-600 hover:text-amber-900 mr-3 disabled:opacity-50"
+                    title="Reset Password"
+                  >
+                    {resettingId === employee.id ? (
+                      <span className="inline-block w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Key className="w-4 h-4" />
+                    )}
                   </button>
                   <button
                     onClick={(e) => {
