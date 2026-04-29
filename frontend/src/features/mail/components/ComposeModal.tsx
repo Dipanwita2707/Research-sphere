@@ -78,7 +78,6 @@ export default function ComposeModal() {
     if (composeMode ===
    'reply') {
       setSubject(msg.subject?.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`);
-      console.log('Reply - Message sender:', msg.sender); // Debug log
       setToRecipients(msg.sender ? [{
         id: msg.sender.uid,
         uid: msg.sender.uid,
@@ -91,7 +90,6 @@ export default function ComposeModal() {
     } else if (composeMode ===
    'replyAll') {
       setSubject(msg.subject?.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`);
-      console.log('Reply All - Message:', msg); // Debug log
       
       // TO = original sender + all original TO recipients (minus self)
       const originalToRecipients = msg.recipients?.filter((r) => r.recipientType ===

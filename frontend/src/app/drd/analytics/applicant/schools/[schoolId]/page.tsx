@@ -20,6 +20,7 @@ import {
   TrendChartPanel,
   AnalyticsPieChart,
   AnalyticsPipelineChart,
+  AnalyticsPapersTable,
 } from '@/components/analytics';
 import {
   AlertCircle,
@@ -31,6 +32,7 @@ import {
   FileText,
   GraduationCap,
   Layers3,
+  LayoutList,
   Loader2,
   Printer,
   RefreshCw,
@@ -457,8 +459,9 @@ function KpiDrilldownDrawer({
 
 export default function SchoolAnalyticsPage() {
   const router = useRouter();
-  const { schoolId } = useParams<{ schoolId: string }>();
-  const searchParams = useSearchParams();
+  const params = useParams<{ schoolId: string }>();
+  const schoolId = params?.schoolId ?? null;
+  const searchParams = useSearchParams()!;
 
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -466,14 +469,15 @@ export default function SchoolAnalyticsPage() {
   const [trackerData, setTrackerData] = useState<ProgressTrackerAnalyticsData | null>(null);
   const [allSchools, setAllSchools] = useState<{ value: string; label: string }[]>([]);
   const [kpiDrawer, setKpiDrawer] = useState<KpiDrilldownType | null>(null);
-  const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3)));
-  const [toDate, setToDate] = useState(isoDate(new Date()));
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
-  const [departmentId, setDepartmentId] = useState(searchParams.get('departmentId') || '');
-  const [selectedDeptId, setSelectedDeptId] = useState(searchParams.get('departmentId') || '');
+  const [fromDate, setFromDate] = useState(searchParams?.get('from') || isoDate(new Date(Date.now() - 365 * 86400e3)));
+  const [toDate, setToDate] = useState(searchParams?.get('to') || isoDate(new Date()));
+  const [category, setCategory] = useState(searchParams?.get('category') || 'all');
+  const [departmentId, setDepartmentId] = useState(searchParams?.get('departmentId') || '');
+  const [selectedDeptId, setSelectedDeptId] = useState(searchParams?.get('departmentId') || '');
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdownResponse | null>(null);
   const [contributorPage, setContributorPage] = useState(0);
   const CONTRIBUTOR_PAGE_SIZE = 10;
+  const [viewMode, setViewMode] = useState<'overview' | 'papers'>('overview');
 
   // Fetch school list once on mount so the school selector is always populated
   useEffect(() => {
@@ -529,8 +533,12 @@ export default function SchoolAnalyticsPage() {
   }, [schoolId, fromDate, toDate, category, departmentId]);
 
   useEffect(() => {
+    if (!schoolId) {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, schoolId]);
 
   const schoolInfo = data?.schoolWise?.[0] as any | null;
   const schoolName = schoolInfo?.schoolName ?? 'School Overview';
@@ -891,7 +899,7 @@ export default function SchoolAnalyticsPage() {
               category={category}
               onCategoryChange={setCategory}
               categoryOptions={CATEGORY_OPTIONS}
-              schoolId={schoolId}
+              schoolId={schoolId ?? undefined}
               onSchoolChange={(id) => {
                 if (id && id !== schoolId) {
                   router.push(`/drd/analytics/applicant/schools/${id}`);
@@ -910,9 +918,38 @@ export default function SchoolAnalyticsPage() {
               }}
             />
 
+            {/* View mode tabs */}
+            <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-6 sm:px-8 lg:px-12 xl:px-16">
+              <div className="flex gap-0">
+                {([
+                  { key: 'overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" /> },
+                  { key: 'papers', label: 'Papers & Trackers', icon: <LayoutList className="w-3.5 h-3.5" /> },
+                ] as const).map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setViewMode(tab.key)}
+                    className={`inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                      viewMode === tab.key
+                        ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
           <div id="school-analytics-content" className="px-6 py-6 sm:px-8 lg:px-12 xl:px-16 space-y-6">
 
-            {loading ? (
+            {viewMode === 'papers' ? (
+              <AnalyticsPapersTable
+                scope={schoolId ? { type: 'school', id: schoolId } : null}
+                fromDate={fromDate}
+                toDate={toDate}
+              />
+            ) : loading ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 animate-pulse">
@@ -1041,7 +1078,7 @@ export default function SchoolAnalyticsPage() {
                               return (
                                 <tr
                                   key={dept.departmentId}
-                                  onClick={() => router.push(`/drd/analytics/applicant/departments/${dept.departmentId}`)}
+                                  onClick={() => router.push(`/drd/analytics/applicant/departments/${dept.departmentId}?from=${fromDate}&to=${toDate}&category=${category}`)}
                                   className="cursor-pointer transition-colors hover:bg-slate-50"
                                 >
                                   <td className="px-4 py-3">

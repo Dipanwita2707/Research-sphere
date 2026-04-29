@@ -1,0 +1,62 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '14px'}}}%%
+
+flowchart TB
+    subgraph ENTITIES["👥 EXTERNAL ENTITIES"]
+        ADM["🔐 Admin"]
+        FAC["👨‍🏫 Faculty"]
+        STU["👨‍🎓 Student"]
+        DSW["🏛️ DSW Office"]
+    end
+
+    subgraph DSW_MOD["🏛️ 2.0 DSW MODULE"]
+        D1(("2.1<br/>Category<br/>Management"))
+        D2(("2.2<br/>Club<br/>Creation"))
+        D3(("2.3<br/>Member<br/>Management"))
+        D4(("2.4<br/>Application<br/>Review"))
+        D5(("2.5<br/>Audit<br/>Logging"))
+        D6(("2.6<br/>Statistics<br/>Dashboard"))
+    end
+
+    subgraph STORES["📦 DATA STORES"]
+        DB_CAT[("D1: Club<br/>Category")]
+        DB_CLUB[("D2: Club<br/>ClubMember")]
+        DB_APP[("D3: Club<br/>Application")]
+        DB_AUDIT[("D4: Club<br/>AuditLog")]
+        CACHE[("D5: Redis<br/>Cache")]
+    end
+
+    NOTING["📝 From Noting<br/>(Approved)"]
+
+    %% Flows
+    ADM -->|"Create/Update<br/>Categories"| D1
+    D1 -->|"Category Data"| DB_CAT
+    
+    NOTING -->|"Approved<br/>Club Noting"| D2
+    D2 -->|"Club Record"| DB_CLUB
+    D2 -->|"Initial Members"| DB_CLUB
+    
+    FAC -->|"Add/Remove<br/>Members"| D3
+    D3 -->|"Member Updates"| DB_CLUB
+    D3 -->|"Log Action"| D5
+    
+    STU -->|"Apply to<br/>Join Club"| D4
+    D4 -->|"Application"| DB_APP
+    FAC -->|"Review<br/>Applications"| D4
+    D4 -->|"Status Update"| STU
+    
+    D5 -->|"Audit Entry"| DB_AUDIT
+    
+    DSW -->|"View Stats"| D6
+    D6 -->|"Query Stats"| DB_CLUB
+    D6 -->|"Cache Stats"| CACHE
+    D6 -->|"Statistics Report"| DSW
+
+    classDef entity fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef process fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    classDef store fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    classDef external fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    
+    class ADM,FAC,STU,DSW entity
+    class D1,D2,D3,D4,D5,D6 process
+    class DB_CAT,DB_CLUB,DB_APP,DB_AUDIT,CACHE store
+    class NOTING external

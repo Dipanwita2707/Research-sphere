@@ -11,10 +11,24 @@ export function NavigationProgressInner() {
   const [done, setDone] = useState(false);
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const complete = () => {
+    if (tickerRef.current) clearInterval(tickerRef.current);
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+    setDone(true);
+    setWidth(100);
+    hideTimerRef.current = setTimeout(() => {
+      setVisible(false);
+      setDone(false);
+      setWidth(0);
+    }, 400);
+  };
 
   const start = () => {
     if (tickerRef.current) clearInterval(tickerRef.current);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     setDone(false);
     setVisible(true);
     setWidth(0);
@@ -28,21 +42,16 @@ export function NavigationProgressInner() {
       current += (85 - current) * 0.06;
       setWidth(current);
     }, 400);
-  };
 
-  const complete = () => {
-    if (tickerRef.current) clearInterval(tickerRef.current);
-    setDone(true);
-    setWidth(100);
-    hideTimerRef.current = setTimeout(() => {
-      setVisible(false);
-      setDone(false);
-      setWidth(0);
-    }, 400);
+    // Safety: if the route never changes (e.g. redirect to same URL, cancelled navigation),
+    // force-complete after 3 s so the overlay never stays stuck indefinitely.
+    safetyTimerRef.current = setTimeout(() => {
+      complete();
+    }, 3000);
   };
 
   // Detect route change → complete
-  const resolvedRoute = pathname + searchParams.toString();
+  const resolvedRoute = `${pathname ?? ''}${searchParams?.toString() ?? ''}`;
   const prevRouteRef = useRef(resolvedRoute);
   useEffect(() => {
     if (prevRouteRef.current !== resolvedRoute) {
@@ -62,9 +71,12 @@ export function NavigationProgressInner() {
         href.startsWith('#') ||
         href.startsWith('mailto:') ||
         href.startsWith('tel:') ||
+        href.startsWith('blob:') ||
+        href.startsWith('data:') ||
         href.startsWith('http://') ||
         href.startsWith('https://') ||
-        anchor.target === '_blank'
+        anchor.target === '_blank' ||
+        anchor.hasAttribute('download')
       ) return;
       const targetPath = href.split('?')[0];
       if (targetPath !== pathname) start();
@@ -77,6 +89,7 @@ export function NavigationProgressInner() {
     return () => {
       if (tickerRef.current) clearInterval(tickerRef.current);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     };
   }, []);
 

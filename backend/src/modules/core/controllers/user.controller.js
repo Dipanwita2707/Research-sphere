@@ -127,8 +127,9 @@ exports.searchUsersByPartialUid = async (req, res) => {
   try {
     const { query } = req.params;
     const { role } = req.query; // Optional filter: 'faculty', 'student', 'staff'
+    const currentUserId = req.user?.id; // Get current user ID to exclude from results
 
-    console.log('Searching users with query:', query, 'role filter:', role);
+    console.log('Searching users with query:', query, 'role filter:', role, 'current user:', currentUserId);
 
     if (!query || query.length < 2) {
       return res.status(400).json({
@@ -152,6 +153,8 @@ exports.searchUsersByPartialUid = async (req, res) => {
           ],
           isActive: true,
           userLoginId: { not: null }, // Only students with login (can be volunteers)
+          // Exclude current user if they are a student
+          ...(currentUserId ? { userLoginId: { not: currentUserId } } : {}),
         },
         take: 10,
         include: {
@@ -187,7 +190,9 @@ exports.searchUsersByPartialUid = async (req, res) => {
       uid: {
         contains: query,
         mode: 'insensitive'
-      }
+      },
+      // Exclude current user from results
+      ...(currentUserId ? { id: { not: currentUserId } } : {}),
     };
 
     // Filter by role if specified (for mentor search - only faculty)
@@ -195,6 +200,8 @@ exports.searchUsersByPartialUid = async (req, res) => {
     if (role && role !== 'all') {
       whereClause.role = role;
     }
+
+    console.log('🔍 Searching with where clause:', JSON.stringify(whereClause, null, 2));
 
     const users = await prisma.userLogin.findMany({
       where: whereClause,
@@ -214,6 +221,8 @@ exports.searchUsersByPartialUid = async (req, res) => {
         }
       }
     });
+
+    console.log('📋 Found users:', users.length);
 
     const suggestions = users.map(user => ({
       uid: user.uid,

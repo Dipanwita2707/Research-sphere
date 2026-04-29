@@ -4,7 +4,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../../../shared/middleware/auth');
+const { requireChatAuth } = require('../../chat-auth/middleware/requireChatAuth');
 const {
   getConversations,
   getMessages,
@@ -17,7 +17,7 @@ const {
 const { requireChatAccess, requireUserPermission } = require('../middleware/chatAccess');
 
 // All routes require authentication and chat access
-router.use(protect);
+router.use(requireChatAuth);
 router.use(requireChatAccess);
 
 // Conversations list

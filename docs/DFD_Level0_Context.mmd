@@ -1,0 +1,63 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'primaryColor': '#e3f2fd', 'primaryBorderColor': '#1976d2', 'lineColor': '#455a64'}}}%%
+
+flowchart LR
+    subgraph EXT["EXTERNAL ENTITIES"]
+        direction TB
+        STU["👨‍🎓 STUDENT"]
+        FAC["👨‍🏫 FACULTY"]
+        STA["👔 STAFF"]
+        ADM["🔐 ADMIN"]
+        DSW["🏛️ DSW OFFICE"]
+        VOL["🙋 VOLUNTEER"]
+        PUB["🌐 PUBLIC"]
+    end
+
+    subgraph SYS["SGT-UMS SYSTEM"]
+        CORE(("SGT-UMS<br/>━━━━━━<br/>Noting<br/>DSW<br/>Event Mgmt"))
+    end
+
+    subgraph DATA["DATA STORES & SERVICES"]
+        direction TB
+        DB[("🗄️ PostgreSQL")]
+        CACHE[("⚡ Redis")]
+        S3[("☁️ AWS S3")]
+        PAY["💳 Razorpay"]
+        MAIL["📧 SendGrid"]
+    end
+
+    STU -->|"Register Events<br/>Join Clubs/Teams<br/>Submit Feedback"| CORE
+    CORE -->|"QR Tickets<br/>Certificates<br/>Notifications"| STU
+    
+    FAC -->|"Create Notings<br/>Manage Events<br/>Assign Volunteers"| CORE
+    CORE -->|"Approval Status<br/>Analytics<br/>Reports"| FAC
+    
+    STA -->|"Process Notings<br/>Manage Events"| CORE
+    CORE -->|"Reports"| STA
+    
+    ADM -->|"System Config<br/>Analytics"| CORE
+    CORE -->|"All Data<br/>Audit Logs"| ADM
+    
+    DSW -->|"Approve Notings<br/>Manage Categories"| CORE
+    CORE -->|"Pending Approvals<br/>Statistics"| DSW
+    
+    VOL -->|"QR Scanning"| CORE
+    CORE -->|"Scan Permissions<br/>Activity"| VOL
+    
+    PUB -->|"Verify Certificate"| CORE
+    CORE -->|"Validity Status"| PUB
+    
+    CORE <-->|"Data"| DB
+    CORE <-->|"Cache"| CACHE
+    CORE <-->|"Files"| S3
+    CORE <-->|"Payments"| PAY
+    CORE <-->|"Emails"| MAIL
+
+    classDef extbox fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef sysbox fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    classDef databox fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    classDef serviceBox fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    
+    class STU,FAC,STA,ADM,DSW,VOL,PUB extbox
+    class CORE sysbox
+    class DB,CACHE,S3 databox
+    class PAY,MAIL serviceBox

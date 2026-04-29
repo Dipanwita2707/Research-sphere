@@ -62,7 +62,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function GrantDetailPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const [grant, setGrant] = useState<GrantApplication | null>(null);

@@ -265,7 +265,7 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function RegistrationSettingsPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const eventId = params?.id as string;

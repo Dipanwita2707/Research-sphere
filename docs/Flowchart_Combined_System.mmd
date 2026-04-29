@@ -1,0 +1,299 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '13px', 'primaryColor': '#e8f5e9', 'primaryBorderColor': '#4caf50'}}}%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════
+    %% COMBINED SYSTEM FLOWCHART - INTER-MODULE INTEGRATION
+    %% ═══════════════════════════════════════════════════════════════════
+
+    START([🚀 USER ENTERS SYSTEM])
+    
+    %% Authentication
+    AUTH{{"🔐 Authenticate"}}
+    LOGIN["👤 Login"]
+    
+    %% Role Selection
+    USER_ROLE{{"👤 User Role?"}}
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% MAIN ACTION ROUTING
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    MAIN_ACTION{{"🎯 Main Action?"}}
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% NOTING MODULE (Central Hub)
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph NOTING["📝 NOTING MODULE"]
+        direction TB
+        N_START["📝 Create Noting"]
+        N_TYPE{{"📁 Noting Type?"}}
+        
+        %% Event Noting
+        N_EVENT["📅 Event Noting"]
+        N_EVENT_FORM["Fill Event Details:<br/>• Name, Type, Dates<br/>• Venue, Capacity<br/>• Fees, Teams<br/>• Sponsors, Resources"]
+        
+        %% Club Noting
+        N_CLUB["🏛️ Club Creation"]
+        N_CLUB_FORM["Fill Club Details:<br/>• Name, Category<br/>• Purpose, Goals<br/>• Facilitator<br/>• Chairperson"]
+        
+        %% Other Notings
+        N_OTHER["📄 Other Noting<br/>(Academic/Admin)"]
+        N_OTHER_FORM["Fill Details:<br/>• Subject<br/>• Description<br/>• Amount"]
+        
+        %% Submission & Approval
+        N_SUBMIT["📤 Submit Noting"]
+        N_APPROVAL{{"⚙️ Approval<br/>Workflow"}}
+        N_FORWARD["➡️ Forward to Manager"]
+        N_APPROVE["✅ Approve"]
+        N_REJECT["❌ Reject"]
+        
+        N_APPROVED{{"✅ Approved?"}}
+        N_REJECTED_STATE["❌ Rejected"]
+    end
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DSW MODULE
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph DSW["🏛️ DSW MODULE"]
+        direction TB
+        D_START["🏛️ DSW Actions"]
+        D_ACTION{{"🔧 Action?"}}
+        
+        %% Club Auto-Creation
+        D_AUTO_CREATE["🏛️ Auto-Create Club"]
+        D_CLUB_CREATED[("✅ Club Record")]
+        
+        %% Club Management
+        D_MANAGE["⚙️ Manage Club"]
+        D_MEMBERS["👥 Member Management"]
+        D_ADD_MEMBER["➕ Add Member"]
+        D_REMOVE_MEMBER["➖ Remove Member"]
+        D_APPS["📋 Review Applications"]
+        D_AUDIT["📜 Audit Logs"]
+        
+        %% Student Actions
+        D_BROWSE["👁️ Browse Clubs"]
+        D_APPLY["📝 Apply to Join"]
+        D_MY_CLUBS["🏛️ My Clubs"]
+        
+        %% Categories
+        D_CATEGORIES["📂 Manage Categories"]
+    end
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EVENT MANAGEMENT MODULE
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph EVENT["🎪 EVENT MANAGEMENT MODULE"]
+        direction TB
+        E_START["🎪 Event Actions"]
+        E_ACTION{{"🔧 Action?"}}
+        
+        %% Event Auto-Creation
+        E_AUTO_CREATE["🎪 Auto-Create Event"]
+        E_EVENT_CREATED[("✅ Event Record<br/>(Draft)")]
+        
+        %% Event Configuration
+        E_CONFIG["⚙️ Configure Event"]
+        E_VISIBILITY["👁️ Visibility Settings"]
+        E_REG_SETTINGS["📋 Registration Settings"]
+        E_CUSTOM_FIELDS["📝 Custom Fields"]
+        E_PAYMENTS["💳 Payment Config"]
+        E_COUPONS["🏷️ Coupon Setup"]
+        E_PRIZES["🏆 Prize Config"]
+        E_CERTS["📜 Certificate Template"]
+        E_STALLS["🏪 Stall Config"]
+        E_VOLUNTEERS["🙋 Assign Volunteers"]
+        E_PUBLISH["📢 Publish Event"]
+        E_LIVE[("🎪 Event Live")]
+        
+        %% Student Registration
+        E_BROWSE["👁️ Browse Events"]
+        E_REGISTER["📝 Register"]
+        E_TEAM["👥 Team Management"]
+        E_FORM["📋 Fill Form"]
+        E_PAY["💳 Payment"]
+        E_QR[("🔲 QR Ticket")]
+        
+        %% Attendance
+        E_SCAN["📱 QR Scan"]
+        E_ENTRY["➡️ Mark Entry"]
+        E_EXIT["⬅️ Mark Exit"]
+        E_ATTENDANCE[("📊 Attendance")]
+        
+        %% Post-Event
+        E_FEEDBACK["📝 Feedback"]
+        E_GEN_CERT["📜 Generate Certs"]
+        E_ANALYTICS["📊 Analytics"]
+        E_EMAIL["📧 Bulk Email"]
+    end
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EXTERNAL SERVICES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph SERVICES["🔌 EXTERNAL SERVICES"]
+        S_RAZORPAY["💳 Razorpay"]
+        S_SENDGRID["📧 SendGrid"]
+        S_S3["☁️ AWS S3"]
+    end
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DATA STORES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph DATABASE["📦 DATABASE"]
+        DB_NOTE[("📝 Notes")]
+        DB_CLUB[("🏛️ Clubs")]
+        DB_EVENT[("🎪 Events")]
+        DB_REG[("📋 Registrations")]
+        DB_USER[("👤 Users")]
+    end
+    
+    REDIS[("⚡ Redis Cache")]
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% END STATES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    END_SUCCESS([✅ SUCCESS])
+    END_PENDING([⏳ PENDING])
+    END_REJECTED([❌ REJECTED])
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% FLOW CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════════
+
+    START --> AUTH
+    AUTH -->|No| LOGIN --> AUTH
+    AUTH -->|Yes| USER_ROLE
+    
+    USER_ROLE -->|Admin| MAIN_ACTION
+    USER_ROLE -->|Faculty| MAIN_ACTION
+    USER_ROLE -->|Student| MAIN_ACTION
+    USER_ROLE -->|Volunteer| E_SCAN
+    
+    MAIN_ACTION -->|Create Noting| N_START
+    MAIN_ACTION -->|Manage Club| D_START
+    MAIN_ACTION -->|Events| E_START
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% NOTING MODULE FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    N_START --> N_TYPE
+    N_TYPE -->|Event| N_EVENT --> N_EVENT_FORM --> N_SUBMIT
+    N_TYPE -->|Club| N_CLUB --> N_CLUB_FORM --> N_SUBMIT
+    N_TYPE -->|Other| N_OTHER --> N_OTHER_FORM --> N_SUBMIT
+    
+    N_SUBMIT --> DB_NOTE
+    N_SUBMIT --> N_APPROVAL
+    N_APPROVAL --> N_FORWARD
+    N_FORWARD --> N_APPROVAL
+    N_APPROVAL --> N_APPROVE
+    N_APPROVAL --> N_REJECT
+    
+    N_APPROVE --> N_APPROVED
+    N_REJECT --> N_REJECTED_STATE --> END_REJECTED
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% CRITICAL INTEGRATION: Noting → Event/Club Auto-Creation
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    N_APPROVED -->|"📅 Event Noting"| E_AUTO_CREATE
+    N_APPROVED -->|"🏛️ Club Noting"| D_AUTO_CREATE
+    N_APPROVED -->|"📄 Other"| END_SUCCESS
+    
+    %% Event Auto-Creation
+    E_AUTO_CREATE --> E_EVENT_CREATED
+    E_EVENT_CREATED --> DB_EVENT
+    E_EVENT_CREATED --> E_CONFIG
+    
+    %% Club Auto-Creation
+    D_AUTO_CREATE --> D_CLUB_CREATED
+    D_CLUB_CREATED --> DB_CLUB
+    D_CLUB_CREATED --> D_MANAGE
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DSW MODULE FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    D_START --> D_ACTION
+    D_ACTION -->|Manage| D_MANAGE
+    D_MANAGE --> D_MEMBERS
+    D_MEMBERS --> D_ADD_MEMBER --> DB_CLUB
+    D_MEMBERS --> D_REMOVE_MEMBER --> DB_CLUB
+    D_MANAGE --> D_APPS --> DB_CLUB
+    D_MANAGE --> D_AUDIT --> END_SUCCESS
+    
+    D_ACTION -->|Browse| D_BROWSE --> DB_CLUB
+    D_ACTION -->|Apply| D_APPLY --> DB_CLUB --> END_PENDING
+    D_ACTION -->|My Clubs| D_MY_CLUBS --> DB_CLUB --> END_SUCCESS
+    D_ACTION -->|Categories| D_CATEGORIES --> DB_CLUB --> END_SUCCESS
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EVENT MODULE FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    E_START --> E_ACTION
+    
+    %% Event Configuration (Creator)
+    E_ACTION -->|Configure| E_CONFIG
+    E_CONFIG --> E_VISIBILITY --> E_REG_SETTINGS --> E_CUSTOM_FIELDS --> E_PAYMENTS
+    E_PAYMENTS --> E_COUPONS --> E_PRIZES --> E_CERTS --> E_STALLS --> E_VOLUNTEERS --> E_PUBLISH
+    E_PUBLISH --> E_LIVE
+    E_LIVE --> DB_EVENT
+    E_LIVE --> END_SUCCESS
+    
+    %% Student Registration
+    E_ACTION -->|Browse| E_BROWSE --> DB_EVENT
+    E_ACTION -->|Register| E_REGISTER
+    E_REGISTER --> E_TEAM --> E_FORM --> E_PAY
+    E_PAY --> S_RAZORPAY
+    S_RAZORPAY --> E_QR
+    E_QR --> DB_REG
+    E_QR --> S_SENDGRID
+    E_QR --> END_SUCCESS
+    
+    %% Attendance (Volunteer)
+    E_SCAN --> E_ENTRY --> E_ATTENDANCE
+    E_SCAN --> E_EXIT --> E_ATTENDANCE
+    E_ATTENDANCE --> DB_REG --> END_SUCCESS
+    
+    %% Post-Event
+    E_ACTION -->|Feedback| E_FEEDBACK --> DB_EVENT --> END_SUCCESS
+    E_ACTION -->|Certificates| E_GEN_CERT --> S_S3
+    S_S3 --> S_SENDGRID --> END_SUCCESS
+    E_ACTION -->|Analytics| E_ANALYTICS --> REDIS --> END_SUCCESS
+    E_ACTION -->|Email| E_EMAIL --> S_SENDGRID --> END_SUCCESS
+    
+    %% ═══════════════════════════════════════════════════════════════════
+    %% CROSS-MODULE: Club-Event Integration
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    D_CLUB_CREATED -.->|"Club can create<br/>linked Events"| N_EVENT
+    D_MEMBERS -.->|"Members can be<br/>Event Volunteers"| E_VOLUNTEERS
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% STYLING
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    classDef startEnd fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#1b5e20
+    classDef noting fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#0d47a1
+    classDef dsw fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#6a1b9a
+    classDef event fill:#fff8e1,stroke:#ffc107,stroke-width:2px,color:#ff6f00
+    classDef decision fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100
+    classDef data fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20
+    classDef service fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#880e4f
+    classDef error fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c
+    
+    class START,END_SUCCESS,END_PENDING startEnd
+    class END_REJECTED,N_REJECTED_STATE error
+    class AUTH,USER_ROLE,MAIN_ACTION,N_TYPE,N_APPROVAL,N_APPROVED,D_ACTION,E_ACTION decision
+    class N_START,N_EVENT,N_CLUB,N_OTHER,N_EVENT_FORM,N_CLUB_FORM,N_OTHER_FORM,N_SUBMIT,N_FORWARD,N_APPROVE,N_REJECT noting
+    class D_START,D_AUTO_CREATE,D_MANAGE,D_MEMBERS,D_ADD_MEMBER,D_REMOVE_MEMBER,D_APPS,D_AUDIT,D_BROWSE,D_APPLY,D_MY_CLUBS,D_CATEGORIES dsw
+    class E_START,E_AUTO_CREATE,E_CONFIG,E_VISIBILITY,E_REG_SETTINGS,E_CUSTOM_FIELDS,E_PAYMENTS,E_COUPONS,E_PRIZES,E_CERTS,E_STALLS,E_VOLUNTEERS,E_PUBLISH,E_BROWSE,E_REGISTER,E_TEAM,E_FORM,E_PAY,E_SCAN,E_ENTRY,E_EXIT,E_FEEDBACK,E_GEN_CERT,E_ANALYTICS,E_EMAIL event
+    class DB_NOTE,DB_CLUB,DB_EVENT,DB_REG,DB_USER,REDIS,D_CLUB_CREATED,E_EVENT_CREATED,E_LIVE,E_QR,E_ATTENDANCE data
+    class S_RAZORPAY,S_SENDGRID,S_S3 service

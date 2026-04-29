@@ -23,4 +23,7 @@ router.get('/drd-member/performance/:reviewerId', checkPermission('drd_member_an
 router.get('/progress-tracker', checkPermission('applicant_analytics'), controller.getProgressTrackerAnalytics);
 router.get('/progress-tracker/records', checkPermission('applicant_analytics'), controller.getProgressTrackerRecords);
 
+// Contributions list — requires applicant_analytics permission
+router.get('/applicant/contributions', checkPermission('applicant_analytics'), controller.getContributionsList);
+
 module.exports = router;

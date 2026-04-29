@@ -159,13 +159,24 @@ export default function ResearchDashboard() {
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Research & Academic Contributions</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">Track and manage your research publications, books, and grants</p>
             </div>
-            <Link
-              href="/research/apply"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              New Contribution
-            </Link>
+            <div className="flex items-center gap-3">
+              {user?.id && (
+                <Link
+                  href={`/research/profile/${user.id}`}
+                  className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-medium transition-colors flex items-center border border-gray-300 dark:border-gray-600"
+                >
+                  <Award className="w-5 h-5 mr-2" />
+                  View Profile
+                </Link>
+              )}
+              <Link
+                href="/research/apply"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                New Contribution
+              </Link>
+            </div>
           </div>
         </div>
       </div>

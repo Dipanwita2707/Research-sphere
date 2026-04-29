@@ -20,6 +20,7 @@ import {
   AnalyticsPieChart,
   AnalyticsPipelineChart,
   ExportActions,
+  AnalyticsPapersTable,
 } from '@/components/analytics';
 import {
   AlertCircle,
@@ -28,6 +29,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  LayoutList,
   Layers3,
   RefreshCw,
   Sparkles,
@@ -151,7 +153,7 @@ function LeaderboardTable({ people, router }: { people: any[]; router: ReturnTyp
 
 export default function ApplicantAnalyticsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
 
   const [accessDenied, setAccessDenied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -160,9 +162,10 @@ export default function ApplicantAnalyticsPage() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdownResponse | null>(null);
   const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3)));
   const [toDate, setToDate] = useState(isoDate(new Date()));
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
-  const [schoolId, setSchoolId] = useState(searchParams.get('schoolId') || '');
-  const [departmentId, setDepartmentId] = useState(searchParams.get('departmentId') || '');
+  const [category, setCategory] = useState(searchParams?.get('category') || 'all');
+  const [schoolId, setSchoolId] = useState(searchParams?.get('schoolId') || '');
+  const [departmentId, setDepartmentId] = useState(searchParams?.get('departmentId') || '');
+  const [viewMode, setViewMode] = useState<'overview' | 'papers'>('overview');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -293,9 +296,42 @@ export default function ApplicantAnalyticsPage() {
             }}
           />
 
+          {/* View mode tabs */}
+          <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-6 sm:px-8 lg:px-12 xl:px-16">
+            <div className="flex gap-0">
+              {([
+                { key: 'overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" /> },
+                { key: 'papers', label: 'Papers & Trackers', icon: <LayoutList className="w-3.5 h-3.5" /> },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setViewMode(tab.key)}
+                  className={`inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                    viewMode === tab.key
+                      ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
         <div className="px-6 py-6 sm:px-8 lg:px-12 xl:px-16 space-y-6">
 
-          {loading ? (
+          {viewMode === 'papers' ? (
+            <AnalyticsPapersTable
+              scope={
+                departmentId ? { type: 'department', id: departmentId } :
+                schoolId ? { type: 'school', id: schoolId } :
+                null
+              }
+              fromDate={fromDate}
+              toDate={toDate}
+            />
+          ) : loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-3 animate-pulse">
@@ -457,9 +493,9 @@ export default function ApplicantAnalyticsPage() {
                 <SchoolDepartmentBreakdown
                   schoolWise={data.schoolWise || []}
                   departmentWise={data.departmentWise || []}
-                  onSchoolClick={(id) => router.push(`/drd/analytics/applicant/schools/${id}`)}
+                  onSchoolClick={(id) => router.push(`/drd/analytics/applicant/schools/${id}?from=${fromDate}&to=${toDate}&category=${category}`)}
                   onDepartmentClick={(deptId) => {
-                    router.push(`/drd/analytics/applicant/departments/${deptId}`);
+                    router.push(`/drd/analytics/applicant/departments/${deptId}?from=${fromDate}&to=${toDate}&category=${category}`);
                   }}
                 />
               )}

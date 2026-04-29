@@ -27,4 +27,7 @@ router.delete('/:id', restrictTo('admin'), departmentController.deleteDepartment
 // Toggle department status (admin only)
 router.patch('/:id/toggle-status', restrictTo('admin'), departmentController.toggleDepartmentStatus);
 
+// Bulk create departments (admin only)
+router.post('/bulk', restrictTo('admin'), departmentController.bulkCreate);
+
 module.exports = router;

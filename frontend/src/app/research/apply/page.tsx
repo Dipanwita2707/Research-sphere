@@ -11,7 +11,7 @@ import ResearchTypeSelector from '@/features/research-management/components/Rese
 import logger from '@/shared/utils/logger';
 
 export default function ResearchApplyPage() {
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const router = useRouter();
   const type = searchParams.get('type');
   const editId = searchParams.get('edit'); // Get edit parameter for editing existing drafts

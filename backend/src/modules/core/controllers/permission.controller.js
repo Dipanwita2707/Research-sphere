@@ -84,7 +84,7 @@ exports.grantPermissions = async (req, res) => {
     // Audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'GRANT_PERMISSIONS',
         targetTable: 'user_department_permission',
         targetId: permission.id,
@@ -141,7 +141,7 @@ exports.revokePermissions = async (req, res) => {
     // Audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'REVOKE_PERMISSIONS',
         targetTable: 'user_department_permission',
         details: { userId, department }

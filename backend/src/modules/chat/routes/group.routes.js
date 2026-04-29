@@ -5,7 +5,8 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { protect, restrictTo } = require('../../../shared/middleware/auth');
+const { restrictTo } = require('../../../shared/middleware/auth');
+const { requireChatAuth } = require('../../chat-auth/middleware/requireChatAuth');
 const { requireChatAccess, requireUserPermission } = require('../middleware/chatAccess');
 const {
   createGroup,
@@ -40,7 +41,7 @@ const upload = multer({
 });
 
 // All routes require authentication and chat access
-router.use(protect);
+router.use(requireChatAuth);
 router.use(requireChatAccess);
 
 // Group CRUD

@@ -258,8 +258,8 @@ export default function ProgressTrackerListPage() {
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                       {publicationTypeLabels[tracker.publicationType]}
-                      {tracker.school && ` • ${tracker.school.name}`}
-                      {tracker.department && ` • ${tracker.department.name}`}
+                      {tracker.school && ` • ${tracker.school.facultyName ?? tracker.school.name}`}
+                      {tracker.department && ` • ${tracker.department.departmentName ?? tracker.department.name}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 ml-4">

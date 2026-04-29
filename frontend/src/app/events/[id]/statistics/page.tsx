@@ -11,6 +11,8 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock3,
+  Download,
+  FileText,
   IndianRupee,
   RefreshCw,
   ShieldCheck,
@@ -18,9 +20,10 @@ import {
   UserCheck,
   UserMinus,
   Users,
+  Eye,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
-import type { EventStatistics } from '@/features/event-management/types/event.types';
+import type { EventStatistics, EventPostReportSummary } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import StatsCard from './components/StatsCard';
@@ -56,7 +59,7 @@ const getStatusTone = (status?: string) => {
 };
 
 export default function EventStatisticsPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const { toast } = useToast();
   const eventId = params.id as string;
 
@@ -65,6 +68,8 @@ export default function EventStatisticsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [postReports, setPostReports] = useState<EventPostReportSummary[]>([]);
+  const [loadingPostReports, setLoadingPostReports] = useState(true);
 
   const loadStatistics = useCallback(async () => {
     try {
@@ -82,10 +87,104 @@ export default function EventStatisticsPage() {
     void loadStatistics();
   }, [loadStatistics]);
 
+  const loadPostReports = useCallback(async () => {
+    try {
+      setLoadingPostReports(true);
+      const reportData = await eventService.getPostEventReports(eventId);
+      const versions = Array.isArray(reportData?.versions) ? reportData.versions : [];
+      const sorted = [...versions].sort((a, b) => b.version - a.version);
+      setPostReports(sorted);
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) || 'Failed to load post-event reports' });
+      setPostReports([]);
+    } finally {
+      setLoadingPostReports(false);
+    }
+  }, [eventId, toast]);
+
+  useEffect(() => {
+    void loadPostReports();
+  }, [loadPostReports]);
+
+  const formatReportDate = (value?: string) => {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return new Intl.DateTimeFormat('en-IN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  };
+
+  const formatFileSize = (size: number) => {
+    if (!size || size <= 0) return '0 B';
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const extensionFromReport = (report: EventPostReportSummary) => {
+    const ext = report.originalFileName.split('.').pop()?.toLowerCase();
+    if (ext) return `.${ext}`;
+    if (report.mimeType === 'application/pdf') return '.pdf';
+    if (report.mimeType === 'application/msword') return '.doc';
+    if (report.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return '.docx';
+    return '';
+  };
+
+  const buildEventReportName = (report: EventPostReportSummary, eventName?: string) => {
+    const cleanedEventName = String(eventName || 'event')
+      .trim()
+      .replace(/[^a-zA-Z0-9\s_-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'event';
+    return `${cleanedEventName}-post-event-report-v${report.version}${extensionFromReport(report)}`;
+  };
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadReport = async (report: EventPostReportSummary) => {
+    try {
+      const blob = await eventService.downloadPostEventReport(eventId, report.id);
+      downloadBlob(blob, buildEventReportName(report, statistics?.eventSummary?.name));
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) || 'Failed to download report' });
+    }
+  };
+
+  const handlePreviewReport = async (report: EventPostReportSummary) => {
+    if (report.mimeType !== 'application/pdf') {
+      toast({ type: 'error', message: 'Preview is available only for PDF reports' });
+      return;
+    }
+
+    try {
+      const blob = await eventService.previewPostEventReport(eventId, report.id);
+      const previewUrl = window.URL.createObjectURL(blob);
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => window.URL.revokeObjectURL(previewUrl), 60 * 1000);
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) || 'Failed to preview report' });
+    }
+  };
+
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
-      const stats = await eventService.getStatistics(eventId);
+      const [stats] = await Promise.all([
+        eventService.getStatistics(eventId),
+        loadPostReports(),
+      ]);
       setStatistics(stats);
       toast({ type: 'success', message: 'Statistics refreshed' });
     } catch (error: any) {
@@ -247,6 +346,67 @@ export default function EventStatisticsPage() {
           accentClassName="text-purple-700 bg-purple-50"
         />
       </div>
+
+      <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-ev-700" />
+          <h2 className="text-base font-semibold text-ev-900 dark:text-white">Post Event Reports</h2>
+        </div>
+
+        {loadingPostReports ? (
+          <div className="min-h-[88px] flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-ev-700" />
+          </div>
+        ) : postReports.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400">No post-event reports uploaded yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {postReports.map((report) => {
+              const reportName = buildEventReportName(report, event.name);
+              return (
+                <div
+                  key={report.id}
+                  className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700"
+                >
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ev-900 dark:text-white truncate">
+                        {reportName}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                        Version v{report.version} • {formatFileSize(report.fileSize)} • Uploaded {formatReportDate(report.uploadedAt)}
+                        {report.uploadedBy ? ` • by ${report.uploadedBy.displayName || report.uploadedBy.uid}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {report.mimeType === 'application/pdf' ? (
+                        <button
+                          type="button"
+                          onClick={() => handlePreviewReport(report)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#b3cde0]/60 px-3 py-1.5 text-xs font-semibold text-[#03396c] hover:border-[#005b96] hover:text-[#005b96]"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          Preview
+                        </button>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadReport(report)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#005b96] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#03396c]"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm xl:col-span-2 dark:border-gray-700 dark:bg-gray-800">

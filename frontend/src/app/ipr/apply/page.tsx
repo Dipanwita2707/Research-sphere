@@ -11,7 +11,7 @@ import api from '@/shared/api/api';
 import logger from '@/shared/utils/logger';
 
 export default function DynamicIPRPage() {
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const router = useRouter();
   const type = searchParams.get('type');
   const { user } = useAuthStore();

@@ -1,186 +1,196 @@
 /**
- * Pretty Console Logger — zero dependencies, ANSI colors
- * Usage:
- *   const log = require('./shared/utils/logger');
- *   log.info('Server started');
- *   log.req(method, path, status, durationMs);
- *   log.slowQuery(durationMs, sql);
- *   log.banner(lines[]);          // boxed startup banner
+ * Structured Logger Utility
+ * Provides consistent logging across all modules with proper formatting and levels
  */
 
-// ── ANSI helpers ─────────────────────────────────────────────
-const c = {
-  reset:   "\x1b[0m",
-  bold:    "\x1b[1m",
-  dim:     "\x1b[2m",
-  italic:  "\x1b[3m",
-  underline: "\x1b[4m",
+const winston = require('winston');
+const path = require('path');
 
-  black:   "\x1b[30m",
-  red:     "\x1b[31m",
-  green:   "\x1b[32m",
-  yellow:  "\x1b[33m",
-  blue:    "\x1b[34m",
-  magenta: "\x1b[35m",
-  cyan:    "\x1b[36m",
-  white:   "\x1b[37m",
-  gray:    "\x1b[90m",
-
-  bgRed:     "\x1b[41m",
-  bgGreen:   "\x1b[42m",
-  bgYellow:  "\x1b[43m",
-  bgBlue:    "\x1b[44m",
-  bgMagenta: "\x1b[45m",
-  bgCyan:    "\x1b[46m",
-  bgWhite:   "\x1b[47m",
+// Define log levels
+const LOG_LEVELS = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  http: 3,
+  debug: 4,
 };
 
-const paint = (color, text) => `${color}${text}${c.reset}`;
-
-// ── Timestamp ────────────────────────────────────────────────
-const ts = () => {
-  const d = new Date();
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  const s = String(d.getSeconds()).padStart(2, "0");
-  return paint(c.gray, `${h}:${m}:${s}`);
+// Define colors for each level
+const LOG_COLORS = {
+  error: 'red',
+  warn: 'yellow',
+  info: 'green',
+  http: 'magenta',
+  debug: 'white',
 };
 
-// ── Duration coloring ────────────────────────────────────────
-function colorDuration(ms) {
-  const txt = `${ms}ms`;
-  if (ms < 200)  return paint(c.green, txt);
-  if (ms < 500)  return paint(c.yellow, txt);
-  if (ms < 1000) return paint(c.red, txt);
-  return paint(`${c.bold}${c.red}`, txt);
-}
+// Add colors to winston
+winston.addColors(LOG_COLORS);
 
-// ── HTTP status coloring ─────────────────────────────────────
-function colorStatus(status) {
-  const s = String(status);
-  if (s.startsWith("2")) return paint(c.green, s);
-  if (s.startsWith("3")) return paint(c.cyan, s);
-  if (s.startsWith("4")) return paint(c.yellow, s);
-  if (s.startsWith("5")) return paint(`${c.bold}${c.red}`, s);
-  return s;
-}
-
-// ── HTTP method coloring ─────────────────────────────────────
-function colorMethod(method) {
-  const m = method.toUpperCase().padEnd(7);
-  switch (method.toUpperCase()) {
-    case "GET":    return paint(`${c.bold}${c.green}`, m);
-    case "POST":   return paint(`${c.bold}${c.blue}`, m);
-    case "PUT":    return paint(`${c.bold}${c.yellow}`, m);
-    case "PATCH":  return paint(`${c.bold}${c.magenta}`, m);
-    case "DELETE": return paint(`${c.bold}${c.red}`, m);
-    default:       return paint(c.white, m);
-  }
-}
-
-// ── Public API ───────────────────────────────────────────────
-const log = {
-  /**
-   * General info log
-   */
-  info(msg) {
-    console.log(`${ts()}  ${paint(c.cyan, "INFO")}  ${msg}`);
-  },
-
-  /**
-   * Success log
-   */
-  ok(msg) {
-    console.log(`${ts()}  ${paint(`${c.bold}${c.green}`, " OK ")}  ${msg}`);
-  },
-
-  /**
-   * Warning log
-   */
-  warn(msg) {
-    console.warn(`${ts()}  ${paint(`${c.bold}${c.yellow}`, "WARN")}  ${msg}`);
-  },
-
-  /**
-   * Error log
-   */
-  error(msg, err) {
-    console.error(`${ts()}  ${paint(`${c.bold}${c.red}`, " ERR")}  ${msg}`);
-    if (err) console.error(paint(c.dim, `       ${err.stack || err}`));
-  },
-
-  // ── HTTP request log (replaces morgan + slow-request warning) ──
-
-  /**
-   * Logs an HTTP request in a clean, colorful single line.
-   * Call from the response-time middleware.
-   *
-   * @param {string} method   GET / POST / etc.
-   * @param {string} path     /api/v1/…
-   * @param {number} status   HTTP status code
-   * @param {number} ms       Duration in ms
-   */
-  req(method, path, status, ms) {
-    // Shorten path: strip /api/v1 prefix for readability
-    const shortPath = path.replace(/^\/api\/v1/, "");
-    const dur = colorDuration(ms);
-    const line = `${ts()}  ${colorMethod(method)} ${colorStatus(status)}  ${dur}  ${paint(c.white, shortPath)}`;
-
-    if (ms > 500) {
-      // slow — add a warning tag
-      console.log(`${line}  ${paint(`${c.bgYellow}${c.black}`, " SLOW ")}`);
-    } else {
-      console.log(line);
+// Custom format for console output
+const consoleFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.colorize({ all: true }),
+  winston.format.printf(({ timestamp, level, message, module, action, userId, ...meta }) => {
+    let logMessage = `${timestamp} [${level}]`;
+    
+    if (module) logMessage += ` [${module}]`;
+    if (action) logMessage += ` [${action}]`;
+    if (userId) logMessage += ` [User:${userId}]`;
+    
+    logMessage += `: ${message}`;
+    
+    // Add metadata if present
+    if (Object.keys(meta).length > 0) {
+      logMessage += ` ${JSON.stringify(meta)}`;
     }
-  },
+    
+    return logMessage;
+  })
+);
 
-  // ── Slow Prisma query ──────────────────────────────────────
+// Custom format for file output
+const fileFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.json()
+);
 
-  /**
-   * Logs a slow Prisma query with truncated + cleaned SQL
-   * @param {number} ms       Query duration
-   * @param {string} sql      Raw SQL string
-   */
-  slowQuery(ms, sql) {
-    // Clean up: collapse whitespace, truncate
-    const cleaned = sql.replace(/\s+/g, " ").trim();
-    // Extract table name for a quick label
-    const tableMatch = cleaned.match(/FROM\s+"?(\w+)"?\."?(\w+)"?/i);
-    const table = tableMatch ? tableMatch[2] : "unknown";
-    // Truncate SQL to 120 chars
-    const short = cleaned.length > 120 ? cleaned.substring(0, 117) + "..." : cleaned;
+// Create the logger
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  levels: LOG_LEVELS,
+  format: fileFormat,
+  defaultMeta: { service: 'sgt-ums' },
+  transports: [
+    // Error log file
+    new winston.transports.File({
+      filename: path.join(process.cwd(), 'logs', 'error.log'),
+      level: 'error',
+      maxsize: 5242880, // 5MB
+      maxFiles: 5,
+    }),
+    // Combined log file
+    new winston.transports.File({
+      filename: path.join(process.cwd(), 'logs', 'combined.log'),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5,
+    }),
+  ],
+});
 
-    console.log(
-      `${ts()}  ${paint(`${c.bgRed}${c.white}`, " SLOW QUERY ")}  ` +
-      `${colorDuration(ms)}  ` +
-      `${paint(c.magenta, table)}  ` +
-      `${paint(c.dim, short)}`
-    );
-  },
+// Add console transport for non-production environments
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: consoleFormat
+  }));
+}
 
-  // ── Startup banner ─────────────────────────────────────────
-
-  /**
-   * Print a beautiful boxed startup banner.
-   * @param {{ icon: string, text: string }[]} items
-   */
-  banner(items) {
-    const maxLen = Math.max(...items.map((i) => `${i.icon}  ${i.text}`.length));
-    const width = Math.max(maxLen + 4, 50);
-    const line = paint(c.cyan, "\u2500".repeat(width));
-    const pad = (str, w) => str + " ".repeat(Math.max(0, w - str.length));
-
-    console.log("");
-    console.log(`  ${paint(c.cyan, "\u250C")}${line}${paint(c.cyan, "\u2510")}`);
-    console.log(`  ${paint(c.cyan, "\u2502")}${paint(`${c.bold}${c.white}`, pad("  SGT-UMS Backend", width))}${paint(c.cyan, "\u2502")}`);
-    console.log(`  ${paint(c.cyan, "\u251C")}${line}${paint(c.cyan, "\u2524")}`);
-    for (const item of items) {
-      const content = `  ${item.icon}  ${item.text}`;
-      console.log(`  ${paint(c.cyan, "\u2502")}${pad(content, width)}${paint(c.cyan, "\u2502")}`);
+/**
+ * Create a module-specific logger
+ * @param {string} moduleName - Name of the module (e.g., 'research', 'bug-reports')
+ * @returns {Object} Logger instance with module context
+ */
+function createModuleLogger(moduleName) {
+  return {
+    error: (message, meta = {}) => {
+      logger.error(message, { module: moduleName, ...meta });
+    },
+    warn: (message, meta = {}) => {
+      logger.warn(message, { module: moduleName, ...meta });
+    },
+    info: (message, meta = {}) => {
+      logger.info(message, { module: moduleName, ...meta });
+    },
+    http: (message, meta = {}) => {
+      logger.http(message, { module: moduleName, ...meta });
+    },
+    debug: (message, meta = {}) => {
+      logger.debug(message, { module: moduleName, ...meta });
+    },
+    
+    // Action-specific logging methods
+    logAction: (action, message, meta = {}) => {
+      logger.info(message, { module: moduleName, action, ...meta });
+    },
+    
+    logUserAction: (userId, action, message, meta = {}) => {
+      logger.info(message, { module: moduleName, action, userId, ...meta });
+    },
+    
+    logError: (action, error, meta = {}) => {
+      logger.error(error.message || error, { 
+        module: moduleName, 
+        action, 
+        stack: error.stack,
+        ...meta 
+      });
+    },
+    
+    logApiCall: (method, endpoint, userId, statusCode, responseTime, meta = {}) => {
+      logger.http(`${method} ${endpoint}`, {
+        module: moduleName,
+        action: 'api_call',
+        userId,
+        statusCode,
+        responseTime,
+        ...meta
+      });
+    },
+    
+    logDatabaseOperation: (operation, table, userId, meta = {}) => {
+      logger.debug(`Database ${operation} on ${table}`, {
+        module: moduleName,
+        action: 'db_operation',
+        operation,
+        table,
+        userId,
+        ...meta
+      });
     }
-    console.log(`  ${paint(c.cyan, "\u2514")}${line}${paint(c.cyan, "\u2518")}`);
-    console.log("");
-  },
-};
+  };
+}
 
-module.exports = log;
+/**
+ * Express middleware for request logging
+ */
+function requestLogger(moduleName) {
+  return (req, res, next) => {
+    const start = Date.now();
+    const moduleLogger = createModuleLogger(moduleName);
+    
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      const userId = req.user?.id || req.user?.uid || 'anonymous';
+      
+      moduleLogger.logApiCall(
+        req.method,
+        req.originalUrl,
+        userId,
+        res.statusCode,
+        duration,
+        {
+          ip: req.ip,
+          userAgent: req.get('User-Agent')
+        }
+      );
+    });
+    
+    next();
+  };
+}
+
+module.exports = {
+  logger,
+  createModuleLogger,
+  requestLogger,
+  LOG_LEVELS,
+  
+  // Backward compatibility methods for old logger API
+  info: (message, ...args) => logger.info(message, { args }),
+  warn: (message, ...args) => logger.warn(message, { args }),
+  error: (message, ...args) => logger.error(message, { args }),
+  debug: (message, ...args) => logger.debug(message, { args }),
+  ok: (message, ...args) => logger.info(message, { args }), // Map 'ok' to 'info'
+  slowQuery: (duration, query) => logger.warn(`Slow query detected (${duration}ms)`, { duration, query }),
+  req: (method, path, statusCode, duration) => logger.http(`${method} ${path}`, { statusCode, duration, responseTime: duration })
+};

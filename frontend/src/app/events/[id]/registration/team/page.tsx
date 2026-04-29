@@ -360,7 +360,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, onRequestJoin, hasRequested }
 };
 
 export default function TeamManagementPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuthStore();

@@ -112,7 +112,7 @@ const FIELD_TYPE_OPTIONS: { value: EventFieldType; label: string }[] = [
 ];
 
 export default function ManageEventPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const eventId = params.id as string;
@@ -125,7 +125,7 @@ export default function ManageEventPage() {
   const loading = eventLoading || prizesLoading || fieldsLoading;
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const [currentStep, setCurrentStep] = useState(() => {
     const stepParam = searchParams.get("step");
     if (stepParam) {
@@ -1268,7 +1268,7 @@ export default function ManageEventPage() {
    'paid' && participationType ===
    'individual' && (
                     <div id="field-registrationFee">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Registration Fee (₹) <span className="text-red-500">*</span>
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                       </label>
@@ -1298,7 +1298,7 @@ export default function ManageEventPage() {
    'paid' && participationType ===
    'team' && (
                     <div id="field-teamRegistrationFee">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Team Registration Fee (₹) <span className="text-red-500">*</span>
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                       </label>
@@ -1869,97 +1869,106 @@ export default function ManageEventPage() {
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-2 mt-4">
-                      <label className={checkboxClass(allowCrossInstituteTeams)}>
-                        <input type="checkbox" checked={allowCrossInstituteTeams} onChange={(e) => setAllowCrossInstituteTeams(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Allow Cross-Institute Teams</span>
-                      </label>
+                      {/*
+                        Hidden for now: persisted in DB but currently not enforced in team workflows.
+                        <label className={checkboxClass(allowCrossInstituteTeams)}>
+                          <input type="checkbox" checked={allowCrossInstituteTeams} onChange={(e) => setAllowCrossInstituteTeams(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Allow Cross-Institute Teams</span>
+                        </label>
+                      */}
                       <label className={checkboxClass(interCollegeAllowed)}>
                         <input type="checkbox" checked={interCollegeAllowed} onChange={(e) => setInterCollegeAllowed(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Allow Inter-College Teams</span>
                       </label>
-                      <label className={checkboxClass(allowTeamEditAfterSubmission)}>
-                        <input type="checkbox" checked={allowTeamEditAfterSubmission} onChange={(e) => setAllowTeamEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Allow Team Edit After Submission</span>
-                      </label>
-                      <label className={checkboxClass(autoApproveTeams)}>
-                        <input type="checkbox" checked={autoApproveTeams} onChange={(e) => setAutoApproveTeams(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Auto-approve Teams</span>
-                      </label>
+                      {/*
+                        Hidden for now: persisted in DB but currently not enforced in team workflows.
+                        <label className={checkboxClass(allowTeamEditAfterSubmission)}>
+                          <input type="checkbox" checked={allowTeamEditAfterSubmission} onChange={(e) => setAllowTeamEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Allow Team Edit After Submission</span>
+                        </label>
+                      */}
+                      {/*
+                        Hidden for now: persisted in DB but currently not enforced in team workflows.
+                        <label className={checkboxClass(autoApproveTeams)}>
+                          <input type="checkbox" checked={autoApproveTeams} onChange={(e) => setAutoApproveTeams(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Auto-approve Teams</span>
+                        </label>
+                      */}
                     </div>
                   </div>
                 )}
               </div>
             </section>
 
-            {/* ======
-   Registration Control Settings ======
-   */}
-            <section className={sectionClass}>
-              <SectionLabel>Registration Control Settings</SectionLabel>
-              <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registration Cap (Overall Limit)</label>
-                    <input type="number" value={registrationCap} onChange={(e) => setRegistrationCap(e.target.value ? Number(e.target.value) : '')} min="1" className={inputClass} placeholder="Leave empty for unlimited" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <label className={checkboxClass(autoApproveRegistration)}>
-                    <input type="checkbox" checked={autoApproveRegistration} onChange={(e) => setAutoApproveRegistration(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Auto-approve Registrations</span>
-                  </label>
-                  <label className={checkboxClass(showParticipantsPublicly)}>
-                    <input type="checkbox" checked={showParticipantsPublicly} onChange={(e) => setShowParticipantsPublicly(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Show Participants Publicly</span>
-                  </label>
-                  <label className={checkboxClass(allowWithdrawRegistration)}>
-                    <input type="checkbox" checked={allowWithdrawRegistration} onChange={(e) => setAllowWithdrawRegistration(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Allow Withdraw Registration</span>
-                  </label>
-                  <label className={checkboxClass(allowEditAfterSubmission)}>
-                    <input type="checkbox" checked={allowEditAfterSubmission} onChange={(e) => setAllowEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Allow Edit After Submission</span>
-                  </label>
-                  {participationType ===
-   'team' && (
-                    <label className={checkboxClass(lockTeamAfterDeadline)}>
-                      <input type="checkbox" checked={lockTeamAfterDeadline} onChange={(e) => setLockTeamAfterDeadline(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Lock Team After Deadline</span>
-                    </label>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* ======
-   Team Discovery Settings ======
-   */}
-            {participationType ===
-   'team' && (
+            {/*
+              Hidden for now: these settings are persisted but currently do not affect runtime registration/team behavior.
+              ====== Registration Control Settings ======
               <section className={sectionClass}>
-                <SectionLabel>Team Discovery Settings</SectionLabel>
-                <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4">
+                <SectionLabel>Registration Control Settings</SectionLabel>
+                <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registration Cap (Overall Limit)</label>
+                      <input type="number" value={registrationCap} onChange={(e) => setRegistrationCap(e.target.value ? Number(e.target.value) : '')} min="1" className={inputClass} placeholder="Leave empty for unlimited" />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <label className={checkboxClass(lookingForTeammatesEnabled)}>
-                      <input type="checkbox" checked={lookingForTeammatesEnabled} onChange={(e) => setLookingForTeammatesEnabled(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Enable &quot;Looking for Teammates&quot;</span>
+                    <label className={checkboxClass(autoApproveRegistration)}>
+                      <input type="checkbox" checked={autoApproveRegistration} onChange={(e) => setAutoApproveRegistration(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Auto-approve Registrations</span>
                     </label>
-                    <label className={checkboxClass(allowPublicTeamListing)}>
-                      <input type="checkbox" checked={allowPublicTeamListing} onChange={(e) => setAllowPublicTeamListing(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Allow Public Team Listing</span>
+                    <label className={checkboxClass(showParticipantsPublicly)}>
+                      <input type="checkbox" checked={showParticipantsPublicly} onChange={(e) => setShowParticipantsPublicly(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Show Participants Publicly</span>
                     </label>
-                    <label className={checkboxClass(allowJoinRequests)}>
-                      <input type="checkbox" checked={allowJoinRequests} onChange={(e) => setAllowJoinRequests(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Allow Join Requests</span>
+                    <label className={checkboxClass(allowWithdrawRegistration)}>
+                      <input type="checkbox" checked={allowWithdrawRegistration} onChange={(e) => setAllowWithdrawRegistration(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Allow Withdraw Registration</span>
                     </label>
-                    <label className={checkboxClass(allowInviteSystem)}>
-                      <input type="checkbox" checked={allowInviteSystem} onChange={(e) => setAllowInviteSystem(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Allow Invite System</span>
+                    <label className={checkboxClass(allowEditAfterSubmission)}>
+                      <input type="checkbox" checked={allowEditAfterSubmission} onChange={(e) => setAllowEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Allow Edit After Submission</span>
                     </label>
+                    {participationType === 'team' && (
+                      <label className={checkboxClass(lockTeamAfterDeadline)}>
+                        <input type="checkbox" checked={lockTeamAfterDeadline} onChange={(e) => setLockTeamAfterDeadline(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Lock Team After Deadline</span>
+                      </label>
+                    )}
                   </div>
                 </div>
               </section>
-            )}
+            */}
+
+            {/*
+              Hidden for now: these settings are persisted but currently do not gate team discovery APIs/workflows.
+              ====== Team Discovery Settings ======
+              {participationType === 'team' && (
+                <section className={sectionClass}>
+                  <SectionLabel>Team Discovery Settings</SectionLabel>
+                  <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <label className={checkboxClass(lookingForTeammatesEnabled)}>
+                        <input type="checkbox" checked={lookingForTeammatesEnabled} onChange={(e) => setLookingForTeammatesEnabled(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Enable &quot;Looking for Teammates&quot;</span>
+                      </label>
+                      <label className={checkboxClass(allowPublicTeamListing)}>
+                        <input type="checkbox" checked={allowPublicTeamListing} onChange={(e) => setAllowPublicTeamListing(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Allow Public Team Listing</span>
+                      </label>
+                      <label className={checkboxClass(allowJoinRequests)}>
+                        <input type="checkbox" checked={allowJoinRequests} onChange={(e) => setAllowJoinRequests(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Allow Join Requests</span>
+                      </label>
+                      <label className={checkboxClass(allowInviteSystem)}>
+                        <input type="checkbox" checked={allowInviteSystem} onChange={(e) => setAllowInviteSystem(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Allow Invite System</span>
+                      </label>
+                    </div>
+                  </div>
+                </section>
+              )}
+            */}
               </>
             )}
 

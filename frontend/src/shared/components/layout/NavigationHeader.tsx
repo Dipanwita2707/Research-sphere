@@ -65,7 +65,7 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
 };
 
 const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => {
-  const keys = ['finance', 'incentive', 'payment'];
+  const keys = ['configure_fee_structure', 'print_loan_letter', 'finance_analytics', 'finance', 'incentive', 'payment'];
   for (const dept of permissions) {
     if (dept.permissions.some(p => keys.some(k => p.toLowerCase().includes(k)))) return true;
   }
@@ -450,6 +450,7 @@ export default function NavigationHeader() {
         // Analytics & Reports
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
+        { name: '🐛 Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
         
         // DSW - Division of Student Welfare
         {

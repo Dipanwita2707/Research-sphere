@@ -59,10 +59,12 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
 const connectWithRetry = async () => {
-  const log = require('../utils/logger');
+  const { createModuleLogger } = require('../utils/logger');
+  const log = createModuleLogger('database');
+  
   try {
     await prisma.$connect();
-    log.ok('Database connected successfully via Prisma');
+    log.info('Database connected successfully via Prisma');
     connectionAttempts = 0;
   } catch (error) {
     connectionAttempts++;
@@ -81,7 +83,9 @@ connectWithRetry();
 
 // Error handler: suppress noisy cloud-idle resets, log everything else
 prisma.$on('error', (e) => {
-  const log = require('../utils/logger');
+  const { createModuleLogger } = require('../utils/logger');
+  const log = createModuleLogger('database');
+  
   const msg = (e.message || '').toLowerCase();
   if (
     msg.includes('connection reset') ||
@@ -92,7 +96,7 @@ prisma.$on('error', (e) => {
     // Prisma handles reconnection internally — no log needed
     return;
   }
-  log.error('Prisma runtime error:', e);
+  log.error('Prisma runtime error:', { error: e.message, stack: e.stack });
   if (connectionAttempts === 0) {
     connectWithRetry();
   }
@@ -104,8 +108,13 @@ if (process.env.NODE_ENV !== "production") {
   prisma.$on("query", (e) => {
     const duration = e.duration;
     if (duration >= SLOW_QUERY_MS) {
-      const log = require("../utils/logger");
-      log.slowQuery(duration, e.query);
+      const { createModuleLogger } = require("../utils/logger");
+      const log = createModuleLogger('database');
+      log.warn(`Slow query detected (${duration}ms): ${e.query}`, { 
+        duration, 
+        query: e.query,
+        params: e.params 
+      });
     }
   });
 }

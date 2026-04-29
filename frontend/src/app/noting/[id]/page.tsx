@@ -57,6 +57,7 @@ import { useToast } from "@/shared/ui-components/Toast";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
 import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
+import { NotingDetailShimmer } from "@/components/shimmer";
 import { useAuthStore } from "@/shared/auth/authStore";
 import NotingCreatorPanel from "./components/NotingCreatorPanel";
 
@@ -132,7 +133,7 @@ const MIN_SIDEBAR_PX = 248;
 const DEFAULT_MAIN_RATIO = 0.58;
 
 export default function NoteDetailPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const id = params?.id as string;
   const { toast } = useToast();
@@ -654,11 +655,7 @@ export default function NoteDetailPage() {
   };
 
   if (loading || !note) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
-        <PageSkeleton message="Loading note..." />
-      </div>
-    );
+    return <NotingDetailShimmer />;
   }
 
   const approverActions =

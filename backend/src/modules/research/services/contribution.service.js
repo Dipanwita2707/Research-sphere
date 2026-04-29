@@ -69,11 +69,7 @@ class ContributionService {
 
     if (categories.includes('scopus')) {
       if (!data.quartile) errors.push('Quartile is required when SCOPUS category is selected');
-      if (!data.impactFactor) errors.push('Impact Factor is required when SCOPUS category is selected');
-    }
-
-    if (categories.includes('scie_wos')) {
-      if (!data.sjr) errors.push('SJR is required when SCIE/SCI (WOS) category is selected');
+      if (!data.sjr) errors.push('SJR is required when SCOPUS category is selected');
     }
 
     if (categories.includes('naas_rating_6_plus')) {
@@ -714,13 +710,13 @@ class ContributionService {
   async submitContribution(id, userId, request = null) {
     const contribution = await this.repo.findById(id, {
       applicantDetails: true, authors: true,
-      applicantUser: { select: { id: true, uid: true, role: { select: { name: true } }, studentLogin: { select: { id: true } } } }
+      applicantUser: { select: { id: true, uid: true, role: true, studentLogin: { select: { id: true } } } }
     });
     if (!contribution) { const e = new Error('Research contribution not found'); e.statusCode = 404; throw e; }
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can submit this contribution'); e.statusCode = 403; throw e; }
     if (contribution.status !== 'draft') { const e = new Error(`Cannot submit contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
-    const isStudent = contribution.applicantUser?.studentLogin?.id || contribution.applicantUser?.role?.name?.toLowerCase() === 'student';
+    const isStudent = contribution.applicantUser?.studentLogin?.id || contribution.applicantUser?.role?.toLowerCase() === 'student';
     const hasMentor = contribution.applicantDetails?.mentorUid || contribution.applicantDetails?.mentorName;
     let newStatus = 'submitted';
     let statusMessage = 'Submitted for DRD review';

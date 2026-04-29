@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: TmsTicketStatus }) {
 
 export default function TmsAdminPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TmsTicketStatus | ''>('');

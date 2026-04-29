@@ -9,7 +9,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 
 export default function StallFeedbackPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const eventId = params.id as string;
   const stallId = params.stallId as string;
   const { toast } = useToast();

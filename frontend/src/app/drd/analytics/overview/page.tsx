@@ -295,7 +295,7 @@ export default function DrdAnalyticsOverviewPage() {
                             return (
                               <tr
                                 key={school.schoolId}
-                                onClick={() => router.push(`/drd/analytics/applicant/schools/${school.schoolId}`)}
+                                onClick={() => router.push(`/drd/analytics/applicant/schools/${school.schoolId}?from=${fromDate}&to=${toDate}&category=${category}`)}
                                 className="cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
                               >
                                 <td className="px-4 py-3">

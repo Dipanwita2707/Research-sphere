@@ -77,14 +77,18 @@ const getGroup = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Check membership
-    const isMember = await isGroupMember(id, userId);
-    if (!isMember) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not a member of this group',
-      });
+    // Admins/superadmins can access any group without being a member
+    const isSystemAdmin = userRole === 'admin' || userRole === 'superadmin';
+    if (!isSystemAdmin) {
+      const isMember = await isGroupMember(id, userId);
+      if (!isMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not a member of this group',
+        });
+      }
     }
 
     const group = await groupService.getGroupById(id);
@@ -150,7 +154,7 @@ const deleteGroup = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const userType = req.user.userType;
+    const userType = req.user.role;
 
     await groupService.deleteGroup(id, userId, userType);
 
@@ -289,7 +293,7 @@ const updateMemberRole = async (req, res) => {
     const { id, userId: targetUserId } = req.params;
     const { role } = req.body;
     const updatedBy = req.user.id;
-    const updaterUserType = req.user.userType;
+    const updaterUserType = req.user.role;
 
     if (!['admin', 'moderator', 'member'].includes(role)) {
       return res.status(400).json({
@@ -322,7 +326,7 @@ const updateMemberPermissions = async (req, res) => {
     const { id, userId: targetUserId } = req.params;
     const { permissions } = req.body;
     const updatedBy = req.user.id;
-    const updaterUserType = req.user.userType;
+    const updaterUserType = req.user.role;
 
     const member = await groupService.updateMemberPermissions(id, targetUserId, permissions, updatedBy, updaterUserType);
 
@@ -348,7 +352,7 @@ const updateGroupPermissions = async (req, res) => {
     const { id } = req.params;
     const { permissions } = req.body;
     const updatedBy = req.user.id;
-    const updaterUserType = req.user.userType;
+    const updaterUserType = req.user.role;
 
     const groupPermission = await groupService.updateGroupPermissions(id, permissions, updatedBy, updaterUserType);
 

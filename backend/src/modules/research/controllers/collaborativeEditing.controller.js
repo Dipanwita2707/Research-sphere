@@ -394,12 +394,6 @@ exports.respondToSuggestion = async (req, res) => {
       // Check if this was a mentor suggestion (prefixed with [MENTOR])
       const isMentorSuggestion = suggestion.suggestionNote?.startsWith('[MENTOR]');
       
-      console.log('[respondToSuggestion] Checking mentor suggestions:', {
-        iprApplicationId: suggestion.iprApplicationId,
-        currentSuggestionNote: suggestion.suggestionNote,
-        isMentorSuggestion
-      });
-      
       // Also check if there are any other mentor suggestions that were addressed
       const mentorSuggestionsCount = await prisma.iprEditSuggestion.count({
         where: {
@@ -409,14 +403,10 @@ exports.respondToSuggestion = async (req, res) => {
         }
       });
       
-      console.log('[respondToSuggestion] Mentor suggestions count:', mentorSuggestionsCount);
-      
       // If mentor suggestions exist, go back to pending_mentor_approval
       const newStatus = (isMentorSuggestion || mentorSuggestionsCount > 0) 
         ? 'pending_mentor_approval' 
         : 'resubmitted';
-      
-      console.log('[respondToSuggestion] Setting new status:', newStatus);
       
       await prisma.iprApplication.update({
         where: { id: suggestion.iprApplicationId },

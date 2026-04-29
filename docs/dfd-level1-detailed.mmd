@@ -1,0 +1,174 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryTextColor': '#01579b', 'primaryBorderColor': '#0288d1', 'lineColor': '#37474f'}}}%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EXTERNAL ENTITIES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    STUDENT["👨‍🎓 STUDENT"]
+    FACULTY["👨‍🏫 FACULTY"]
+    STAFF["👔 STAFF"]
+    ADMIN["🔐 ADMIN"]
+    DSW_ADMIN["🏛️ DSW OFFICE"]
+    VOLUNTEER["🙋 VOLUNTEER"]
+    PUBLIC["🌐 PUBLIC"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DATA STORES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    DB_NOTE[("D1: Note<br/>NoteHistory<br/>NoteCopy")]
+    DB_CLUB[("D2: Club<br/>ClubMember<br/>ClubCategory")]
+    DB_EVENT[("D3: Event<br/>Registration<br/>Team")]
+    DB_USER[("D4: UserLogin<br/>Permissions")]
+    DB_PAYMENT[("D5: Payment<br/>Coupon")]
+    DB_CERT[("D6: Certificate<br/>Templates")]
+    CACHE[("D7: Redis<br/>Cache")]
+    S3[("D8: AWS S3<br/>Files")]
+    RAZORPAY["💳 Razorpay"]
+    SENDGRID["📧 SendGrid"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% NOTING MODULE PROCESSES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph NOTING["📝 1.0 NOTING MODULE"]
+        direction TB
+        N1(("1.1<br/>Create<br/>Noting"))
+        N2(("1.2<br/>Submit<br/>Noting"))
+        N3(("1.3<br/>Approval<br/>Workflow"))
+        N4(("1.4<br/>Forward/<br/>Reject"))
+        N5(("1.5<br/>Copy<br/>Distribution"))
+        N6(("1.6<br/>Auto-Create<br/>Entity"))
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DSW MODULE PROCESSES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph DSW["🏛️ 2.0 DSW MODULE"]
+        direction TB
+        D1(("2.1<br/>Category<br/>Management"))
+        D2(("2.2<br/>Club<br/>Creation"))
+        D3(("2.3<br/>Member<br/>Management"))
+        D4(("2.4<br/>Application<br/>Review"))
+        D5(("2.5<br/>Audit<br/>Logging"))
+        D6(("2.6<br/>Statistics<br/>Dashboard"))
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EVENT MANAGEMENT MODULE PROCESSES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph EVENT["🎪 3.0 EVENT MANAGEMENT MODULE"]
+        direction TB
+        E1(("3.1<br/>Event<br/>Discovery"))
+        E2(("3.2<br/>Event<br/>Registration"))
+        E3(("3.3<br/>Team<br/>Management"))
+        E4(("3.4<br/>Payment<br/>Processing"))
+        E5(("3.5<br/>QR Scan<br/>Attendance"))
+        E6(("3.6<br/>Volunteer<br/>Management"))
+        E7(("3.7<br/>Certificate<br/>Generation"))
+        E8(("3.8<br/>Feedback<br/>Collection"))
+        E9(("3.9<br/>Stall<br/>Management"))
+        E10(("3.10<br/>Bulk Email<br/>System"))
+        E11(("3.11<br/>Analytics<br/>Dashboard"))
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% NOTING MODULE FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    FACULTY -->|"Note Request"| N1
+    STUDENT -->|"Club Creation Request"| N1
+    N1 -->|"Draft Note"| DB_NOTE
+    N1 -->|"Submit"| N2
+    N2 -->|"Pending Note"| N3
+    N3 -->|"Approve"| N6
+    N3 -->|"Forward/Reject"| N4
+    N4 -->|"Forward to Manager"| DB_NOTE
+    N4 -->|"Reject Reason"| FACULTY
+    DSW_ADMIN -->|"Approve/Reject"| N3
+    N3 -->|"Approval Status"| DB_NOTE
+    N6 -->|"Create Event"| DB_EVENT
+    N6 -->|"Create Club"| DB_CLUB
+    N3 -->|"Send Copies"| N5
+    N5 -->|"Copy Records"| DB_NOTE
+    N5 -->|"Notifications"| SENDGRID
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DSW MODULE FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    ADMIN -->|"Manage Categories"| D1
+    D1 -->|"Category Data"| DB_CLUB
+    N6 -->|"Approved Club"| D2
+    D2 -->|"Club Record"| DB_CLUB
+    FACULTY -->|"Add/Remove Members"| D3
+    STUDENT -->|"Join Club"| D4
+    D3 -->|"Member Data"| DB_CLUB
+    D4 -->|"Application Status"| STUDENT
+    D3 -->|"Audit Entry"| D5
+    D5 -->|"Audit Log"| DB_CLUB
+    DSW_ADMIN -->|"View Stats"| D6
+    D6 -->|"Statistics"| CACHE
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EVENT MANAGEMENT MODULE FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    STUDENT -->|"Browse Events"| E1
+    E1 -->|"Event List"| DB_EVENT
+    STUDENT -->|"Register"| E2
+    E2 -->|"Registration"| DB_EVENT
+    E2 -->|"QR Code"| STUDENT
+    STUDENT -->|"Create/Join Team"| E3
+    E3 -->|"Team Data"| DB_EVENT
+    E2 -->|"Payment Required"| E4
+    E4 -->|"Create Order"| RAZORPAY
+    RAZORPAY -->|"Payment Status"| E4
+    E4 -->|"Payment Record"| DB_PAYMENT
+    VOLUNTEER -->|"Scan QR"| E5
+    E5 -->|"Entry/Exit Log"| DB_EVENT
+    E5 -->|"Attendance Report"| FACULTY
+    FACULTY -->|"Assign Volunteers"| E6
+    E6 -->|"Volunteer Data"| DB_EVENT
+    FACULTY -->|"Generate Certificates"| E7
+    E7 -->|"Certificate PDF"| S3
+    E7 -->|"Certificate Record"| DB_CERT
+    E7 -->|"Certificate"| STUDENT
+    PUBLIC -->|"Verify Certificate"| E7
+    STUDENT -->|"Submit Feedback"| E8
+    E8 -->|"Feedback Data"| DB_EVENT
+    STUDENT -->|"Apply for Stall"| E9
+    E9 -->|"Stall Application"| DB_EVENT
+    FACULTY -->|"Send Emails"| E10
+    E10 -->|"Email Campaign"| SENDGRID
+    ADMIN -->|"View Analytics"| E11
+    E11 -->|"Analytics Data"| CACHE
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% CROSS-MODULE INTEGRATIONS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    N6 -.->|"Event Created"| E1
+    D2 -.->|"Club Events"| E1
+    DB_USER -->|"Permissions"| N3
+    DB_USER -->|"Role Check"| D3
+    DB_USER -->|"Auth"| E2
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% STYLING
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    classDef external fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef process fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef datastore fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    classDef extservice fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    classDef module fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+
+    class STUDENT,FACULTY,STAFF,ADMIN,DSW_ADMIN,VOLUNTEER,PUBLIC external
+    class N1,N2,N3,N4,N5,N6,D1,D2,D3,D4,D5,D6,E1,E2,E3,E4,E5,E6,E7,E8,E9,E10,E11 process
+    class DB_NOTE,DB_CLUB,DB_EVENT,DB_USER,DB_PAYMENT,DB_CERT,CACHE,S3 datastore
+    class RAZORPAY,SENDGRID extservice
+    class NOTING,DSW,EVENT module

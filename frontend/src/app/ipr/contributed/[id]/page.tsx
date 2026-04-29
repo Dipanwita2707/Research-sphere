@@ -125,7 +125,7 @@ const IPR_TYPE_LABELS: Record<string, string> = {
 };
 
 function ContributedIPRDetailContent() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const id = params.id as string;
   
   const [application, setApplication] = useState<Application | null>(null);

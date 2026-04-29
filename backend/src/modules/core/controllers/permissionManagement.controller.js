@@ -48,8 +48,21 @@ exports.getUserAllPermissions = async (req, res) => {
       });
     }
 
-    // Get user with assigned roles (role assignment feature not implemented)
-    const userWithRoles = null;
+    // Get user with assigned roles
+    const userWithRoles = await prisma.userLogin.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        assignedRoleIds: true,
+      },
+    });
+
+    if (!userWithRoles) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
 
     // Fetch direct permissions and employee details
     const [schoolDeptPerms, centralDeptPerms, employee] = await Promise.all([
@@ -130,8 +143,8 @@ exports.getUserAllPermissions = async (req, res) => {
       }),
     ]);
 
-    // Fetch role-based permissions (role assignment feature not implemented)
-    const roleIds = [];
+    // Fetch role-based permissions from assigned roles
+    const roleIds = userWithRoles.assignedRoleIds || [];
     let rolesWithPermissions = [];
     
     if (Array.isArray(roleIds) && roleIds.length > 0) {
@@ -838,6 +851,7 @@ exports.getAllUsersWithPermissions = async (req, res) => {
         uid: true,
         email: true,
         role: true,
+        assignedRoleIds: true,
         employeeDetails: {
           select: {
             firstName: true,
@@ -1027,7 +1041,7 @@ exports.assignDrdMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_DRD_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -1609,7 +1623,7 @@ exports.assignResearchMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_RESEARCH_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -2048,7 +2062,7 @@ exports.assignBookMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_BOOK_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -2496,7 +2510,7 @@ exports.assignConferenceMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_CONFERENCE_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,
@@ -2943,7 +2957,7 @@ exports.assignGrantMemberSchools = async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        actorId: req.user.id,
+        actor: { connect: { id: req.user.id } },
         action: 'ASSIGN_GRANT_MEMBER_SCHOOLS',
         targetTable: 'central_department_permission',
         targetId: drdPermission.id,

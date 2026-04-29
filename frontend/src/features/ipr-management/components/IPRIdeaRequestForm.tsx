@@ -243,9 +243,6 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       try {
         const policy = await policyService.getPolicyByType(formData.ideaFor);
         setCurrentPolicy(policy);
-        console.log(`[IPR Policy] Loaded ${formData.ideaFor} policy:`, policy);
-        console.log(`[IPR Policy] baseIncentiveAmount:`, policy?.baseIncentiveAmount, 'type:', typeof policy?.baseIncentiveAmount);
-        console.log(`[IPR Policy] basePoints:`, policy?.basePoints, 'type:', typeof policy?.basePoints);
       } catch (err) {
         logger.error('Error fetching policy:', err);
         // Policy service already returns defaults on error
@@ -500,9 +497,6 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
   // Helper function to calculate incentive and points for IPR contributors
   // Employees get both incentive and points, students get only incentive, external get neither
   const calculateContributorIncentivePoints = (employeeCategory: string, employeeType: string) => {
-    // Debug log current policy state
-    console.log('[IPR Incentive Calc] currentPolicy:', currentPolicy);
-    
     // Use policy if available, otherwise use defaults
     // Convert Decimal/string to number properly
     let totalBaseIncentive: number;
@@ -511,7 +505,6 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
    'string' 
         ? parseFloat(currentPolicy.baseIncentiveAmount) 
         : Number(currentPolicy.baseIncentiveAmount);
-      console.log('[IPR Incentive Calc] Using policy totalBaseIncentive:', totalBaseIncentive);
     } else {
       totalBaseIncentive = formData.ideaFor ===
    'patent' ? 50000 : 
@@ -521,13 +514,11 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
    'design' ? 20000 :
          formData.ideaFor ===
    'trademark' ? 10000 : 10000;
-      console.log('[IPR Incentive Calc] Using DEFAULT totalBaseIncentive:', totalBaseIncentive);
     }
     
     let totalBasePoints: number;
     if (currentPolicy?.basePoints !== undefined && currentPolicy?.basePoints !== null) {
       totalBasePoints = Number(currentPolicy.basePoints);
-      console.log('[IPR Incentive Calc] Using policy totalBasePoints:', totalBasePoints);
     } else {
       totalBasePoints = formData.ideaFor ===
    'patent' ? 50 : 
@@ -537,7 +528,6 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
    'design' ? 25 :
          formData.ideaFor ===
    'trademark' ? 15 : 20;
-      console.log('[IPR Incentive Calc] Using DEFAULT totalBasePoints:', totalBasePoints);
     }
     
     // Count eligible contributors for INCENTIVE (all internal - staff, faculty, students)
@@ -552,14 +542,9 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
    'internal' && c.employeeType !== 'student').length;
     const totalEligibleForPoints = eligibleForPoints > 0 ? eligibleForPoints : 1; // At least 1 to avoid division by zero
     
-    console.log('[IPR Incentive Calc] Total eligible for incentive:', totalEligibleForIncentive);
-    console.log('[IPR Incentive Calc] Total eligible for points:', totalEligibleForPoints);
-    
     // Divide the total amount by number of eligible contributors
     const baseIncentive = totalEligibleForIncentive > 0 ? totalBaseIncentive / totalEligibleForIncentive : 0;
     const basePoints = totalEligibleForPoints > 0 ? totalBasePoints / totalEligibleForPoints : 0;
-    
-    console.log('[IPR Incentive Calc] Per contributor - Incentive:', baseIncentive, 'Points:', basePoints);
     
     // External contributors get no incentive or points
     if (employeeCategory ===

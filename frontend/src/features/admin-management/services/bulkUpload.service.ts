@@ -14,6 +14,19 @@ export interface BulkUploadResult {
   }>;
 }
 
+export interface PreviewData {
+  headers: string[];
+  rows: Record<string, string>[];
+  totalRows: number;
+  previewRows: number;
+  message: string;
+}
+
+export interface PreviewResponse {
+  success: boolean;
+  data: PreviewData;
+}
+
 export interface BulkUploadResponse {
   success: boolean;
   message: string;
@@ -108,6 +121,16 @@ class BulkUploadService {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post<{ success: boolean; data: BulkUploadResult }>(`${this.baseUrl}/students`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  // Data preview - server-side Excel parsing
+  async previewData(file: File): Promise<PreviewResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<PreviewResponse>(`${this.baseUrl}/preview`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;

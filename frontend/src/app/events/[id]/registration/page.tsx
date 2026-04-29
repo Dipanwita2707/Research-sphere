@@ -196,7 +196,7 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
 };
 
 export default function EventRegistrationPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuthStore();

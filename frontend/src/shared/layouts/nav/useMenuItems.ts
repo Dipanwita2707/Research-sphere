@@ -7,32 +7,31 @@ export function useMenuItems(perms: NavPermissions, hasVolunteerAssignments: boo
   const rndSubItems = useRndMenuItems(perms);
   const menuItems: MenuItem[] = [];
 
-  // ── UMS Navigation (hidden for staff/guard) ──────────────────────────────
-  if (!isStaff) {
-    const navigationSubItems: SubMenuItem[] = [
-      {
-        name: '📚 Academics',
-        description: 'Academic resources and tools',
-        children: [
-          { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
-          { name: '📖 Courses', href: '#', description: 'Course management (Coming Soon)' },
-          { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
-          { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
-          { name: 'Results', href: '#', description: 'Academic results (Coming Soon)' },
-          { name: 'Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
-        ],
-      },
-    ];
+  // ── UMS Navigation ───────────────────────────────────────────────────────
+  const navigationSubItems: SubMenuItem[] = [
+    {
+      name: '📚 Academics',
+      description: 'Academic resources and tools',
+      children: [
+        { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
+        { name: '📖 Courses', href: '#', description: 'Course management (Coming Soon)' },
+        { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
+        { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
+        { name: 'Results', href: '#', description: 'Academic results (Coming Soon)' },
+        { name: 'Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
+      ],
+    },
+  ];
 
-    if (rndSubItems.length > 0) {
-      navigationSubItems.push({ name: '🔬 Research & Development', description: 'Research, Patents & Reviews', children: rndSubItems });
-    }
+  if (rndSubItems.length > 0) {
+    navigationSubItems.push({ name: '🔬 Research & Development', description: 'Research, Patents & Reviews', children: rndSubItems });
+  }
 
-    navigationSubItems.push({ name: '📝 Admissions', href: 'http://localhost:3000/', description: 'Student admissions portal' });
+  navigationSubItems.push({ name: '📝 Admissions', href: 'http://localhost:3000/', description: 'Student admissions portal' });
 
-    if (!isStudent) {
-      navigationSubItems.push({ name: '📋 Noting & Approval', href: '/noting', description: 'Create and track approval notes' });
-    }
+  if (!isStudent) {
+    navigationSubItems.push({ name: '📋 Noting & Approval', href: '/noting', description: 'Create and track approval notes' });
+  }
 
     // Event Management
     const canCreateEvent = isFaculty || isClubChairperson;
@@ -49,28 +48,29 @@ export function useMenuItems(perms: NavPermissions, hasVolunteerAssignments: boo
     if (hasVolunteerAssignments) {
       eventChildren.push({ name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' });
     }
-    navigationSubItems.push({ name: '📅 Event Management', description: 'Discover, organize, and attend university events', children: eventChildren });
+  navigationSubItems.push({ name: '📅 Event Management', description: 'Discover, organize, and attend university events', children: eventChildren });
 
-    navigationSubItems.push({ name: '🔐 RFID', href: 'https://192.168.7.20:3000', description: 'RFID access system' });
+  navigationSubItems.push({ name: '🔐 RFID', href: 'https://192.168.7.20:3000', description: 'RFID access system' });
 
     // DSW
-    if (isStudent || isFaculty || isAdmin) {
-      navigationSubItems.push({
-        name: '🎓 Division of Student Welfare',
-        description: 'Student Clubs & Activities',
-        children: [
-          { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
-          { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
-          { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am involved in' },
-          ...((isStudent || isFaculty) ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
-          ...(isAdmin ? [
-            { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
-            { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
-          ] : []),
-        ],
-      });
-    }
+  if (isStudent || isFaculty || isAdmin) {
+    navigationSubItems.push({
+      name: '🎓 Division of Student Welfare',
+      description: 'Student Clubs & Activities',
+      children: [
+        { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
+        { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
+        { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am involved in' },
+        ...((isStudent || isFaculty) ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
+        ...(isAdmin ? [
+          { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
+          { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
+        ] : []),
+      ],
+    });
+  }
 
+  if (navigationSubItems.length > 0) {
     menuItems.push({ name: 'UMS Navigation', subItems: navigationSubItems });
   }
 
@@ -91,6 +91,7 @@ export function useMenuItems(perms: NavPermissions, hasVolunteerAssignments: boo
     administrationSubItems.push(
       { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
       { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
+      { name: '🐛 Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
       {
         name: '🏛️ Organization Structure',
         description: 'Schools, Departments & Programs',

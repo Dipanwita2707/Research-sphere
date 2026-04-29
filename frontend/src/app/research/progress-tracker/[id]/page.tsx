@@ -40,8 +40,8 @@ const INDEXING_CATEGORIES = [
   { 
     value: 'scopus', 
     label: 'SCOPUS',
-    description: 'SCOPUS indexed - requires Quartile, SJR, and Impact Factor',
-    requiredFields: ['quartile', 'sjr', 'impactFactor']
+    description: 'SCOPUS indexed - requires Quartile and SJR',
+    requiredFields: ['quartile', 'sjr']
   },
   { 
     value: 'scie_wos', 
@@ -83,7 +83,7 @@ const INDEXING_CATEGORIES = [
 
 export default function TrackerDetailPage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const id = params?.id as string;
   const { user } = useAuthStore();
   

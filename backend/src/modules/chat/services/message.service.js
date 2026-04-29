@@ -8,11 +8,14 @@ const { checkPermission, isGroupMember } = require('../utils/permissions');
 /**
  * Get messages for a group with pagination
  */
-const getGroupMessages = async (groupId, userId, { cursor, limit = 50 } = {}) => {
-  // Verify user is a member
-  const isMember = await isGroupMember(groupId, userId);
-  if (!isMember) {
-    throw new Error('You are not a member of this group');
+const getGroupMessages = async (groupId, userId, { cursor, limit = 50, userRole } = {}) => {
+  // Admins/superadmins can read any group's messages
+  const isSystemAdmin = userRole === 'admin' || userRole === 'superadmin';
+  if (!isSystemAdmin) {
+    const isMember = await isGroupMember(groupId, userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this group');
+    }
   }
 
   const where = {

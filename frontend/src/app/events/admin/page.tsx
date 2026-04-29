@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Download,
   Eye,
   FileText,
   Filter,
@@ -27,12 +28,16 @@ import {
   useEventAdminOverview,
   useEventAdminUsers,
 } from '@/features/event-management/hooks/useEvents';
+import { eventService } from '@/features/event-management/services/event.service';
 import { EVENT_TYPE_LABELS, STATUS_CONFIG } from '@/features/event-management/constants';
 import type {
   EventAdminActivityItem,
   EventAdminEventSummary,
+  EventPostReportSummary,
   EventAdminUserItem,
 } from '@/features/event-management/types/event.types';
+import { useToast } from '@/shared/ui-components/Toast';
+import { ShimmerStatCard, ShimmerCard, ShimmerTableRow, EventCardShimmer } from '@/components/shimmer';
 
 const PAGE_SIZE = 20;
 
@@ -71,6 +76,13 @@ function formatShortDate(value?: string | null) {
     month: 'short',
     day: 'numeric',
   }).format(date);
+}
+
+function formatFileSize(size: number) {
+  if (!size || size <= 0) return '0 B';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function actionLabel(action: string) {
@@ -177,10 +189,16 @@ function EmptyState({ title, description }: { title: string; description: string
 function EventCard({
   event,
   canManage,
+  onDownloadPostReport,
+  onPreviewPostReport,
 }: {
   event: EventAdminEventSummary;
   canManage: boolean;
+  onDownloadPostReport: (eventId: string, report: EventPostReportSummary) => void;
+  onPreviewPostReport: (eventId: string, report: EventPostReportSummary) => void;
 }) {
+  const [showApprovalStages, setShowApprovalStages] = useState(false);
+
   const statusConfig = STATUS_CONFIG[event.status] || {
     label: event.status,
     color: 'bg-slate-100 text-slate-700',
@@ -279,9 +297,53 @@ function EventCard({
             <p>Attachments: {event.approval?.attachmentCount || 0}</p>
             <p>Approval actions: {event.approval?.historyCount || 0}</p>
             <p>Noting source: {event.notingEventType || 'direct'}</p>
+            <p>
+              Post report:{' '}
+              {event.postReport
+                ? `v${event.postReport.version} • ${event.postReport.originalFileName}`
+                : 'Not uploaded'}
+            </p>
+            {event.postReport ? (
+              <p>
+                Uploaded by {event.postReport.uploadedBy?.displayName || event.postReport.uploadedBy?.uid || 'Unknown'} on {formatDateTime(event.postReport.uploadedAt)}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
+
+      {event.postReport ? (
+        <div className="rounded-2xl bg-[#f8fbfd] border border-[#b3cde0]/30 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6497b1]">Post Event Report</p>
+              <p className="text-sm text-[#03396c] mt-1">
+                Version {event.postReport.version} • {formatFileSize(event.postReport.fileSize)}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {event.postReport.mimeType === 'application/pdf' ? (
+                <button
+                  type="button"
+                  onClick={() => onPreviewPostReport(event.id, event.postReport as EventPostReportSummary)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#b3cde0]/60 px-3 py-1.5 text-xs font-semibold text-[#03396c] hover:border-[#005b96] hover:text-[#005b96]"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Preview
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => onDownloadPostReport(event.id, event.postReport as EventPostReportSummary)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#005b96] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#03396c]"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {event.approval?.attachments?.length ? (
         <div>
@@ -303,22 +365,37 @@ function EventCard({
 
       {event.approval?.recentStages?.length ? (
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6497b1] mb-2">Recent Approval Stages</p>
-          <div className="space-y-2">
-            {event.approval.recentStages.map((stage) => (
-              <div key={stage.id} className="flex flex-col gap-1 rounded-xl border border-[#b3cde0]/30 px-3 py-2 text-sm text-[#03396c]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-[#011f4b]">{actionLabel(stage.action)}</span>
-                  <span className="text-xs text-[#6497b1]">{formatDateTime(stage.createdAt)}</span>
+          <button
+            type="button"
+            onClick={() => setShowApprovalStages((value) => !value)}
+            className="w-full flex items-center justify-between rounded-lg border border-[#b3cde0]/40 px-3 py-2 text-left hover:border-[#005b96]/50"
+            aria-expanded={showApprovalStages}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6497b1]">
+              Recent Approval Stages ({event.approval.recentStages.length})
+            </span>
+            <ChevronRight
+              className={`w-4 h-4 text-[#6497b1] transition-transform ${showApprovalStages ? 'rotate-90' : ''}`}
+            />
+          </button>
+
+          {showApprovalStages ? (
+            <div className="space-y-2 mt-2">
+              {event.approval.recentStages.map((stage) => (
+                <div key={stage.id} className="flex flex-col gap-1 rounded-xl border border-[#b3cde0]/30 px-3 py-2 text-sm text-[#03396c]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-[#011f4b]">{actionLabel(stage.action)}</span>
+                    <span className="text-xs text-[#6497b1]">{formatDateTime(stage.createdAt)}</span>
+                  </div>
+                  <p className="text-xs text-[#6497b1]">
+                    By {stage.performedBy?.displayName || stage.performedBy?.uid || 'Unknown'}
+                    {stage.nextHolder ? ` • Next: ${stage.nextHolder.displayName || stage.nextHolder.uid}` : ''}
+                  </p>
+                  {stage.remarks ? <p className="text-sm text-[#03396c]">{stage.remarks}</p> : null}
                 </div>
-                <p className="text-xs text-[#6497b1]">
-                  By {stage.performedBy?.displayName || stage.performedBy?.uid || 'Unknown'}
-                  {stage.nextHolder ? ` • Next: ${stage.nextHolder.displayName || stage.nextHolder.uid}` : ''}
-                </p>
-                {stage.remarks ? <p className="text-sm text-[#03396c]">{stage.remarks}</p> : null}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -391,8 +468,9 @@ function ActivityCard({ item }: { item: EventAdminActivityItem }) {
 
 export default function EventAdminPage() {
   const { user } = useAuthStore();
+  const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [eventPage, setEventPage] = useState(1);
@@ -483,6 +561,42 @@ export default function EventAdminPage() {
     setEventPage(1);
   };
 
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPostReport = async (eventId: string, report: EventPostReportSummary) => {
+    try {
+      const blob = await eventService.downloadPostEventReport(eventId, report.id);
+      downloadBlob(blob, report.originalFileName || `event-report-v${report.version}`);
+    } catch (error: any) {
+      toast({ type: 'error', message: error?.response?.data?.message || 'Failed to download post-event report' });
+    }
+  };
+
+  const handlePreviewPostReport = async (eventId: string, report: EventPostReportSummary) => {
+    if (report.mimeType !== 'application/pdf') {
+      toast({ type: 'error', message: 'Preview is available only for PDF reports' });
+      return;
+    }
+
+    try {
+      const blob = await eventService.previewPostEventReport(eventId, report.id);
+      const previewUrl = window.URL.createObjectURL(blob);
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => window.URL.revokeObjectURL(previewUrl), 60 * 1000);
+    } catch (error: any) {
+      toast({ type: 'error', message: error?.response?.data?.message || 'Failed to preview post-event report' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -556,8 +670,16 @@ export default function EventAdminPage() {
    'overview' ? (
               <div className="space-y-6">
                 {overviewLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <ShimmerStatCard key={i} />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <ShimmerCard className="h-64" />
+                      <ShimmerCard className="h-64" />
+                    </div>
                   </div>
                 ) : overview ? (
                   <>
@@ -730,8 +852,10 @@ export default function EventAdminPage() {
                 </div>
 
                 {eventsLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <EventCardShimmer key={i} />
+                    ))}
                   </div>
                 ) : eventsData?.events?.length ? (
                   <>
@@ -742,6 +866,8 @@ export default function EventAdminPage() {
                           event={event}
                           canManage={!!user?.id && event.createdBy?.id ===
    user.id}
+                          onDownloadPostReport={handleDownloadPostReport}
+                          onPreviewPostReport={handlePreviewPostReport}
                         />
                       ))}
                     </div>
@@ -781,9 +907,16 @@ export default function EventAdminPage() {
    'users' ? (
               <div className="space-y-6">
                 {usersLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
-                  </div>
+                  <ShimmerCard className="overflow-hidden">
+                    <div className="px-6 py-5 border-b border-[#b3cde0]/20">
+                      <div className="shimmer-animate h-4 w-32 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] dark:from-gray-700 dark:via-gray-600 dark:to-gray-700" />
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <ShimmerTableRow key={i} columns={6} />
+                      ))}
+                    </div>
+                  </ShimmerCard>
                 ) : usersData?.creators?.length ? (
                   <div className="bg-white rounded-2xl border border-[#b3cde0]/40 overflow-hidden">
                     <div className="px-6 py-5 border-b border-[#b3cde0]/20">
@@ -820,8 +953,12 @@ export default function EventAdminPage() {
    'activity' ? (
               <div className="space-y-6">
                 {activityLoading ? (
-                  <div className="flex justify-center py-16">
-                    <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <ShimmerCard key={i} className="p-4">
+                        <ShimmerTableRow columns={4} />
+                      </ShimmerCard>
+                    ))}
                   </div>
                 ) : activityData?.items?.length ? (
                   <>

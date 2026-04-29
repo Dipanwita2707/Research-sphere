@@ -5,6 +5,7 @@
  */
 
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
 
 function _getIp(req) {
@@ -177,6 +178,9 @@ const createTracker = async (req, res) => {
       ipAddress: _getIp(req),
       userAgent: req.headers['user-agent'],
     }).catch(() => {});
+
+    // Invalidate DRD analytics cache so new tracker appears immediately
+    cache.delPattern('drd:tracker:*').catch(() => {});
 
     return res.status(201).json({
       success: true,
@@ -378,8 +382,6 @@ const updateTracker = async (req, res) => {
       currentStatus
     } = req.body;
 
-    console.log('updateTracker called with:', { id, toStatus, newStatus, currentStatus });
-
     // If status change is requested, delegate to updateTrackerStatus
     const targetStatus = toStatus || newStatus || currentStatus;
     if (targetStatus) {
@@ -388,11 +390,8 @@ const updateTracker = async (req, res) => {
         where: { id }
       });
       
-      console.log('Current tracker status:', tracker?.currentStatus, 'Target status:', targetStatus);
-      
       if (tracker && tracker.currentStatus !== targetStatus) {
         // Status is changing, use status update logic
-        console.log('Delegating to updateTrackerStatus');
         return updateTrackerStatus(req, res);
       }
     }
@@ -419,7 +418,6 @@ const updateTracker = async (req, res) => {
 
     // Don't allow updates if already linked to a contribution
     if (tracker.researchContributionId) {
-      console.log('Tracker already linked to contribution');
       return res.status(400).json({
         success: false,
         message: 'Cannot update tracker that has been submitted for incentive'
@@ -525,6 +523,9 @@ const updateTracker = async (req, res) => {
         userAgent: req.headers['user-agent'],
       }).catch(() => {});
     }
+
+    // Invalidate DRD analytics cache so updates appear immediately
+    cache.delPattern('drd:tracker:*').catch(() => {});
 
     return res.json({
       success: true,
@@ -682,6 +683,9 @@ const updateTrackerStatus = async (req, res) => {
       ipAddress: _getIp(req),
       userAgent: req.headers['user-agent'],
     }).catch(() => {});
+
+    // Invalidate DRD analytics cache so status change appears immediately
+    cache.delPattern('drd:tracker:*').catch(() => {});
 
     return res.json({
       success: true,

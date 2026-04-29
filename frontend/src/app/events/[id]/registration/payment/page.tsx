@@ -24,7 +24,7 @@ import { getErrorMessage } from '@/shared/utils/errorHandler';
 import type { CouponValidationResult, PaymentStatusResponse } from '@/features/event-management/types/event.types';
 
 export default function PaymentPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { toast } = useToast();
   const eventId = params.id as string;

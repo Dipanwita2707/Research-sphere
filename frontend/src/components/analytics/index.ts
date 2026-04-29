@@ -14,3 +14,5 @@ export type { PipelineStageData } from './AnalyticsPipelineChart';
 export type { RadarAxis, RadarDataSet } from './RadarComparisonChart';
 export { default as ExportActions } from './ExportActions';
 export { AnalyticsShell, AnalyticsHero, AnalyticsPanel } from './AnalyticsSurface';
+export { AnalyticsPapersTable } from './AnalyticsPapersTable';
+export type { PapersTableScope } from './AnalyticsPapersTable';

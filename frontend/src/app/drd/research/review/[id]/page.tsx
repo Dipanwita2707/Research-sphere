@@ -267,7 +267,7 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
 };
 
 export default function ResearchReviewPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { user } = useAuthStore();
   const { addToast } = useToast();

@@ -128,14 +128,14 @@ function ReviewerBarChart({ data }: { data: { name: string; value: number; color
 
 export default function DrdMemberAnalyticsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
 
   const [accessDenied, setAccessDenied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DrdMemberPerformanceResponse | null>(null);
   const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3)));
   const [toDate, setToDate] = useState(isoDate(new Date()));
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
+  const [category, setCategory] = useState(searchParams?.get('category') || 'all');
 
   const [actionsOpen, setActionsOpen] = useState(false);
 

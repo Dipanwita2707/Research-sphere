@@ -518,3 +518,66 @@ exports.toggleDepartmentStatus = async (req, res) => {
     });
   }
 };
+/**
+ * Bulk create departments
+ * Body: { departments: [{ departmentCode, departmentName, facultyId, shortName? }] }
+ */
+exports.bulkCreate = async (req, res) => {
+  try {
+    const { departments } = req.body;
+    if (!Array.isArray(departments) || departments.length === 0) {
+      return res.status(400).json({ success: false, message: 'departments array is required' });
+    }
+    if (departments.length > 200) {
+      return res.status(400).json({ success: false, message: 'Maximum 200 rows per upload' });
+    }
+
+    const results = { created: [], skipped: [], errors: [] };
+
+    for (let i = 0; i < departments.length; i++) {
+      const row = departments[i];
+      const rowNum = i + 1;
+      if (!row.departmentCode || !row.departmentName || !row.facultyId) {
+        results.errors.push({ row: rowNum, departmentCode: row.departmentCode, errors: ['departmentCode, departmentName, and facultyId are required'] });
+        continue;
+      }
+      const code = (row.departmentCode || '').toUpperCase();
+      const exists = await prisma.department.findFirst({ where: { departmentCode: code, facultyId: row.facultyId } });
+      if (exists) {
+        results.skipped.push({ row: rowNum, departmentCode: code, reason: 'Already exists in this school' });
+        continue;
+      }
+      const schoolExists = await prisma.facultySchoolList.findUnique({ where: { id: row.facultyId } });
+      if (!schoolExists) {
+        results.errors.push({ row: rowNum, departmentCode: code, errors: [`School with id ${row.facultyId} not found`] });
+        continue;
+      }
+      try {
+        const created = await prisma.department.create({
+          data: {
+            departmentCode: code,
+            departmentName: row.departmentName,
+            shortName: row.shortName || null,
+            description: row.description || null,
+            facultyId: row.facultyId,
+            isActive: true,
+          },
+        });
+        results.created.push({ row: rowNum, departmentCode: code, id: created.id });
+      } catch (e) {
+        results.errors.push({ row: rowNum, departmentCode: code, errors: [e.message] });
+      }
+    }
+
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
+
+    res.status(207).json({
+      success: true,
+      message: `Bulk upload complete: ${results.created.length} created, ${results.skipped.length} skipped, ${results.errors.length} errors`,
+      data: results,
+    });
+  } catch (error) {
+    console.error('Bulk create departments error:', error);
+    res.status(500).json({ success: false, message: 'Bulk upload failed' });
+  }
+};

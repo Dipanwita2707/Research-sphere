@@ -2,7 +2,7 @@
  * Chat Service
  * API calls for chat functionality
  */
-import api from '@/shared/api/api';
+import api from '@/shared/api/chatApi';
 import type {
   ChatGroup,
   ChatGroupMember,
@@ -512,7 +512,7 @@ export const getAuthorizedUsers = async (params?: {
   limit?: number;
   search?: string;
 }): Promise<{ users: ChatUserPermission[]; pagination: { totalPages: number; total: number } }> => {
-  const response = await api.get<ApiResponse<ChatUserPermission[]>>(`${BASE_URL}/user-permissions`, { params });
+  const response = await api.get<ApiResponse<ChatUserPermission[]>>(`${BASE_URL}/user-permissions/users`, { params });
   return {
     users: response.data.data || [],
     pagination: (response.data as any).pagination || { totalPages: 1, total: 0 },
@@ -531,7 +531,7 @@ export const getChatPermissionStats = async (): Promise<ChatPermissionStats> => 
  * Search users who have NOT yet been added to the chat system
  */
 export const searchUnaddedUsers = async (query: string, limit = 10): Promise<ChatUser[]> => {
-  const response = await api.get<ApiResponse<ChatUser[]>>(`${BASE_URL}/user-permissions/search-unadded`, {
+  const response = await api.get<ApiResponse<ChatUser[]>>(`${BASE_URL}/user-permissions/users/search-unadded`, {
     params: { query, limit },
   });
   return response.data.data || [];
@@ -544,7 +544,7 @@ export const addChatUser = async (data: {
   uid: string;
   permissions?: Partial<ChatUserPermission>;
 }): Promise<ChatUser> => {
-  const response = await api.post<ApiResponse<ChatUser>>(`${BASE_URL}/user-permissions`, data);
+  const response = await api.post<ApiResponse<ChatUser>>(`${BASE_URL}/user-permissions/users`, data);
   return response.data.data!;
 };
 
@@ -555,7 +555,7 @@ export const bulkAddChatUsers = async (
   data: FormData | { identifiers: string[]; permissions?: Partial<ChatUserPermission> }
 ): Promise<BulkUserPermissionResult> => {
   const response = await api.post<ApiResponse<BulkUserPermissionResult>>(
-    `${BASE_URL}/user-permissions/bulk`,
+    `${BASE_URL}/user-permissions/users/bulk`,
     data,
     data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
   );
@@ -566,7 +566,7 @@ export const bulkAddChatUsers = async (
  * Enable or disable chat access for a user
  */
 export const toggleChatUser = async (userId: string, enabled: boolean): Promise<void> => {
-  await api.patch(`${BASE_URL}/user-permissions/${userId}/toggle`, { chatEnabled: enabled });
+  await api.patch(`${BASE_URL}/user-permissions/users/${userId}/toggle`, { chatEnabled: enabled });
 };
 
 /**
@@ -576,7 +576,7 @@ export const updateChatUserPermissions = async (
   userId: string,
   permissions: Partial<ChatUserPermission>
 ): Promise<ChatUser> => {
-  const response = await api.patch<ApiResponse<ChatUser>>(`${BASE_URL}/user-permissions/${userId}`, permissions);
+  const response = await api.put<ApiResponse<ChatUser>>(`${BASE_URL}/user-permissions/users/${userId}`, permissions);
   return response.data.data!;
 };
 
@@ -584,5 +584,6 @@ export const updateChatUserPermissions = async (
  * Remove a user from the chat system entirely
  */
 export const removeChatUser = async (userId: string): Promise<void> => {
-  await api.delete(`${BASE_URL}/user-permissions/${userId}`);
+  await api.delete(`${BASE_URL}/user-permissions/users/${userId}`);
+
 };

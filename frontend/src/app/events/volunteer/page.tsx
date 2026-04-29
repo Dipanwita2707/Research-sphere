@@ -20,7 +20,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
-import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { EventsVolunteerShimmer } from '@/components/shimmer';
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-[#b3cde0] dark:border-ev-700 shadow-ev';
 
@@ -155,11 +155,7 @@ export default function VolunteerDashboardPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
-        <PageSkeleton message="Loading your volunteer duties..." />
-      </div>
-    );
+    return <EventsVolunteerShimmer />;
   }
 
   return (

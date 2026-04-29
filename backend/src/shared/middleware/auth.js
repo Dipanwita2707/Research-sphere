@@ -16,6 +16,7 @@ const prisma = require('../config/database');
 const config = require('../config/app.config');
 const cache = require('../config/redis');
 const log = require('../utils/logger');
+const { logAuthenticationFailure } = require('../../modules/bug-reports/utils/securityLogger');
 
 /**
  * Authenticate incoming request by verifying JWT token.
@@ -62,6 +63,21 @@ const protect = async (req, res, next) => {
               email: true,
               role: true,
               status: true,
+              assignedRoleIds: true,
+              employeeDetails: {
+                select: {
+                  displayName: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+              studentLogin: {
+                select: {
+                  displayName: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
               centralDeptPermissions: {
                 where: { isActive: true },
                 select: {
@@ -89,8 +105,8 @@ const protect = async (req, res, next) => {
 
           if (!userData) return null;
 
-          // Get assigned roles with permissions (currently not implemented)
-          const roleIds = [];
+          // Get assigned roles with permissions
+          const roleIds = userData.assignedRoleIds || [];
           let rolesWithPermissions = [];
           
           if (Array.isArray(roleIds) && roleIds.length > 0) {
@@ -219,6 +235,18 @@ const protect = async (req, res, next) => {
 const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
+      // Log authentication failure for admin endpoints
+      if (roles.includes('admin') || roles.includes('super_admin')) {
+        logAuthenticationFailure({
+          endpoint: req.originalUrl || req.url,
+          method: req.method,
+          userId: req.user?.id,
+          userRole: req.user?.role,
+          ip: req.ip,
+          reason: `User role '${req.user?.role}' not authorized. Required roles: ${roles.join(', ')}`,
+        });
+      }
+      
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to perform this action'

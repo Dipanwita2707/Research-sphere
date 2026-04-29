@@ -8,7 +8,8 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { protect, restrictTo } = require('../../../shared/middleware/auth');
+const { restrictTo } = require('../../../shared/middleware/auth');
+const { requireChatAuth } = require('../../chat-auth/middleware/requireChatAuth');
 const {
   getAuthorizedUsers,
   getUserPermission,
@@ -36,7 +37,7 @@ const upload = multer({
 });
 
 // All routes require authentication
-router.use(protect);
+router.use(requireChatAuth);
 
 // User routes - check own permissions
 router.get('/me', getMyPermissions);

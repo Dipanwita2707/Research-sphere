@@ -4,16 +4,22 @@ const multer = require('multer');
 const bulkUploadController = require('../controllers/bulkUpload.controller');
 const { protect, restrictTo } = require('../../../shared/middleware/auth');
 
-// Configure multer for CSV file uploads
+// Configure multer for spreadsheet uploads
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for Excel files
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+    const isExcel = /\.(xlsx|xls)$/i.test(file.originalname)
+      || [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+      ].includes(file.mimetype);
+
+    if (isExcel) {
       cb(null, true);
     } else {
-      cb(new Error('Only CSV files are allowed'), false);
+      cb(new Error('Only Excel files (.xlsx, .xls) are allowed'), false);
     }
   },
 });
@@ -28,6 +34,9 @@ router.get('/template/departments', bulkUploadController.getDepartmentTemplate);
 router.get('/template/programmes', bulkUploadController.getProgrammeTemplate);
 router.get('/template/employees', bulkUploadController.getEmployeeTemplate);
 router.get('/template/students', bulkUploadController.getStudentTemplate);
+
+// Data preview route
+router.post('/preview', upload.single('file'), bulkUploadController.previewExcelData);
 
 // Bulk upload routes with file upload middleware
 router.post('/schools', upload.single('file'), bulkUploadController.bulkUploadSchools);

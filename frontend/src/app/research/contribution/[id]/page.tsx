@@ -168,7 +168,7 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
 };
 
 export default function ContributionDetailPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const router = useRouter();
   const { user } = useAuthStore();
   const { toast } = useToast();

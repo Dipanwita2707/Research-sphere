@@ -1,8 +1,8 @@
 module.exports = {
   extends: ['next/core-web-vitals'],
   rules: {
-    // Warn on console.log (allow console.warn, console.error for debugging)
-    'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+    // Error on console.log in production code (allow console.warn, console.error for debugging)
+    'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
     
     // Prevent direct axios imports outside lib/api.ts
     'no-restricted-imports': [
@@ -34,9 +34,15 @@ module.exports = {
         'no-restricted-imports': 'off',
       },
     },
-    // Allow console.log in scripts and utilities
+    // Allow console.log in development scripts, tests, and utilities
     {
-      files: ['scripts/**/*', 'src/utils/**/*'],
+      files: [
+        'scripts/**/*', 
+        'src/utils/**/*', 
+        '**/*.test.{js,ts,tsx}',
+        '**/*.spec.{js,ts,tsx}',
+        '**/logger.ts'
+      ],
       rules: {
         'no-console': 'off',
       },

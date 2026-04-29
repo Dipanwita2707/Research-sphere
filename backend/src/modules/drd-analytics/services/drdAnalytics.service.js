@@ -150,33 +150,38 @@ function createScopeWhere(access, schoolId, departmentId) {
     return where;
   }
 
-  const orConditions = [];
-  if (schoolId) {
-    if (access.allowedSchoolIds.includes(schoolId)) {
-      orConditions.push({ schoolId });
-    }
-  } else if (access.allowedSchoolIds.length > 0) {
-    orConditions.push({ schoolId: { in: access.allowedSchoolIds } });
+  // Build the user's base access scope as an OR of what they're allowed to see.
+  // This is separate from any drill-down filter (schoolId/departmentId) the caller
+  // is requesting — those are ANDed on top of the access scope so they narrow the
+  // result rather than bypass it.
+  const accessOrConditions = [];
+  if (access.allowedSchoolIds.length > 0) {
+    accessOrConditions.push({ schoolId: { in: access.allowedSchoolIds } });
+  }
+  if (access.allowedDepartmentIds.length > 0) {
+    accessOrConditions.push({ departmentId: { in: access.allowedDepartmentIds } });
   }
 
-  if (departmentId) {
-    if (access.allowedDepartmentIds.includes(departmentId)) {
-      orConditions.push({ departmentId });
-    }
-  } else if (access.allowedDepartmentIds.length > 0) {
-    orConditions.push({ departmentId: { in: access.allowedDepartmentIds } });
-  }
-
-  if (orConditions.length === 0) {
+  if (accessOrConditions.length === 0) {
     // User has permission but no school/dept scope assigned → return zero results.
     // Use an empty `in` array; Prisma short-circuits this to [] without a DB round-trip
     // and it is also safe as a nested relation filter (no UUID parsing error).
     return { id: { in: [] } };
   }
-  if (orConditions.length === 1) {
-    return orConditions[0];
-  }
-  return { OR: orConditions };
+
+  // Build the access scope (OR)
+  const accessScope =
+    accessOrConditions.length === 1 ? accessOrConditions[0] : { OR: accessOrConditions };
+
+  // Apply drill-down filters as AND conditions on top of the access scope.
+  // Without this, e.g. a department condition would match records from ALL schools,
+  // bypassing any school drill-down the caller requested.
+  const drillDown = [];
+  if (schoolId) drillDown.push({ schoolId });
+  if (departmentId) drillDown.push({ departmentId });
+
+  if (drillDown.length === 0) return accessScope;
+  return { AND: [accessScope, ...drillDown] };
 }
 
 function buildMeta(type, access, from, to) {
@@ -1248,17 +1253,37 @@ class DrdAnalyticsService {
     const departmentWise = [...departmentMap.values()];
     const combinedAccess = combineAccess(accessEntries.map((e) => e.access));
 
-    const trackerScopeWhere = createScopeWhere(combinedAccess, null, null);
+    // Tracker works are personal to the user (filtered by userId), so we don't need
+    // additional scope filtering by school/department. This prevents filtering out
+    // tracker works that have NULL schoolId/departmentId or don't match the user's
+    // allowed schools/departments.
     const trackerRows = await prisma.researchProgressTracker.findMany({
       where: {
         AND: [
-          trackerScopeWhere,
           { userId: personId },
-          { createdAt: { gte: from, lte: to } },
+          {
+            OR: [
+              // Works created in this period
+              { createdAt: { gte: from, lte: to } },
+              // Works updated in this period
+              { updatedAt: { gte: from, lte: to } },
+              // Works with expected completion in this period
+              { expectedCompletionDate: { gte: from, lte: to } },
+              // Works with actual completion in this period
+              { actualCompletionDate: { gte: from, lte: to } },
+              // Ongoing works (not completed yet)
+              {
+                AND: [
+                  { createdAt: { lte: to } },
+                  { currentStatus: { in: ['writing', 'communicated', 'submitted'] } },
+                ],
+              },
+            ],
+          },
         ],
       },
       orderBy: { updatedAt: 'desc' },
-      take: 24,
+      take: 50, // Increased limit to show more works
       select: {
         id: true,
         trackingNumber: true,
@@ -1301,10 +1326,26 @@ class DrdAnalyticsService {
     const completedStatuses = new Set(['accepted', 'published']);
     const ongoingStatuses = new Set(['writing', 'communicated', 'submitted']);
     const trackerWorkItems = trackerRows.map(mapTrackerRecord);
+    
+    // Debug logging
+    console.log('=== TRACKER WORKS DEBUG ===');
+    console.log('Total tracker rows fetched:', trackerRows.length);
+    console.log('Tracker work items after mapping:', trackerWorkItems.length);
+    console.log('Status distribution:', trackerWorkItems.reduce((acc, item) => {
+      acc[item.currentStatus] = (acc[item.currentStatus] || 0) + 1;
+      return acc;
+    }, {}));
+    
     const completedWorks = trackerWorkItems.filter((record) => completedStatuses.has(record.currentStatus));
     const ongoingWorks = trackerWorkItems.filter((record) => ongoingStatuses.has(record.currentStatus));
     const publishedWorks = trackerWorkItems.filter((record) => record.currentStatus === 'published');
     const rejectedWorks = trackerWorkItems.filter((record) => record.currentStatus === 'rejected');
+    
+    console.log('Completed works:', completedWorks.length);
+    console.log('Ongoing works:', ongoingWorks.length);
+    console.log('Published works:', publishedWorks.length);
+    console.log('Rejected works:', rejectedWorks.length);
+    console.log('=== END DEBUG ===');
 
     return {
       meta: buildMeta('applicant', combinedAccess, from, to),
@@ -2831,6 +2872,149 @@ class DrdAnalyticsService {
       },
       totalCount: records.length,
       records: records.map(mapTrackerRecord),
+    };
+  }
+
+  /**
+   * Flat list of research contributions for the analytics "Papers" table.
+   * Filters: from, to, schoolId, departmentId, publicationType, status
+   */
+  async getContributionsList(user, filters = {}) {
+    const {
+      from: fromRaw,
+      to: toRaw,
+      schoolId,
+      departmentId,
+      publicationType,
+      status,
+    } = filters;
+
+    const from = parseDate(fromRaw, new Date(Date.now() - 365 * 86400e3));
+    const to = parseEndDate(toRaw, new Date());
+
+    const access = await this._resolveAccess(user, APPLICANT_ANALYTICS, {
+      permissionKeys: [APPLICANT_ANALYTICS],
+      schoolFields: ['assignedSchoolIds'],
+      departmentFields: [],
+    });
+
+    const scopeWhere = createScopeWhere(access, schoolId, departmentId);
+
+    // Determine which tables to query based on publicationType filter
+    const filterPub = publicationType && publicationType !== 'all' ? publicationType : null;
+    const needsResearch = !filterPub || ['research_paper', 'book', 'book_chapter', 'conference_paper'].includes(filterPub);
+    const needsIpr      = !filterPub || filterPub === 'ipr';
+    const needsGrant    = !filterPub || filterPub === 'grant_proposal';
+
+    const LEAN_APPLICANT_SELECT = {
+      id: true,
+      applicationNumber: true,
+      title: true,
+      status: true,
+      submittedAt: true,
+      updatedAt: true,
+      schoolId: true,
+      departmentId: true,
+      school: { select: { facultyName: true, shortName: true } },
+      department: { select: { departmentName: true, shortName: true } },
+      applicantUser: {
+        select: {
+          id: true,
+          uid: true,
+          employeeDetails: { select: { displayName: true } },
+          studentLogin: { select: { displayName: true } },
+        },
+      },
+    };
+
+    const baseDateWhere = {
+      AND: [
+        scopeWhere,
+        { submittedAt: { gte: from, lte: to } },
+        { status: { notIn: ['draft', 'cancelled'] } },
+        status && status !== 'all' ? { status } : {},
+      ],
+    };
+
+    const [researchRows, iprRows, grantRows] = await Promise.all([
+      needsResearch
+        ? prisma.researchContribution.findMany({
+            where: {
+              ...baseDateWhere,
+              AND: [
+                ...(baseDateWhere.AND || []),
+                filterPub ? { publicationType: filterPub } : {},
+              ],
+            },
+            orderBy: [{ submittedAt: 'desc' }, { createdAt: 'desc' }],
+            take: 200,
+            select: { ...LEAN_APPLICANT_SELECT, publicationType: true },
+          })
+        : [],
+      needsIpr
+        ? prisma.iprApplication.findMany({
+            where: baseDateWhere,
+            orderBy: [{ submittedAt: 'desc' }, { createdAt: 'desc' }],
+            take: 200,
+            select: LEAN_APPLICANT_SELECT,
+          })
+        : [],
+      needsGrant
+        ? prisma.grantApplication.findMany({
+            where: baseDateWhere,
+            orderBy: [{ submittedAt: 'desc' }, { createdAt: 'desc' }],
+            take: 200,
+            select: LEAN_APPLICANT_SELECT,
+          })
+        : [],
+    ]);
+
+    function mapRow(r, pubType) {
+      return {
+        id: r.id,
+        applicationNumber: r.applicationNumber || null,
+        title: r.title,
+        publicationType: pubType,
+        status: r.status,
+        submittedAt: r.submittedAt ? r.submittedAt.toISOString() : null,
+        updatedAt: r.updatedAt ? r.updatedAt.toISOString() : null,
+        userId: r.applicantUser?.id || null,
+        userName:
+          r.applicantUser?.employeeDetails?.displayName ||
+          r.applicantUser?.studentLogin?.displayName ||
+          r.applicantUser?.uid ||
+          'Unknown',
+        schoolId: r.schoolId || null,
+        schoolName: r.school?.shortName || r.school?.facultyName || '—',
+        departmentId: r.departmentId || null,
+        departmentName: r.department?.shortName || r.department?.departmentName || '—',
+      };
+    }
+
+    const allRecords = [
+      ...researchRows.map((r) => mapRow(r, r.publicationType)),
+      ...iprRows.map((r) => mapRow(r, 'ipr')),
+      ...grantRows.map((r) => mapRow(r, 'grant_proposal')),
+    ].sort((a, b) => {
+      const at = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+      const bt = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+      return bt - at;
+    }).slice(0, 200);
+
+    return {
+      meta: {
+        analyticsType: 'contributions_list',
+        scopeApplied: {
+          schoolIds: access.allowedSchoolIds,
+          departmentIds: access.allowedDepartmentIds,
+          scopeLevel: access.scopeLevel,
+          resolution: 'union',
+        },
+        timeRange: { from: toIsoDate(from), to: toIsoDate(to) },
+        filters: { publicationType, schoolId, departmentId, status },
+      },
+      totalCount: allRecords.length,
+      records: allRecords,
     };
   }
 

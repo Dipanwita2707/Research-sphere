@@ -1,5 +1,49 @@
 import api from '@/shared/api/api';
 
+export interface Specialization {
+  id: string;
+  programId: string;
+  specializationCode: string;
+  specializationName: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProgramCreditRange {
+  min?: number;
+  max?: number;
+}
+
+export interface SpecializationChargeRule {
+  specializationCode: string;
+  specializationName: string;
+  batchYear: number;
+  startSemester: number;
+  requireNonZeroCharge: boolean;
+  isActive?: boolean;
+}
+
+export interface ProgramBatchYearDocument {
+  batchYear: number;
+  admissionCapacity?: number;
+  fileName: string;
+  filePath: string;
+  fileSize?: number;
+  mimeType?: string;
+  uploadedAt?: string;
+}
+
+export interface ProgramMetadata {
+  creditRange?: ProgramCreditRange;
+  specializationChargeRules?: SpecializationChargeRule[];
+  batchYearDocuments?: ProgramBatchYearDocument[];
+  internshipApplicable?: boolean;
+  internshipDurationMonths?: number;
+  internshipSpecializations?: string[];
+  [key: string]: any;
+}
+
 export interface Program {
   id: string;
   departmentId: string;
@@ -9,6 +53,7 @@ export interface Program {
   shortName?: string;
   description?: string;
   durationYears?: number;
+  durationMonths?: number;
   durationSemesters?: number;
   totalCredits?: number;
   admissionCapacity?: number;
@@ -17,9 +62,10 @@ export interface Program {
   accreditationBody?: string;
   accreditationStatus?: string;
   isActive: boolean;
-  metadata?: any;
+  metadata?: ProgramMetadata;
   createdAt: string;
   updatedAt: string;
+  specializations?: Specialization[];
   department?: {
     id: string;
     departmentCode: string;
@@ -60,13 +106,25 @@ export interface CreateProgramDto {
   shortName?: string;
   description?: string;
   durationYears?: number;
+  durationMonths?: number;
   durationSemesters?: number;
   totalCredits?: number;
   admissionCapacity?: number;
   programCoordinatorId?: string;
   accreditationBody?: string;
   accreditationStatus?: string;
-  metadata?: any;
+  metadata?: ProgramMetadata;
+  specializations?: string[];
+}
+
+export interface UploadedProgramDocument {
+  fileName: string;
+  originalName: string;
+  filePath: string;
+  s3Key: string;
+  fileSize: number;
+  mimeType: string;
+  location?: string | null;
 }
 
 export interface UpdateProgramDto extends Partial<CreateProgramDto> {
@@ -111,6 +169,24 @@ class ProgramService {
     return response.data;
   }
 
+  async uploadProgramDocument(file: File, folder = 'programmes/documents'): Promise<UploadedProgramDocument> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    const response = await api.post<{ success: boolean; data: UploadedProgramDocument }>(
+      '/file-upload/upload',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+
+    return response.data.data;
+  }
+
+  getProgramDocumentUrl(filePath: string): string {
+    return `${api.defaults.baseURL}/file-upload/download/${filePath}`;
+  }
+
   async updateProgram(id: string, data: UpdateProgramDto): Promise<{ success: boolean; message: string; data: Program }> {
     const response = await api.put<{ success: boolean; message: string; data: Program }>(
       `${this.baseUrl}/${id}`,
@@ -127,6 +203,36 @@ class ProgramService {
   async toggleProgramStatus(id: string): Promise<{ success: boolean; message: string; data: Program }> {
     const response = await api.patch<{ success: boolean; message: string; data: Program }>(
       `${this.baseUrl}/${id}/toggle-status`
+    );
+    return response.data;
+  }
+
+  async addSpecialization(programId: string, specializationName: string): Promise<{ success: boolean; message: string; data: Specialization }> {
+    const response = await api.post<{ success: boolean; message: string; data: Specialization }>(
+      `${this.baseUrl}/${programId}/specializations`,
+      { specializationName }
+    );
+    return response.data;
+  }
+
+  async updateSpecialization(programId: string, specId: string, data: { specializationName?: string; isActive?: boolean }): Promise<{ success: boolean; message: string; data: Specialization }> {
+    const response = await api.put<{ success: boolean; message: string; data: Specialization }>(
+      `${this.baseUrl}/${programId}/specializations/${specId}`,
+      data
+    );
+    return response.data;
+  }
+
+  async deleteSpecialization(programId: string, specId: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete<{ success: boolean; message: string }>(
+      `${this.baseUrl}/${programId}/specializations/${specId}`
+    );
+    return response.data;
+  }
+
+  async getSpecializations(programId: string): Promise<{ success: boolean; data: Specialization[] }> {
+    const response = await api.get<{ success: boolean; data: Specialization[] }>(
+      `${this.baseUrl}/${programId}/specializations`
     );
     return response.data;
   }

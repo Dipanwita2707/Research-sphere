@@ -11,3 +11,4 @@ export * from './api.types';
 export * from './user.types';
 export * from './research.types';
 export * from './ipr.types';
+export * from './research-profile.types';

@@ -337,8 +337,6 @@ exports.createPolicy = async (req, res) => {
             where: { id: existingPolicy.id },
             data: { effectiveTo: oneDayBefore }
           });
-          
-          console.log(`[Policy Create] Auto-adjusted "${existingPolicy.policyName}" end date to ${oneDayBefore.toISOString().split('T')[0]} to avoid overlap`);
         }
         // If the new policy completely contains the existing policy, deactivate the existing policy
         else if (newStartDate <= existingStart && (!newEndDate || !existingEnd || newEndDate >= existingEnd)) {
@@ -346,8 +344,6 @@ exports.createPolicy = async (req, res) => {
             where: { id: existingPolicy.id },
             data: { isActive: false }
           });
-          
-          console.log(`[Policy Create] Deactivated overlapping policy "${existingPolicy.policyName}" as it's completely contained by the new date range`);
         }
       }
     }
@@ -487,8 +483,6 @@ exports.updatePolicy = async (req, res) => {
               where: { id: otherPolicy.id },
               data: { effectiveTo: oneDayBefore }
             });
-            
-            console.log(`[Policy Update] Auto-adjusted "${otherPolicy.policyName}" end date to ${oneDayBefore.toISOString().split('T')[0]} to avoid overlap`);
           }
           // If the new policy ends before the existing policy starts, adjust new policy's end date
           else if (newEndDate && newEndDate < existingStart) {
@@ -501,8 +495,6 @@ exports.updatePolicy = async (req, res) => {
               where: { id: otherPolicy.id },
               data: { isActive: false }
             });
-            
-            console.log(`[Policy Update] Deactivated overlapping policy "${otherPolicy.policyName}" as it's completely contained by the new date range`);
           }
         }
       }

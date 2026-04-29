@@ -19,7 +19,7 @@ type ScanContext = {
 };
 
 export default function QRScannerPage() {
-  const params = useParams();
+  const params = useParams() as Record<string, string>;
   const eventId = params?.id as string;
   const { toast } = useToast();
   
