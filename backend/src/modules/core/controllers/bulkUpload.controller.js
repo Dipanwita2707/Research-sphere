@@ -277,6 +277,18 @@ exports.getSchoolTemplate = async (req, res) => {
  */
 exports.getDepartmentTemplate = async (req, res) => {
   try {
+    // Fetch existing schools to pre-fill
+    const schools = await prisma.facultySchoolList.findMany({
+      select: { facultyCode: true, facultyName: true, id: true },
+      orderBy: { facultyName: 'asc' }
+    });
+
+    // Fetch existing departments
+    const existingDepartments = await prisma.department.findMany({
+      include: { faculty: { select: { facultyCode: true, facultyName: true } } },
+      orderBy: [{ faculty: { facultyName: 'asc' } }, { departmentName: 'asc' }]
+    });
+
     const headers = [
       'schoolCode*',
       'departmentCode*',
@@ -289,7 +301,18 @@ exports.getDepartmentTemplate = async (req, res) => {
       'officeLocation',
     ];
 
-    const sampleRows = [[
+    // Generate sample rows with first school pre-filled if available
+    const sampleRows = schools.length > 0 ? [[
+      schools[0].facultyCode,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]] : [[
       'SOCS',
       'CS',
       'Computer Science',
@@ -301,7 +324,40 @@ exports.getDepartmentTemplate = async (req, res) => {
       'Block A, Room 201',
     ]];
 
-    sendExcelTemplate(res, headers, sampleRows, 'departments_template.xlsx', 'Departments');
+    // Create workbook with three sheets
+    const workbook = XLSX.utils.book_new();
+    
+    // Sheet 1: Template for new departments
+    const templateSheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+    templateSheet['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 18) }));
+    XLSX.utils.book_append_sheet(workbook, templateSheet, 'Template');
+    
+    // Sheet 2: Schools Reference - all schools with code and name for cross-checking
+    const schoolsRefHeaders = ['School Code', 'School Name'];
+    const schoolsRefRows = schools.map(s => [s.facultyCode, s.facultyName]);
+    const schoolsRefSheet = XLSX.utils.aoa_to_sheet([schoolsRefHeaders, ...schoolsRefRows]);
+    schoolsRefSheet['!cols'] = [{ wch: 20 }, { wch: 45 }];
+    XLSX.utils.book_append_sheet(workbook, schoolsRefSheet, 'Schools Reference');
+
+    // Sheet 3: Existing Departments
+    const existingHeaders = ['School Code', 'School Name', 'Department Code', 'Department Name', 'Short Name', 'Description'];
+    const existingRows = existingDepartments.map(d => [
+      d.faculty?.facultyCode || '',
+      d.faculty?.facultyName || '',
+      d.departmentCode,
+      d.departmentName,
+      d.shortName || '',
+      d.description || ''
+    ]);
+    const existingSheet = XLSX.utils.aoa_to_sheet([existingHeaders, ...existingRows]);
+    existingSheet['!cols'] = existingHeaders.map(h => ({ wch: Math.max(h.length + 4, 25) }));
+    XLSX.utils.book_append_sheet(workbook, existingSheet, 'Existing Departments');
+    
+    // Send response
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=departments_template.xlsx`);
+    res.send(buffer);
   } catch (error) {
     log.logError('get_department_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -313,6 +369,22 @@ exports.getDepartmentTemplate = async (req, res) => {
  */
 exports.getProgrammeTemplate = async (req, res) => {
   try {
+    // Fetch existing schools and departments to pre-fill
+    const departments = await prisma.department.findMany({
+      include: { faculty: { select: { facultyCode: true, facultyName: true } } },
+      orderBy: [{ faculty: { facultyName: 'asc' } }, { departmentName: 'asc' }]
+    });
+
+    // Fetch existing programmes
+    const existingProgrammes = await prisma.program.findMany({
+      include: {
+        department: {
+          include: { faculty: { select: { facultyCode: true, facultyName: true } } }
+        }
+      },
+      orderBy: [{ department: { faculty: { facultyName: 'asc' } } }, { programName: 'asc' }]
+    });
+
     const headers = [
       'schoolCode*',
       'departmentCode*',
@@ -334,7 +406,27 @@ exports.getProgrammeTemplate = async (req, res) => {
       'batchYearDocuments',
     ];
 
-    const sampleRows = [[
+    // Generate sample rows with first department pre-filled if available
+    const sampleRows = departments.length > 0 ? [[
+      departments[0].faculty?.facultyCode || '',
+      departments[0].departmentCode || '',
+      '',
+      '',
+      'undergraduate',
+      '',
+      '',
+      '4',
+      '48',
+      '8',
+      '',
+      '',
+      '',
+      '',
+      'No',
+      '',
+      '',
+      '',
+    ]] : [[
       'SOCS',
       'CS',
       'BTECH-CS',
@@ -355,7 +447,60 @@ exports.getProgrammeTemplate = async (req, res) => {
       '2026:60:programmes/btech-cs/batch-2026/approval.pdf:approval.pdf',
     ]];
 
-    sendExcelTemplate(res, headers, sampleRows, 'programmes_template.xlsx', 'Programmes');
+    // Fetch all schools for reference sheet
+    const allSchools = await prisma.facultySchoolList.findMany({
+      select: { facultyCode: true, facultyName: true },
+      orderBy: { facultyName: 'asc' }
+    });
+
+    // Create workbook with four sheets
+    const workbook = XLSX.utils.book_new();
+    
+    // Sheet 1: Template for new programmes
+    const templateSheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+    templateSheet['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 20) }));
+    XLSX.utils.book_append_sheet(workbook, templateSheet, 'Template');
+
+    // Sheet 2: Schools Reference - all school codes and names
+    const schoolsRefHeaders = ['School Code', 'School Name'];
+    const schoolsRefRows = allSchools.map(s => [s.facultyCode, s.facultyName]);
+    const schoolsRefSheet = XLSX.utils.aoa_to_sheet([schoolsRefHeaders, ...schoolsRefRows]);
+    schoolsRefSheet['!cols'] = [{ wch: 20 }, { wch: 45 }];
+    XLSX.utils.book_append_sheet(workbook, schoolsRefSheet, 'Schools Reference');
+
+    // Sheet 3: Departments Reference - all department codes with their school
+    const deptRefHeaders = ['School Code', 'School Name', 'Department Code', 'Department Name'];
+    const deptRefRows = departments.map(d => [
+      d.faculty?.facultyCode || '',
+      d.faculty?.facultyName || '',
+      d.departmentCode,
+      d.departmentName
+    ]);
+    const deptRefSheet = XLSX.utils.aoa_to_sheet([deptRefHeaders, ...deptRefRows]);
+    deptRefSheet['!cols'] = [{ wch: 20 }, { wch: 45 }, { wch: 20 }, { wch: 45 }];
+    XLSX.utils.book_append_sheet(workbook, deptRefSheet, 'Departments Reference');
+    
+    // Sheet 4: Existing Programmes
+    const existingHeaders = ['School Code', 'School Name', 'Department Code', 'Department Name', 'Programme Code', 'Programme Name', 'Type', 'Duration (Years)'];
+    const existingRows = existingProgrammes.map(p => [
+      p.department?.faculty?.facultyCode || '',
+      p.department?.faculty?.facultyName || '',
+      p.department?.departmentCode || '',
+      p.department?.departmentName || '',
+      p.programCode,
+      p.programName,
+      p.programType,
+      p.durationYears || ''
+    ]);
+    const existingSheet = XLSX.utils.aoa_to_sheet([existingHeaders, ...existingRows]);
+    existingSheet['!cols'] = existingHeaders.map(h => ({ wch: Math.max(h.length + 4, 25) }));
+    XLSX.utils.book_append_sheet(workbook, existingSheet, 'Existing Programmes');
+    
+    // Send response
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=programmes_template.xlsx`);
+    res.send(buffer);
   } catch (error) {
     log.logError('get_programme_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
