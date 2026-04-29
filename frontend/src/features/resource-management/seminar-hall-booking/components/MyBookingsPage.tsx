@@ -3,7 +3,9 @@
 import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, FileText, Filter, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getBookingRequests, subscribeBookingRequests } from '../data/bookingRequestStore';
 import { mockBookingRequests } from '../data/mockBookings';
+import { fetchSeminarHallBookings } from '../services/seminarHall.api';
 import type { BookingRequestItem, BookingRequestStatus } from '../types/roomBooking.types';
 
 const statusPillClassMap: Record<BookingRequestStatus, string> = {
@@ -125,36 +127,36 @@ function buildMonthGrid(anchorDate: Date): Array<Date | null> {
 
 function BookingCard({ request }: { request: BookingRequestItem }) {
   return (
-    <article className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-bold text-[#011f4b]">{request.roomName}</h3>
-          <p className="mt-1 text-sm font-medium text-[#266CA9]">
+          <h3 className="text-xl font-bold text-[#1c2e4a]">{request.roomName}</h3>
+          <p className="mt-1 text-sm font-medium text-slate-500">
             {request.blockName}
           </p>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#0F2573]">{requestTypeLabelMap[request.requestKind]}</p>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#41577c]">{requestTypeLabelMap[request.requestKind]}</p>
         </div>
         <span className={['inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold', statusPillClassMap[request.status]].join(' ')}>
           {statusLabelMap[request.status]}
         </span>
       </header>
 
-      <div className="mt-4 grid gap-2 text-sm text-[#03396c] sm:grid-cols-2">
+      <div className="mt-4 grid gap-2 text-sm text-[#334b72] sm:grid-cols-2">
         <p className="inline-flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-[#266CA9]" />
+          <CalendarDays className="h-4 w-4 text-[#5f7ca5]" />
           {request.bookingDate}
         </p>
         <p className="inline-flex items-center gap-2">
-          <Clock3 className="h-4 w-4 text-[#266CA9]" />
+          <Clock3 className="h-4 w-4 text-[#5f7ca5]" />
           {request.timeSlot}
         </p>
         <p className="inline-flex items-center gap-2 sm:col-span-2">
-          <MapPin className="h-4 w-4 text-[#266CA9]" />
+          <MapPin className="h-4 w-4 text-[#5f7ca5]" />
           {request.roomType.replace('_', ' ')}
         </p>
         {request.department ? (
           <p className="inline-flex items-center gap-2 sm:col-span-2">
-            <span className="font-semibold text-[#0F2573]">Department:</span> {request.department}
+            <span className="font-semibold text-[#1f3b67]">Department:</span> {request.department}
           </p>
         ) : null}
       </div>
@@ -176,15 +178,15 @@ function BookingCard({ request }: { request: BookingRequestItem }) {
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Purpose</p>
-        <p className="mt-1 text-sm text-[#03396c]">{request.purpose}</p>
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#5f7ca5]">Purpose</p>
+        <p className="mt-1 text-sm text-[#334b72]">{request.purpose}</p>
       </div>
 
       {request.additionalRequirements ? (
-        <div className="mt-3 rounded-xl border border-blue-100 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Additional requirements</p>
-          <p className="mt-1 text-sm text-[#03396c]">{request.additionalRequirements}</p>
+        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#5f7ca5]">Additional requirements</p>
+          <p className="mt-1 text-sm text-[#334b72]">{request.additionalRequirements}</p>
         </div>
       ) : null}
 
@@ -195,7 +197,7 @@ function BookingCard({ request }: { request: BookingRequestItem }) {
         </div>
       ) : null}
 
-      <footer className="mt-4 border-t border-blue-100 pt-3 text-xs text-[#266CA9]">{request.createdAtLabel}</footer>
+      <footer className="mt-4 border-t border-slate-200 pt-3 text-xs text-[#6a7f9f]">{request.createdAtLabel}</footer>
     </article>
   );
 }
@@ -230,20 +232,20 @@ function TimeFilterPicker({
 
   return (
     <div ref={rootRef} className="relative">
-      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#266CA9]">{label}</label>
+      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a7f9f]">{label}</label>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-[#03396c] shadow-sm transition hover:border-[#266CA9]"
+        className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#334b72] shadow-sm transition hover:border-[#5f7ca5]"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
         {selectedLabel}
-        <ChevronRight className={['h-4 w-4 text-[#266CA9] transition', isOpen ? 'rotate-90' : ''].join(' ')} />
+        <ChevronRight className={['h-4 w-4 text-[#6a7f9f] transition', isOpen ? 'rotate-90' : ''].join(' ')} />
       </button>
 
       {isOpen ? (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-30 w-full overflow-hidden rounded-xl border border-blue-100 bg-white shadow-xl">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-30 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
           <button
             type="button"
             onClick={() => {
@@ -251,8 +253,8 @@ function TimeFilterPicker({
               setIsOpen(false);
             }}
             className={[
-              'block w-full border-b border-blue-50 px-3 py-2 text-left text-sm font-semibold transition',
-              !value ? 'bg-blue-50 text-[#0F2573]' : 'text-[#03396c] hover:bg-blue-50',
+              'block w-full border-b border-slate-100 px-3 py-2 text-left text-sm font-semibold transition',
+              !value ? 'bg-slate-100 text-[#1f3b67]' : 'text-[#334b72] hover:bg-slate-100',
             ].join(' ')}
           >
             Any
@@ -268,7 +270,7 @@ function TimeFilterPicker({
                 }}
                 className={[
                   'block w-full px-3 py-2 text-left text-sm transition',
-                  value === option.value ? 'bg-blue-50 font-semibold text-[#0F2573]' : 'text-[#03396c] hover:bg-blue-50',
+                  value === option.value ? 'bg-slate-100 font-semibold text-[#1f3b67]' : 'text-[#334b72] hover:bg-slate-100',
                 ].join(' ')}
               >
                 {option.label}
@@ -287,11 +289,71 @@ export default function MyBookingsPage() {
   const [dateFilter, setDateFilter] = useState<string>('');
   const [timeFromFilter, setTimeFromFilter] = useState<string>('');
   const [timeToFilter, setTimeToFilter] = useState<string>('');
+  const [requests, setRequests] = useState<BookingRequestItem[]>(() => (typeof window === 'undefined' ? mockBookingRequests : getBookingRequests()));
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [requestsError, setRequestsError] = useState('');
   const [visibleMonthAnchorDate, setVisibleMonthAnchorDate] = useState<Date>(() => {
-    const firstDate = parseBookingDate(mockBookingRequests[0]?.bookingDate ?? '');
-    const source = firstDate ?? new Date();
+    const source = new Date();
     return new Date(source.getFullYear(), source.getMonth(), 1);
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRequests = async () => {
+      try {
+        setLoadingRequests(true);
+        setRequestsError('');
+        const backendRequests = await fetchSeminarHallBookings();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const localRequests = getBookingRequests();
+        const mergedRequests = [...backendRequests];
+
+        localRequests.forEach((request) => {
+          if (!mergedRequests.some((item) => item.id === request.id)) {
+            mergedRequests.push(request);
+          }
+        });
+
+        setRequests(mergedRequests);
+      } catch {
+        if (isMounted) {
+          setRequests(getBookingRequests());
+          setRequestsError('Unable to load booking requests from backend. Showing local data only.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingRequests(false);
+        }
+      }
+    };
+
+    loadRequests();
+
+    const unsubscribe = subscribeBookingRequests((nextRequests) => {
+      setRequests((current) => {
+        const merged = [...current];
+        nextRequests.forEach((request) => {
+          const index = merged.findIndex((item) => item.id === request.id);
+          if (index >= 0) {
+            merged[index] = request;
+          } else {
+            merged.unshift(request);
+          }
+        });
+        return merged;
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   const filterTimeOptions = useMemo(
     () =>
@@ -301,7 +363,7 @@ export default function MyBookingsPage() {
   );
 
   const enrichedRequests = useMemo(() => {
-    return mockBookingRequests.map((request) => {
+    return requests.map((request) => {
       const bookingDateObj = parseBookingDate(request.bookingDate);
       const dateKey = bookingDateObj ? toDateKey(bookingDateObj) : '';
       const timeRange = parseTimeSlotRange(request.timeSlot);
@@ -313,7 +375,7 @@ export default function MyBookingsPage() {
         endMinutes: timeRange.endMinutes,
       };
     });
-  }, []);
+  }, [requests]);
 
   const calendarDataByDate = useMemo(() => {
     const map: Record<string, { total: number; approved: number; pending: number; rejected: number }> = {};
@@ -360,14 +422,14 @@ export default function MyBookingsPage() {
 
   const summary = useMemo(() => {
     return {
-      total: mockBookingRequests.length,
-      pending: mockBookingRequests.filter((x) => x.status === 'pending').length,
-      approved: mockBookingRequests.filter((x) => x.status === 'approved').length,
-      rejected: mockBookingRequests.filter((x) => x.status === 'rejected').length,
-      cancelPending: mockBookingRequests.filter((x) => x.status === 'cancel_pending').length,
-      reschedulePending: mockBookingRequests.filter((x) => x.status === 'reschedule_pending').length,
+      total: requests.length,
+      pending: requests.filter((x) => x.status === 'pending').length,
+      approved: requests.filter((x) => x.status === 'approved').length,
+      rejected: requests.filter((x) => x.status === 'rejected').length,
+      cancelPending: requests.filter((x) => x.status === 'cancel_pending').length,
+      reschedulePending: requests.filter((x) => x.status === 'reschedule_pending').length,
     };
-  }, []);
+  }, [requests]);
 
   const calendarGridCells = useMemo(() => buildMonthGrid(visibleMonthAnchorDate), [visibleMonthAnchorDate]);
 
@@ -380,19 +442,17 @@ export default function MyBookingsPage() {
 
   return (
     <>
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#eaf4ff_0%,#eef5ff_35%,#f8fafc_70%,#f4f7ff_100%)] px-4 py-8 sm:px-6 lg:px-10">
-      <div className="mbp-orb mbp-orb-one" aria-hidden="true" />
-      <div className="mbp-orb mbp-orb-two" aria-hidden="true" />
-      <div className="mx-auto max-w-6xl space-y-5">
-        <header className="mbp-enter rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-md backdrop-blur-sm sm:p-6">
+    <main className="min-h-screen bg-[#edf1f6] px-3 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-5">
+        <header className="mbp-enter rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-[#011f4b] sm:text-4xl">My Booking Requests</h1>
-              <p className="mt-1 text-base text-[#266CA9]">Track requests in list + calendar with date and time filters.</p>
+              <h1 className="font-serif text-3xl font-bold text-[#1c2e4a]">My Booking Requests</h1>
+              <p className="mt-1 text-sm font-medium text-slate-500">Track requests in list and calendar with date and time filters.</p>
             </div>
             <Link
               href="/resource-management/seminar-hall-booking"
-              className="inline-flex items-center rounded-xl border border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              className="inline-flex items-center rounded-xl border border-[#0f274d] bg-[#0f274d] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
             >
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back to room browser
@@ -401,9 +461,9 @@ export default function MyBookingsPage() {
         </header>
 
         <section className="mbp-enter grid gap-3 sm:grid-cols-2 lg:grid-cols-4" style={{ animationDelay: '90ms' }}>
-          <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Total requests</p>
-            <p className="mt-1 text-3xl font-bold text-[#011f4b]">{summary.total}</p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total requests</p>
+            <p className="mt-1 text-3xl font-bold text-[#1c2e4a]">{summary.total}</p>
           </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Pending</p>
@@ -430,16 +490,16 @@ export default function MyBookingsPage() {
           </div>
         </section>
 
-        <section className="mbp-enter rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm sm:p-5" style={{ animationDelay: '200ms' }}>
+        <section className="mbp-enter rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" style={{ animationDelay: '200ms' }}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="inline-flex items-center text-sm font-semibold text-[#011f4b]">
-              <Filter className="mr-2 h-4 w-4 text-[#266CA9]" />
+            <p className="inline-flex items-center text-sm font-semibold text-[#1c2e4a]">
+              <Filter className="mr-2 h-4 w-4 text-[#6a7f9f]" />
               Filters (status, date, time)
             </p>
             <button
               type="button"
               onClick={clearAllFilters}
-              className="rounded-lg border border-blue-100 bg-white px-3 py-1.5 text-sm font-semibold text-[#03396c] transition hover:bg-blue-50"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
             >
               Clear all
             </button>
@@ -447,7 +507,7 @@ export default function MyBookingsPage() {
 
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <div className="lg:col-span-2">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Status</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a7f9f]">Status</p>
               <div className="flex flex-wrap gap-2">
                 {(['all', 'pending', 'approved', 'rejected', 'cancel_pending', 'cancelled', 'reschedule_pending', 'rescheduled'] as const).map((status) => (
                   <button
@@ -457,8 +517,8 @@ export default function MyBookingsPage() {
                     className={[
                       'rounded-lg border px-3 py-1.5 text-sm font-semibold transition',
                       statusFilter === status
-                        ? 'border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] text-white'
-                        : 'border-blue-100 bg-white text-[#03396c] hover:border-[#266CA9] hover:bg-blue-50',
+                        ? 'border-[#0f274d] bg-[#0f274d] text-white'
+                        : 'border-slate-300 bg-white text-[#334b72] hover:border-[#6a7f9f] hover:bg-slate-50',
                     ].join(' ')}
                   >
                     {status === 'all' ? 'All' : statusLabelMap[status]}
@@ -468,7 +528,7 @@ export default function MyBookingsPage() {
             </div>
 
             <div>
-              <label htmlFor="dateFilter" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#266CA9]">
+              <label htmlFor="dateFilter" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a7f9f]">
                 Date
               </label>
               <input
@@ -476,7 +536,7 @@ export default function MyBookingsPage() {
                 type="date"
                 value={dateFilter}
                 onChange={(event) => setDateFilter(event.target.value)}
-                className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-[#03396c] outline-none transition focus:border-[#266CA9]"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-[#334b72] outline-none transition focus:border-[#6a7f9f]"
               />
             </div>
 
@@ -497,26 +557,26 @@ export default function MyBookingsPage() {
           </div>
         </section>
 
-        <section className="mbp-enter rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm sm:p-5" style={{ animationDelay: '260ms' }}>
+        <section className="mbp-enter rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" style={{ animationDelay: '260ms' }}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="inline-flex items-center text-sm font-semibold text-[#011f4b]">
-              <CalendarDays className="mr-2 h-4 w-4 text-[#266CA9]" />
+            <p className="inline-flex items-center text-sm font-semibold text-[#1c2e4a]">
+              <CalendarDays className="mr-2 h-4 w-4 text-[#6a7f9f]" />
               Booking Calendar
             </p>
-            <div className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-white p-1">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white p-1">
               <button
                 type="button"
                 onClick={() => setVisibleMonthAnchorDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                className="rounded-lg border border-blue-100 bg-white p-2 text-[#03396c] transition hover:bg-blue-50"
+                className="rounded-lg border border-slate-300 bg-white p-2 text-[#334b72] transition hover:bg-slate-100"
                 aria-label="Previous month"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <p className="min-w-[140px] text-center text-sm font-semibold text-[#011f4b]">{formatMonthYear(visibleMonthAnchorDate)}</p>
+              <p className="min-w-[140px] text-center text-sm font-semibold text-[#1c2e4a]">{formatMonthYear(visibleMonthAnchorDate)}</p>
               <button
                 type="button"
                 onClick={() => setVisibleMonthAnchorDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                className="rounded-lg border border-blue-100 bg-white p-2 text-[#03396c] transition hover:bg-blue-50"
+                className="rounded-lg border border-slate-300 bg-white p-2 text-[#334b72] transition hover:bg-slate-100"
                 aria-label="Next month"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -526,7 +586,7 @@ export default function MyBookingsPage() {
 
           <div className="grid grid-cols-7 gap-2">
             {weekDayLabels.map((label) => (
-              <p key={label} className="px-1 text-center text-[11px] font-bold uppercase tracking-wide text-[#266CA9]">
+              <p key={label} className="px-1 text-center text-[11px] font-bold uppercase tracking-wide text-[#6a7f9f]">
                 {label}
               </p>
             ))}
@@ -548,16 +608,16 @@ export default function MyBookingsPage() {
                   type="button"
                   onClick={() => setDateFilter((current) => (current === dateKey ? '' : dateKey))}
                   className={[
-                    'rounded-lg border px-2 py-2 text-left transition',
+                    'rounded-lg border border-slate-200 px-2 py-2 text-left transition',
                     isDateFiltered
-                      ? 'border-[#0F2573] bg-blue-50 ring-1 ring-[#266CA9]/40'
-                      : 'border-blue-100 bg-white hover:bg-blue-50/60',
+                      ? 'border-[#0f274d] bg-blue-50 ring-1 ring-[#6a7f9f]/40'
+                      : 'bg-white hover:bg-slate-50',
                   ].join(' ')}
                 >
-                  <p className="text-xs font-semibold text-[#011f4b]">{date.getDate()}</p>
+                  <p className="text-xs font-semibold text-[#1c2e4a]">{date.getDate()}</p>
                   {metrics ? (
                     <>
-                      <p className="mt-1 text-[11px] font-semibold text-[#03396c]">{metrics.total} request{metrics.total > 1 ? 's' : ''}</p>
+                      <p className="mt-1 text-[11px] font-semibold text-[#334b72]">{metrics.total} request{metrics.total > 1 ? 's' : ''}</p>
                       <div className="mt-1 flex items-center gap-1">
                         {metrics.approved > 0 ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
                         {metrics.pending > 0 ? <span className="h-2 w-2 rounded-full bg-amber-500" /> : null}
@@ -574,10 +634,20 @@ export default function MyBookingsPage() {
         </section>
 
         <section className="mbp-enter space-y-4" style={{ animationDelay: '320ms' }}>
+          {loadingRequests ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <p className="text-base font-semibold text-[#1c2e4a]">Loading booking requests...</p>
+            </div>
+          ) : null}
+          {requestsError ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm">
+              {requestsError}
+            </div>
+          ) : null}
           {filteredRequests.length === 0 ? (
-            <div className="rounded-2xl border border-blue-100 bg-white p-8 text-center shadow-sm">
-              <FileText className="mx-auto h-8 w-8 text-[#266CA9]" />
-              <p className="mt-2 text-base font-semibold text-[#011f4b]">No booking requests for selected filters</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <FileText className="mx-auto h-8 w-8 text-[#6a7f9f]" />
+              <p className="mt-2 text-base font-semibold text-[#1c2e4a]">No booking requests for selected filters</p>
             </div>
           ) : (
             filteredRequests.map((request) => <BookingCard key={request.id} request={request} />)
@@ -588,32 +658,6 @@ export default function MyBookingsPage() {
     <style jsx>{`
       .mbp-enter {
         animation: mbpFadeIn 520ms ease-out both;
-      }
-
-      .mbp-orb {
-        position: absolute;
-        border-radius: 999px;
-        pointer-events: none;
-        filter: blur(50px);
-        opacity: 0.3;
-      }
-
-      .mbp-orb-one {
-        width: 280px;
-        height: 280px;
-        top: -60px;
-        right: -50px;
-        background: radial-gradient(circle, #97cbf8 0%, #c3dff8 64%, rgba(195, 223, 248, 0) 100%);
-        animation: mbpFloatOne 14s ease-in-out infinite;
-      }
-
-      .mbp-orb-two {
-        width: 240px;
-        height: 240px;
-        bottom: 12%;
-        left: -70px;
-        background: radial-gradient(circle, #9fd9cf 0%, #c9e9e2 65%, rgba(201, 233, 226, 0) 100%);
-        animation: mbpFloatTwo 16s ease-in-out infinite;
       }
 
       @keyframes mbpFadeIn {
@@ -627,30 +671,8 @@ export default function MyBookingsPage() {
         }
       }
 
-      @keyframes mbpFloatOne {
-        0%,
-        100% {
-          transform: translate3d(0, 0, 0);
-        }
-        50% {
-          transform: translate3d(-16px, 12px, 0);
-        }
-      }
-
-      @keyframes mbpFloatTwo {
-        0%,
-        100% {
-          transform: translate3d(0, 0, 0);
-        }
-        50% {
-          transform: translate3d(18px, -10px, 0);
-        }
-      }
-
       @media (prefers-reduced-motion: reduce) {
-        .mbp-enter,
-        .mbp-orb-one,
-        .mbp-orb-two {
+        .mbp-enter {
           animation: none;
         }
       }

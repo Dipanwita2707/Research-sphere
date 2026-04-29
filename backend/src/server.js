@@ -29,6 +29,7 @@ const { initChatSocket } = require('./modules/chat/sockets/chatSocket');
 
 // Import mail module
 const mailModule = require('./modules/mail');
+const seminarHallModule = require('./modules/seminar-hall');
 
 const app = express();
 
@@ -257,6 +258,9 @@ app.use(`${API_PREFIX}`, coreModule);
 
 // Audit module (separate for security isolation)
 app.use(`${API_PREFIX}/audit`, auditModule);
+
+// Seminar hall booking module
+app.use(`${API_PREFIX}/seminar-hall`, seminarHallModule);
 
 // Chat module
 app.use(`${API_PREFIX}/chat`, chatModule);

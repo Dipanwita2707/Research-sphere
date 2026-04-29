@@ -2,9 +2,10 @@
 
 import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Filter, Mail, Phone, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getBookingRequests, saveBookingRequests, subscribeBookingRequests } from '../data/bookingRequestStore';
+import { fetchSeminarHallBookings } from '../services/seminarHall.api';
 import type { AdminBookingRequest, AdminBookingStatus } from '../data/mockAdminRequests';
-import { mockAdminBookingRequests } from '../data/mockAdminRequests';
 
 const statusLabelMap: Record<AdminBookingStatus, string> = {
   pending: 'Pending',
@@ -44,34 +45,34 @@ function RequestCard({
   const isActionable = request.status === 'pending' || request.status === 'cancel_pending' || request.status === 'reschedule_pending';
 
   return (
-    <article className="rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-bold text-[#011f4b]">{request.roomName}</h3>
-          <p className="mt-1 text-sm font-medium text-[#266CA9]">
+          <h3 className="text-xl font-bold text-[#1c2e4a]">{request.roomName}</h3>
+          <p className="mt-1 text-sm font-medium text-slate-500">
             {request.blockName} · {request.roomType === 'seminar_hall' ? 'Seminar Hall' : 'Auditorium'}
           </p>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#0F2573]">{requestTypeLabelMap[request.requestKind]}</p>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#41577c]">{requestTypeLabelMap[request.requestKind]}</p>
         </div>
         <span className={['inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold', statusPillClassMap[request.status]].join(' ')}>
           {statusLabelMap[request.status]}
         </span>
       </header>
 
-      <div className="mt-4 grid gap-2 text-sm text-[#03396c] md:grid-cols-2">
+      <div className="mt-4 grid gap-2 text-sm text-[#334b72] md:grid-cols-2">
         <p className="inline-flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-[#266CA9]" />
+          <CalendarDays className="h-4 w-4 text-[#5f7ca5]" />
           {request.bookingDate}
         </p>
         <p className="inline-flex items-center gap-2">
-          <Clock3 className="h-4 w-4 text-[#266CA9]" />
+          <Clock3 className="h-4 w-4 text-[#5f7ca5]" />
           {request.timeSlot}
         </p>
       </div>
 
-      <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-[#03396c]">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Requested by</p>
-        <p className="mt-1 font-semibold text-[#011f4b]">{request.requesterName}</p>
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-[#334b72]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#5f7ca5]">Requested by</p>
+        <p className="mt-1 font-semibold text-[#1c2e4a]">{request.requesterName}</p>
         <p className="mt-1 inline-flex items-center gap-2 text-xs">
           <Mail className="h-3.5 w-3.5" />
           {request.requesterEmail}
@@ -80,7 +81,7 @@ function RequestCard({
           <Phone className="h-3.5 w-3.5" />
           {request.requesterPhone}
         </p>
-        {request.department ? <p className="mt-1 text-xs"><span className="font-semibold text-[#0F2573]">Department:</span> {request.department}</p> : null}
+        {request.department ? <p className="mt-1 text-xs"><span className="font-semibold text-[#1f3b67]">Department:</span> {request.department}</p> : null}
       </div>
 
       {request.requestKind === 'cancel_request' ? (
@@ -98,15 +99,15 @@ function RequestCard({
         </div>
       ) : null}
 
-      <div className="mt-3 rounded-xl border border-blue-100 bg-slate-50 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Purpose</p>
-        <p className="mt-1 text-sm text-[#03396c]">{request.purpose}</p>
+      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#5f7ca5]">Purpose</p>
+        <p className="mt-1 text-sm text-[#334b72]">{request.purpose}</p>
       </div>
 
       {request.additionalRequirements ? (
-        <div className="mt-3 rounded-xl border border-blue-100 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#266CA9]">Additional requirements</p>
-          <p className="mt-1 text-sm text-[#03396c]">{request.additionalRequirements}</p>
+        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#5f7ca5]">Additional requirements</p>
+          <p className="mt-1 text-sm text-[#334b72]">{request.additionalRequirements}</p>
         </div>
       ) : null}
 
@@ -122,7 +123,7 @@ function RequestCard({
           <button
             type="button"
             onClick={() => onApprove(request.id)}
-            className="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+            className="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110"
           >
             <CheckCircle2 className="mr-1.5 h-4 w-4" />
             Approve request
@@ -130,7 +131,7 @@ function RequestCard({
           <button
             type="button"
             onClick={() => onReject(request.id)}
-            className="inline-flex items-center rounded-lg border border-rose-300 bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-700"
+            className="inline-flex items-center rounded-lg border border-rose-300 bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:brightness-110"
           >
             <XCircle className="mr-1.5 h-4 w-4" />
             Reject request
@@ -138,14 +139,74 @@ function RequestCard({
         </div>
       ) : null}
 
-      <footer className="mt-4 border-t border-blue-100 pt-3 text-xs text-[#266CA9]">{request.createdAtLabel}</footer>
+      <footer className="mt-4 border-t border-slate-200 pt-3 text-xs text-[#6a7f9f]">{request.createdAtLabel}</footer>
     </article>
   );
 }
 
 export default function AdminRequestsPage() {
-  const [requests, setRequests] = useState<AdminBookingRequest[]>(mockAdminBookingRequests);
+  const [requests, setRequests] = useState<AdminBookingRequest[]>(() => (typeof window === 'undefined' ? [] : getBookingRequests()));
   const [statusFilter, setStatusFilter] = useState<'all' | AdminBookingStatus>('all');
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [requestsError, setRequestsError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRequests = async () => {
+      try {
+        setLoadingRequests(true);
+        setRequestsError('');
+        const backendRequests = await fetchSeminarHallBookings();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const localRequests = getBookingRequests();
+        const mergedRequests = [...backendRequests];
+
+        localRequests.forEach((request) => {
+          if (!mergedRequests.some((item) => item.id === request.id)) {
+            mergedRequests.push(request);
+          }
+        });
+
+        setRequests(mergedRequests);
+      } catch {
+        if (isMounted) {
+          setRequests(getBookingRequests());
+          setRequestsError('Unable to load booking requests from backend. Showing local data only.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingRequests(false);
+        }
+      }
+    };
+
+    loadRequests();
+
+    const unsubscribe = subscribeBookingRequests((nextRequests) => {
+      setRequests((current) => {
+        const merged = [...current];
+        nextRequests.forEach((request) => {
+          const index = merged.findIndex((item) => item.id === request.id);
+          if (index >= 0) {
+            merged[index] = request;
+          } else {
+            merged.unshift(request);
+          }
+        });
+        return merged;
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   const summary = useMemo(() => {
     return {
@@ -168,7 +229,8 @@ export default function AdminRequestsPage() {
 
   const handleApprove = (id: string) => {
     setRequests((prev) =>
-      prev.map((request) =>
+      {
+        const next = prev.map((request) =>
         request.id === id
           ? request.requestKind === 'cancel_request'
             ? {
@@ -188,13 +250,18 @@ export default function AdminRequestsPage() {
                   adminRemark: 'Approved by block admin. Resource team notified.',
                 }
           : request,
-      ),
+        );
+
+        saveBookingRequests(next);
+        return next;
+      },
     );
   };
 
   const handleReject = (id: string) => {
     setRequests((prev) =>
-      prev.map((request) =>
+      {
+        const next = prev.map((request) =>
         request.id === id
           ? request.requestKind === 'cancel_request'
             ? {
@@ -214,25 +281,27 @@ export default function AdminRequestsPage() {
                   adminRemark: 'Rejected due to time-slot conflict with another approved request.',
                 }
           : request,
-      ),
+        );
+
+        saveBookingRequests(next);
+        return next;
+      },
     );
   };
 
   return (
     <>
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#eaf4ff_0%,#eef5ff_35%,#f8fafc_70%,#f4f7ff_100%)] px-4 py-8 sm:px-6 lg:px-10">
-      <div className="abp-orb abp-orb-one" aria-hidden="true" />
-      <div className="abp-orb abp-orb-two" aria-hidden="true" />
-      <div className="mx-auto max-w-6xl space-y-5">
-        <header className="abp-enter rounded-2xl border border-blue-100 bg-white/80 p-5 shadow-md backdrop-blur-sm sm:p-6">
+    <main className="min-h-screen bg-[#edf1f6] px-3 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-5">
+        <header className="abp-enter rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-[#011f4b] sm:text-4xl">Admin Booking Requests</h1>
-              <p className="mt-1 text-base text-[#266CA9]">Review and approve/reject booking, cancellation, and reschedule requests.</p>
+              <h1 className="font-serif text-3xl font-bold text-[#1c2e4a]">Admin Booking Requests</h1>
+              <p className="mt-1 text-sm font-medium text-slate-500">Review and approve or reject booking, cancellation, and reschedule requests.</p>
             </div>
             <Link
               href="/resource-management/seminar-hall-booking"
-              className="inline-flex items-center rounded-xl border border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              className="inline-flex items-center rounded-xl border border-[#0f274d] bg-[#0f274d] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
             >
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back to room browser
@@ -255,10 +324,10 @@ export default function AdminRequestsPage() {
           </div>
         </section>
 
-        <section className="abp-enter rounded-2xl border border-blue-100 bg-white/85 p-4 shadow-sm sm:p-5" style={{ animationDelay: '160ms' }}>
+        <section className="abp-enter rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" style={{ animationDelay: '160ms' }}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="inline-flex items-center text-sm font-semibold text-[#011f4b]">
-              <Filter className="mr-2 h-4 w-4 text-[#266CA9]" />
+            <p className="inline-flex items-center text-sm font-semibold text-[#1c2e4a]">
+              <Filter className="mr-2 h-4 w-4 text-[#6a7f9f]" />
               Filter by status
             </p>
             <div className="flex flex-wrap gap-2">
@@ -270,8 +339,8 @@ export default function AdminRequestsPage() {
                   className={[
                     'rounded-lg border px-3 py-1.5 text-sm font-semibold transition',
                     statusFilter === status
-                      ? 'border-[#0F2573] bg-gradient-to-r from-[#041D56] to-[#0F2573] text-white'
-                      : 'border-blue-100 bg-white text-[#03396c] hover:border-[#266CA9] hover:bg-blue-50',
+                      ? 'border-[#0f274d] bg-[#0f274d] text-white'
+                      : 'border-slate-300 bg-white text-[#334b72] hover:border-[#6a7f9f] hover:bg-slate-50',
                   ].join(' ')}
                 >
                   {status === 'all' ? 'All' : statusLabelMap[status]}
@@ -282,9 +351,19 @@ export default function AdminRequestsPage() {
         </section>
 
         <section className="abp-enter space-y-4" style={{ animationDelay: '220ms' }}>
+          {loadingRequests ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <p className="text-base font-semibold text-[#1c2e4a]">Loading booking requests...</p>
+            </div>
+          ) : null}
+          {requestsError ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm">
+              {requestsError}
+            </div>
+          ) : null}
           {filteredRequests.length === 0 ? (
-            <div className="rounded-2xl border border-blue-100 bg-white p-8 text-center shadow-sm">
-              <p className="text-base font-semibold text-[#011f4b]">No requests found for this status.</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <p className="text-base font-semibold text-[#1c2e4a]">No requests found for this status.</p>
             </div>
           ) : (
             filteredRequests.map((request) => (
@@ -304,32 +383,6 @@ export default function AdminRequestsPage() {
         animation: abpFadeIn 520ms ease-out both;
       }
 
-      .abp-orb {
-        position: absolute;
-        border-radius: 999px;
-        pointer-events: none;
-        filter: blur(50px);
-        opacity: 0.3;
-      }
-
-      .abp-orb-one {
-        width: 290px;
-        height: 290px;
-        top: -70px;
-        right: -60px;
-        background: radial-gradient(circle, #95c9f7 0%, #c4dff8 64%, rgba(196, 223, 248, 0) 100%);
-        animation: abpFloatOne 13s ease-in-out infinite;
-      }
-
-      .abp-orb-two {
-        width: 250px;
-        height: 250px;
-        bottom: 8%;
-        left: -70px;
-        background: radial-gradient(circle, #a7ddd3 0%, #cceae4 64%, rgba(204, 234, 228, 0) 100%);
-        animation: abpFloatTwo 15s ease-in-out infinite;
-      }
-
       @keyframes abpFadeIn {
         from {
           opacity: 0;
@@ -341,30 +394,8 @@ export default function AdminRequestsPage() {
         }
       }
 
-      @keyframes abpFloatOne {
-        0%,
-        100% {
-          transform: translate3d(0, 0, 0);
-        }
-        50% {
-          transform: translate3d(-15px, 12px, 0);
-        }
-      }
-
-      @keyframes abpFloatTwo {
-        0%,
-        100% {
-          transform: translate3d(0, 0, 0);
-        }
-        50% {
-          transform: translate3d(18px, -10px, 0);
-        }
-      }
-
       @media (prefers-reduced-motion: reduce) {
-        .abp-enter,
-        .abp-orb-one,
-        .abp-orb-two {
+        .abp-enter {
           animation: none;
         }
       }
