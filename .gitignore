@@ -5,13 +5,13 @@ node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+package-lock.json
 
 # Testing
 coverage/
 .nyc_output/
 *.test.js.snap
 __snapshots__/
-
 # Next.js
 .next/
 out/
