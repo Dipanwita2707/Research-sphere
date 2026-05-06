@@ -44,6 +44,7 @@ type CreateSeminarHallBookingPayload = {
 type SeminarHallBookingApiItem = {
   id: string;
   requestId: string;
+  roomId?: string;
   requestKind: BookingRequestItem['requestKind'];
   status: BookingRequestItem['status'];
   bookingDate: string;
@@ -57,6 +58,12 @@ type SeminarHallBookingApiItem = {
   requesterEmail: string;
   requesterPhone?: string | null;
   department: string;
+  originalBookingDate?: string | null;
+  originalStartTime?: string | null;
+  originalEndTime?: string | null;
+  requestedBookingDate?: string | null;
+  requestedStartTime?: string | null;
+  requestedEndTime?: string | null;
   room: {
     name: string;
     type: ResourceRoomType;
@@ -67,6 +74,11 @@ type SeminarHallBookingApiItem = {
       name: string;
     };
   };
+};
+
+type UpdateSeminarHallBookingStatusPayload = {
+  status: BookingRequestItem['status'];
+  adminRemark?: string;
 };
 
 function formatBookingDateLabel(dateInput: string): string {
@@ -87,7 +99,8 @@ function formatCreatedAtLabel(dateInput: string): string {
 
 export function mapSeminarHallBookingToUiItem(booking: SeminarHallBookingApiItem): BookingRequestItem {
   return {
-    id: booking.requestId,
+    id: booking.id,
+    roomId: booking.roomId,
     requestKind: booking.requestKind,
     roomName: booking.room.name,
     roomType: booking.room.type,
@@ -103,6 +116,14 @@ export function mapSeminarHallBookingToUiItem(booking: SeminarHallBookingApiItem
     requesterEmail: booking.requesterEmail,
     requesterPhone: booking.requesterPhone || undefined,
     department: booking.department,
+    originalBookingDate: booking.originalBookingDate ? formatBookingDateLabel(booking.originalBookingDate) : undefined,
+    originalStartTime: booking.originalStartTime || undefined,
+    originalEndTime: booking.originalEndTime || undefined,
+    originalTimeSlot: booking.originalStartTime && booking.originalEndTime ? `${booking.originalStartTime} - ${booking.originalEndTime}` : undefined,
+    requestedBookingDate: booking.requestedBookingDate ? formatBookingDateLabel(booking.requestedBookingDate) : undefined,
+    requestedStartTime: booking.requestedStartTime || undefined,
+    requestedEndTime: booking.requestedEndTime || undefined,
+    requestedTimeSlot: booking.requestedStartTime && booking.requestedEndTime ? `${booking.requestedStartTime} - ${booking.requestedEndTime}` : undefined,
   };
 }
 
@@ -164,8 +185,32 @@ export async function createSeminarHallBooking(payload: CreateSeminarHallBooking
   return unwrapResponse<SeminarHallBookingApiItem>(response);
 }
 
+export async function fetchSeminarHallBookingsRaw(): Promise<SeminarHallBookingApiItem[]> {
+  try {
+    const response = await api.get('/seminar-hall/bookings/availability');
+    return unwrapResponse<SeminarHallBookingApiItem[]>(response);
+  } catch (error) {
+    console.error('[API] Error fetching bookings:', {
+      message: error instanceof Error ? error.message : String(error),
+      status: (error as any).response?.status,
+      statusText: (error as any).response?.statusText,
+      responseData: (error as any).response?.data,
+    });
+    return [];
+  }
+}
+
 export async function fetchSeminarHallBookings(): Promise<BookingRequestItem[]> {
   const response = await api.get('/seminar-hall/bookings');
   const bookings = unwrapResponse<SeminarHallBookingApiItem[]>(response);
   return bookings.map(mapSeminarHallBookingToUiItem);
+}
+
+export async function updateSeminarHallBookingStatus(
+  bookingId: string,
+  payload: UpdateSeminarHallBookingStatusPayload,
+): Promise<BookingRequestItem> {
+  const response = await api.patch(`/seminar-hall/bookings/${bookingId}/status`, payload);
+  const booking = unwrapResponse<SeminarHallBookingApiItem>(response);
+  return mapSeminarHallBookingToUiItem(booking);
 }

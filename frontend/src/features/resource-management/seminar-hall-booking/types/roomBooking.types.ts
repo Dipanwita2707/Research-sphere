@@ -11,6 +11,8 @@ export interface RoomBookingSnapshot {
   name: string;
   mobile: string;
   email: string;
+  department?: string;
+  purpose?: string;
   slotLabel: string;
 }
 
@@ -50,6 +52,7 @@ export interface ResourceBlock {
 
 export interface BookingRequestItem {
   id: string;
+  roomId?: string;
   requestKind: BookingRequestKind;
   roomName: string;
   roomType: ResourceRoomType;
@@ -68,6 +71,10 @@ export interface BookingRequestItem {
   department?: string;
   originalBookingDate?: string;
   originalTimeSlot?: string;
+  originalStartTime?: string;
+  originalEndTime?: string;
   requestedBookingDate?: string;
   requestedTimeSlot?: string;
+  requestedStartTime?: string;
+  requestedEndTime?: string;
 }

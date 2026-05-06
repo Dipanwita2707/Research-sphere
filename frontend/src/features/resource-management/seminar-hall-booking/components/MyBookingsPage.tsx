@@ -3,8 +3,6 @@
 import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, FileText, Filter, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getBookingRequests, subscribeBookingRequests } from '../data/bookingRequestStore';
-import { mockBookingRequests } from '../data/mockBookings';
 import { fetchSeminarHallBookings } from '../services/seminarHall.api';
 import type { BookingRequestItem, BookingRequestStatus } from '../types/roomBooking.types';
 
@@ -289,7 +287,7 @@ export default function MyBookingsPage() {
   const [dateFilter, setDateFilter] = useState<string>('');
   const [timeFromFilter, setTimeFromFilter] = useState<string>('');
   const [timeToFilter, setTimeToFilter] = useState<string>('');
-  const [requests, setRequests] = useState<BookingRequestItem[]>(() => (typeof window === 'undefined' ? mockBookingRequests : getBookingRequests()));
+  const [requests, setRequests] = useState<BookingRequestItem[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requestsError, setRequestsError] = useState('');
   const [visibleMonthAnchorDate, setVisibleMonthAnchorDate] = useState<Date>(() => {
@@ -310,20 +308,11 @@ export default function MyBookingsPage() {
           return;
         }
 
-        const localRequests = getBookingRequests();
-        const mergedRequests = [...backendRequests];
-
-        localRequests.forEach((request) => {
-          if (!mergedRequests.some((item) => item.id === request.id)) {
-            mergedRequests.push(request);
-          }
-        });
-
-        setRequests(mergedRequests);
+        setRequests(backendRequests);
       } catch {
         if (isMounted) {
-          setRequests(getBookingRequests());
-          setRequestsError('Unable to load booking requests from backend. Showing local data only.');
+          setRequests([]);
+          setRequestsError('Unable to load booking requests from backend.');
         }
       } finally {
         if (isMounted) {
@@ -334,24 +323,8 @@ export default function MyBookingsPage() {
 
     loadRequests();
 
-    const unsubscribe = subscribeBookingRequests((nextRequests) => {
-      setRequests((current) => {
-        const merged = [...current];
-        nextRequests.forEach((request) => {
-          const index = merged.findIndex((item) => item.id === request.id);
-          if (index >= 0) {
-            merged[index] = request;
-          } else {
-            merged.unshift(request);
-          }
-        });
-        return merged;
-      });
-    });
-
     return () => {
       isMounted = false;
-      unsubscribe();
     };
   }, []);
 

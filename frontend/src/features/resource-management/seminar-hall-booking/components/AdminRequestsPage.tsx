@@ -1,13 +1,14 @@
 'use client';
 
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Filter, Mail, Phone, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Filter, Mail, Phone, XCircle, Lock } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { getBookingRequests, saveBookingRequests, subscribeBookingRequests } from '../data/bookingRequestStore';
-import { fetchSeminarHallBookings } from '../services/seminarHall.api';
-import type { AdminBookingRequest, AdminBookingStatus } from '../data/mockAdminRequests';
+import { useAuthStore } from '@/shared/auth/authStore';
+import { fetchSeminarHallBookings, updateSeminarHallBookingStatus } from '../services/seminarHall.api';
+import type { BookingRequestItem, BookingRequestStatus } from '../types/roomBooking.types';
 
-const statusLabelMap: Record<AdminBookingStatus, string> = {
+const statusLabelMap: Record<BookingRequestStatus, string> = {
   pending: 'Pending',
   approved: 'Approved',
   rejected: 'Rejected',
@@ -17,7 +18,7 @@ const statusLabelMap: Record<AdminBookingStatus, string> = {
   rescheduled: 'Rescheduled',
 };
 
-const statusPillClassMap: Record<AdminBookingStatus, string> = {
+const statusPillClassMap: Record<BookingRequestStatus, string> = {
   pending: 'border-amber-200 bg-amber-100 text-amber-700',
   approved: 'border-emerald-200 bg-emerald-100 text-emerald-700',
   rejected: 'border-rose-200 bg-rose-100 text-rose-700',
@@ -27,7 +28,7 @@ const statusPillClassMap: Record<AdminBookingStatus, string> = {
   rescheduled: 'border-cyan-200 bg-cyan-100 text-cyan-700',
 };
 
-const requestTypeLabelMap: Record<AdminBookingRequest['requestKind'], string> = {
+const requestTypeLabelMap: Record<BookingRequestItem['requestKind'], string> = {
   new_booking: 'New Booking Request',
   cancel_request: 'Cancellation Request',
   reschedule_request: 'Reschedule Request',
@@ -38,7 +39,7 @@ function RequestCard({
   onApprove,
   onReject,
 }: {
-  request: AdminBookingRequest;
+  request: BookingRequestItem;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
 }) {
@@ -94,8 +95,8 @@ function RequestCard({
       {request.requestKind === 'reschedule_request' ? (
         <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800">
           <p className="text-xs font-semibold uppercase tracking-wide">Reschedule details</p>
-          <p className="mt-1">From: {request.originalBookingDate ?? '-'} · {request.originalTimeSlot ?? '-'}</p>
-          <p className="mt-1">To: {request.requestedBookingDate ?? request.bookingDate} · {request.requestedTimeSlot ?? request.timeSlot}</p>
+          <p className="mt-1">From: {request.originalBookingDate ?? '-'} · {request.originalStartTime && request.originalEndTime ? `${request.originalStartTime} - ${request.originalEndTime}` : request.originalTimeSlot ?? '-'}</p>
+          <p className="mt-1">To: {request.requestedBookingDate ?? request.bookingDate} · {request.requestedStartTime && request.requestedEndTime ? `${request.requestedStartTime} - ${request.requestedEndTime}` : request.requestedTimeSlot ?? request.timeSlot}</p>
         </div>
       ) : null}
 
@@ -145,10 +146,30 @@ function RequestCard({
 }
 
 export default function AdminRequestsPage() {
-  const [requests, setRequests] = useState<AdminBookingRequest[]>(() => (typeof window === 'undefined' ? [] : getBookingRequests()));
-  const [statusFilter, setStatusFilter] = useState<'all' | AdminBookingStatus>('all');
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+  
+  // Declare ALL hooks at the top (before any early returns)
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [requests, setRequests] = useState<BookingRequestItem[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | BookingRequestStatus>('all');
   const [loadingRequests, setLoadingRequests] = useState(false);
-  const [requestsError, setRequestsError] = useState('');
+
+  // Check if user is admin
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      router.push('/login');
+      return;
+    }
+
+    const isAdmin = user.userType === 'admin';
+    if (!isAdmin) {
+      setIsAuthorized(false);
+      return;
+    }
+
+    setIsAuthorized(true);
+  }, [user, isAuthenticated, router]);
 
   useEffect(() => {
     let isMounted = true;
@@ -156,27 +177,20 @@ export default function AdminRequestsPage() {
     const loadRequests = async () => {
       try {
         setLoadingRequests(true);
-        setRequestsError('');
+        
+        console.log('Starting to load booking requests from backend...');
         const backendRequests = await fetchSeminarHallBookings();
+        console.log('Successfully loaded booking requests:', backendRequests);
 
         if (!isMounted) {
           return;
         }
 
-        const localRequests = getBookingRequests();
-        const mergedRequests = [...backendRequests];
-
-        localRequests.forEach((request) => {
-          if (!mergedRequests.some((item) => item.id === request.id)) {
-            mergedRequests.push(request);
-          }
-        });
-
-        setRequests(mergedRequests);
-      } catch {
+        setRequests(backendRequests);
+      } catch (error) {
+        console.error('Failed to load booking requests from backend:', error);
         if (isMounted) {
-          setRequests(getBookingRequests());
-          setRequestsError('Unable to load booking requests from backend. Showing local data only.');
+          setRequests([]);
         }
       } finally {
         if (isMounted) {
@@ -187,26 +201,15 @@ export default function AdminRequestsPage() {
 
     loadRequests();
 
-    const unsubscribe = subscribeBookingRequests((nextRequests) => {
-      setRequests((current) => {
-        const merged = [...current];
-        nextRequests.forEach((request) => {
-          const index = merged.findIndex((item) => item.id === request.id);
-          if (index >= 0) {
-            merged[index] = request;
-          } else {
-            merged.unshift(request);
-          }
-        });
-        return merged;
-      });
-    });
-
     return () => {
       isMounted = false;
-      unsubscribe();
     };
   }, []);
+
+  const filteredRequests = useMemo(() => {
+    if (statusFilter === 'all') return requests;
+    return requests.filter((item) => item.status === statusFilter);
+  }, [requests, statusFilter]);
 
   const summary = useMemo(() => {
     return {
@@ -222,71 +225,73 @@ export default function AdminRequestsPage() {
     };
   }, [requests]);
 
-  const filteredRequests = useMemo(() => {
-    if (statusFilter === 'all') return requests;
-    return requests.filter((item) => item.status === statusFilter);
-  }, [requests, statusFilter]);
-
-  const handleApprove = (id: string) => {
-    setRequests((prev) =>
-      {
-        const next = prev.map((request) =>
-        request.id === id
-          ? request.requestKind === 'cancel_request'
-            ? {
-                ...request,
-                status: 'cancelled',
-                adminRemark: 'Cancellation approved by admin. Room slot has been released.',
-              }
-            : request.requestKind === 'reschedule_request'
-              ? {
-                  ...request,
-                  status: 'rescheduled',
-                  adminRemark: 'Reschedule approved. New date and time slot confirmed.',
-                }
-              : {
-                  ...request,
-                  status: 'approved',
-                  adminRemark: 'Approved by block admin. Resource team notified.',
-                }
-          : request,
-        );
-
-        saveBookingRequests(next);
-        return next;
-      },
+  // If not authorized, show access denied message (after all hooks are declared)
+  if (!isAuthorized) {
+    return (
+      <main className="min-h-screen bg-[#edf1f6] px-3 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center shadow-sm">
+            <Lock className="mx-auto h-16 w-16 text-rose-600" />
+            <h1 className="mt-4 text-2xl font-bold text-rose-900">Access Denied</h1>
+            <p className="mt-2 text-rose-800">Only administrators can access the booking requests queue.</p>
+            <Link
+              href="/resource-management/seminar-hall-booking"
+              className="mt-6 inline-flex items-center rounded-lg border border-rose-600 bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+            >
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
+              Back to room browser
+            </Link>
+          </div>
+        </div>
+      </main>
     );
+  }
+
+  const handleApprove = async (id: string) => {
+    const request = requests.find((item) => item.id === id);
+    if (!request) {
+      return;
+    }
+
+    const nextStatus = request.requestKind === 'cancel_request'
+      ? 'cancelled'
+      : request.requestKind === 'reschedule_request'
+        ? 'rescheduled'
+        : 'approved';
+
+    const adminRemark = request.requestKind === 'cancel_request'
+      ? 'Cancellation approved by admin. Room slot has been released.'
+      : request.requestKind === 'reschedule_request'
+        ? 'Reschedule approved. New date and time slot confirmed.'
+        : 'Approved by block admin. Resource team notified.';
+
+    const updatedRequest = await updateSeminarHallBookingStatus(id, {
+      status: nextStatus,
+      adminRemark,
+    });
+
+    setRequests((prev) => prev.map((item) => (item.id === id ? updatedRequest : item)));
   };
 
-  const handleReject = (id: string) => {
-    setRequests((prev) =>
-      {
-        const next = prev.map((request) =>
-        request.id === id
-          ? request.requestKind === 'cancel_request'
-            ? {
-                ...request,
-                status: 'approved',
-                adminRemark: 'Cancellation rejected by admin. Original booking remains approved.',
-              }
-            : request.requestKind === 'reschedule_request'
-              ? {
-                  ...request,
-                  status: 'approved',
-                  adminRemark: 'Reschedule rejected by admin. Original approved slot remains active.',
-                }
-              : {
-                  ...request,
-                  status: 'rejected',
-                  adminRemark: 'Rejected due to time-slot conflict with another approved request.',
-                }
-          : request,
-        );
+  const handleReject = async (id: string) => {
+    const request = requests.find((item) => item.id === id);
+    if (!request) {
+      return;
+    }
 
-        saveBookingRequests(next);
-        return next;
-      },
-    );
+    const nextStatus = request.requestKind === 'new_booking' ? 'rejected' : 'approved';
+    const adminRemark = request.requestKind === 'cancel_request'
+      ? 'Cancellation rejected by admin. Original booking remains approved.'
+      : request.requestKind === 'reschedule_request'
+        ? 'Reschedule rejected by admin. Original approved slot remains active.'
+        : 'Rejected due to time-slot conflict with another approved request.';
+
+    const updatedRequest = await updateSeminarHallBookingStatus(id, {
+      status: nextStatus,
+      adminRemark,
+    });
+
+    setRequests((prev) => prev.map((item) => (item.id === id ? updatedRequest : item)));
   };
 
   return (
@@ -354,11 +359,6 @@ export default function AdminRequestsPage() {
           {loadingRequests ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <p className="text-base font-semibold text-[#1c2e4a]">Loading booking requests...</p>
-            </div>
-          ) : null}
-          {requestsError ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 shadow-sm">
-              {requestsError}
             </div>
           ) : null}
           {filteredRequests.length === 0 ? (
