@@ -105,6 +105,32 @@ const bookingInclude = {
   },
 };
 
+const getSeminarHallBlockIds = (user) => {
+  if (!user || !Array.isArray(user.seminarHallBlockIds)) {
+    return [];
+  }
+
+  return user.seminarHallBlockIds
+    .filter((blockId) => typeof blockId === 'string' && blockId.trim())
+    .map((blockId) => blockId.trim());
+};
+
+const canManageSeminarHallBlock = (user, blockId) => {
+  if (!user) {
+    return false;
+  }
+
+  if (user.role === 'admin' || user.role === 'superadmin') {
+    return true;
+  }
+
+  if (!blockId) {
+    return false;
+  }
+
+  return getSeminarHallBlockIds(user).includes(blockId);
+};
+
 exports.getRooms = asyncHandler(async (req, res) => {
   const { blockId, floorId, type, search, isActive } = req.query;
 
@@ -201,6 +227,8 @@ exports.getBookings = asyncHandler(async (req, res) => {
   try {
     const { status, requestKind, requesterEmail, roomId } = req.query;
     const isAdmin = req.user?.role === 'admin' || req.user?.role === 'superadmin';
+    const managedBlockIds = getSeminarHallBlockIds(req.user);
+    const isBlockAdmin = managedBlockIds.length > 0;
 
     console.log('[SEMINAR_HALL] getBookings called by user:', {
       userId: req.user?.id,
@@ -230,6 +258,16 @@ exports.getBookings = asyncHandler(async (req, res) => {
           },
         ],
       });
+
+      if (isBlockAdmin) {
+        andConditions.push({
+          room: {
+            blockId: {
+              in: managedBlockIds,
+            },
+          },
+        });
+      }
     }
 
     // Apply optional filters (only for admins, or non-admins viewing their own bookings)
@@ -375,10 +413,7 @@ exports.getAvailabilityBookings = asyncHandler(async (req, res) => {
 
 exports.updateBookingStatus = asyncHandler(async (req, res) => {
   const isAdmin = req.user?.role === 'admin' || req.user?.role === 'superadmin';
-
-  if (!isAdmin) {
-    throw new ValidationError('Only administrators can update booking status');
-  }
+  const managedBlockIds = getSeminarHallBlockIds(req.user);
 
   const bookingId = typeof req.params.id === 'string' ? req.params.id.trim() : '';
   const nextStatus = typeof req.body?.status === 'string' ? req.body.status.trim() : '';
@@ -399,6 +434,12 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
 
   if (!existingBooking) {
     throw new NotFoundError('Seminar hall booking request');
+  }
+
+  const roomBlockId = existingBooking.room?.block?.id || null;
+
+  if (!isAdmin && !canManageSeminarHallBlock(req.user, roomBlockId)) {
+    throw new ValidationError('Only administrators for this block can update booking status');
   }
 
   if (nextStatus === 'approved' || (nextStatus === 'rescheduled' && existingBooking.requestKind !== 'reschedule_request')) {
@@ -848,6 +889,7 @@ exports.createBookingActionRequest = asyncHandler(async (req, res) => {
   const requesterProfile = buildRequesterProfile(requesterUser);
   const currentUserEmail = requesterProfile.requesterEmail.trim().toLowerCase();
   const isAdmin = req.user?.role === 'admin' || req.user?.role === 'superadmin';
+  const managedBlockIds = getSeminarHallBlockIds(req.user);
 
   const existingBooking = await prisma.seminarHallBookingRequest.findUnique({
     where: { id: bookingId },
@@ -862,6 +904,11 @@ exports.createBookingActionRequest = asyncHandler(async (req, res) => {
       endTime: true,
       timeSlot: true,
       purpose: true,
+      room: {
+        select: {
+          blockId: true,
+        },
+      },
     },
   });
 
@@ -875,6 +922,11 @@ exports.createBookingActionRequest = asyncHandler(async (req, res) => {
 
   // Only the original booker or an admin can create a change request for a booking.
   const bookerEmail = existingBooking.requesterEmail.trim().toLowerCase();
+  const bookingBlockId = existingBooking.room?.blockId || null;
+
+  if (!isAdmin && managedBlockIds.length > 0 && !managedBlockIds.includes(bookingBlockId || '')) {
+    throw new ValidationError('You can only manage bookings for your assigned block');
+  }
 
   if (!isAdmin && currentUserEmail !== bookerEmail) {
     throw new ValidationError('Only the person who created this booking or an admin can request changes to it');

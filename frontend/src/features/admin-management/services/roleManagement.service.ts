@@ -19,6 +19,7 @@ export interface RolePermissions {
   schoolDeptPermissions?: Record<string, boolean>;
   centralDeptPermissions?: Record<string, boolean>;
   analyticsScope?: RoleAnalyticsScope;
+  seminarHallBlockIds?: string[];
 }
 
 export interface Role {
