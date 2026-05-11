@@ -474,6 +474,7 @@ class LoanLetterService {
     // Billing rule: single semester in an academic year => 6 months, full year => 11 months.
     const { yearCount: selectedYearCount, monthCount: selectedAccommodationMonths } = getAccommodationBillingWindow(selectedSemesters);
 
+    // Transport fee: amount is monthly, multiply by semester months (6 or 11)
     const transportHeads = (transportFeeStructure?.heads || []).map(h => ({
       headName: h.headName,
       amount: Number(h.amount) || 0,
@@ -481,12 +482,14 @@ class LoanLetterService {
       years: selectedYearCount,
       months: selectedAccommodationMonths,
     }));
+    // Hostel fee: amount is YEARLY charge, just multiply by number of years
+    const hostelMonths = selectedYearCount * 12; // Display purposes only
     const hostelHeads = (hostelFeeStructure?.heads || []).map(h => ({
       headName: h.headName,
       amount: Number(h.amount) || 0,
-      yearlyTotal: (Number(h.amount) || 0) * selectedAccommodationMonths,
+      yearlyTotal: (Number(h.amount) || 0) * selectedYearCount, // Amount is yearly, multiply by years
       years: selectedYearCount,
-      months: selectedAccommodationMonths,
+      months: hostelMonths,
     }));
 
     const academicTotal = academicHeads.reduce((s, h) => s + h.total, 0);

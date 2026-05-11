@@ -92,7 +92,11 @@ export default function TransportHostelTab({ type }: Props) {
       </div>
       <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
         <p><strong>Amount is monthly.</strong> Enter per-month {label.toLowerCase()} charge here.</p>
-        <p className="mt-1">Loan letter printing rule: for each academic year block, selected one semester = 6 months, selected both semesters = 11 months.</p>
+        <p className="mt-1">
+          <strong>Loan letter printing rule:</strong> {type === 'TRANSPORT' 
+            ? 'For each academic year block, selected one semester = 6 months, selected both semesters = 11 months.' 
+            : 'For hostel, one year charge (12 months) is calculated for the loan letter.'}
+        </p>
       </div>
 
       {error && <div className="mb-4 rounded-lg p-3 bg-red-50 text-red-700 text-sm">{error}</div>}
