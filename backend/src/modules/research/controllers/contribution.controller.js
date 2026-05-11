@@ -65,7 +65,7 @@ const RESEARCH_LIST_SELECT = {
       email: true,
       affiliation: true,
       isCorresponding: true,
-      orderNumber: true,
+      authorOrder: true,
       incentiveShare: true,
       pointsShare: true,
     },

@@ -269,7 +269,7 @@ export default function ProfilePage() {
                 affiliation: a.affiliation || null,
                 email: a.email || null,
                 isCorresponding: a.isCorresponding || false,
-                authorOrder: a.orderNumber ?? idx,
+                authorOrder: a.authorOrder ?? idx,
               })),
               venue: c.journalName || c.conferenceName || c.bookTitle || c.publisherName || '',
               publicationType: c.publicationType || 'research_paper',

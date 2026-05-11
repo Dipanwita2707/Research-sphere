@@ -22,11 +22,12 @@ export default function PerformanceMonitor({ pageName }: PerformanceMonitorProps
         }
         
         if (entry.entryType === 'first-input') {
-          console.log(`[${pageName}] FID: ${entry.processingStart - entry.startTime}ms`);
+          const eventTiming = entry as PerformanceEventTiming;
+          console.log(`[${pageName}] FID: ${eventTiming.processingStart - entry.startTime}ms`);
         }
         
         if (entry.entryType === 'layout-shift') {
-          console.log(`[${pageName}] CLS: ${entry.value}`);
+          console.log(`[${pageName}] CLS: ${(entry as any).value}`);
         }
       });
     });
