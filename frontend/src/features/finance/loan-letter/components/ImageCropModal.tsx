@@ -118,8 +118,11 @@ export default function ImageCropModal({ imageUrl, type, onConfirm, onCancel }: 
             image={imageUrl}
             crop={crop}
             zoom={zoom}
+            minZoom={0.1}
+            maxZoom={3}
             rotation={rotation}
             aspect={aspect}
+            restrictPosition={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
@@ -132,7 +135,7 @@ export default function ImageCropModal({ imageUrl, type, onConfirm, onCancel }: 
           <div className="flex items-center gap-3">
             <ZoomOut className="w-4 h-4 text-gray-400 shrink-0" />
             <input
-              type="range" min={1} max={3} step={0.05}
+              type="range" min={0.1} max={3} step={0.05}
               value={zoom}
               onChange={e => setZoom(Number(e.target.value))}
               className="flex-1 accent-primary-600"
