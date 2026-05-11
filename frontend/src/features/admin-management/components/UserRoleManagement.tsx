@@ -45,6 +45,7 @@ import {
   UserCog,
   Search,
   Filter,
+  MapPinned,
 } from 'lucide-react';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 
@@ -286,7 +287,7 @@ export default function UserRoleManagement() {
       setCentralDepts(centralDeptsRes.data);
       setDepartments(departmentsRes.data);
       setPermissionDefs(defsRes.data);
-      setSeminarHallBlocks(seminarHallBlocksRes.map((block) => ({ id: block.id, name: block.name, blockNumber: block.blockNumber })));
+      setSeminarHallBlocks(seminarHallBlocksRes.map((block) => ({ id: block.id, name: block.name })));
     } catch (error: unknown) {
       logger.error('Failed to fetch data:', error);
       toast({ type: 'error', message: 'Failed to load data' });
