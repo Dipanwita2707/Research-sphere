@@ -106,7 +106,7 @@ export function AnalyticsHero({
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-indigo-500/0 via-indigo-500/30 to-indigo-500/0 blur-sm" />
 
-      <div className="relative z-10 px-6 py-8 sm:px-8 lg:px-12 xl:px-16 lg:py-10">
+      <div className="relative z-10 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 space-y-3">
             {(onBack || eyebrow) && (

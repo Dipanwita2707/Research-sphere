@@ -89,8 +89,8 @@ const createTracker = async (req, res) => {
     }
 
     // Validate currentStatus if provided
-    const validStatuses = ['communicated', 'rejected', 'accepted', 'published'];
-    const initialStatus = currentStatus && validStatuses.includes(currentStatus) ? currentStatus : 'communicated';
+    const validStatuses = ['writing', 'communicated', 'rejected', 'accepted', 'published'];
+    const initialStatus = currentStatus && validStatuses.includes(currentStatus) ? currentStatus : 'writing';
 
     // Generate tracking number
     const trackingNumber = await generateTrackingNumber(publicationType);

@@ -919,7 +919,7 @@ export default function SchoolAnalyticsPage() {
             />
 
             {/* View mode tabs */}
-            <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-6 sm:px-8 lg:px-12 xl:px-16">
+            <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-4 sm:px-6 lg:px-8">
               <div className="flex gap-0">
                 {([
                   { key: 'overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" /> },
@@ -941,7 +941,7 @@ export default function SchoolAnalyticsPage() {
               </div>
             </div>
 
-          <div id="school-analytics-content" className="px-6 py-6 sm:px-8 lg:px-12 xl:px-16 space-y-6">
+          <div id="school-analytics-content" className="px-4 py-5 sm:px-6 lg:px-8 space-y-5">
 
             {viewMode === 'papers' ? (
               <AnalyticsPapersTable
@@ -998,23 +998,21 @@ export default function SchoolAnalyticsPage() {
                     },
                   ];
                   return (
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
                       {cards.map((card) => (
                         <button
                           key={card.label}
                           onClick={() => setKpiDrawer(card.type)}
-                          className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
+                          className="group relative overflow-hidden rounded-xl bg-white border border-slate-200/80 dark:border-slate-700/50 dark:bg-slate-800/80 p-3.5 text-left shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-600"
                         >
-                          <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${card.accent}`} />
-                          <div className="mt-0.5 flex items-start justify-between gap-1">
-                            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 leading-tight">{card.label}</span>
-                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white ${card.accent}`}>{card.icon}</span>
+                          <div className={`absolute inset-x-0 top-0 h-[2.5px] bg-gradient-to-r ${card.accent}`} />
+                          <div className="flex items-center justify-between gap-1 mb-2">
+                            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white ${card.accent}`}>{card.icon}</span>
+                            <ChevronRight className="h-3 w-3 text-slate-300 group-hover:text-slate-500 transition-colors" />
                           </div>
-                          <div className="mt-2 text-2xl font-bold leading-none tracking-tight text-slate-900">{card.value}</div>
-                          <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 group-hover:text-sky-600 transition-colors">
-                            <span>{card.sub || 'View details'}</span>
-                            <ChevronRight className="h-3 w-3" />
-                          </div>
+                          <div className="text-[22px] font-bold leading-none tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">{card.value}</div>
+                          <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-tight truncate">{card.label}</div>
+                          {card.sub && <div className="mt-0.5 text-[9px] text-slate-400 group-hover:text-sky-600 transition-colors">{card.sub}</div>}
                         </button>
                       ))}
                     </div>
@@ -1045,7 +1043,7 @@ export default function SchoolAnalyticsPage() {
                         { key: 'ipr',        label: 'IPR',        color: '#ef4444' },
                         { key: 'grants',     label: 'Grants',     color: '#10b981' },
                       ]}
-                      height={380}
+                      height={260}
                     />
 
                     {/* Department-wise category table — click navigates to applicant page */}
@@ -1108,28 +1106,25 @@ export default function SchoolAnalyticsPage() {
                       </div>
                     </div>
 
-                    {/* Department highlights — click to filter contributor list below */}
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    {/* Department highlights */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/90 p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                           <Layers3 className="w-4 h-4" />
                           Department Highlights
                         </h3>
-                        <button
-                          onClick={() => setSelectedDeptId('')}
-                          className={`text-xs px-3 py-1 rounded-full transition-colors ${!selectedDeptId ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                        >
-                          All departments
-                        </button>
+                        {selectedDeptId && (
+                          <button onClick={() => setSelectedDeptId('')} className="text-xs px-3 py-1 rounded-full border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700">
+                            Clear filter
+                          </button>
+                        )}
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {departments.map((dept: any) => {
-                          const approvalPct =
-                            dept.totalApplications > 0
-                              ? ((dept.totalApproved / dept.totalApplications) * 100).toFixed(1)
-                              : '0.0';
-                          const isSelected = selectedDeptId ===
-   dept.departmentId;
+                          const approvalPct = dept.totalApplications > 0
+                            ? ((dept.totalApproved / dept.totalApplications) * 100).toFixed(0)
+                            : '0';
+                          const isSelected = selectedDeptId === dept.departmentId;
                           const fc = dept.filingCounts || {};
                           return (
                             <button
@@ -1137,23 +1132,25 @@ export default function SchoolAnalyticsPage() {
                               onClick={() => setSelectedDeptId(isSelected ? '' : dept.departmentId)}
                               className={`rounded-xl border p-3 text-left transition-all ${
                                 isSelected
-                                  ? 'border-slate-900 bg-slate-50'
-                                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                  ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-600'
+                                  : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-700/40'
                               }`}
                             >
-                              <p className="truncate text-sm font-medium text-slate-800">{dept.departmentName}</p>
-                              <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
-                                {fc.research > 0 && <span className="rounded-full bg-blue-50 text-blue-600 px-2 py-0.5">R: {fc.research}</span>}
-                                {fc.book > 0 && <span className="rounded-full bg-violet-50 text-violet-600 px-2 py-0.5">B: {fc.book}</span>}
-                                {fc.conference > 0 && <span className="rounded-full bg-amber-50 text-amber-600 px-2 py-0.5">C: {fc.conference}</span>}
-                                {fc.ipr > 0 && <span className="rounded-full bg-red-50 text-red-600 px-2 py-0.5">IPR: {fc.ipr}</span>}
-                                {fc.grants > 0 && <span className="rounded-full bg-emerald-50 text-emerald-600 px-2 py-0.5">G: {fc.grants}</span>}
+                              <p className="truncate text-[12px] font-semibold text-slate-800 dark:text-slate-100 mb-2">{dept.departmentName}</p>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[18px] font-bold text-slate-900 dark:text-white tabular-nums">{dept.totalApplications}</span>
+                                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${
+                                  Number(approvalPct) >= 50 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                }`}>{approvalPct}% ✓</span>
                               </div>
-                              <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
-                                <span>{dept.totalApplications} total</span>
-                                <span className="text-emerald-600 font-medium">{approvalPct}% approved</span>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {fc.research > 0 && <span className="text-[9px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">R·{fc.research}</span>}
+                                {fc.book > 0 && <span className="text-[9px] font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded">B·{fc.book}</span>}
+                                {fc.conference > 0 && <span className="text-[9px] font-semibold bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">C·{fc.conference}</span>}
+                                {fc.ipr > 0 && <span className="text-[9px] font-semibold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded">IPR·{fc.ipr}</span>}
+                                {fc.grants > 0 && <span className="text-[9px] font-semibold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded">G·{fc.grants}</span>}
                               </div>
-                              <p className="mt-1 text-[10px] text-slate-400">{isSelected ? 'Showing contributors below' : 'Click to filter contributors'}</p>
                             </button>
                           );
                         })}
@@ -1177,9 +1174,9 @@ export default function SchoolAnalyticsPage() {
                       }))}
                       keys={[
                         { key: 'filed', label: 'Total Filed', color: '#6366f1' },
-                        { key: 'approved', label: 'Approved', color: '#10b981' },
+                        { key: 'approved', label: 'Approved', color: '#f59e0b' },
                       ]}
-                      height={320}
+                      height={280}
                     />
                   ) : <div />}
 

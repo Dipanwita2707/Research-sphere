@@ -26,4 +26,7 @@ router.get('/progress-tracker/records', checkPermission('applicant_analytics'), 
 // Contributions list — requires applicant_analytics permission
 router.get('/applicant/contributions', checkPermission('applicant_analytics'), controller.getContributionsList);
 
+// External co-author affiliations — for Global Research Network globe
+router.get('/applicant/affiliations', checkPermission('applicant_analytics'), controller.getAffiliations);
+
 module.exports = router;

@@ -828,47 +828,64 @@ export default function ComprehensiveAnalyticsTab({
         </div>
       )}
 
-      {/* Summary KPIs */}
-      {person && (
-        <KpiCardGrid
-          cards={[
-            {
-              label: 'Total Submissions',
-              value: person.totalApplications,
-              icon: <BarChart3 className="w-4 h-4" />,
-            },
-            {
-              label: 'Approved',
-              value: person.approvedCount,
-              icon: <CheckCircle2 className="w-4 h-4" />,
-            },
-            {
-              label: 'Approval Rate',
-              value: Number(approvalRate),
-              format: 'percent',
-              icon: <TrendingUp className="w-4 h-4" />,
-            },
-            {
-              label: 'Incentive Earned',
-              value: person.totalIncentive,
-              format: 'currency',
-              icon: <Award className="w-4 h-4" />,
-            },
-          ]}
-        />
-      )}
+      {/* Unified Stats Banner */}
+      {(person || trackerWorks) && (
+        <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/50 bg-white dark:bg-slate-800/90 shadow-sm overflow-hidden">
+          {/* Top accent */}
+          <div className="h-[2px] w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-amber-400" />
 
-      {/* Tracker Works KPIs */}
-      {trackerWorks && trackerWorks.totalTrackers > 0 && (
-        <KpiCardGrid
-          cards={[
-            { label: 'Tracked Works', value: trackerWorks.totalTrackers, icon: <Layers3 className="w-4 h-4" /> },
-            { label: 'Ongoing Works', value: trackerWorks.ongoingCount, icon: <Clock className="w-4 h-4" /> },
-            { label: 'Completed Works', value: trackerWorks.completedCount, icon: <CheckCircle2 className="w-4 h-4" /> },
-            { label: 'Published Works', value: trackerWorks.publishedCount, icon: <Award className="w-4 h-4" /> },
-            { label: 'Rejected Works', value: trackerWorks.rejectedCount, icon: <XCircle className="w-4 h-4" /> },
-          ]}
-        />
+          <div className="px-5 py-4">
+            {/* Section: Submissions */}
+            {person && (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Submission Overview</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 divide-x divide-slate-100 dark:divide-slate-700">
+                  {[
+                    { label: 'Total Submitted', value: String(person.totalApplications), icon: <BarChart3 className="w-3.5 h-3.5" />, accent: 'text-indigo-600 dark:text-indigo-400', dot: 'bg-indigo-500' },
+                    { label: 'Approved', value: String(person.approvedCount), icon: <CheckCircle2 className="w-3.5 h-3.5" />, accent: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
+                    { label: 'Approval Rate', value: `${approvalRate}%`, icon: <TrendingUp className="w-3.5 h-3.5" />, accent: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
+                    { label: 'Incentive Earned', value: `₹${Number(person.totalIncentive).toLocaleString('en-IN')}`, icon: <Award className="w-3.5 h-3.5" />, accent: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
+                  ].map((s, i) => (
+                    <div key={i} className={`flex flex-col gap-1.5 px-4 first:pl-0 last:pr-0 ${i > 0 ? '' : ''}`}>
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider ${s.accent}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${s.dot} shrink-0`} />
+                        {s.label}
+                      </span>
+                      <span className="text-[22px] font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums leading-none">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Divider */}
+            {person && trackerWorks && trackerWorks.totalTrackers > 0 && (
+              <div className="my-4 border-t border-dashed border-slate-200 dark:border-slate-700" />
+            )}
+
+            {/* Section: Research Tracker */}
+            {trackerWorks && trackerWorks.totalTrackers > 0 && (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Research Tracker</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Tracked', value: trackerWorks.totalTrackers, dot: 'bg-slate-400', text: 'text-slate-700 dark:text-slate-300' },
+                    { label: 'Ongoing', value: trackerWorks.ongoingCount, dot: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-300' },
+                    { label: 'Completed', value: trackerWorks.completedCount, dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300' },
+                    { label: 'Published', value: trackerWorks.publishedCount, dot: 'bg-violet-500', text: 'text-violet-700 dark:text-violet-300' },
+                    { label: 'Rejected', value: trackerWorks.rejectedCount, dot: 'bg-rose-400', text: 'text-rose-600 dark:text-rose-400' },
+                  ].map((s, i) => (
+                    <div key={i} className="inline-flex items-center gap-2 rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+                      <span className={`w-2 h-2 rounded-full ${s.dot} shrink-0`} />
+                      <span className={`text-[11px] font-semibold ${s.text}`}>{s.label}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Category Breakdown */}

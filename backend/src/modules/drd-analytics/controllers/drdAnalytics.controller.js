@@ -116,6 +116,9 @@ exports.getProgressTrackerRecords = async (req, res) =>
     });
   });
 
+exports.getAffiliations = async (req, res) =>
+  handle(res, () => service.getAffiliations(req.user, getFilters(req)));
+
 exports.getContributionsList = async (req, res) =>
   handle(res, () => {
     const { from, to, schoolId, departmentId, publicationType, status } = req.query;

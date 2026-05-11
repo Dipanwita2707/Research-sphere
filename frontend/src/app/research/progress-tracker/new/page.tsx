@@ -168,7 +168,7 @@ export default function NewTrackerPage() {
   const [naasRating, setNaasRating] = useState<number | ''>('');
 
   // Category 3: Current Status & All Publication/Status-Specific Fields (Combined)
-  const [currentStatus, setCurrentStatus] = useState<ResearchTrackerStatus>('communicated');
+  const [currentStatus, setCurrentStatus] = useState<ResearchTrackerStatus>('writing');
   const [statusData, setStatusData] = useState<Record<string, unknown>>({});
   
   // Conference Paper specific
