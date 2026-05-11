@@ -210,7 +210,7 @@ async function send({ to, subject, html, attachments = [] }) {
       html,
       attachments: sgAttachments,
     });
-    const messageId = response?.headers?.['x-message-id'] || 'n/a';
+    const messageId = (response && response.headers && response.headers['x-message-id']) || 'n/a';
     console.log(`[EMAIL] ✅ Sent "${subject}" → ${to} | msgId: ${messageId}`);
   } catch (err) {
     const detail = err?.response?.body?.errors?.[0]?.message || err.message;

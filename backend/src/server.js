@@ -376,6 +376,10 @@ const startServer = async () => {
     const { startWorkflowHealthMonitor } = require('./jobs/workflowHealthMonitor.job');
     startWorkflowHealthMonitor();
 
+    // Initialize scheduled faculty publication sync
+    const { startPublicationSyncJob } = require('./jobs/publicationSync.job');
+    startPublicationSyncJob();
+
     httpServer.listen(config.port, () => {
       console.log(`✅ Server running in ${config.env} mode on port ${config.port}`);
       console.log(`🔗 API available at http://localhost:${config.port}${API_PREFIX}`);
@@ -385,6 +389,7 @@ const startServer = async () => {
       console.log(`📧 Email queue: ${emailQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
       console.log(`🧠 Research workflow queue: ${researchWorkflowQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
       console.log(`🩺 Workflow health monitor initialized`);
+      console.log(`📚 Publication sync job initialized`);
       console.log(`📊 Audit report scheduler initialized`);
       console.log(`🎫 TMS auto-escalation scheduler initialized`);
       console.log(`🎫 QR activation job started for gate entry`);
@@ -403,7 +408,9 @@ process.on('SIGTERM', async () => {
   const emailQueue = require('./jobs/emailQueue');
   const researchWorkflowQueue = require('./jobs/researchWorkflowQueue');
   const { stopWorkflowHealthMonitor } = require('./jobs/workflowHealthMonitor.job');
+  const { stopPublicationSyncJob } = require('./jobs/publicationSync.job');
   stopWorkflowHealthMonitor();
+  stopPublicationSyncJob();
   await emailQueue.shutdown();
   await researchWorkflowQueue.shutdown();
   process.exit(0);

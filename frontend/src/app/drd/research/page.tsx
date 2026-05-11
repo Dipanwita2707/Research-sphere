@@ -473,6 +473,7 @@ export default function DrdResearchDashboard() {
               const pubTypeConfig = PUBLICATION_TYPE_CONFIG[contribution.publicationType];
               const PubTypeIcon = pubTypeConfig?.icon || FileText;
               const isRecommended = (contribution as any).awaitingFinalApproval;
+              const isImported = contribution.sourceType === 'auto_import';
               
               // Check if current user has reviewed this
               const userHasReviewed = user?.id && (contribution as any).reviews?.some(
@@ -532,6 +533,28 @@ export default function DrdResearchDashboard() {
                                 </>
                               )}
                             </div>
+
+                            {(isImported || contribution.specialReviewRequired) && (
+                              <div className="flex flex-wrap items-center gap-2 mt-2">
+                                {isImported && (
+                                  <span className="inline-flex items-center px-2 py-1 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">
+                                    <Sparkles className="w-3 h-3 mr-1" />
+                                    Auto imported
+                                  </span>
+                                )}
+                                {contribution.specialReviewRequired && (
+                                  <span className="inline-flex items-center px-2 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Special review required
+                                  </span>
+                                )}
+                                {contribution.sourceSystems && contribution.sourceSystems.length > 0 && (
+                                  <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium">
+                                    {contribution.sourceSystems.join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             
                             {/* Applicant Info */}
                             <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 mt-1.5">

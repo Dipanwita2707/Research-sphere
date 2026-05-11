@@ -28,6 +28,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Preload critical images for LCP optimization */}
+        <link 
+          rel="preload" 
+          as="image" 
+          href="/images/new-header-logo.png" 
+          fetchPriority="high"
+        />
+      </head>
       <body className={`${inter.className} text-gray-900 dark:text-gray-100 transition-colors duration-200`}>
         <ErrorBoundary>
           <ThemeProvider>

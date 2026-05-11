@@ -8,6 +8,7 @@ const ContributionRepository = require('../repositories/contribution.repository'
 const ReviewRepository = require('../repositories/review.repository');
 const ContributionService = require('./contribution.service');
 const ReviewService = require('./review.service');
+const PublicationSyncService = require('./publicationSync.service');
 const auditLogger = require('../../../shared/utils/auditLogger');
 const workflowQueue = require('../../../jobs/researchWorkflowQueue');
 
@@ -31,4 +32,16 @@ const reviewService = new ReviewService(
   workflowQueue
 );
 
-module.exports = { contributionRepo, reviewRepo, contributionService, reviewService, prisma };
+const publicationSyncService = new PublicationSyncService(
+  prisma,
+  contributionService
+);
+
+module.exports = {
+  contributionRepo,
+  reviewRepo,
+  contributionService,
+  reviewService,
+  publicationSyncService,
+  prisma,
+};

@@ -11,16 +11,13 @@ export function useRndMenuItems(perms: NavPermissions): SubMenuItem[] {
     canReviewGrant, canApproveGrant,
   } = perms;
 
+  const myResearchChildren: SubMenuItem[] = [
+    { name: 'All Submissions', href: '/my-work', description: 'View all submissions at once' },
+    ...(canFileResearch ? [{ name: 'Research Papers, Books, Chapters & Conference Papers', href: '/research/my-contributions', description: 'View research papers' }] : []),
+    ...(canFileIpr ? [{ name: 'Patents / IPR', href: '/ipr/my-applications', description: 'View patent applications' }] : []),
+  ];
+
   const submitTrackChildren: SubMenuItem[] = [
-    {
-      name: 'My Research',
-      description: 'View all your submitted work',
-      children: [
-        { name: 'All Submissions', href: '/my-work', description: 'View all submissions at once' },
-        ...(canFileResearch ? [{ name: 'Research Papers, Books, Chapters & Conference Papers', href: '/research/my-contributions', description: 'View research papers' }] : []),
-        ...(canFileIpr ? [{ name: 'Patents / IPR', href: '/ipr/my-applications', description: 'View patent applications' }] : []),
-      ],
-    },
     {
       name: 'New Filing',
       description: 'Submit new research work',
@@ -48,6 +45,22 @@ export function useRndMenuItems(perms: NavPermissions): SubMenuItem[] {
   if (hasFinanceAccess) reviewApprovalChildren.push({ name: '🏦 Finance & Payments', href: '/finance/dashboard', description: 'Manage incentive payments' });
 
   const rndSubItems: SubMenuItem[] = [];
+
+  if (canFileIpr || canFileResearch) {
+    rndSubItems.push({
+      name: 'My Research',
+      description: 'View all your submitted work',
+      children: myResearchChildren,
+    });
+  }
+
+  if (canFileIpr || canFileResearch) {
+    rndSubItems.push({
+      name: 'My Research Profile',
+      href: '/research/my-profile',
+      description: 'Open your research profile and manage sync settings',
+    });
+  }
 
   if (canFileIpr || canFileResearch) {
     rndSubItems.push({ name: 'Submit & Track', description: 'File new work & view submissions', children: submitTrackChildren });

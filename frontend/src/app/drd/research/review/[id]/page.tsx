@@ -829,6 +829,46 @@ export default function ResearchReviewPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {(contribution.sourceType === 'auto_import' || contribution.specialReviewRequired) && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Import Review Signals</h2>
+            <div className="flex flex-wrap gap-3">
+              {contribution.sourceType === 'auto_import' && (
+                <span className="inline-flex items-center px-3 py-1.5 bg-sky-50 text-sky-700 rounded-lg text-sm font-medium">
+                  <Award className="w-4 h-4 mr-2" />
+                  Auto imported from {contribution.sourceSystems?.join(', ') || 'external sources'}
+                </span>
+              )}
+              {contribution.specialReviewRequired && (
+                <span className="inline-flex items-center px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium">
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Special review required
+                </span>
+              )}
+              {typeof contribution.importConfidence === 'number' && (
+                <span className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">
+                  Import confidence {Math.round(contribution.importConfidence)}%
+                </span>
+              )}
+            </div>
+            {contribution.missingFields && contribution.missingFields.length > 0 && (
+              <div className="mt-4">
+                <div className="text-sm font-medium text-gray-700 mb-2">Reviewer attention needed for</div>
+                <div className="flex flex-wrap gap-2">
+                  {contribution.missingFields.map((field) => (
+                    <span
+                      key={field}
+                      className="px-2 py-1 bg-amber-100 text-amber-800 rounded-md text-xs font-medium"
+                    >
+                      {field}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Applicant Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Applicant Information</h2>

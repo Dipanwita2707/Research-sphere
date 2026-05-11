@@ -161,13 +161,22 @@ export default function ResearchDashboard() {
             </div>
             <div className="flex items-center gap-3">
               {user?.id && (
-                <Link
-                  href={`/research/profile/${user.id}`}
-                  className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-medium transition-colors flex items-center border border-gray-300 dark:border-gray-600"
-                >
-                  <Award className="w-5 h-5 mr-2" />
-                  View Profile
-                </Link>
+                <>
+                  <Link
+                    href="/research/my-profile"
+                    className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-medium transition-colors flex items-center border border-gray-300 dark:border-gray-600"
+                  >
+                    <Award className="w-5 h-5 mr-2" />
+                    My Research Profile
+                  </Link>
+                  <Link
+                    href={`/research/profile/${user.id}/manage`}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center"
+                  >
+                    <Award className="w-5 h-5 mr-2" />
+                    Manage Profile
+                  </Link>
+                </>
               )}
               <Link
                 href="/research/apply"

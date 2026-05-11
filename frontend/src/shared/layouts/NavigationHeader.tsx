@@ -298,18 +298,13 @@ export default function NavigationHeader() {
   // 1. My Research (view all submitted work)
   // 2. New Filing (file new work)
   // =====================================
-    const submitTrackChildren: SubMenuItem[] = [
-    // Option 1: My Research - View all submitted work (with sub-options)
-    {
-      name: 'My Research',
-      description: 'View all your submitted work',
-      children: [
-        { name: 'All Submissions', href: '/my-work', description: 'View all submissions at once' },
-        ...(canFileResearch ? [{ name: 'Research Papers, Books, Chapters & Conference Papers', href: '/research/my-contributions', description: 'View research papers' }] : []),
-        ...(canFileIpr ? [{ name: 'Patents / IPR', href: '/ipr/my-applications', description: 'View patent applications' }] : []),
-      ],
-    },
+    const myResearchChildren: SubMenuItem[] = [
+      { name: 'All Submissions', href: '/my-work', description: 'View all submissions at once' },
+      ...(canFileResearch ? [{ name: 'Research Papers, Books, Chapters & Conference Papers', href: '/research/my-contributions', description: 'View research papers' }] : []),
+      ...(canFileIpr ? [{ name: 'Patents / IPR', href: '/ipr/my-applications', description: 'View patent applications' }] : []),
+    ];
 
+    const submitTrackChildren: SubMenuItem[] = [
     // Option 3: New Filing - File new work (with sub-options)
     {
       name: 'New Filing',
@@ -367,6 +362,19 @@ export default function NavigationHeader() {
     // Build Research and Development sub-items
   // =====================================
     const rndSubItems: SubMenuItem[] = [];
+
+  if (canFileIpr || canFileResearch) {
+    rndSubItems.push({
+      name: 'My Research',
+      description: 'View all your submitted work',
+      children: myResearchChildren,
+    });
+    rndSubItems.push({
+      name: 'My Research Profile',
+      href: '/research/my-profile',
+      description: 'Open your research profile and manage sync settings',
+    });
+  }
 
   if (canFileIpr || canFileResearch) {
     rndSubItems.push({
@@ -748,6 +756,8 @@ export default function NavigationHeader() {
             src="/images/new-header-logo.png"
             alt="SGT University"
             className="h-8 sm:h-12 object-contain brightness-0 invert"
+            fetchPriority="high"
+            loading="eager"
           />
           <div className="hidden sm:block">
             <div className="text-white font-bold text-xs sm:text-sm leading-tight">UNIVERSITY</div>

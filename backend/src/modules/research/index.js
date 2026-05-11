@@ -18,6 +18,7 @@ const drdReviewRoutes = require('./routes/drdReview.routes');
 const deanApprovalRoutes = require('./routes/deanApproval.routes');
 const collaborativeEditingRoutes = require('./routes/collaborativeEditing.routes');
 const googleDocsRoutes = require('./routes/googleDocs.routes');
+const profileIdentityRoutes = require('./routes/profileIdentity.routes');
 
 // Policy routes
 const researchPolicyRoutes = require('./routes/policies/research.routes');
@@ -36,6 +37,7 @@ router.use('/drd-review', drdReviewRoutes);
 router.use('/dean-approval', deanApprovalRoutes);
 router.use('/collaborative-editing', collaborativeEditingRoutes);
 router.use('/google-docs', googleDocsRoutes);
+router.use('/profile', profileIdentityRoutes);
 
 // Mount policy routes
 router.use('/policies/research', researchPolicyRoutes);

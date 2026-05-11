@@ -187,6 +187,10 @@ export async function getProfile(userId: string): Promise<GetProfileResponse> {
   };
 }
 
+export function seedProfile(profile: ProfileData): void {
+  dataStore.addProfile(profile);
+}
+
 /**
  * Search for researcher profiles
  */
@@ -485,6 +489,7 @@ export async function getTrendingResearchers(limit: number = 10): Promise<Profil
 
 export const mockResearchProfileAPI = {
   getProfile,
+  seedProfile,
   searchProfiles,
   syncProfile,
   addPublication,

@@ -229,6 +229,19 @@ export interface ResearchContribution {
   incentiveAmount?: number;
   pointsAwarded?: number;
   creditedAt?: string;
+
+  // Import automation metadata
+  sourceType?: string;
+  sourceSystems?: string[];
+  externalIds?: Record<string, string>;
+  importedAt?: string;
+  lastSyncedAt?: string;
+  specialReviewRequired?: boolean;
+  importConfidence?: number;
+  missingFields?: string[];
+  autoCalculatedFields?: string[];
+  fieldProvenance?: Record<string, string>;
+  importMetadata?: Record<string, unknown>;
   
   // Timestamps
   submittedAt?: string;

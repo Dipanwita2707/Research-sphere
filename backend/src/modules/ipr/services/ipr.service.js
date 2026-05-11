@@ -1024,7 +1024,7 @@ class IprService {
   async getContributedApplications(userId, userUid) {
     const contributions = await this.repo.findContributors(
       { OR: [{ userId }, { uid: userUid }], iprApplication: { NOT: { applicantUserId: userId } } },
-      IPR_CONTRIBUTED_INCLUDE
+      { include: IPR_CONTRIBUTED_INCLUDE }
     );
 
     return contributions.map(c => ({

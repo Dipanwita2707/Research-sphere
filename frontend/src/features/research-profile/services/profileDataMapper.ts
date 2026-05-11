@@ -34,7 +34,10 @@ export function mapDrdAnalyticsToProfileData(
   analyticsData: DrdAnalyticsResponse,
   submissionsData?: PersonSubmissionsResponse
 ): ProfileData {
-  const person = analyticsData.people?.[0] as ApplicantPerson | null;
+  const person = (
+    analyticsData.people?.find((entry: ApplicantPerson) => entry.personId === personId) ||
+    (analyticsData.people?.length === 1 ? analyticsData.people[0] : null)
+  ) as ApplicantPerson | null;
   
   if (!person) {
     throw new Error('Person data not found in analytics response');

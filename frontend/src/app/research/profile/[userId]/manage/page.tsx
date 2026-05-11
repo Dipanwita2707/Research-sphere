@@ -9,25 +9,44 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { mockResearchProfileAPI } from '@/mocks/research-profile-api';
 import { drdAnalyticsService } from '@/features/ipr-management/services/drdAnalytics.service';
 import { mapDrdAnalyticsToProfileData } from '@/features/research-profile/services/profileDataMapper';
+import { researchProfileService } from '@/features/research-profile/services/researchProfile.service';
+import { applyResearchIdentity, buildProfileDataFromAuthUser } from '@/features/research-profile/services/profileFallback';
 import logger from '@/shared/utils/logger';
+import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
 
 export default function ProfileManagePage() {
   const params = useParams();
   const router = useRouter();
   const userId = params?.userId as string;
   const { user } = useAuthStore();
+  const { data: staffDashboardData } = useStaffDashboardSummary({ enabled: !!user });
   
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const isOwner = user?.id === userId;
+  const hasApplicantAnalyticsAccess =
+    user?.userType === 'admin' ||
+    !!staffDashboardData?.permissions?.some((dept) =>
+      (dept.permissions || []).some((permission) => {
+        const normalized = permission.toLowerCase();
+        return (
+          normalized.includes('applicant_analytics') ||
+          normalized.includes('research_applicant_analytics') ||
+          normalized.includes('book_applicant_analytics') ||
+          normalized.includes('conference_applicant_analytics') ||
+          normalized.includes('grant_applicant_analytics') ||
+          normalized.includes('ipr_applicant_analytics')
+        );
+      })
+    );
 
   useEffect(() => {
     if (userId) {
       fetchProfile();
     }
-  }, [userId]);
+  }, [userId, isOwner, user, hasApplicantAnalyticsAccess]);
 
   const fetchProfile = async () => {
     if (!userId) return;
@@ -36,29 +55,49 @@ export default function ProfileManagePage() {
       setLoading(true);
       setError(null);
       
-      // Try to fetch real data from DRD analytics first
-      try {
-        const [analyticsResponse, submissionsResponse] = await Promise.all([
-          drdAnalyticsService.getApplicantPersonAnalytics(userId),
-          drdAnalyticsService.getApplicantPersonSubmissions(userId).catch(() => null), // Optional
-        ]);
-        
-        if (analyticsResponse.data) {
-          const mappedProfile = mapDrdAnalyticsToProfileData(
-            userId,
-            analyticsResponse.data,
-            submissionsResponse?.data || undefined
-          );
-          setProfileData(mappedProfile);
-          return;
+      // Only hit DRD analytics when the viewer actually has applicant analytics access.
+      if (hasApplicantAnalyticsAccess) {
+        try {
+          const [analyticsResponse, submissionsResponse] = await Promise.all([
+            drdAnalyticsService.getApplicantPersonAnalytics(userId),
+            drdAnalyticsService.getApplicantPersonSubmissions(userId).catch(() => null), // Optional
+          ]);
+          
+          if (analyticsResponse.data) {
+            let mappedProfile = mapDrdAnalyticsToProfileData(
+              userId,
+              analyticsResponse.data,
+              submissionsResponse?.data || undefined
+            );
+            try {
+              const identity = await researchProfileService.getIdentity(userId);
+              mappedProfile = applyResearchIdentity(mappedProfile, identity);
+            } catch (identityError) {
+              logger.warn('Failed to fetch profile identity data:', identityError);
+            }
+            setProfileData(mappedProfile);
+            mockResearchProfileAPI.seedProfile(mappedProfile);
+            return;
+          }
+        } catch (drdError) {
+          logger.warn('Failed to fetch DRD analytics data for profile management:', drdError);
         }
-      } catch (drdError) {
-        logger.warn('Failed to fetch DRD analytics data, falling back to mock data:', drdError);
       }
-      
-      // Fallback to mock data if DRD analytics fails
-      const response = await mockResearchProfileAPI.getProfile(userId);
-      setProfileData(response.profile);
+
+      if (isOwner && user) {
+        let fallbackProfile = buildProfileDataFromAuthUser(user);
+        try {
+          const identity = await researchProfileService.getIdentity(userId);
+          fallbackProfile = applyResearchIdentity(fallbackProfile, identity);
+        } catch (identityError) {
+          logger.warn('Failed to fetch profile identity data for fallback profile:', identityError);
+        }
+        setProfileData(fallbackProfile);
+        mockResearchProfileAPI.seedProfile(fallbackProfile);
+        return;
+      }
+
+      setError('Profile data is not available yet');
     } catch (err) {
       logger.error('Error fetching profile:', err);
       setError('Failed to load profile');
@@ -177,7 +216,9 @@ export default function ProfileManagePage() {
         <ProfileManagement
           profileData={profileData}
           onProfileUpdate={handleProfileUpdate}
+          onProfileRefresh={fetchProfile}
           isOwner={isOwner}
+          currentUserId={userId}
         />
       </div>
     </div>

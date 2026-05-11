@@ -64,6 +64,10 @@ class ContributionService {
    * @param {object} data
    */
   async validateContributionData(data) {
+    if (data.sourceType === 'auto_import') {
+      return;
+    }
+
     const errors = [];
     const categories = data.indexingCategories || [];
 
@@ -168,6 +172,10 @@ class ContributionService {
    * @param {object} [request]    - original HTTP request (for IP logging); may be null in tests
    */
   async dispatchPostCreationSideEffects(contribution, userId, request = null) {
+    if (!request) {
+      return;
+    }
+
     if (this.auditLogger?.logResearchFiling) {
       await this.auditLogger.logResearchFiling(contribution, userId, request);
     }
@@ -261,6 +269,7 @@ class ContributionService {
   }
 
   _buildIncentiveContributionData(data) {
+    const normalizedBookType = data.bookType || data.bookPublicationType || null;
     const subsidiaryIF = data.subsidiaryImpactFactor ||
       ((data.indexingCategories || []).includes('subsidiary_if_above_20') ? data.impactFactor : null);
     return {
@@ -268,7 +277,7 @@ class ContributionService {
       quartile: data.quartile,
       conferenceSubType: data.conferenceSubType,
       proceedingsQuartile: data.proceedingsQuartile,
-      bookType: data.bookType,
+      bookType: normalizedBookType,
       indexingCategories: data.indexingCategories || [],
       impactFactor: data.impactFactor ? Number(data.impactFactor) : null,
       sjr: Number(data.sjr) || 0,
@@ -338,6 +347,7 @@ class ContributionService {
   _buildContributionPayload(data, files, applicationNumber, incentiveCalc, resolvedIds) {
     const t = (v, max) => (v ? String(v).substring(0, max) : v);
     const sdgGoals = data.sdgGoals === null || data.sdgGoals === undefined ? [] : data.sdgGoals;
+    const normalizedBookPublicationType = data.bookPublicationType || data.bookType || null;
     const subsidiaryIF = data.subsidiaryImpactFactor ||
       ((data.indexingCategories || []).includes('subsidiary_if_above_20') ? data.impactFactor : null);
 
@@ -373,9 +383,9 @@ class ContributionService {
       chapterNumber: t(data.chapterNumber, 32), bookTitle: t(data.bookTitle, 512),
       editors: t(data.editors, 512), publisherLocation: t(data.publisherLocation, 256),
       nationalInternational: t(data.nationalInternational, 32),
-      bookPublicationType: t(data.bookPublicationType, 32),
+      bookPublicationType: t(normalizedBookPublicationType, 32),
       bookIndexingType: t(data.bookIndexingType, 32),
-      bookType: t(data.bookType, 32), bookLetter: t(data.bookLetter, 8),
+      bookLetter: t(data.bookLetter, 8),
       communicatedWithOfficialId: data.communicatedWithOfficialId === 'yes' || data.communicatedWithOfficialId === true,
       personalEmail: t(data.personalEmail, 256), facultyRemarks: data.facultyRemarks,
       conferenceName: t(data.conferenceName, 512),
@@ -414,7 +424,18 @@ class ContributionService {
       indexingDetails: data.indexingDetails,
       sdg_goals: sdgGoals,
       calculatedIncentiveAmount: incentiveCalc.totalPoolAmount,
-      calculatedPoints: incentiveCalc.totalPoolPoints
+      calculatedPoints: incentiveCalc.totalPoolPoints,
+      sourceType: t(data.sourceType, 32),
+      sourceSystems: data.sourceSystems || [],
+      externalIds: data.externalIds || {},
+      importedAt: data.importedAt ? new Date(data.importedAt) : null,
+      lastSyncedAt: data.lastSyncedAt ? new Date(data.lastSyncedAt) : null,
+      specialReviewRequired: data.specialReviewRequired === true,
+      importConfidence: data.importConfidence ? Number(data.importConfidence) : null,
+      missingFields: data.missingFields || [],
+      autoCalculatedFields: data.autoCalculatedFields || [],
+      fieldProvenance: data.fieldProvenance || {},
+      importMetadata: data.importMetadata || {},
     };
   }
 
@@ -452,7 +473,8 @@ class ContributionService {
   async _createAuthors(contributionId, data) {
     const { authors = [], userId, publicationType, indexingCategories, impactFactor,
       sjr, naasRating, subsidiaryImpactFactor, publicationDate, quartile,
-      conferenceSubType, proceedingsQuartile, bookType, userRole } = data;
+      conferenceSubType, proceedingsQuartile, userRole } = data;
+    const bookType = data.bookType || data.bookPublicationType || null;
 
     if (!authors.length) return;
 

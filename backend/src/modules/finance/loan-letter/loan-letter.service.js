@@ -148,15 +148,15 @@ class LoanLetterService {
     const normalizedStudentEmail = studentEmail ? String(studentEmail).trim().toLowerCase() : null;
     const normalizedStudentPhone = studentPhone ? String(studentPhone).trim() : null;
 
-    // Validate: must start with SGT (case-insensitive) and be alphanumeric only
+    // Validate: must start with SGT (case-insensitive) and can contain alphanumeric characters and special characters (except spaces)
     if (!normalizedApplicationNumber) {
       throw { status: 400, message: 'Application number is required' };
     }
-    if (!/^[Ss][Gg][Tt][A-Za-z0-9]+$/.test(normalizedApplicationNumber)) {
+    if (!/^[Ss][Gg][Tt][^\s]+$/.test(normalizedApplicationNumber)) {
       throw {
         status: 400,
         code: 'INVALID_APPLICATION_NUMBER',
-        message: 'Application number must start with "SGT" (case-insensitive) and contain only alphanumeric characters (no spaces or special characters)',
+        message: 'Application number must start with "SGT" (case-insensitive) and cannot contain spaces',
       };
     }
 

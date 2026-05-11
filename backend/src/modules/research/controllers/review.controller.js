@@ -33,7 +33,10 @@ exports.getPendingGrantReviews = async (req, res) => {
 
 exports.getAllPendingReviews = async (req, res) => {
   try {
-    const researchQuery = { ...req.query, publicationType: 'research_paper' };
+    // Fetch all research-contribution types (research_paper, book, book_chapter, conference_paper)
+    // together in one query, plus grants from their own table in parallel.
+    const researchQuery = { ...req.query };
+    delete researchQuery.publicationType; // let the service return all types
     const [researchResult, grantResult] = await Promise.all([
       reviewService.getPendingReviews(req.user.id, researchQuery, req.user?.centralDeptPermissions).catch(() => ({ contributions: [], stats: {} })),
       reviewService.getPendingGrantReviews(req.user.id, req.query).catch(() => ({ contributions: [], stats: {} }))

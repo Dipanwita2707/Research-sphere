@@ -102,6 +102,8 @@ model UserLogin {
   researchContributionEditSuggestions               ResearchContributionEditSuggestion[] @relation("ResearchContributionEditSuggestions")
   researchContributionReviews                       ResearchContributionReview[]         @relation("ResearchContributionReviews")
   researchContributionStatusChanges                 ResearchContributionStatusHistory[]  @relation("ResearchContributionStatusChanges")
+  researchProfileIdentity                           ResearchProfileIdentity?             @relation("UserResearchProfileIdentity")
+  triggeredPublicationImportRuns                    PublicationImportRun[]               @relation("PublicationImportRunTriggeredBy")
   createdResearchPolicies                           ResearchIncentivePolicy[]            @relation("ResearchPolicyCreatedBy")
   updatedResearchPolicies                           ResearchIncentivePolicy[]            @relation("ResearchPolicyUpdatedBy")
   researchPapers                                    ResearchPaper[]                      @relation("ResearchPapers")
@@ -1502,12 +1504,24 @@ model ResearchContribution {
   naasRating                 Decimal?                              @map("naas_rating") @db.Decimal(4, 2)
   subsidiaryImpactFactor     Decimal?                              @map("subsidiary_impact_factor") @db.Decimal(10, 4)
   volume                     String?                               @db.VarChar(64)
+  sourceType                 String?                               @map("source_type") @db.VarChar(32)
+  sourceSystems              String[]                              @default([]) @map("source_systems")
+  externalIds                Json?                                 @default("{}") @map("external_ids")
+  importedAt                 DateTime?                             @map("imported_at") @db.Timestamptz(6)
+  lastSyncedAt               DateTime?                             @map("last_synced_at") @db.Timestamptz(6)
+  specialReviewRequired      Boolean?                              @default(false) @map("special_review_required")
+  importConfidence           Decimal?                              @map("import_confidence") @db.Decimal(5, 2)
+  missingFields              String[]                              @default([]) @map("missing_fields")
+  autoCalculatedFields       String[]                              @default([]) @map("auto_calculated_fields")
+  fieldProvenance            Json?                                 @default("{}") @map("field_provenance")
+  importMetadata             Json?                                 @default("{}") @map("import_metadata")
   applicantUser              UserLogin?                            @relation("ResearchContributions", fields: [applicantUserId], references: [id])
   department                 Department?                           @relation("DepartmentResearchContributions", fields: [departmentId], references: [id])
   school                     FacultySchoolList?                    @relation("SchoolResearchContributions", fields: [schoolId], references: [id])
   applicantDetails           ResearchContributionApplicantDetails?
   authors                    ResearchContributionAuthor[]
   editSuggestions            ResearchContributionEditSuggestion[]
+  publicationImports         PublicationImport[]
   reviews                    ResearchContributionReview[]
   statusHistory              ResearchContributionStatusHistory[]
   progressTracker            ResearchProgressTracker?              @relation("TrackerToContribution")
@@ -1524,7 +1538,80 @@ model ResearchContribution {
   @@index([departmentId, submittedAt])
   @@index([publicationType, schoolId, submittedAt])
   @@index([conferenceSubType])
+  @@index([sourceType])
+  @@index([specialReviewRequired])
   @@map("research_contribution")
+}
+
+model ResearchProfileIdentity {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId             String               @unique @map("user_id") @db.Uuid
+  orcid              String?              @db.VarChar(32)
+  scopusAuthorId     String?              @map("scopus_author_id") @db.VarChar(64)
+  webOfScienceId     String?              @map("web_of_science_id") @db.VarChar(64)
+  affiliationAliases Json?                @default("[]") @map("affiliation_aliases")
+  autoSyncEnabled    Boolean              @default(true) @map("auto_sync_enabled")
+  syncFrequencyDays  Int                  @default(1) @map("sync_frequency_days")
+  syncStatus         String               @default("never_synced") @map("sync_status") @db.VarChar(32)
+  syncError          String?              @map("sync_error")
+  lastSyncedAt       DateTime?            @map("last_synced_at") @db.Timestamptz(6)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user               UserLogin            @relation("UserResearchProfileIdentity", fields: [userId], references: [id], onDelete: Cascade)
+  importRuns         PublicationImportRun[]
+  publicationImports PublicationImport[]
+
+  @@index([orcid])
+  @@index([scopusAuthorId])
+  @@index([autoSyncEnabled, lastSyncedAt])
+  @@map("research_profile_identity")
+}
+
+model PublicationImportRun {
+  id                String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  researchProfileId String                  @map("research_profile_id") @db.Uuid
+  triggeredById     String?                 @map("triggered_by_id") @db.Uuid
+  triggerType       String                  @default("scheduled") @map("trigger_type") @db.VarChar(32)
+  sourceSystems     String[]                @default([]) @map("source_systems")
+  status            String                  @default("pending") @db.VarChar(32)
+  discoveredCount   Int                     @default(0) @map("discovered_count")
+  createdCount      Int                     @default(0) @map("created_count")
+  updatedCount      Int                     @default(0) @map("updated_count")
+  skippedCount      Int                     @default(0) @map("skipped_count")
+  failedCount       Int                     @default(0) @map("failed_count")
+  specialReviewCount Int                    @default(0) @map("special_review_count")
+  startedAt         DateTime                @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime?               @map("finished_at") @db.Timestamptz(6)
+  errorSummary      Json?                   @default("[]") @map("error_summary")
+  metadata          Json?                   @default("{}")
+  researchProfile   ResearchProfileIdentity @relation(fields: [researchProfileId], references: [id], onDelete: Cascade)
+  triggeredBy       UserLogin?              @relation("PublicationImportRunTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  @@index([researchProfileId, startedAt])
+  @@index([status, startedAt])
+  @@map("publication_import_run")
+}
+
+model PublicationImport {
+  id                   String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  researchProfileId    String                  @map("research_profile_id") @db.Uuid
+  researchContributionId String?               @map("research_contribution_id") @db.Uuid
+  sourceSystem         String                  @map("source_system") @db.VarChar(32)
+  externalId           String                  @map("external_id") @db.VarChar(191)
+  doi                  String?                 @db.VarChar(256)
+  publishedYear        Int?                    @map("published_year")
+  normalizedTitle      String?                 @map("normalized_title") @db.VarChar(512)
+  lastSeenAt           DateTime                @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata             Json?                   @default("{}")
+  researchProfile      ResearchProfileIdentity @relation(fields: [researchProfileId], references: [id], onDelete: Cascade)
+  researchContribution ResearchContribution?   @relation(fields: [researchContributionId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceSystem, externalId], map: "publication_import_source_external_key")
+  @@index([researchProfileId, lastSeenAt])
+  @@index([doi])
+  @@map("publication_import")
 }
 
 model ResearchContributionApplicantDetails {

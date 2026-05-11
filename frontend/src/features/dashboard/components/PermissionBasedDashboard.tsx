@@ -223,19 +223,9 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
     const fetchPerformanceData = async () => {
       if (user?.id) {
         try {
-          // Convert user.id to number, handle both numeric IDs and string UIDs
-          const numericId = typeof user.id ===
-   'number' ? user.id : parseInt(String(user.id), 10);
-          
-          // Only fetch if we have a valid numeric ID
-          if (!isNaN(numericId) && numericId > 0) {
-            const data = await getUserPerformance(numericId);
-            if (data && data.length > 0) {
-              setPerformanceData(data);
-            }
-          } else {
-            logger.debug('User ID is not numeric, skipping performance fetch:', user.id);
-          }
+          // user.id is a UUID string — the analytics endpoint needs a purely numeric ID
+          // which this codebase does not expose. Skip the network call to avoid a 404.
+          logger.debug('Skipping analytics performance fetch — no numeric user ID available');
         } catch (error) {
           logger.error('Failed to fetch performance data:', error);
           // Keep using fallback data in state

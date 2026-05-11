@@ -50,7 +50,7 @@ export default function LoanLetterForm() {
     e.preventDefault();
     if (!form.applicationNumber || !form.studentName || !form.relationName || !form.programId || form.selectedSemesters.length === 0) return;
     if (!form.specializationId) return; // must pick specialization or 'none'
-    if (!/^[Ss][Gg][Tt][A-Za-z0-9]+$/.test(form.applicationNumber)) return;
+    if (!/^[Ss][Gg][Tt][^\s]+$/.test(form.applicationNumber)) return;
     try {
       setPreviewIsExisting(false);
       const specializationId = form.specializationId === 'none' ? null : form.specializationId;
@@ -127,17 +127,17 @@ export default function LoanLetterForm() {
               setForm({ ...form, applicationNumber: val });
             }}
             className={`w-full px-3 py-2 border rounded-lg text-sm ${
-              form.applicationNumber && !/^[Ss][Gg][Tt][A-Za-z0-9]+$/.test(form.applicationNumber)
+              form.applicationNumber && !/^[Ss][Gg][Tt][^\s]+$/.test(form.applicationNumber)
                 ? 'border-red-400 bg-red-50'
                 : 'border-gray-300'
             }`}
             placeholder="e.g. SGT20250001"
             required
           />
-          {form.applicationNumber && !/^[Ss][Gg][Tt][A-Za-z0-9]+$/.test(form.applicationNumber) && (
-            <p className="mt-1 text-xs text-red-600">Must start with &ldquo;SGT&rdquo; (case-insensitive) and contain only letters and digits (no spaces or special characters)</p>
+          {form.applicationNumber && !/^[Ss][Gg][Tt][^\s]+$/.test(form.applicationNumber) && (
+            <p className="mt-1 text-xs text-red-600">Must start with &ldquo;SGT&rdquo; (case-insensitive) and cannot contain spaces</p>
           )}
-          <p className="mt-1 text-xs text-gray-500">Format: SGT followed by alphanumeric characters only — e.g. <span className="font-mono">SGT20250001</span></p>
+          <p className="mt-1 text-xs text-gray-500">Format: SGT followed by any characters (no spaces) — e.g. <span className="font-mono">SGT-2025-0001</span> or <span className="font-mono">SGT_ABC_123</span></p>
         </div>
 
         <div>

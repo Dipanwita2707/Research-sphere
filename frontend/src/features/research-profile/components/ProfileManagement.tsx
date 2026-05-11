@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   Settings, 
   Upload, 
@@ -19,12 +19,20 @@ import {
 } from 'lucide-react';
 import type { ProfileData, Publication } from '@/shared/types/research-profile.types';
 import { mockResearchProfileAPI } from '@/mocks/research-profile-api';
+import {
+  researchProfileService,
+  type ManualProfileImportPublication,
+  type PublicationImportRun,
+  type ResearchProfileIdentity,
+} from '@/features/research-profile/services/researchProfile.service';
 import logger from '@/shared/utils/logger';
 
 interface ProfileManagementProps {
   profileData: ProfileData;
   onProfileUpdate: (updatedProfile: ProfileData) => void;
+  onProfileRefresh?: () => Promise<void> | void;
   isOwner: boolean;
+  currentUserId: string;
 }
 
 type ManagementTab = 'visibility' | 'publications' | 'sync' | 'export';
@@ -32,7 +40,9 @@ type ManagementTab = 'visibility' | 'publications' | 'sync' | 'export';
 export default function ProfileManagement({ 
   profileData, 
   onProfileUpdate, 
-  isOwner 
+  onProfileRefresh,
+  isOwner,
+  currentUserId,
 }: ProfileManagementProps) {
   const [activeTab, setActiveTab] = useState<ManagementTab>('visibility');
   const [loading, setLoading] = useState(false);
@@ -129,9 +139,11 @@ export default function ProfileManagement({
           <PublicationManagement 
             profileData={profileData}
             onUpdate={onProfileUpdate}
+            onRefresh={onProfileRefresh}
             onMessage={showMessage}
             loading={loading}
             setLoading={setLoading}
+            currentUserId={currentUserId}
           />
         )}
         
@@ -142,6 +154,7 @@ export default function ProfileManagement({
             onMessage={showMessage}
             loading={loading}
             setLoading={setLoading}
+            currentUserId={currentUserId}
           />
         )}
         
@@ -298,18 +311,92 @@ function VisibilitySettings({
 function PublicationManagement({ 
   profileData, 
   onUpdate, 
+  onRefresh,
   onMessage, 
   loading, 
-  setLoading 
+  setLoading,
+  currentUserId,
 }: {
   profileData: ProfileData;
   onUpdate: (profile: ProfileData) => void;
+  onRefresh?: () => Promise<void> | void;
   onMessage: (type: 'success' | 'error', text: string) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  currentUserId: string;
 }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPub, setEditingPub] = useState<Publication | null>(null);
+  const bibInputRef = useRef<HTMLInputElement | null>(null);
+  const risInputRef = useRef<HTMLInputElement | null>(null);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
+
+  const importPublications = async (file: File, format: 'bibtex' | 'ris' | 'csv') => {
+    try {
+      setLoading(true);
+      const content = await file.text();
+      const parsedPublications = format === 'bibtex'
+        ? parseBibTex(content)
+        : format === 'ris'
+        ? parseRis(content)
+        : parseCsvPublications(content);
+
+      if (parsedPublications.length === 0) {
+        onMessage('error', `No valid publications were found in ${file.name}`);
+        return;
+      }
+
+      const importedPublications = parsedPublications.map((publication, index) =>
+        buildPublicationFromParsed(profileData, publication, index)
+      );
+      const importPayload: ManualProfileImportPublication[] = parsedPublications.map((publication) => ({
+        title: publication.title,
+        authors: publication.authors,
+        venue: publication.venue,
+        year: publication.year,
+        doi: publication.doi,
+        citationCount: publication.citationCount,
+        publicationType: publication.publicationType,
+      }));
+
+      const result = await researchProfileService.importPublications(currentUserId, importPayload, format);
+
+      const updatedProfile = mergeImportedPublications(profileData, importedPublications);
+      const importedCount = updatedProfile.publications.length - profileData.publications.length;
+
+      onUpdate(updatedProfile);
+      if (onRefresh) {
+        await onRefresh();
+      }
+      onMessage(
+        result.failedCount > 0 ? 'error' : 'success',
+        result.failedCount > 0
+          ? `Imported with ${result.failedCount} failure(s). ${result.createdCount} created, ${result.updatedCount} updated.`
+          : importedCount > 0
+          ? `${result.createdCount} publication(s) imported from ${file.name}`
+          : `${result.updatedCount} publication(s) updated from ${file.name}`
+      );
+    } catch (error) {
+      logger.error(`Failed to import ${format} publications:`, error);
+      onMessage('error', `Failed to import ${file.name}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileImport = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    format: 'bibtex' | 'ris' | 'csv'
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    await importPublications(file, format);
+  };
 
   return (
     <div className="space-y-6">
@@ -365,18 +452,54 @@ function PublicationManagement({
         <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
           Bulk Import
         </h4>
+        <input
+          ref={bibInputRef}
+          type="file"
+          accept=".bib,text/plain"
+          className="hidden"
+          onChange={(event) => void handleFileImport(event, 'bibtex')}
+        />
+        <input
+          ref={risInputRef}
+          type="file"
+          accept=".ris,text/plain"
+          className="hidden"
+          onChange={(event) => void handleFileImport(event, 'ris')}
+        />
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(event) => void handleFileImport(event, 'csv')}
+        />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => bibInputRef.current?.click()}
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors disabled:opacity-50"
+          >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">BibTeX</div>
             <div className="text-xs text-gray-500 dark:text-gray-500">Upload .bib file</div>
           </button>
-          <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => risInputRef.current?.click()}
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors disabled:opacity-50"
+          >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">RIS</div>
             <div className="text-xs text-gray-500 dark:text-gray-500">Upload .ris file</div>
           </button>
-          <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => csvInputRef.current?.click()}
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors disabled:opacity-50"
+          >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">CSV</div>
             <div className="text-xs text-gray-500 dark:text-gray-500">Upload .csv file</div>
@@ -393,30 +516,91 @@ function SyncSettings({
   onUpdate, 
   onMessage, 
   loading, 
-  setLoading 
+  setLoading,
+  currentUserId,
 }: {
   profileData: ProfileData;
   onUpdate: (profile: ProfileData) => void;
   onMessage: (type: 'success' | 'error', text: string) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  currentUserId: string;
 }) {
-  const handleManualSync = async (source: 'google_scholar' | 'scopus' | 'web_of_science') => {
+  const [formState, setFormState] = useState({
+    orcid: profileData.profile.orcid || '',
+    scopusAuthorId: profileData.profile.scopusAuthorId || '',
+    webOfScienceId: profileData.profile.webOfScienceId || '',
+    autoSyncEnabled: profileData.profile.autoSyncEnabled,
+    syncFrequencyDays: profileData.profile.syncFrequencyDays || 1,
+  });
+  const [recentRuns, setRecentRuns] = useState<PublicationImportRun[]>([]);
+  const [runsLoaded, setRunsLoaded] = useState(false);
+  const [runsLoading, setRunsLoading] = useState(false);
+
+  const applyIdentityUpdate = (
+    identity: Partial<ResearchProfileIdentity>,
+    message?: string
+  ) => {
+    onUpdate({
+      ...profileData,
+      profile: {
+        ...profileData.profile,
+        orcid: identity.orcid ?? profileData.profile.orcid,
+        scopusAuthorId: identity.scopusAuthorId ?? profileData.profile.scopusAuthorId,
+        webOfScienceId: identity.webOfScienceId ?? profileData.profile.webOfScienceId,
+        lastSyncedAt: identity.lastSyncedAt ?? profileData.profile.lastSyncedAt,
+        syncStatus: (identity.syncStatus as any) ?? profileData.profile.syncStatus,
+        syncError: identity.syncError ?? profileData.profile.syncError,
+        autoSyncEnabled: identity.autoSyncEnabled ?? profileData.profile.autoSyncEnabled,
+        syncFrequencyDays: identity.syncFrequencyDays ?? profileData.profile.syncFrequencyDays,
+      },
+    });
+    if (message) {
+      onMessage('success', message);
+    }
+  };
+
+  const loadImportRuns = async () => {
+    try {
+      setRunsLoading(true);
+      const runs = await researchProfileService.getImportRuns(currentUserId);
+      setRecentRuns(runs);
+      setRunsLoaded(true);
+    } catch (error) {
+      logger.error('Failed to load import runs:', error);
+      onMessage('error', 'Failed to load recent sync runs');
+    } finally {
+      setRunsLoading(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
     try {
       setLoading(true);
-      const response = await mockResearchProfileAPI.syncProfile(profileData.user.uid, {
-        source,
-        profileId: profileData.profile.googleScholarId || '',
+      const identity = await researchProfileService.updateIdentity(currentUserId, formState);
+      applyIdentityUpdate(identity, 'Research identity settings saved');
+    } catch (error) {
+      logger.error('Failed to save identity settings:', error);
+      onMessage('error', 'Failed to save research identity settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleManualSync = async (source: 'orcid' | 'scopus' | 'openalex' | 'all') => {
+    try {
+      setLoading(true);
+      const result = await researchProfileService.syncProfile(currentUserId, source);
+      applyIdentityUpdate({
+        lastSyncedAt: new Date().toISOString(),
+        syncStatus: result.failedCount > 0 ? 'failed' : 'success',
+        syncError: result.failedCount > 0 ? `${result.failedCount} publication(s) failed during sync` : null,
       });
-      
-      if (response.status === 'success') {
-        onMessage('success', `Sync completed: ${response.newPublications} new publications, ${response.updatedCitations} citation updates`);
-        // Refresh profile data
-        const updated = await mockResearchProfileAPI.getProfile(profileData.user.uid);
-        onUpdate(updated.profile);
-      } else {
-        onMessage('error', response.message || 'Sync failed');
-      }
+      await loadImportRuns();
+      onMessage(
+        'success',
+        `Sync completed: ${result.createdCount} created, ${result.updatedCount} updated, ${result.specialReviewCount} flagged for special review`
+      );
     } catch (error) {
       logger.error('Sync failed:', error);
       onMessage('error', 'Failed to sync profile');
@@ -429,7 +613,7 @@ function SyncSettings({
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Profile Synchronization
+          Publication Automation
         </h3>
         
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
@@ -446,21 +630,102 @@ function SyncSettings({
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              ORCID ID
+            </label>
+            <input
+              type="text"
+              value={formState.orcid}
+              onChange={(e) => setFormState((prev) => ({ ...prev, orcid: e.target.value }))}
+              placeholder="0000-0000-0000-0000"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Scopus Author ID
+            </label>
+            <input
+              type="text"
+              value={formState.scopusAuthorId}
+              onChange={(e) => setFormState((prev) => ({ ...prev, scopusAuthorId: e.target.value }))}
+              placeholder="Scopus author identifier"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Web Of Science ID
+            </label>
+            <input
+              type="text"
+              value={formState.webOfScienceId}
+              onChange={(e) => setFormState((prev) => ({ ...prev, webOfScienceId: e.target.value }))}
+              placeholder="Optional reviewer reference"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Auto Sync Frequency
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={1}
+                value={formState.syncFrequencyDays}
+                onChange={(e) => setFormState((prev) => ({ ...prev, syncFrequencyDays: Number(e.target.value) || 1 }))}
+                className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={formState.autoSyncEnabled}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, autoSyncEnabled: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Enable auto sync
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3 mb-6">
+          <button
+            onClick={handleSaveSettings}
+            disabled={loading}
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
+          >
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Settings
+          </button>
+          <button
+            onClick={() => loadImportRuns()}
+            disabled={runsLoading}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+          >
+            {runsLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+            Load Recent Runs
+          </button>
+        </div>
+
         <div className="space-y-4">
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-gray-900 dark:text-white">Google Scholar</h4>
+                <h4 className="font-medium text-gray-900 dark:text-white">ORCID</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {profileData.profile.googleScholarId ? 
-                    `Connected: ${profileData.profile.googleScholarId}` : 
+                  {formState.orcid ? 
+                    `Connected: ${formState.orcid}` : 
                     'Not connected'
                   }
                 </p>
               </div>
               <button
-                onClick={() => handleManualSync('google_scholar')}
-                disabled={loading || !profileData.profile.googleScholarId}
+                onClick={() => handleManualSync('orcid')}
+                disabled={loading || !formState.orcid}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
@@ -468,7 +733,7 @@ function SyncSettings({
                 ) : (
                   <Sync className="w-4 h-4" />
                 )}
-                Sync Now
+                Sync ORCID
               </button>
             </div>
           </div>
@@ -478,15 +743,15 @@ function SyncSettings({
               <div>
                 <h4 className="font-medium text-gray-900 dark:text-white">Scopus</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {profileData.profile.scopusAuthorId ? 
-                    `Connected: ${profileData.profile.scopusAuthorId}` : 
+                  {formState.scopusAuthorId ? 
+                    `Connected: ${formState.scopusAuthorId}` : 
                     'Not connected'
                   }
                 </p>
               </div>
               <button
                 onClick={() => handleManualSync('scopus')}
-                disabled={loading || !profileData.profile.scopusAuthorId}
+                disabled={loading || !formState.scopusAuthorId}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
@@ -502,17 +767,14 @@ function SyncSettings({
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-gray-900 dark:text-white">Web of Science</h4>
+                <h4 className="font-medium text-gray-900 dark:text-white">OpenAlex</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {profileData.profile.webOfScienceId ? 
-                    `Connected: ${profileData.profile.webOfScienceId}` : 
-                    'Not connected'
-                  }
+                  Searches publications by faculty name and university affiliation.
                 </p>
               </div>
               <button
-                onClick={() => handleManualSync('web_of_science')}
-                disabled={loading || !profileData.profile.webOfScienceId}
+                onClick={() => handleManualSync('openalex')}
+                disabled={loading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
@@ -520,14 +782,434 @@ function SyncSettings({
                 ) : (
                   <Sync className="w-4 h-4" />
                 )}
-                Sync Now
+                Sync OpenAlex
+              </button>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white">Combined Import</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Runs ORCID and Scopus when configured, then enriches with OpenAlex when available.
+                </p>
+              </div>
+              <button
+                onClick={() => handleManualSync('all')}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {loading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sync className="w-4 h-4" />
+                )}
+                Sync All Sources
               </button>
             </div>
           </div>
         </div>
+
+        {(runsLoaded || recentRuns.length > 0) && (
+          <div className="mt-6 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-gray-900 dark:text-white">Recent Import Runs</h4>
+              {runsLoading && <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />}
+            </div>
+            {recentRuns.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No import runs recorded yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentRuns.map((run) => (
+                  <div key={run.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{run.triggerType}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs">
+                        {run.sourceSystems.join(', ') || 'manual'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${
+                        run.status === 'success'
+                          ? 'bg-green-50 text-green-700'
+                          : run.status === 'partial_success'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-red-50 text-red-700'
+                      }`}>
+                        {run.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {run.createdCount} created, {run.updatedCount} updated, {run.specialReviewCount} special review, {run.failedCount} failed
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                      Started {new Date(run.startedAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {profileData.profile.syncError && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+            <div className="text-sm font-medium text-red-800">Last sync error</div>
+            <p className="mt-1 text-sm text-red-700">{profileData.profile.syncError}</p>
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+type ParsedPublicationInput = {
+  title: string;
+  authors: string[];
+  venue?: string;
+  year?: number;
+  doi?: string | null;
+  citationCount?: number;
+  publicationType?: string;
+};
+
+function escapeCsv(value: string | number | null | undefined) {
+  const stringValue = value == null ? '' : String(value);
+  if (/[",\n]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+}
+
+function triggerTextDownload(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function normalizeAuthorName(name: string, authorOrder: number) {
+  return {
+    name: name.trim(),
+    affiliation: null,
+    email: null,
+    isCorresponding: authorOrder === 0,
+    authorOrder,
+  };
+}
+
+function buildPublicationFromParsed(
+  profileData: ProfileData,
+  publication: ParsedPublicationInput,
+  index: number
+): Publication {
+  const now = new Date().toISOString();
+  const fallbackYear = new Date().getFullYear();
+  return {
+    id: `imported_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 8)}`,
+    profileId: profileData.profile.id,
+    researchContributionId: null,
+    title: publication.title.trim(),
+    authors: (publication.authors.length > 0 ? publication.authors : [profileData.user.name])
+      .map((author, authorOrder) => normalizeAuthorName(author, authorOrder)),
+    venue: publication.venue?.trim() || 'Imported publication',
+    publicationType: publication.publicationType?.trim() || 'journal',
+    year: publication.year || fallbackYear,
+    volume: null,
+    issue: null,
+    pages: null,
+    doi: publication.doi?.trim() || null,
+    isbn: null,
+    issn: null,
+    arxivId: null,
+    pubmedId: null,
+    citationCount: publication.citationCount || 0,
+    citationsPerYear: {},
+    source: 'manual',
+    externalId: null,
+    pdfUrl: null,
+    publicationUrl: null,
+    abstract: null,
+    keywords: [],
+    isVerified: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function mergeImportedPublications(profileData: ProfileData, imports: Publication[]): ProfileData {
+  const existingKeys = new Set(
+    profileData.publications.map((publication) => `${publication.title.toLowerCase()}::${publication.year}`)
+  );
+
+  const uniqueImports = imports.filter((publication) => {
+    const key = `${publication.title.toLowerCase()}::${publication.year}`;
+    if (existingKeys.has(key)) {
+      return false;
+    }
+    existingKeys.add(key);
+    return true;
+  });
+
+  const publications = [...uniqueImports, ...profileData.publications];
+  const totalCitations = publications.reduce((sum, publication) => sum + publication.citationCount, 0);
+  const avgCitationsPerPaper = publications.length > 0
+    ? parseFloat((totalCitations / publications.length).toFixed(2))
+    : 0;
+
+  return {
+    ...profileData,
+    publications,
+    profile: {
+      ...profileData.profile,
+      metrics: {
+        ...profileData.profile.metrics,
+        totalCitations,
+        avgCitationsPerPaper,
+      },
+    },
+  };
+}
+
+function parseBibTex(content: string): ParsedPublicationInput[] {
+  const entryMatches = content.match(/@\w+\s*\{[\s\S]*?\n\}/g) || [];
+  const publications: ParsedPublicationInput[] = [];
+
+  entryMatches.forEach((entry) => {
+      const readField = (field: string) => {
+        const match = entry.match(new RegExp(`${field}\\s*=\\s*[{\"]([\\s\\S]*?)[}\"]\\s*,?`, 'i'));
+        return match?.[1]?.replace(/\s+/g, ' ').trim();
+      };
+
+      const title = readField('title');
+      if (!title) return;
+
+      const authors = (readField('author') || '')
+        .split(/\s+and\s+/i)
+        .map((author) => author.trim())
+        .filter(Boolean);
+
+      const yearValue = readField('year');
+      const citationValue = readField('citations');
+      publications.push({
+        title,
+        authors,
+        venue: readField('journal') || readField('booktitle') || readField('publisher'),
+        year: yearValue ? Number.parseInt(yearValue, 10) : undefined,
+        doi: readField('doi') || null,
+        citationCount: citationValue ? Number.parseInt(citationValue, 10) || 0 : 0,
+        publicationType: readField('entrytype') || 'journal',
+      });
+    });
+
+  return publications;
+}
+
+function parseRis(content: string): ParsedPublicationInput[] {
+  const publications: ParsedPublicationInput[] = [];
+
+  content
+    .split(/\nER\s*-\s*/i)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .forEach((block) => {
+      const lines = block.split(/\r?\n/);
+      const values: Record<string, string[]> = {};
+
+      lines.forEach((line) => {
+        const match = line.match(/^([A-Z0-9]{2})\s*-\s*(.*)$/);
+        if (!match) return;
+        const [, key, value] = match;
+        values[key] = values[key] || [];
+        values[key].push(value.trim());
+      });
+
+      const title = values.TI?.[0] || values.T1?.[0];
+      if (!title) return;
+
+      const yearValue = values.PY?.[0] || values.Y1?.[0];
+      const yearMatch = yearValue?.match(/\d{4}/);
+
+      publications.push({
+        title,
+        authors: values.AU || values.A1 || [],
+        venue: values.JO?.[0] || values.JF?.[0] || values.T2?.[0],
+        year: yearMatch ? Number.parseInt(yearMatch[0], 10) : undefined,
+        doi: values.DO?.[0] || null,
+        citationCount: 0,
+        publicationType: 'journal',
+      });
+    });
+
+  return publications;
+}
+
+function parseCsvLine(line: string) {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter = line[index + 1];
+
+    if (character === '"' && inQuotes && nextCharacter === '"') {
+      current += '"';
+      index += 1;
+      continue;
+    }
+
+    if (character === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (character === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += character;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function parseCsvPublications(content: string): ParsedPublicationInput[] {
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    return [];
+  }
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase());
+
+  const publications: ParsedPublicationInput[] = [];
+
+  lines.slice(1).forEach((line) => {
+      const columns = parseCsvLine(line);
+      const getValue = (...keys: string[]) => {
+        const index = headers.findIndex((header) => keys.includes(header));
+        return index >= 0 ? columns[index] : '';
+      };
+
+      const title = getValue('title', 'paper title', 'publication title');
+      if (!title) return;
+
+      const authors = getValue('authors', 'author')
+        .split(/[;,]/)
+        .map((author) => author.trim())
+        .filter(Boolean);
+
+      const yearValue = getValue('year', 'publication year');
+      const citationValue = getValue('citations', 'citationcount', 'citation count');
+
+      publications.push({
+        title,
+        authors,
+        venue: getValue('venue', 'journal', 'conference', 'publisher'),
+        year: yearValue ? Number.parseInt(yearValue, 10) : undefined,
+        doi: getValue('doi') || null,
+        citationCount: citationValue ? Number.parseInt(citationValue, 10) || 0 : 0,
+        publicationType: getValue('publicationtype', 'publication type', 'type') || 'journal',
+      });
+    });
+
+  return publications;
+}
+
+function buildCsvExport(profileData: ProfileData) {
+  const header = [
+    'Title',
+    'Authors',
+    'Venue',
+    'Year',
+    'Publication Type',
+    'DOI',
+    'Citations',
+    'Source',
+  ];
+
+  const rows = profileData.publications.map((publication) => [
+    escapeCsv(publication.title),
+    escapeCsv(publication.authors.map((author) => author.name).join('; ')),
+    escapeCsv(publication.venue),
+    escapeCsv(publication.year),
+    escapeCsv(publication.publicationType),
+    escapeCsv(publication.doi),
+    escapeCsv(publication.citationCount),
+    escapeCsv(publication.source),
+  ]);
+
+  return [header.join(','), ...rows.map((row) => row.join(','))].join('\n');
+}
+
+function buildBibTexExport(profileData: ProfileData) {
+  return profileData.publications
+    .map((publication, index) => {
+      const citationKey = `${profileData.user.name.split(' ')[0] || 'author'}${publication.year}${index + 1}`
+        .replace(/[^a-zA-Z0-9]/g, '');
+      return [
+        `@article{${citationKey},`,
+        `  title = {${publication.title}},`,
+        `  author = {${publication.authors.map((author) => author.name).join(' and ')}},`,
+        `  journal = {${publication.venue}},`,
+        `  year = {${publication.year}},`,
+        publication.doi ? `  doi = {${publication.doi}},` : null,
+        '}',
+      ]
+        .filter(Boolean)
+        .join('\n');
+    })
+    .join('\n\n');
+}
+
+function buildPrintableHtml(profileData: ProfileData) {
+  const publicationItems = profileData.publications
+    .map((publication) => `
+      <li>
+        <strong>${publication.title}</strong><br />
+        ${publication.authors.map((author) => author.name).join(', ')}<br />
+        ${publication.venue} | ${publication.year} | Citations: ${publication.citationCount}
+      </li>
+    `)
+    .join('');
+
+  return `
+    <!doctype html>
+    <html>
+      <head>
+        <title>${profileData.user.name} Research Profile</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 32px; color: #111827; }
+          h1, h2 { margin-bottom: 8px; }
+          p { margin: 4px 0; }
+          ul { padding-left: 20px; }
+          li { margin-bottom: 14px; }
+        </style>
+      </head>
+      <body>
+        <h1>${profileData.user.name}</h1>
+        <p>${profileData.user.designation} | ${profileData.user.department} | ${profileData.user.school}</p>
+        <p>Email: ${profileData.user.email}</p>
+        <h2>Profile Summary</h2>
+        <p>Total Publications: ${profileData.publications.length}</p>
+        <p>Total Citations: ${profileData.profile.metrics.totalCitations}</p>
+        <p>h-index: ${profileData.profile.metrics.hIndex}</p>
+        <h2>Publications</h2>
+        <ul>${publicationItems}</ul>
+      </body>
+    </html>
+  `;
 }
 
 // Export Data Component
@@ -545,9 +1227,40 @@ function ExportData({
   const handleExport = async (format: 'pdf' | 'csv' | 'bibtex') => {
     try {
       setLoading(true);
-      // Mock export functionality
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      onMessage('success', `Profile exported as ${format.toUpperCase()}`);
+      const safeName = profileData.user.name.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'research-profile';
+
+      if (format === 'csv') {
+        triggerTextDownload(
+          `${safeName}-publications.csv`,
+          buildCsvExport(profileData),
+          'text/csv;charset=utf-8;'
+        );
+        onMessage('success', 'CSV export downloaded');
+        return;
+      }
+
+      if (format === 'bibtex') {
+        triggerTextDownload(
+          `${safeName}-publications.bib`,
+          buildBibTexExport(profileData),
+          'text/plain;charset=utf-8;'
+        );
+        onMessage('success', 'BibTeX export downloaded');
+        return;
+      }
+
+      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+      if (!printWindow) {
+        onMessage('error', 'Popup blocked. Please allow popups to export PDF.');
+        return;
+      }
+
+      printWindow.document.open();
+      printWindow.document.write(buildPrintableHtml(profileData));
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      onMessage('success', 'Print dialog opened. Choose "Save as PDF" to download the report.');
     } catch (error) {
       logger.error('Export failed:', error);
       onMessage('error', 'Failed to export profile');

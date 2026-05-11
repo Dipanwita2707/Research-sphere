@@ -120,15 +120,17 @@ export default function LoanLetterPrintView({
       <>
         <style>{`
           @media print {
-            @page { size: A4 portrait; margin: 1.5cm; }
+            @page { size: A4 portrait; margin: 0; }
             body * { visibility: hidden !important; }
             #loan-letter-print, #loan-letter-print * { visibility: visible !important; }
             #loan-letter-print {
               position: fixed !important;
               inset: 0 !important;
-              width: auto !important;
+              width: 210mm !important;
+              height: 297mm !important;
               max-width: none !important;
               margin: 0 !important;
+              padding: 1.5cm !important;
               border: none !important;
               border-radius: 0 !important;
               background: white !important;
@@ -157,7 +159,7 @@ export default function LoanLetterPrintView({
             )}
           </div>
         </div>
-        <div id="loan-letter-print" ref={printRef} className="bg-white border border-gray-200 rounded-lg" style={{ position: 'relative' }}>
+        <div id="loan-letter-print" ref={printRef} className="bg-white border border-gray-200 rounded-lg shadow-lg max-w-[210mm] mx-auto">
           {/* Watermark overlay — only when {{WATERMARK}} not placed inline in body */}
           {resolvedTmpl.watermarkImageUrl && !watermarkInBody && (
             <div data-watermark style={{
@@ -180,7 +182,7 @@ export default function LoanLetterPrintView({
               />
             </div>
           )}
-          <div className="p-8" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="p-8" style={{ position: 'relative', zIndex: 1, minHeight: '297mm' }}>
             {/* Auto-show header only if {{LETTERHEAD}} is NOT used in the template body */}
             {resolvedTmpl.headerImageUrl && !letterheadInBody && (
               <div className="mb-4" style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
@@ -216,10 +218,18 @@ export default function LoanLetterPrintView({
     <>
       <style>{`
         @media print {
-          @page { size: A4 portrait; margin: 1.5cm; }
+          @page { size: A4 portrait; margin: 0; }
           body * { visibility: hidden !important; }
           #loan-letter-print, #loan-letter-print * { visibility: visible !important; }
-          #loan-letter-print { position: absolute; top: 0; left: 0; width: 100%; }
+          #loan-letter-print { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 210mm; 
+            height: 297mm;
+            padding: 1.5cm;
+            margin: 0;
+          }
           .loan-letter-page-break { break-before: page; page-break-before: always; }
           .no-print { display: none !important; }
         }
@@ -241,8 +251,8 @@ export default function LoanLetterPrintView({
         </div>
       </div>
 
-      <div id="loan-letter-print" ref={printRef} className="bg-white border border-gray-200 rounded-lg">
-        <div className="p-8">
+      <div id="loan-letter-print" ref={printRef} className="bg-white border border-gray-200 rounded-lg shadow-lg max-w-[210mm] mx-auto">
+        <div className="p-8" style={{ minHeight: '297mm' }}>
           {/* Header — use uploaded letterhead image if available, otherwise text header */}
           {tmpl.headerImageUrl ? (
             <div className="text-center mb-3">

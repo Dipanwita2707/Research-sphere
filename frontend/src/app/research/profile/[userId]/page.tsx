@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { 
   Mail, 
   Building2, 
@@ -68,19 +70,71 @@ import {
   type ProgressTrackerRecord,
 } from '@/features/ipr-management/services/drdAnalytics.service';
 import { mapDrdAnalyticsToProfileData } from '@/features/research-profile/services/profileDataMapper';
+import { applyResearchIdentity, buildProfileDataFromAuthUser } from '@/features/research-profile/services/profileFallback';
+import { researchProfileService } from '@/features/research-profile/services/researchProfile.service';
+import { researchService } from '@/features/research-management/services/research.service';
+import type { Publication, CoAuthor } from '@/shared/types/research-profile.types';
+import PerformanceMonitor from '@/shared/components/performance/PerformanceMonitor';
+import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
 
-// Components
-import CitationMetricsPanel from '@/features/research-profile/components/CitationMetricsPanel';
-import PublicationList from '@/features/research-profile/components/PublicationList';
-import CitationTrendChart from '@/features/research-profile/components/CitationTrendChart';
-import ResearchInterestsTags from '@/features/research-profile/components/ResearchInterestsTags';
-import CoAuthorNetwork from '@/features/research-profile/components/CoAuthorNetwork';
-import ComprehensiveAnalyticsTab from '@/features/research-profile/components/ComprehensiveAnalyticsTab';
+// Dynamic imports for heavy components to reduce initial bundle size
+const CitationMetricsPanel = dynamic(
+  () => import('@/features/research-profile/components/CitationMetricsPanel'),
+  { 
+    ssr: false,
+    loading: () => <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+  }
+);
+
+const PublicationList = dynamic(
+  () => import('@/features/research-profile/components/PublicationList'),
+  { 
+    ssr: false,
+    loading: () => <div className="space-y-4">{Array.from({length: 3}).map((_, i) => (
+      <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+    ))}</div>
+  }
+);
+
+const CitationTrendChart = dynamic(
+  () => import('@/features/research-profile/components/CitationTrendChart'),
+  { 
+    ssr: false,
+    loading: () => <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+  }
+);
+
+const ResearchInterestsTags = dynamic(
+  () => import('@/features/research-profile/components/ResearchInterestsTags'),
+  { 
+    ssr: false,
+    loading: () => <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+  }
+);
+
+const CoAuthorNetwork = dynamic(
+  () => import('@/features/research-profile/components/CoAuthorNetwork'),
+  { 
+    ssr: false,
+    loading: () => <div className="h-96 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+  }
+);
+
+const ComprehensiveAnalyticsTab = dynamic(
+  () => import('@/features/research-profile/components/ComprehensiveAnalyticsTab'),
+  { 
+    ssr: false,
+    loading: () => <div className="space-y-6">{Array.from({length: 4}).map((_, i) => (
+      <div key={i} className="h-48 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+    ))}</div>
+  }
+);
 
 export default function ProfilePage() {
   const params = useParams();
   const userId = params?.userId as string;
   const { user } = useAuthStore();
+  const { data: staffDashboardData } = useStaffDashboardSummary({ enabled: !!user });
   
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [drdAnalyticsData, setDrdAnalyticsData] = useState<DrdAnalyticsResponse | null>(null);
@@ -110,12 +164,37 @@ export default function ProfilePage() {
   const [showNetworkView, setShowNetworkView] = useState(false);
   
   const isOwnProfile = user?.id === userId;
+  const hasApplicantAnalyticsAccess =
+    user?.userType === 'admin' ||
+    !!staffDashboardData?.permissions?.some((dept) =>
+      (dept.permissions || []).some((permission) => {
+        const normalized = permission.toLowerCase();
+        return (
+          normalized.includes('applicant_analytics') ||
+          normalized.includes('research_applicant_analytics') ||
+          normalized.includes('book_applicant_analytics') ||
+          normalized.includes('conference_applicant_analytics') ||
+          normalized.includes('grant_applicant_analytics') ||
+          normalized.includes('ipr_applicant_analytics')
+        );
+      })
+    );
 
   useEffect(() => {
     if (userId) {
-      fetchProfile();
+      // Use requestIdleCallback for non-critical data fetching
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          fetchProfile();
+        });
+      } else {
+        // Fallback for browsers without requestIdleCallback
+        setTimeout(() => {
+          fetchProfile();
+        }, 0);
+      }
     }
-  }, [userId]);
+  }, [userId, isOwnProfile, user, hasApplicantAnalyticsAccess]);
 
   const fetchProfile = async () => {
     if (!userId) return;
@@ -124,46 +203,146 @@ export default function ProfilePage() {
       setLoading(true);
       setError(null);
       
-      // Try to fetch comprehensive data from DRD analytics first
-      try {
-        const [analyticsResponse, submissionsResponse] = await Promise.all([
-          drdAnalyticsService.getApplicantPersonAnalytics(userId),
-          drdAnalyticsService.getApplicantPersonSubmissions(userId).catch(() => null), // Optional
-        ]);
-        
-        if (analyticsResponse.data) {
-          setDrdAnalyticsData(analyticsResponse.data);
-          setSubmissionsData(submissionsResponse?.data || null);
+      // Only hit DRD analytics when the viewer actually has applicant analytics access.
+      if (hasApplicantAnalyticsAccess) {
+        try {
+          const [analyticsResponse, submissionsResponse] = await Promise.all([
+            drdAnalyticsService.getApplicantPersonAnalytics(userId),
+            drdAnalyticsService.getApplicantPersonSubmissions(userId).catch(() => null), // Optional
+          ]);
           
-          // Extract tracker works from extensions
-          const trackerWorksData = analyticsResponse.data.extensions?.trackerWorks as ApplicantPersonTrackerWorks | undefined;
-          setTrackerWorks(trackerWorksData || null);
-          
-          const mappedProfile = mapDrdAnalyticsToProfileData(
-            userId,
-            analyticsResponse.data,
-            submissionsResponse?.data || undefined
-          );
-          setProfileData(mappedProfile);
-          
-          // Initialize edit state with current values
-          setEditedBio(mappedProfile.profile.bio || '');
-          setEditedInterests(mappedProfile.profile.researchInterests || []);
-          setEditedWebsite(mappedProfile.profile.personalWebsite || '');
-          return;
+          if (analyticsResponse.data) {
+            setDrdAnalyticsData(analyticsResponse.data);
+            setSubmissionsData(submissionsResponse?.data || null);
+            
+            // Extract tracker works from extensions
+            const trackerWorksData = analyticsResponse.data.extensions?.trackerWorks as ApplicantPersonTrackerWorks | undefined;
+            setTrackerWorks(trackerWorksData || null);
+            
+            const mappedProfile = mapDrdAnalyticsToProfileData(
+              userId,
+              analyticsResponse.data,
+              submissionsResponse?.data || undefined
+            );
+            let finalProfile = mappedProfile;
+            try {
+              const identity = await researchProfileService.getIdentity(userId);
+              finalProfile = applyResearchIdentity(mappedProfile, identity);
+            } catch (identityError) {
+              logger.warn('Failed to fetch profile identity data:', identityError);
+            }
+            setProfileData(finalProfile);
+            mockResearchProfileAPI.seedProfile(finalProfile);
+            
+            // Initialize edit state with current values
+            setEditedBio(finalProfile.profile.bio || '');
+            setEditedInterests(finalProfile.profile.researchInterests || []);
+            setEditedWebsite(finalProfile.profile.personalWebsite || '');
+            return;
+          }
+        } catch (drdError) {
+          logger.warn('Failed to fetch DRD analytics data for research profile:', drdError);
         }
-      } catch (drdError) {
-        logger.warn('Failed to fetch DRD analytics data, falling back to mock data:', drdError);
       }
-      
-      // Fallback to mock data if DRD analytics fails
-      const response = await mockResearchProfileAPI.getProfile(userId);
-      setProfileData(response.profile);
-      
-      // Initialize edit state with current values
-      setEditedBio(response.profile.profile.bio || '');
-      setEditedInterests(response.profile.profile.researchInterests || []);
-      setEditedWebsite(response.profile.profile.personalWebsite || '');
+
+      if (isOwnProfile && user) {
+        let fallbackProfile = buildProfileDataFromAuthUser(user);
+        try {
+          const identity = await researchProfileService.getIdentity(userId);
+          fallbackProfile = applyResearchIdentity(fallbackProfile, identity);
+        } catch (identityError) {
+          logger.warn('Failed to fetch profile identity data for fallback profile:', identityError);
+        }
+
+        // Populate publications and co-authors from the user's own contributions
+        try {
+          const contribResponse = await researchService.getMyContributions({ limit: 200 });
+          const contributions: any[] = contribResponse?.data?.contributions || contribResponse?.contributions || (Array.isArray(contribResponse) ? contribResponse : []);
+          if (contributions.length > 0) {
+            const publications: Publication[] = contributions.map((c: any) => ({
+              id: c.id,
+              profileId: userId,
+              researchContributionId: c.id,
+              title: c.title || 'Untitled',
+              authors: (c.authors || []).map((a: any, idx: number) => ({
+                name: a.name || '',
+                affiliation: a.affiliation || null,
+                email: a.email || null,
+                isCorresponding: a.isCorresponding || false,
+                authorOrder: a.orderNumber ?? idx,
+              })),
+              venue: c.journalName || c.conferenceName || c.bookTitle || c.publisherName || '',
+              publicationType: c.publicationType || 'research_paper',
+              year: c.publishedYear || new Date().getFullYear(),
+              volume: c.volume || null,
+              issue: c.issue || null,
+              pages: c.pageNumbers || null,
+              doi: c.doi || null,
+              isbn: c.isbn || null,
+              issn: c.issn || null,
+              arxivId: null,
+              pubmedId: null,
+              citationCount: 0,
+              citationsPerYear: {},
+              source: 'manual' as const,
+              externalId: null,
+              pdfUrl: null,
+              publicationUrl: c.url || null,
+              abstract: c.abstract || null,
+              keywords: [],
+              isVerified: c.status === 'approved',
+              createdAt: c.createdAt,
+              updatedAt: c.updatedAt,
+            }));
+
+            // Build unique co-authors (all named authors across contributions, excluding the profile owner)
+            const coAuthorMap = new Map<string, CoAuthor>();
+            contributions.forEach((c: any) => {
+              (c.authors || []).forEach((a: any) => {
+                if (!a.userId || a.userId !== userId) {
+                  const key = a.userId || a.name;
+                  if (key && !coAuthorMap.has(key)) {
+                    coAuthorMap.set(key, {
+                      id: a.userId || a.id || a.name,
+                      name: a.name || '',
+                      affiliation: a.affiliation || null,
+                      email: a.email || null,
+                      profileId: a.userId || null,
+                      collaborationCount: 1,
+                      firstCollaboration: c.publishedYear || new Date().getFullYear(),
+                      lastCollaboration: c.publishedYear || new Date().getFullYear(),
+                      sharedPublications: [c.id],
+                    });
+                  } else if (key && coAuthorMap.has(key)) {
+                    const existing = coAuthorMap.get(key)!;
+                    existing.collaborationCount += 1;
+                    existing.sharedPublications.push(c.id);
+                    existing.firstCollaboration = Math.min(existing.firstCollaboration, c.publishedYear || existing.firstCollaboration);
+                    existing.lastCollaboration = Math.max(existing.lastCollaboration, c.publishedYear || existing.lastCollaboration);
+                  }
+                }
+              });
+            });
+
+            fallbackProfile = {
+              ...fallbackProfile,
+              publications,
+              coAuthors: Array.from(coAuthorMap.values()),
+            };
+          }
+        } catch (contribError) {
+          logger.warn('Failed to fetch contributions for profile stats:', contribError);
+        }
+
+        setProfileData(fallbackProfile);
+        mockResearchProfileAPI.seedProfile(fallbackProfile);
+        setEditedBio(fallbackProfile.profile.bio || '');
+        setEditedInterests(fallbackProfile.profile.researchInterests || []);
+        setEditedWebsite(fallbackProfile.profile.personalWebsite || '');
+        return;
+      }
+
+      setError('Profile data is not available yet');
     } catch (err) {
       logger.error('Error fetching profile:', err);
       setError('Failed to load profile');
@@ -324,6 +503,8 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-900 dark:to-blue-900/10">
+      <PerformanceMonitor pageName="ResearchProfile" />
+      
       {/* Floating Action Buttons */}
       <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3">
         <button 
@@ -342,7 +523,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Hero Section with Gradient Background */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden research-profile-hero">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-emerald-600/5">
           <div className="absolute inset-0" style={{
@@ -354,17 +535,19 @@ export default function ProfilePage() {
         <div className="relative max-w-7xl mx-auto px-6 py-12">
           <div className="flex flex-col lg:flex-row items-start gap-8">
             {/* Profile Photo with Advanced Styling */}
-            <div className="flex-shrink-0 relative group">
+            <div className="profile-photo-container group">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 rounded-full opacity-75 group-hover:opacity-100 blur-sm group-hover:blur transition-all duration-300"></div>
               <div className="relative">
                 {userData.photo ? (
                   <img
                     src={userData.photo}
                     alt={userData.name}
-                    className="w-32 h-32 lg:w-40 lg:h-40 rounded-full object-cover border-4 border-white shadow-2xl"
+                    className="profile-photo"
+                    loading="eager"
+                    fetchPriority="high"
                   />
                 ) : (
-                  <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-emerald-500 flex items-center justify-center border-4 border-white shadow-2xl">
+                  <div className="profile-photo bg-gradient-to-br from-blue-500 via-purple-500 to-emerald-500 flex items-center justify-center">
                     <span className="text-4xl lg:text-6xl font-bold text-white">
                       {userData.name.charAt(0)}
                     </span>
@@ -381,7 +564,7 @@ export default function ProfilePage() {
             <div className="flex-1 min-w-0">
               <div className="mb-6">
                 <div className="flex items-center gap-3 mb-3">
-                  <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent dark:from-white dark:via-blue-200 dark:to-purple-200 leading-tight">
+                  <h1 className="profile-title">
                     {userData.name}
                   </h1>
                   {profile.isVerified && (
@@ -389,6 +572,25 @@ export default function ProfilePage() {
                       <CheckCircle className="w-4 h-4" />
                       Verified
                     </div>
+                  )}
+                </div>
+
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/research"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 backdrop-blur-sm transition-colors hover:bg-white dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back To Research
+                  </Link>
+                  {isOwnProfile && (
+                    <Link
+                      href={`/research/profile/${userId}/manage`}
+                      className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-colors hover:bg-emerald-700"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Manage Profile
+                    </Link>
                   )}
                 </div>
                 
@@ -411,7 +613,7 @@ export default function ProfilePage() {
 
                 {/* Quick Stats Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
+                  <div className="stats-card">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                         <Quote className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -423,7 +625,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   
-                  <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
+                  <div className="stats-card">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
                         <BarChart3 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -435,7 +637,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   
-                  <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
+                  <div className="stats-card">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
                         <BookOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -447,7 +649,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   
-                  <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-lg transition-all duration-300">
+                  <div className="stats-card">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
                         <Users className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -491,7 +693,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Advanced Navigation Tabs */}
-      <div className="sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50">
+      <div className="navigation-tabs">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between">
             <nav className="flex space-x-8">
