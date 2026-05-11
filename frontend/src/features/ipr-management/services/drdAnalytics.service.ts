@@ -483,6 +483,14 @@ class DrdAnalyticsService {
     return response.data;
   }
 
+  async getAffiliations(filters?: DrdAnalyticsFilters) {
+    const response = await api.get<{ success: boolean; data: { name: string; count: number }[] }>(
+      `${this.baseUrl}/applicant/affiliations`,
+      { params: filters }
+    );
+    return response.data;
+  }
+
   async getContributionsList(filters?: {
     from?: string;
     to?: string;

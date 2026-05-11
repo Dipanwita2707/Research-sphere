@@ -7,6 +7,7 @@ import {
   PermissionDefinitions,
   Permission,
 } from '@/features/admin-management/services/permissionManagement.service';
+import { fetchSeminarHallBlocks } from '@/features/resource-management/seminar-hall-booking/services/seminarHall.api';
 import {
   roleManagementService,
   Role,
@@ -44,6 +45,7 @@ import {
   UserCog,
   Search,
   Filter,
+  MapPinned,
 } from 'lucide-react';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 
@@ -171,6 +173,7 @@ export default function UserRoleManagement() {
   const [schools, setSchools] = useState<School[]>([]);
   const [centralDepts, setCentralDepts] = useState<CentralDepartment[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [seminarHallBlocks, setSeminarHallBlocks] = useState<Array<{ id: string; name: string; blockNumber?: string | null }>>([]);
   const [permissionDefs, setPermissionDefs] = useState<PermissionDefinitions | null>(null);
 
   // User search and selection
@@ -190,6 +193,7 @@ export default function UserRoleManagement() {
   const [roleSchoolPermissions, setRoleSchoolPermissions] = useState<Record<string, boolean>>({});
   const [roleCentralPermissions, setRoleCentralPermissions] = useState<Record<string, boolean>>({});
   const [roleAnalyticsScope, setRoleAnalyticsScope] = useState<RoleAnalyticsScope>({});
+  const [roleSeminarHallBlockIds, setRoleSeminarHallBlockIds] = useState<string[]>([]);
   const [rolePermissionTab, setRolePermissionTab] = useState<'central' | 'school'>('central');
   const [roleCentralDeptFilter, setRoleCentralDeptFilter] = useState<string>('all');
   const [roleSchoolCategoryFilter, setRoleSchoolCategoryFilter] = useState<string>('all');
@@ -275,6 +279,7 @@ export default function UserRoleManagement() {
         departmentService.getAllDepartments({ isActive: true }),
         roleManagementService.getPermissionDefinitions(),
       ]);
+      const seminarHallBlocksRes = await fetchSeminarHallBlocks();
 
       setUsers(usersRes.data);
       setRoles(rolesRes.data);
@@ -282,6 +287,7 @@ export default function UserRoleManagement() {
       setCentralDepts(centralDeptsRes.data);
       setDepartments(departmentsRes.data);
       setPermissionDefs(defsRes.data);
+      setSeminarHallBlocks(seminarHallBlocksRes.map((block) => ({ id: block.id, name: block.name })));
     } catch (error: unknown) {
       logger.error('Failed to fetch data:', error);
       toast({ type: 'error', message: 'Failed to load data' });
@@ -340,6 +346,7 @@ export default function UserRoleManagement() {
       setRoleSchoolPermissions(role.permissions?.schoolDeptPermissions || {});
       setRoleCentralPermissions(role.permissions?.centralDeptPermissions || {});
       setRoleAnalyticsScope(role.permissions?.analyticsScope || {});
+      setRoleSeminarHallBlockIds(role.permissions?.seminarHallBlockIds || []);
     } else {
       setEditingRole(null);
       setRoleFormData({
@@ -352,6 +359,7 @@ export default function UserRoleManagement() {
       setRoleSchoolPermissions({});
       setRoleCentralPermissions({});
       setRoleAnalyticsScope({});
+      setRoleSeminarHallBlockIds([]);
     }
     setRoleCentralDeptFilter('all');
     setRoleSchoolCategoryFilter('all');
@@ -370,9 +378,10 @@ export default function UserRoleManagement() {
 
     const hasSchoolPerms = Object.values(roleSchoolPermissions).some(v => v);
     const hasCentralPerms = Object.values(roleCentralPermissions).some(v => v);
+    const hasBlockPerms = roleSeminarHallBlockIds.length > 0;
 
-    if (!hasSchoolPerms && !hasCentralPerms) {
-      toast({ type: 'warning', message: 'Please select at least one permission' });
+    if (!hasSchoolPerms && !hasCentralPerms && !hasBlockPerms) {
+      toast({ type: 'warning', message: 'Please select at least one permission or block scope' });
       return;
     }
 
@@ -386,6 +395,9 @@ export default function UserRoleManagement() {
     // Include analytics scope (per-category schools/departments)
     if (Object.keys(roleAnalyticsScope).length > 0) {
       permissions.analyticsScope = roleAnalyticsScope;
+    }
+    if (hasBlockPerms) {
+      permissions.seminarHallBlockIds = roleSeminarHallBlockIds;
     }
 
     try {
@@ -1012,10 +1024,11 @@ export default function UserRoleManagement() {
     }, {} as Record<string, Permission[]>);
   };
 
-  const getPermissionCount = (role: Role): { school: number; central: number } => {
+  const getPermissionCount = (role: Role): { school: number; central: number; blocks: number } => {
     const schoolCount = Object.values(role.permissions?.schoolDeptPermissions || {}).filter(v => v).length;
     const centralCount = Object.values(role.permissions?.centralDeptPermissions || {}).filter(v => v).length;
-    return { school: schoolCount, central: centralCount };
+    const blockCount = role.permissions?.seminarHallBlockIds?.length || 0;
+    return { school: schoolCount, central: centralCount, blocks: blockCount };
   };
 
   // Get all available permissions for user assignment based on department
@@ -1482,7 +1495,7 @@ export default function UserRoleManagement() {
                       <div className="mt-2 space-y-1 max-h-64 overflow-y-auto pr-1">
                         {roles.map(role => {
                           const permCount = getPermissionCount(role);
-                          const totalPerms = permCount.central + permCount.school;
+                          const totalPerms = permCount.central + permCount.school + permCount.blocks;
                           const isSelected = selectedRoleIds.includes(role.id);
                           
                           return (
@@ -2460,8 +2473,15 @@ export default function UserRoleManagement() {
                             {Object.values(roleSchoolPermissions).filter(v => v).length} School
                           </span>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Layers className="h-4 w-4 text-emerald-600" />
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {roleSeminarHallBlockIds.length} Block
+                          </span>
+                        </div>
                       </div>
                     </div>
+
                   </div>
 
                   {/* Right Column - Permission Selection */}
@@ -2641,7 +2661,58 @@ export default function UserRoleManagement() {
                       )}
 
                       {/* Permission Categories */}
-                      <div className="p-4 max-h-[450px] overflow-y-auto">{rolePermissionTab ===
+                      <div className="p-4 max-h-[450px] overflow-y-auto space-y-4">
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800 dark:bg-emerald-900/10 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Seminar Hall Block Access</h4>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Assign the blocks this role can manage.</p>
+                            </div>
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                              {roleSeminarHallBlockIds.length > 0 ? `${roleSeminarHallBlockIds.length} selected` : 'No blocks selected'}
+                            </span>
+                          </div>
+
+                          {seminarHallBlocks.length > 0 ? (
+                            <div className="mt-3 grid grid-cols-1 gap-2 pr-1 sm:grid-cols-2 xl:grid-cols-3">
+                              {seminarHallBlocks.map((block) => {
+                                const isSelected = roleSeminarHallBlockIds.includes(block.id);
+                                return (
+                                  <label
+                                    key={block.id}
+                                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                                      isSelected
+                                        ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/20'
+                                        : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-600 dark:bg-gray-800/60'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        const nextIds = e.target.checked
+                                          ? [...roleSeminarHallBlockIds, block.id]
+                                          : roleSeminarHallBlockIds.filter((blockId) => blockId !== block.id);
+                                        setRoleSeminarHallBlockIds(nextIds);
+                                      }}
+                                      className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-white">{block.name}</p>
+                                      <p className="text-[11px] text-gray-500 dark:text-gray-400">{block.blockNumber || block.id}</p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="mt-3 rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                              No seminar hall blocks available.
+                            </div>
+                          )}
+                        </div>
+
+                        {rolePermissionTab ===
    'central' && permissionDefs?.centralDepartments && (
                           <div className="space-y-3">
                             {getFilteredCentralPermissions().map(({ deptType, permissions }) => {
@@ -3063,6 +3134,12 @@ export default function UserRoleManagement() {
                                 <span className="flex items-center gap-1 text-blue-600">
                                   <Briefcase className="h-3 w-3" />
                                   {permCount.school} School
+                                </span>
+                              )}
+                              {permCount.blocks > 0 && (
+                                <span className="flex items-center gap-1 text-amber-600">
+                                  <MapPinned className="h-3 w-3" />
+                                  {permCount.blocks} Blocks
                                 </span>
                               )}
                             </div>

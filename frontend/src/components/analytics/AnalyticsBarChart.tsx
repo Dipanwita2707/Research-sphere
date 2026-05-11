@@ -22,7 +22,7 @@ interface Props {
   className?: string;
 }
 
-const MARGIN = { top: 20, right: 16, bottom: 44, left: 48 };
+const MARGIN = { top: 20, right: 28, bottom: 44, left: 48 };
 const YTICK_COUNT = 5;
 
 function niceMax(val: number): number {
@@ -76,16 +76,16 @@ export default function AnalyticsBarChart({
   const barW = Math.max(barsW / keys.length - 2, 3);
 
   return (
-    <div className={`group/chart relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.07)] ${className}`}>
+    <div className={`group/chart relative overflow-hidden rounded-3xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-800/90 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.07)] ${className}`}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_0%_-20%,rgba(99,102,241,0.03),transparent),radial-gradient(ellipse_60%_50%_at_100%_120%,rgba(16,185,129,0.03),transparent)]" />
-      <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-slate-100/80 px-6 py-4">
+      <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-slate-100/80 dark:border-slate-700/50 px-6 py-4">
         <div>
-          {title && <h3 className="text-[13px] font-semibold tracking-tight text-slate-800">{title}</h3>}
-          {subtitle && <p className="mt-0.5 text-[11px] text-slate-400 leading-relaxed">{subtitle}</p>}
+          {title && <h3 className="text-[13px] font-semibold tracking-tight text-slate-800 dark:text-slate-100">{title}</h3>}
+          {subtitle && <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">{subtitle}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {keys.map((k) => (
-            <span key={k.key} className="inline-flex items-center gap-2 text-[11px] font-medium text-slate-500">
+            <span key={k.key} className="inline-flex items-center gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
               <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 6px ${k.color}40` }} />
               {k.label}
             </span>
@@ -98,6 +98,7 @@ export default function AnalyticsBarChart({
             {keys.map((k) => (
               <linearGradient key={k.key} id={`bg-${k.key}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={k.color} stopOpacity={1} />
+                <stop offset="55%" stopColor={k.color} stopOpacity={0.9} />
                 <stop offset="100%" stopColor={k.color} stopOpacity={0.65} />
               </linearGradient>
             ))}
@@ -105,6 +106,17 @@ export default function AnalyticsBarChart({
               <stop offset="0%" stopColor="#6366f1" />
               <stop offset="100%" stopColor="#10b981" />
             </linearGradient>
+            {/* Isometric side-face: darken by 52% */}
+            <filter id="face-darken" colorInterpolationFilters="sRGB">
+              <feColorMatrix type="matrix" values="0.48 0 0 0 0  0 0.48 0 0 0  0 0 0.48 0 0  0 0 0 1 0" />
+            </filter>
+            {/* Isometric top-face: brighten + add white */}
+            <filter id="face-lighten" colorInterpolationFilters="sRGB">
+              <feColorMatrix type="matrix" values="1.12 0 0 0 0.22  0 1.12 0 0 0.22  0 0 1.12 0 0.30  0 0 0 1 0" />
+            </filter>
+            <filter id="bar-shadow" x="-15%" y="-15%" width="145%" height="145%">
+              <feDropShadow dx="3" dy="5" stdDeviation="4" floodOpacity="0.18" />
+            </filter>
           </defs>
           <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
             {Array.from({ length: YTICK_COUNT + 1 }).map((_, i) => {
@@ -129,20 +141,33 @@ export default function AnalyticsBarChart({
                   {keys.map((k, ki) => {
                     const val = d.values[k.key] || 0;
                     const targetH = Math.max((val / yMax) * plotH, val > 0 ? 3 : 0);
-                    const bh = mounted ? targetH : 0;
+                    const bh = targetH;
                     const bx = gx + barsOffset + ki * (barW + 2);
                     const by = plotH - bh;
                     return (
                       <g key={k.key}>
-                        <rect x={bx} y={by} width={barW} height={bh} fill={`url(#bg-${k.key})`} rx={barW > 6 ? 5 : 2}
-                          fillOpacity={isHovered ? 1 : 0.85}
-                          style={{ cursor: 'pointer', transition: 'height 0.6s cubic-bezier(.34,1.56,.64,1), y 0.6s cubic-bezier(.34,1.56,.64,1), fill-opacity 0.2s' }}
-                          onMouseEnter={() => setTooltip({ gxCenter: gx + groupW / 2, d })}
-                          onMouseLeave={() => setTooltip(null)}
-                        />
-                        {isHovered && val > 0 && (
-                          <text x={bx + barW / 2} y={by - 6} textAnchor="middle" fontSize={9} fontWeight={700} fill={k.color}>{val.toLocaleString()}</text>
-                        )}
+                        {(() => {
+                          const D  = Math.max(Math.min(barW * 0.32, 12), 4);
+                          const DX = D; const DY = -(D * 0.52);
+                          const frontPts = `${bx},${by} ${bx+barW},${by} ${bx+barW},${by+bh} ${bx},${by+bh}`;
+                          const sidePts  = `${bx+barW},${by} ${bx+barW+DX},${by+DY} ${bx+barW+DX},${by+bh+DY} ${bx+barW},${by+bh}`;
+                          const topPts   = `${bx},${by} ${bx+barW},${by} ${bx+barW+DX},${by+DY} ${bx+DX},${by+DY}`;
+                          return (
+                            <g filter="url(#bar-shadow)">
+                              {bh > 2 && <polygon points={sidePts}  fill={`url(#bg-${k.key})`} filter="url(#face-darken)"  style={{ pointerEvents: 'none' }} />}
+                              {bh > 2 && <polygon points={topPts}   fill={`url(#bg-${k.key})`} filter="url(#face-lighten)" style={{ pointerEvents: 'none' }} />}
+                              <polygon points={frontPts} fill={`url(#bg-${k.key})`}
+                                fillOpacity={isHovered ? 1 : 0.93}
+                                style={{ cursor: 'pointer' }}
+                                onMouseEnter={() => setTooltip({ gxCenter: gx + groupW / 2, d })}
+                                onMouseLeave={() => setTooltip(null)}
+                              />
+                              {isHovered && val > 0 && (
+                                <text x={bx + barW / 2} y={by + DY - 5} textAnchor="middle" fontSize={9} fontWeight={700} fill={k.color}>{val.toLocaleString()}</text>
+                              )}
+                            </g>
+                          );
+                        })()}
                       </g>
                     );
                   })}

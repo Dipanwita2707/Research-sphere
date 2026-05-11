@@ -927,6 +927,13 @@ class ContributionService {
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can resubmit this contribution'); e.statusCode = 403; throw e; }
     if (contribution.status !== 'changes_required') { const e = new Error(`Cannot resubmit contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
+    // Find the last reviewer who requested changes so they are auto-assigned for re-review
+    const lastChangesReview = await this.prisma.researchContributionReview.findFirst({
+      where: { researchContributionId: id, decision: 'changes_required' },
+      orderBy: { reviewedAt: 'desc' },
+    });
+    const originalReviewerId = lastChangesReview?.reviewerId || null;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const updateResult = await tx.researchContribution.updateMany({
         where: {
@@ -937,6 +944,7 @@ class ContributionService {
         data: {
           status: 'resubmitted',
           revisionCount: (contribution.revisionCount || 0) + 1,
+          currentReviewerId: originalReviewerId,
         },
       });
 

@@ -112,6 +112,12 @@ exports.createRole = async (req, res) => {
         return JSON.stringify(keys1) === JSON.stringify(keys2);
       };
 
+      const areStringArraysEqual = (arr1, arr2) => {
+        const list1 = Array.isArray(arr1) ? [...arr1].map((value) => String(value).trim()).filter(Boolean).sort() : [];
+        const list2 = Array.isArray(arr2) ? [...arr2].map((value) => String(value).trim()).filter(Boolean).sort() : [];
+        return JSON.stringify(list1) === JSON.stringify(list2);
+      };
+
       // For central departments, check against ALL roles that have central permissions
       if (permissions.centralDeptPermissions) {
         for (const role of allRoles) {
@@ -140,6 +146,17 @@ exports.createRole = async (req, res) => {
                 message: `A role with the exact same school department permission set already exists: "${role.name}" (${role.roleCode})`,
               });
             }
+          }
+        }
+      }
+
+      if (permissions.seminarHallBlockIds) {
+        for (const role of allRoles) {
+          if (areStringArraysEqual(permissions.seminarHallBlockIds, role.permissions?.seminarHallBlockIds)) {
+            return res.status(400).json({
+              success: false,
+              message: `A role with the exact same seminar hall block assignment already exists: "${role.name}" (${role.roleCode})`,
+            });
           }
         }
       }

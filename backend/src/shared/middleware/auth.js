@@ -127,6 +127,7 @@ const protect = async (req, res, next) => {
           // Merge role-based permissions with direct permissions
           const mergedCentralPerms = [...(userData.centralDeptPermissions || [])];
           const mergedSchoolPerms = [...(userData.schoolDeptPermissions || [])];
+          const mergedSeminarHallBlockIds = new Set();
 
           // Process each role's permissions
           rolesWithPermissions.forEach(role => {
@@ -158,6 +159,12 @@ const protect = async (req, res, next) => {
                 roleName: role.name,
               });
             }
+
+            if (Array.isArray(rolePerms.seminarHallBlockIds)) {
+              rolePerms.seminarHallBlockIds
+                .filter((blockId) => typeof blockId === 'string' && blockId.trim())
+                .forEach((blockId) => mergedSeminarHallBlockIds.add(blockId.trim()));
+            }
           });
 
           // PERF FIX: Pre-cache chairperson club lookup for student users.
@@ -186,6 +193,7 @@ const protect = async (req, res, next) => {
             ...userData,
             centralDeptPermissions: mergedCentralPerms,
             schoolDeptPermissions: mergedSchoolPerms,
+            seminarHallBlockIds: Array.from(mergedSeminarHallBlockIds),
             // Cached chairperson info — avoids DB hit per request
             _chairpersonClub: chairpersonClubData,
           };

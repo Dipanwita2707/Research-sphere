@@ -3200,6 +3200,61 @@ class DrdAnalyticsService {
     await cache.set(cacheKey, result, 300); // 5 minutes
     return result;
   }
+
+  /**
+   * Aggregate external co-author affiliations across all research contributions
+   * within the user's scope. Used by the Global Research Network globe.
+   * Returns [{name, count}] sorted by count desc.
+   */
+  async getAffiliations(user, filters = {}) {
+    const from = parseDate(filters.from, new Date(new Date().setMonth(new Date().getMonth() - 12)));
+    const to = parseEndDate(filters.to, new Date());
+
+    const cacheKey = `drd:affiliations:${user.id}:${toIsoDate(from)}:${toIsoDate(to)}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) return cached;
+
+    // Resolve access scope using research category permissions
+    let access;
+    try {
+      access = await this._resolveApplicantAccessByCategory(user, 'research', null);
+    } catch (err) {
+      if (err.statusCode === 403) {
+        return [];
+      }
+      throw err;
+    }
+
+    const schoolWhere = access.allowedSchoolIds && access.allowedSchoolIds.length > 0
+      ? { in: access.allowedSchoolIds }
+      : undefined;
+
+    const authors = await prisma.researchContributionAuthor.findMany({
+      where: {
+        isInternal: false,
+        affiliation: { not: null },
+        researchContribution: {
+          submittedAt: { gte: from, lte: to },
+          ...(schoolWhere ? { schoolId: schoolWhere } : {}),
+        },
+      },
+      select: { affiliation: true },
+    });
+
+    const map = new Map();
+    for (const a of authors) {
+      const key = (a.affiliation || '').trim();
+      if (key) map.set(key, (map.get(key) || 0) + 1);
+    }
+
+    const result = [...map.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 60);
+
+    await cache.set(cacheKey, result, 300);
+    return result;
+  }
 }
 
 module.exports = new DrdAnalyticsService();

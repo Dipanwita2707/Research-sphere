@@ -291,6 +291,7 @@ export default function ResearchReviewPage() {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSuggestion, setTempSuggestion] = useState<Partial<FieldSuggestion>>({});
   const [showSuggestionsPreview, setShowSuggestionsPreview] = useState(false);
+  const [showApproveWithSuggestionsModal, setShowApproveWithSuggestionsModal] = useState(false);
 
   // Research Progress Tracker state
   const [trackerHistory, setTrackerHistory] = useState<ResearchProgressTracker[]>([]);
@@ -393,6 +394,15 @@ export default function ResearchReviewPage() {
   };
 
   const handleApprove = async () => {
+    // If in collaborative mode with pending suggestions, ask the user what to do
+    if (isEditMode && fieldSuggestions.length > 0) {
+      setShowApproveWithSuggestionsModal(true);
+      return;
+    }
+    await doApprove();
+  };
+
+  const doApprove = async () => {
     const hasApprovePermission = getApprovePermission();
     const actionText = hasApprovePermission ? 'Approve' : 'Recommend for Approval';
     const confirmText = hasApprovePermission 
@@ -1957,8 +1967,7 @@ export default function ResearchReviewPage() {
                   </div>
                 </div>
               )}
-              {!userHasReviewed && contribution.status ===
-   'submitted' && (
+              {!userHasReviewed && contribution.status === 'submitted' && contribution.currentReviewerId !== user?.id && (
                 <button
                   onClick={handleStartReview}
                   disabled={actionLoading}
@@ -1968,7 +1977,7 @@ export default function ResearchReviewPage() {
                   Start Review
                 </button>
               )}
-              {!userHasReviewed && ['under_review', 'resubmitted'].includes(contribution.status) && (
+              {!userHasReviewed && ['under_review', 'resubmitted'].includes(contribution.status) && contribution.currentReviewerId === user?.id && (
                 <div className="space-y-4">
                   {/* Edit Mode Info */}
                   {isEditMode && fieldSuggestions.length > 0 && (
@@ -2127,6 +2136,70 @@ export default function ResearchReviewPage() {
                   {actionLoading ? 'Rejecting...' : 'Confirm Reject'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Approve With Pending Suggestions Modal */}
+        {showApproveWithSuggestionsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+              <div className="flex items-start mb-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mr-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Pending Suggested Changes</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    You have <span className="font-semibold text-amber-600">{fieldSuggestions.length} unsent suggestion{fieldSuggestions.length !== 1 ? 's' : ''}</span> in collaborative editing mode. What would you like to do?
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                {/* Option 1: Submit as suggestions */}
+                <button
+                  onClick={() => {
+                    setShowApproveWithSuggestionsModal(false);
+                    setShowSuggestionsPreview(true);
+                  }}
+                  className="w-full flex items-start p-4 border-2 border-orange-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-colors text-left group"
+                >
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center mr-3 group-hover:bg-orange-200">
+                    <Send className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">Submit as Suggestions</div>
+                    <div className="text-sm text-gray-500 mt-0.5">Send the {fieldSuggestions.length} suggested change{fieldSuggestions.length !== 1 ? 's' : ''} to the applicant as a change request.</div>
+                  </div>
+                </button>
+
+                {/* Option 2: Discard & Approve */}
+                <button
+                  onClick={() => {
+                    setShowApproveWithSuggestionsModal(false);
+                    setFieldSuggestions([]);
+                    setIsEditMode(false);
+                    doApprove();
+                  }}
+                  className="w-full flex items-start p-4 border-2 border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-left group"
+                >
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 group-hover:bg-green-200">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">Discard Suggestions &amp; Approve</div>
+                    <div className="text-sm text-gray-500 mt-0.5">Discard the unsent suggestions and proceed to approve this contribution.</div>
+                  </div>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowApproveWithSuggestionsModal(false)}
+                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Cancel — Keep Editing
+              </button>
             </div>
           </div>
         )}
