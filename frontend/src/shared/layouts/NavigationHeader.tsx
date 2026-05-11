@@ -470,6 +470,16 @@ export default function NavigationHeader() {
     description: 'Student admissions portal',
   });
 
+  // Add Resource Management
+  navigationSubItems.push({
+    name: '🏢 Resource Management',
+    description: 'Manage campus facilities and transport bookings',
+    children: [
+      { name: '🏛️ Seminar Hall Booking', href: '/resource-management/seminar-hall-booking', description: 'Book and manage seminar halls' },
+      { name: '🚕 Cab Booking', href: '/resource-management/cab-booking', description: 'Book and manage cab requests' },
+    ],
+  });
+
   // Add Noting approval - For Faculty, Staff, Admin only (blocked for all students)
   if (!isStudent && hasNotingAccess) {
     const notingChildren: SubMenuItem[] = [

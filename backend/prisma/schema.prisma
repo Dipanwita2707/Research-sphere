@@ -2075,7 +2075,7 @@ model Note {
   stallConfig         Json?                       @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[]}
   festivalMeta        Json?                       @map("festival_meta") // {name, startDate, endDate, description, coordinator}
   subEvents           Json?                       @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
-  // Optional club association for event notings — when set, the club's chairperson
+  // Optional club association for event notings â€” when set, the club's chairperson
   // automatically receives full event management permissions upon event creation.
   eventClubId         String?                     @map("event_club_id") @db.Uuid
   eventClub           Club?                       @relation("EventNotingClub", fields: [eventClubId], references: [id])
@@ -2551,7 +2551,7 @@ model SponsorFulfillmentHistory {
   changeType       String   @map("change_type") @db.VarChar(32) // status_change | amount_change | payment_update | delivery_update
   previousSnapshot Json?    @map("previous_snapshot")   // relevant fields before change
   newSnapshot      Json?    @map("new_snapshot")        // relevant fields after change
-  summary          String?                              // human-readable e.g. "₹5000 → ₹4000"
+  summary          String?                              // human-readable e.g. "â‚¹5000 â†’ â‚¹4000"
   changedById      String   @map("changed_by_id") @db.Uuid
   changedAt        DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
 
@@ -2644,7 +2644,7 @@ model EventRegistration {
 
   // Coupon / discount fields
   couponId              String?                      @db.Uuid @map("coupon_id")   // Applied coupon
-  discountAmount        Float?                       @map("discount_amount")       // Discount applied in ₹
+  discountAmount        Float?                       @map("discount_amount")       // Discount applied in â‚¹
   originalAmount        Float?                       @map("original_amount")       // Amount before discount
 
   EventEntry            EventEntry[]
@@ -3659,8 +3659,8 @@ model EventCoupon {
   eventId           String              @map("event_id")                 // links to Event.id
   code              String              @map("code") @db.VarChar(64)     // coupon code (unique per event)
   discountType      CouponDiscountType  @map("discount_type")            // percentage | fixed
-  discountValue     Float               @map("discount_value")           // % or ₹ amount
-  maxDiscountCap    Float?              @map("max_discount_cap")         // max ₹ cap for percentage discounts
+  discountValue     Float               @map("discount_value")           // % or â‚¹ amount
+  maxDiscountCap    Float?              @map("max_discount_cap")         // max â‚¹ cap for percentage discounts
   minAmount         Float?              @map("min_amount")               // minimum amount to apply coupon
   maxUses           Int?                @map("max_uses")                 // null = unlimited
   maxUsesPerUser    Int?                @default(1) @map("max_uses_per_user") // null = unlimited per user
@@ -3690,7 +3690,7 @@ model CouponUsage {
   couponId       String          @db.Uuid @map("coupon_id")
   registrationId String          @unique @map("registration_id")  // one coupon usage per registration
   userId         String          @db.Uuid @map("user_id")
-  discountAmount Float           @map("discount_amount")          // actual ₹ discount applied
+  discountAmount Float           @map("discount_amount")          // actual â‚¹ discount applied
   originalAmount Float           @map("original_amount")          // amount before discount
   finalAmount    Float           @map("final_amount")             // amount after discount
   usedAt         DateTime        @default(now()) @map("used_at") @db.Timestamptz(6)
@@ -4815,7 +4815,7 @@ model EventEmailLog {
   subject         String
   body            String
   filter          String    @default("all") @db.VarChar(32)   // all | confirmed | pending | cancelled
-  registrationIds Json      @default("[]")                    // string[] – if non-empty, targetted send
+  registrationIds Json      @default("[]")                    // string[] â€“ if non-empty, targetted send
   recipientCount  Int       @default(0)
   sentCount       Int       @default(0)
   failedCount     Int       @default(0)
@@ -4824,7 +4824,7 @@ model EventEmailLog {
   recipientEmails Json      @default("[]")                    // [{email, name}]
   errors          Json      @default("[]")                    // string[]
   sentAt          DateTime  @default(now())
-  scheduledAt     DateTime?                                   // non-null → scheduled send
+  scheduledAt     DateTime?                                   // non-null â†’ scheduled send
 
   event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   sentBy          UserLogin @relation("EmailLogSentBy", fields: [sentById], references: [id])
@@ -4859,7 +4859,7 @@ model EmailRecipientLog {
 // =====================================
 // Event Email Credit System
 // ====================================
-// One credit record per event — updated automatically when registrations change
+// One credit record per event â€” updated automatically when registrations change
 model EventEmailCredit {
   id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId      String   @unique
@@ -4886,6 +4886,234 @@ model EmailCreditLog {
   @@index([createdAt])
   @@map("email_credit_log")
 }
+
+// =====================================================================
+// SEMINAR HALL BOOKING SYSTEM
+// Supports: Seminar Halls, Auditoriums, Classrooms, Conference Rooms
+// Hierarchical structure: Block -> Floor -> Room
+// =====================================================================
+
+// Enums for Seminar Hall Booking
+enum SeminarHallRoomTypeEnum {
+  seminar_hall
+  auditorium
+  classroom
+  conference_room
+  meeting_room
+  lab
+  workshop_space
+
+    @@map("seminar_hall_resource_room_type_enum")
+}
+
+enum SeminarHallBookingStatusEnum {
+  pending
+  approved
+  rejected
+  cancel_pending
+  cancelled
+  reschedule_pending
+  rescheduled
+
+  @@map("seminar_hall_booking_status_enum")
+}
+
+enum SeminarHallBookingKindEnum {
+  new_booking
+  cancel_request
+  reschedule_request
+
+  @@map("seminar_hall_booking_kind_enum")
+}
+
+// Building Block - Top level hierarchy
+model SeminarHallBlock {
+  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name              String                      @db.VarChar(100)
+  description       String?                     @db.Text
+  blockNumber       String?                     @db.VarChar(20) @map("block_number")
+  location          String?                     @db.VarChar(255)
+  isActive          Boolean                     @default(true) @map("is_active")
+  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  floors            SeminarHallFloor[]
+  rooms             SeminarHallRoom[]
+
+  @@unique([name])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("seminar_hall_block")
+}
+
+// Floor - Second level hierarchy (under Block)
+model SeminarHallFloor {
+  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  blockId           String                      @map("block_id") @db.Uuid
+  floorNumber       Int                         @map("floor_number")
+  name              String                      @db.VarChar(100)
+  description       String?                     @db.Text
+  isActive          Boolean                     @default(true) @map("is_active")
+  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  block             SeminarHallBlock            @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  rooms             SeminarHallRoom[]
+
+  @@unique([blockId, floorNumber])
+  @@unique([blockId, name])
+  @@index([blockId])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("seminar_hall_floor")
+}
+
+// Room - Third level hierarchy (under Floor)
+model SeminarHallRoom {
+  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  blockId           String                      @map("block_id") @db.Uuid
+  floorId           String                      @map("floor_id") @db.Uuid
+  name              String                      @db.VarChar(100)
+  roomNumber        String?                     @db.VarChar(20) @map("room_number")
+  type              SeminarHallRoomTypeEnum                @default(seminar_hall) @map("room_type")
+  capacity          Int                         @default(30)
+  chairs            Int                         @default(30)
+  description       String?                     @db.Text
+  isActive          Boolean                     @default(true) @map("is_active")
+  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  block             SeminarHallBlock            @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  floor             SeminarHallFloor            @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  facilities        RoomFacilityMapping[]
+  bookingRequests   SeminarHallBookingRequest[]
+
+  @@unique([floorId, name])
+  @@unique([floorId, roomNumber])
+  @@index([blockId])
+  @@index([floorId])
+  @@index([type])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("seminar_hall_room")
+}
+
+// Facility - Reference table for room features (projector, mic, whiteboard, etc.)
+model RoomFacility {
+  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name              String                      @db.VarChar(100)
+  description       String?                     @db.Text
+  category          String?                     @db.VarChar(50) // e.g., 'audio', 'visual', 'seating', 'accessibility'
+  isActive          Boolean                     @default(true) @map("is_active")
+  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  roomMappings      RoomFacilityMapping[]
+
+  @@unique([name])
+  @@index([category])
+  @@index([isActive])
+  @@map("room_facility")
+}
+
+// Junction table: Room -> Facility (many-to-many)
+model RoomFacilityMapping {
+  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roomId            String                      @map("room_id") @db.Uuid
+  facilityId        String                      @map("facility_id") @db.Uuid
+  quantity          Int                         @default(1)
+  notes             String?                     @db.Text
+  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  room              SeminarHallRoom             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  facility          RoomFacility                @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, facilityId])
+  @@index([roomId])
+  @@index([facilityId])
+  @@map("room_facility_mapping")
+}
+
+// Main Booking Request entity - tracks all booking requests (new, cancel, reschedule)
+model SeminarHallBookingRequest {
+  id                        String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  requestId                 String                      @unique @db.VarChar(20) @map("request_id") // e.g., REQ-2025-0001
+  roomId                    String                      @map("room_id") @db.Uuid
+  
+  // Requester information
+  requesterName             String                      @map("requester_name") @db.VarChar(100)
+  requesterEmail            String                      @map("requester_email") @db.Citext
+  requesterPhone            String?                     @map("requester_phone") @db.VarChar(20)
+  department                String                      @db.VarChar(100)
+  
+  // Booking details
+  bookingDate               DateTime                    @map("booking_date") @db.Date
+  startTime                 String                      @map("start_time") @db.VarChar(5) // HH:MM format
+  endTime                   String                      @map("end_time") @db.VarChar(5)   // HH:MM format
+  timeSlot                  String                      @map("time_slot") @db.VarChar(20) // "AM", "PM", "FULL_DAY", "9:00-10:30"
+  purpose                   String                      @db.VarChar(255)
+  additionalRequirements    String?                     @map("additional_requirements") @db.Text
+  
+  // Request type and status
+  requestKind               SeminarHallBookingKindEnum      @default(new_booking) @map("request_kind")
+  status                    SeminarHallBookingStatusEnum    @default(pending)
+  
+  // For cancel/reschedule requests
+  originalBookingDate       DateTime?                   @map("original_booking_date") @db.Date
+  originalTimeSlot          String?                     @map("original_time_slot") @db.VarChar(20)
+  originalStartTime         String?                     @map("original_start_time") @db.VarChar(5)
+  originalEndTime           String?                     @map("original_end_time") @db.VarChar(5)
+  
+  requestedBookingDate      DateTime?                   @map("requested_booking_date") @db.Date
+  requestedTimeSlot         String?                     @map("requested_time_slot") @db.VarChar(20)
+  requestedStartTime        String?                     @map("requested_start_time") @db.VarChar(5)
+  requestedEndTime          String?                     @map("requested_end_time") @db.VarChar(5)
+  
+  // Admin remarks and approval
+  adminRemark               String?                     @map("admin_remark") @db.Text
+  approvedBy                String?                     @map("approved_by") @db.Uuid
+  approvedAt                DateTime?                   @map("approved_at") @db.Timestamptz(6)
+  rejectedBy                String?                     @map("rejected_by") @db.Uuid
+  rejectedAt                DateTime?                   @map("rejected_at") @db.Timestamptz(6)
+  rejectionReason           String?                     @map("rejection_reason") @db.Text
+  
+  // Audit trail
+  createdAt                 DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  room                      SeminarHallRoom             @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  history                   SeminarHallBookingHistory[]
+
+  @@index([roomId])
+  @@index([bookingDate])
+  @@index([status])
+  @@index([requestKind])
+  @@index([requesterEmail])
+  @@index([department])
+  @@index([createdAt])
+  @@index([approvedAt])
+  @@map("seminar_hall_booking_request")
+}
+
+// Audit History - tracks status changes
+model SeminarHallBookingHistory {
+  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bookingRequestId  String                      @map("booking_request_id") @db.Uuid
+  oldStatus         String?                     @map("old_status") @db.VarChar(50)
+  newStatus         String                      @map("new_status") @db.VarChar(50)
+  action            String                      @db.VarChar(100) // "created", "approved", "rejected", "cancelled", "rescheduled"
+  actionDetails     String?                     @map("action_details") @db.Text
+  changedBy         String?                     @map("changed_by") @db.Uuid
+  changedAt         DateTime                    @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  bookingRequest    SeminarHallBookingRequest   @relation(fields: [bookingRequestId], references: [id], onDelete: Cascade)
+
+  @@index([bookingRequestId])
+  @@index([changedAt])
+  @@map("seminar_hall_booking_history")
+}
+
+
 
 // Chat Authentication Sessions — scoped JWT sessions for chat module
 model ChatSession {
