@@ -17,9 +17,16 @@ const express = require('express');
 const router = express.Router();
 const licenseController = require('../controllers/license.controller');
 
-// ── Public verification endpoint ──────────────────────────────────────────────
-// No auth needed — the client app calls this before it even boots
-// Rate-limited to prevent brute-forcing (via the global apiLimiter in server.js)
+// Friendly GET endpoint for browser health verification
+router.get('/verify', (req, res) => {
+  res.status(200).json({
+    status: 'online',
+    service: 'ResearchSphere DRM License Verification Service',
+    method: 'POST',
+    description: 'Send a POST request with { licenseKey, hardwareId } to verify your software instance.',
+  });
+});
+
 router.post('/verify', licenseController.verifyLicense);
 
 module.exports = router;
