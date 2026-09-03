@@ -204,15 +204,28 @@ async function verifyLicense() {
       hardwareId,
       response.data.assignedTo || response.data.data?.assignedTo || ''
     );
-    console.log(`✅ License verified for [${response.data.assignedTo || 'Authorized User'}]. Booting application...\n`);
+    console.log(`\n✅ [DRM] License verified for [${response.data.assignedTo || 'Authorized User'}]. Booting application...\n`);
     return;
+  }
+
+  if (response.status === 428 || response.data?.pendingApproval) {
+    console.error(
+      '\n⏳ ══════════════════════════════════════════════════════════════\n' +
+        '   [DRM] HARDWARE AUTHORIZATION PENDING APPROVAL\n' +
+        `   Device Hardware ID: ${hardwareId.substring(0, 24)}...\n` +
+        '   This license requires developer approval for new hardware.\n' +
+        '   👉 Please open the Superadmin Dashboard (/superadmin/licenses)\n' +
+        '      and click "Approve Device" for this license.\n' +
+        '══════════════════════════════════════════════════════════════\n'
+    );
+    process.exit(1);
   }
 
   const reason = response.data?.message || `HTTP ${response.status}`;
   console.error(
     '\n❌ ══════════════════════════════════════════════════════════════\n' +
-      `   License verification failed: ${reason}\n` +
-      `   Machine Hardware ID: ${hardwareId.substring(0, 16)}...\n` +
+      `   [DRM] License Verification Failed: ${reason}\n` +
+      `   Machine Hardware ID: ${hardwareId.substring(0, 24)}...\n` +
       '   Access is revoked or unauthorized.\n' +
       '══════════════════════════════════════════════════════════════\n'
   );
