@@ -26,9 +26,6 @@ interface ApplicantPerson {
   totalApplications: number;
 }
 
-/**
- * Maps DRD analytics person data to research profile data structure
- */
 export function mapDrdAnalyticsToProfileData(
   personId: string,
   analyticsData: DrdAnalyticsResponse,
@@ -43,11 +40,15 @@ export function mapDrdAnalyticsToProfileData(
     throw new Error('Person data not found in analytics response');
   }
 
-  // Calculate citation metrics from submissions with more realistic data
+  // Calculate citation metrics from submissions with more realistic or synced data
   const publications = submissionsData?.submissions || [];
-  
-  // Generate more realistic citation counts based on publication type and year
-  const citationCounts = publications.map(pub => {
+  const currentYear = new Date().getFullYear();
+
+  // Map publications with realistic or synced citation data (parallel to publications array)
+  const publicationCitations = publications.map(pub => {
+    if (pub.citationCount !== undefined && pub.citationCount !== null) {
+      return pub.citationCount;
+    }
     const pubYear = pub.publicationDate ? new Date(pub.publicationDate).getFullYear() : new Date().getFullYear();
     const yearsOld = new Date().getFullYear() - pubYear;
     
@@ -78,15 +79,18 @@ export function mapDrdAnalyticsToProfileData(
       baseCitations += 8;
     }
     
-    return Math.min(baseCitations, 200); // Cap at 200 citations
-  }).sort((a, b) => b - a);
+    return Math.min(baseCitations, 200); // Cap at 200 citations for mocks
+  });
 
-  const totalCitations = citationCounts.reduce((sum, count) => sum + count, 0);
+  const totalCitations = publicationCitations.reduce((sum, count) => sum + count, 0);
+
+  // For h-index calculation, sort a copy of the citation counts descending
+  const sortedCitations = [...publicationCitations].sort((a, b) => b - a);
 
   // Calculate h-index properly
   let hIndex = 0;
-  for (let i = 0; i < citationCounts.length; i++) {
-    if (citationCounts[i] >= i + 1) {
+  for (let i = 0; i < sortedCitations.length; i++) {
+    if (sortedCitations[i] >= i + 1) {
       hIndex = i + 1;
     } else {
       break;
@@ -94,10 +98,9 @@ export function mapDrdAnalyticsToProfileData(
   }
 
   // Calculate i10-index (publications with 10+ citations)
-  const i10Index = citationCounts.filter(count => count >= 10).length;
+  const i10Index = publicationCitations.filter(count => count >= 10).length;
 
   // Generate realistic citations per year data based on actual publications
-  const currentYear = new Date().getFullYear();
   const citationsPerYear = Array.from({ length: 10 }, (_, i) => {
     const year = currentYear - 9 + i;
     
@@ -109,7 +112,7 @@ export function mapDrdAnalyticsToProfileData(
         // Publications get more citations over time, but with diminishing returns
         const yearsAfterPub = year - pubYear;
         if (yearsAfterPub >= 0) {
-          const pubCitations = citationCounts[publications.indexOf(pub)] || 0;
+          const pubCitations = publicationCitations[publications.indexOf(pub)] || 0;
           // Distribute citations over years with peak around 2-3 years after publication
           const yearFactor = yearsAfterPub === 0 ? 0.1 : 
                             yearsAfterPub === 1 ? 0.3 :
@@ -143,7 +146,7 @@ export function mapDrdAnalyticsToProfileData(
     }];
 
     const pubYear = pub.publicationDate ? new Date(pub.publicationDate).getFullYear() : currentYear;
-    const citationCount = citationCounts[index] || 0;
+    const citationCount = publicationCitations[index] || 0;
 
     return {
       id: pub.id,
@@ -176,29 +179,161 @@ export function mapDrdAnalyticsToProfileData(
     };
   });
 
+  // Helper function to normalize name for comparison and collapse phonetic variations
+  const normalizeAuthorName = (name: string): string => {
+    if (!name) return '';
+    return name.toLowerCase()
+      .replace(/[^a-z0-9]/g, '') // remove dots, spaces, commas
+      .replace(/aa+/g, 'a')     // collapse double a's
+      .replace(/ee+/g, 'e')     // collapse double e's
+      .replace(/oo+/g, 'o')     // collapse double o's
+      .trim();
+  };
+
+  const getEditDistance = (s1: string, s2: string): number => {
+    if (s1.length === 0) return s2.length;
+    if (s2.length === 0) return s1.length;
+    const matrix = [];
+    for (let i = 0; i <= s2.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= s1.length; j++) matrix[0][j] = j;
+    for (let i = 1; i <= s2.length; i++) {
+      for (let j = 1; j <= s1.length; j++) {
+        if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1, // substitution
+            matrix[i][j - 1] + 1,     // insertion
+            matrix[i - 1][j] + 1      // deletion
+          );
+        }
+      }
+    }
+    return matrix[s2.length][s1.length];
+  };
+
+  const isSimilarWord = (w1: string, w2: string): boolean => {
+    if (w1 === w2) return true;
+    if (w1.length === 1 && w2.startsWith(w1)) return true;
+    if (w2.length === 1 && w1.startsWith(w2)) return true;
+    const dist = getEditDistance(w1, w2);
+    const maxLen = Math.max(w1.length, w2.length);
+    if (maxLen >= 5 && dist <= 2) return true;
+    return false;
+  };
+
+  // Helper to check if two names are matching (including initials, transpositions and spelling variants)
+  const isSamePerson = (nameA: string, nameB: string): boolean => {
+    if (!nameA || !nameB) return false;
+    
+    // Collapse double characters and normalize
+    const normalize = (n: string) => n.toLowerCase()
+      .replace(/[^a-z\s]/g, '')
+      .replace(/aa+/g, 'a')
+      .replace(/ee+/g, 'e')
+      .replace(/oo+/g, 'o')
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const normA = normalize(nameA);
+    const normB = normalize(nameB);
+    
+    if (normA.length === 0 || normB.length === 0) return false;
+
+    // Direct comparison
+    if (normA.join(' ') === normB.join(' ')) return true;
+
+    const shorter = normA.length < normB.length ? normA : normB;
+    const longer = normA.length < normB.length ? normB : normA;
+    
+    let matchedParts = 0;
+    const usedIndices = new Set<number>();
+    
+    shorter.forEach(sPart => {
+      const matchedIdx = longer.findIndex((lPart, idx) => {
+        if (usedIndices.has(idx)) return false;
+        return isSimilarWord(sPart, lPart);
+      });
+      if (matchedIdx !== -1) {
+        matchedParts++;
+        usedIndices.add(matchedIdx);
+      }
+    });
+    
+    return matchedParts === shorter.length;
+  };
+
   // Generate co-authors from publication data
   const coAuthorMap = new Map<string, CoAuthor>();
-  publications.forEach(pub => {
-    pub.authors?.forEach(author => {
-      if (author.name !== person.applicantName && !coAuthorMap.has(author.name)) {
-        coAuthorMap.set(author.name, {
-          id: author.id || `coauthor_${author.name.replace(/\s+/g, '_').toLowerCase()}`,
-          name: author.name,
+  const canonicalKeyMap = new Map<string, string>(); // maps normalized name/uid to the chosen canonical author name
+
+  mappedPublications.forEach((pub) => {
+    pub.authors?.forEach((author) => {
+      // Don't include the main author (with smart spelling match)
+      if (isSamePerson(author.name, person.applicantName)) {
+        return;
+      }
+
+      // Group by user id if available, otherwise by normalized name
+      let groupingKey = '';
+      const authorUid = (author as PublicationAuthor & { uid?: string }).uid;
+      if (authorUid) {
+        groupingKey = `uid_${authorUid}`;
+      } else {
+        const normName = normalizeAuthorName(author.name);
+        groupingKey = `name_${normName}`;
+      }
+
+      let activeName = canonicalKeyMap.get(groupingKey);
+
+      if (!activeName) {
+        // Find if any existing key in coAuthorMap has a matching name
+        const existingKey = Array.from(coAuthorMap.keys()).find(k => 
+          isSamePerson(k, author.name)
+        );
+
+        if (existingKey) {
+          activeName = existingKey;
+          canonicalKeyMap.set(groupingKey, existingKey);
+        } else {
+          activeName = author.name;
+          canonicalKeyMap.set(groupingKey, author.name);
+        }
+      }
+
+      if (!coAuthorMap.has(activeName)) {
+        coAuthorMap.set(activeName, {
+          id: authorUid || (author as { id?: string }).id || `coauthor_${activeName.replace(/\s+/g, '_').toLowerCase()}`,
+          name: activeName,
           affiliation: author.affiliation || person.schoolName,
           email: null,
-          profileId: author.uid,
+          profileId: authorUid || null,
           collaborationCount: 1,
-          firstCollaboration: pub.publicationDate ? new Date(pub.publicationDate).getFullYear() : currentYear,
-          lastCollaboration: pub.publicationDate ? new Date(pub.publicationDate).getFullYear() : currentYear,
+          firstCollaboration: pub.year || currentYear,
+          lastCollaboration: pub.year || currentYear,
           sharedPublications: [pub.id],
+          scopusAuthorId: (author as any).scopusAuthorId || null,
+          orcid: (author as any).orcid || null,
         });
-      } else if (author.name !== person.applicantName) {
-        const existing = coAuthorMap.get(author.name)!;
+      } else {
+        const existing = coAuthorMap.get(activeName)!;
         existing.collaborationCount++;
-        existing.sharedPublications.push(pub.id);
-        const pubYear = pub.publicationDate ? new Date(pub.publicationDate).getFullYear() : currentYear;
+        if (!existing.sharedPublications.includes(pub.id)) {
+          existing.sharedPublications.push(pub.id);
+        }
+        const pubYear = pub.year || currentYear;
         existing.lastCollaboration = Math.max(existing.lastCollaboration, pubYear);
         existing.firstCollaboration = Math.min(existing.firstCollaboration, pubYear);
+        
+        if (authorUid && !existing.profileId) {
+          existing.profileId = authorUid;
+        }
+        if ((author as any).scopusAuthorId && !existing.scopusAuthorId) {
+          existing.scopusAuthorId = (author as any).scopusAuthorId;
+        }
+        if ((author as any).orcid && !existing.orcid) {
+          existing.orcid = (author as any).orcid;
+        }
       }
     });
   });
@@ -208,13 +343,13 @@ export function mapDrdAnalyticsToProfileData(
   // Generate impact metrics
   const impactMetrics: ImpactMetrics = {
     avgCitationsPerPaper: publications.length > 0 ? totalCitations / publications.length : 0,
-    medianCitations: calculateMedian(citationCounts),
-    highlyCitedPapers: citationCounts.filter(count => count >= 10).length,
+    medianCitations: calculateMedian(publicationCitations),
+    highlyCitedPapers: publicationCitations.filter(count => count >= 10).length,
     citationDistribution: [
-      { range: '0-5', count: citationCounts.filter(c => c >= 0 && c <= 5).length },
-      { range: '6-10', count: citationCounts.filter(c => c >= 6 && c <= 10).length },
-      { range: '11-20', count: citationCounts.filter(c => c >= 11 && c <= 20).length },
-      { range: '21+', count: citationCounts.filter(c => c >= 21).length },
+      { range: '0-5', count: publicationCitations.filter(c => c >= 0 && c <= 5).length },
+      { range: '6-10', count: publicationCitations.filter(c => c >= 6 && c <= 10).length },
+      { range: '11-20', count: publicationCitations.filter(c => c >= 11 && c <= 20).length },
+      { range: '21+', count: publicationCitations.filter(c => c >= 21).length },
     ],
   };
 
@@ -242,6 +377,7 @@ export function mapDrdAnalyticsToProfileData(
       syncStatus: 'success',
       syncError: null,
       autoSyncEnabled: false,
+      filterSgtOnly: false,
       syncFrequencyDays: 30,
       visibility: {
         profile: 'public',
@@ -272,14 +408,11 @@ export function mapDrdAnalyticsToProfileData(
   };
 }
 
-/**
- * Generates a realistic email address
- */
 function generateRealisticEmail(name: string): string {
   const cleanName = name.toLowerCase()
     .replace(/[^a-z\s]/g, '')
     .replace(/\s+/g, '.');
-  return `${cleanName}@sgtuniversity.org`;
+  return `${cleanName}@researchsphere.app`;
 }
 
 /**

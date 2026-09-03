@@ -626,7 +626,7 @@ export default function StudentManagement() {
                 {/* Basic Info */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Student ID / Registration No <span className="text-red-500">*</span>
@@ -785,7 +785,7 @@ export default function StudentManagement() {
                 {/* Academic Info */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Academic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Program <span className="text-red-500">*</span>
@@ -917,7 +917,7 @@ export default function StudentManagement() {
                 {/* Personal Info */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                       <input

@@ -1,0 +1,75 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'primaryTextColor': '#1b5e20', 'primaryBorderColor': '#4caf50', 'lineColor': '#2e7d32', 'secondaryColor': '#f1f8e9'}}}%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════
+    %% ENTRY PATHS: MANUAL VS AUTOMATED FILING
+    %% ═══════════════════════════════════════════════════════════════════
+    subgraph FILING_CHANNELS["📝 ENTRY: MANUAL VS AUTOMATED RESEARCH FILING"]
+        direction LR
+        MANUAL_START([👤 Manual Start]) --> CHECK_ROLE{User Role?}
+        CHECK_ROLE -->|"Student"| SEL_MENTOR[Select Faculty Mentor]
+        CHECK_ROLE -->|"Faculty/Staff"| FILL_FORM[Fill Contribution Form]
+        
+        SEL_MENTOR & FILL_FORM --> CHOOSE_TYPE{Filing Type?}
+        CHOOSE_TYPE -->|"Research Subtypes"| RES_TYPES["Publications, Books, Chapters, Conferences, Grants"]
+        CHOOSE_TYPE -->|"IPR Subtypes"| IPR_TYPES["Patents, Copyrights, Trademarks, Designs"]
+
+        CRON_START([⏰ Cron Scheduler]) --> AUTO_SYNC{Auto-Sync Enabled?}
+        AUTO_SYNC -->|"Yes"| FETCH_APIS["Query Scopus, ORCID & OpenAlex APIs"]
+        FETCH_APIS --> DEDUPLICATE{DOI/Scopus ID in DB?}
+        DEDUPLICATE -->|"Yes"| SKIP_PAPER[Skip: Already exists]
+        DEDUPLICATE -->|"No"| AUTO_FILE[Auto-create ResearchContribution Draft]
+        AUTO_FILE --> CLAIM_ALERT[Send claim notification to faculty authors]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% INTEGRATION & AFFILIATION RESOLUTION
+    %% ═══════════════════════════════════════════════════════════════════
+    subgraph AFFILIATION_ENGINE["🔍 AFFILIATION RESOLVER"]
+        RES_TYPES & CLAIM_ALERT --> AFFILIATION_CHECK{Matches SGT variants?}
+        AFFILIATION_CHECK -->|"Yes"| LINK_COAUTHORS[Link internal registered profiles]
+        AFFILIATION_CHECK -->|"No"| MARK_EXTERNAL[Mark as external contributor]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% REVIEW & COLLABORATIVE WORKFLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    subgraph REVIEW_WORKFLOW["🕵️ WORKFLOW APPROVALS & REVISIONS"]
+        IPR_TYPES --> PATENT_CHECK{IPR Patent?}
+        PATENT_CHECK -->|"Provisional"| SAVE_PROV[File Provisional Spec]
+        PATENT_CHECK -->|"Complete"| CONVERSION_CHECK{Has provisional?}
+        CONVERSION_CHECK -->|"Yes"| CONVERT_PROV[Link provisional conversion within 12m]
+        CONVERSION_CHECK -->|"No"| SAVE_COMP[File Direct Complete Spec]
+
+        LINK_COAUTHORS & MARK_EXTERNAL & SAVE_PROV & CONVERT_PROV & SAVE_COMP --> ROUTE_REVIEW{Applicant Student?}
+        
+        ROUTE_REVIEW -->|"Yes"| MENTOR_APPROVAL[pending_mentor_approval]
+        MENTOR_APPROVAL --> MENTOR_CHECK{Review?}
+        MENTOR_CHECK -->|"Changes Req"| STUDENT_REVISE[Edit Suggestions: Student Resubmits]
+        STUDENT_REVISE --> MENTOR_APPROVAL
+        MENTOR_CHECK -->|"Approve"| DRD_REVIEW[under_drd_review]
+        
+        ROUTE_REVIEW -->|"No"| DRD_REVIEW
+        
+        DRD_REVIEW --> DRD_CHECK{DRD Review?}
+        DRD_CHECK -->|"Changes Req"| DRD_REVISE[Suggestions: Applicant Resubmits]
+        DRD_REVISE --> DRD_REVIEW
+        DRD_CHECK -->|"Approve"| HEAD_APPROVED[drd_head_approved]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% POLICY CALCULATIONS & SCHEDULERS
+    %% ═══════════════════════════════════════════════════════════════════
+    subgraph POLICY_CALCULATIONS["💰 INCENTIVES & MONTHLY REPORTS"]
+        HEAD_APPROVED --> ADD_PUB_ID[Link Government/Journal Publication ID]
+        ADD_PUB_ID --> MATCH_POLICY[Match active policy year & journal metrics]
+        MATCH_POLICY --> CALC_INCENTIVE["Base Scopus/WoS amount + Quartile/IF bonuses"]
+        CALC_INCENTIVE --> ROLE_SPLIT["Apply Splits: First Author 40%, Corresponding 30%"]
+        ROLE_SPLIT --> DISBURSE[Save incentive totals & notify internal inventors]
+        
+        DISBURSE --> MONTHLY_CRON{0 0 1 * * Cron Job}
+        MONTHLY_CRON --> COMPILE_REPORTS[Aggregate monthly progress logs]
+        COMPILE_REPORTS --> MAIL_DEANS[Email spreadsheet summaries to school Deans]
+    end
+
+    MAIL_DEANS & SKIP_PAPER --> END([🏁 END: Process Complete])

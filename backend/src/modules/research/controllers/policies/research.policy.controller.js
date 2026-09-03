@@ -102,6 +102,9 @@ exports.getAllPolicies = async (req, res) => {
     const { includeInactive } = req.query;
     
     const whereClause = includeInactive === 'true' ? {} : { isActive: true };
+    if (req.tenantId) {
+      whereClause.universityId = req.tenantId;
+    }
     
     const policies = await prisma.researchIncentivePolicy.findMany({
       where: whereClause,
@@ -153,7 +156,8 @@ exports.getPolicyByType = async (req, res) => {
     const policy = await prisma.researchIncentivePolicy.findFirst({
       where: {
         publicationType: publicationType.toLowerCase(),
-        isActive: true
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 
@@ -205,6 +209,7 @@ exports.getApplicablePolicyByDate = async (req, res) => {
     const policy = await prisma.researchIncentivePolicy.findFirst({
       where: {
         publicationType: publicationType.toLowerCase(),
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         effectiveFrom: {
           lte: pubDate
         },
@@ -303,7 +308,8 @@ exports.createPolicy = async (req, res) => {
     // Check for overlapping date ranges with existing policies of same publication type
     const existingPolicies = await prisma.researchIncentivePolicy.findMany({
       where: {
-        publicationType: publicationType.toLowerCase()
+        publicationType: publicationType.toLowerCase(),
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 
@@ -372,7 +378,8 @@ exports.createPolicy = async (req, res) => {
         effectiveFrom: policyStartDate,
         effectiveTo: policyEndDate,
         isActive: isCurrentlyActive,
-        createdById: req.user.id
+        createdById: req.user.id,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 
@@ -431,6 +438,13 @@ exports.updatePolicy = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Research incentive policy not found'
+      });
+    }
+
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 
@@ -564,6 +578,13 @@ exports.deletePolicy = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Research incentive policy not found'
+      });
+    }
+
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 

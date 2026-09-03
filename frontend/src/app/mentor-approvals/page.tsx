@@ -28,7 +28,7 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import MentorCollaborativeReviewModal from '@/features/ipr-management/components/MentorCollaborativeReviewModal';
 
 const IPR_TYPE_CONFIG = {
-  patent: { label: 'Patent', icon: Lightbulb, color: 'bg-blue-500' },
+  patent: { label: 'Patent', icon: Lightbulb, color: 'bg-[#7d1a34]' },
   copyright: { label: 'Copyright', icon: FileText, color: 'bg-purple-500' },
   trademark: { label: 'Trademark', icon: FileText, color: 'bg-green-500' },
   design: { label: 'Design', icon: FileText, color: 'bg-orange-500' },
@@ -36,7 +36,7 @@ const IPR_TYPE_CONFIG = {
 };
 
 const RESEARCH_TYPE_CONFIG = {
-  research_paper: { label: 'Research Paper', icon: FileText, color: 'bg-blue-500' },
+  research_paper: { label: 'Research Paper', icon: FileText, color: 'bg-[#7d1a34]' },
   book: { label: 'Book / Chapter', icon: BookOpen, color: 'bg-green-500' },
   conference_paper: { label: 'Conference', icon: FileText, color: 'bg-purple-500' },
   grant_proposal: { label: 'Grant', icon: FileText, color: 'bg-orange-500' },
@@ -45,7 +45,7 @@ const RESEARCH_TYPE_CONFIG = {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   pending_mentor_approval: { label: 'Pending Your Approval', color: 'text-orange-700', bgColor: 'bg-orange-100' },
   changes_required: { label: 'Changes Requested', color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
-  submitted: { label: 'Submitted to DRD', color: 'text-blue-700', bgColor: 'bg-blue-100' },
+  submitted: { label: 'Submitted to DRD', color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]' },
   under_review: { label: 'Under DRD Review', color: 'text-indigo-700', bgColor: 'bg-indigo-100' },
   approved: { label: 'Approved', color: 'text-green-700', bgColor: 'bg-green-100' },
   completed: { label: 'Completed', color: 'text-green-700', bgColor: 'bg-green-100' },
@@ -180,7 +180,7 @@ export default function UnifiedMentorApprovalsPage() {
     const statusConfig = STATUS_CONFIG[app.status] || STATUS_CONFIG.pending_mentor_approval;
 
     return (
-      <div key={app.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all duration-200 p-6">
+      <div key={app.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#f0e2d2] dark:hover:border-[#7d1a34] hover:shadow-md transition-all duration-200 p-6">
         <div className="flex items-start gap-4">
           <div className={`w-12 h-12 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
             <TypeIcon className="w-6 h-6 text-white" />
@@ -217,7 +217,7 @@ export default function UnifiedMentorApprovalsPage() {
                 <>
                   <button
                     onClick={() => openCollaborativeReview(app)}
-                    className="flex-1 px-4 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 bg-[#7d1a34] dark:bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] dark:hover:bg-[#7d1a34] transition-colors font-medium flex items-center justify-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" />
                     Review & Suggest
@@ -264,31 +264,33 @@ export default function UnifiedMentorApprovalsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-16 transition-colors duration-200">
-      {/* Header */}
-      <div className="bg-sgt-gradient dark:bg-gradient-to-r dark:from-blue-900 dark:via-blue-800 dark:to-blue-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <Link href="/dashboard" className="inline-flex items-center text-white hover:text-sgt-100 dark:hover:text-blue-200 mb-4 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Mentor Approvals</h1>
-              <p className="opacity-90">Review and approve student IPR applications and research contributions</p>
+    <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900 pt-20 transition-colors duration-200">
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Back Button */}
+        <Link 
+          href="/dashboard" 
+          className="inline-flex items-center gap-2 px-4 py-2 border border-[#f0e2d2] rounded-xl bg-white text-sm font-semibold text-gray-700 hover:text-[#7d1a34] hover:bg-[#fbe2e8]/20 shadow-sm transition-all duration-200 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+
+        {/* Header Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-[#f0e2d2] dark:border-gray-700 px-6 py-5 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mentor Approvals</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Review and approve student IPR applications and research contributions</p>
+          </div>
+          <div className="flex items-center gap-3 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 rounded-xl p-3 border border-[#f0e2d2] self-start md:self-auto">
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+              <UserCheck className="w-5 h-5 text-[#7d1a34]" />
             </div>
-            <div className="bg-white bg-opacity-20 dark:bg-opacity-10 backdrop-blur-sm rounded-2xl p-4 border border-white border-opacity-30 dark:border-opacity-20">
-              <div className="text-center">
-                <UserCheck className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-2xl font-bold">{stats.iprPending + stats.researchPending}</p>
-                <p className="text-sm opacity-90">Pending Approvals</p>
-              </div>
+            <div>
+              <p className="text-lg font-bold text-[#7d1a34]">{stats.iprPending + stats.researchPending}</p>
+              <p className="text-xs text-gray-500 font-medium">Pending Approvals</p>
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Main Tabs */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
           <div className="border-b border-gray-200 dark:border-gray-700">
@@ -297,7 +299,7 @@ export default function UnifiedMentorApprovalsPage() {
                 onClick={() => { setMainTab('ipr'); setSubTab('pending'); }}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
                   mainTab ===
-   'ipr' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'ipr' ? 'text-[#7d1a34] dark:text-[#c8973f]' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -310,14 +312,14 @@ export default function UnifiedMentorApprovalsPage() {
                   )}
                 </div>
                 {mainTab ===
-   'ipr' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>}
+   'ipr' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#7d1a34] dark:bg-blue-400"></div>}
               </button>
               
               <button
                 onClick={() => { setMainTab('research'); setSubTab('pending'); }}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
                   mainTab ===
-   'research' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'research' ? 'text-[#7d1a34] dark:text-[#c8973f]' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -330,7 +332,7 @@ export default function UnifiedMentorApprovalsPage() {
                   )}
                 </div>
                 {mainTab ===
-   'research' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>}
+   'research' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#7d1a34] dark:bg-blue-400"></div>}
               </button>
             </div>
           </div>
@@ -342,7 +344,7 @@ export default function UnifiedMentorApprovalsPage() {
                 onClick={() => setSubTab('pending')}
                 className={`px-6 py-3 text-sm font-medium transition-colors ${
                   subTab ===
-   'pending' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'pending' ? 'text-[#7d1a34] dark:text-[#c8973f] border-b-2 border-[#7d1a34] dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 Pending Approvals
@@ -358,7 +360,7 @@ export default function UnifiedMentorApprovalsPage() {
                 onClick={() => setSubTab('history')}
                 className={`px-6 py-3 text-sm font-medium transition-colors ${
                   subTab ===
-   'history' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'history' ? 'text-[#7d1a34] dark:text-[#c8973f] border-b-2 border-[#7d1a34] dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 Review History
@@ -370,14 +372,14 @@ export default function UnifiedMentorApprovalsPage() {
           <div className="p-6">
             {loading ? (
               <div className="text-center py-12">
-                <RefreshCw className="w-12 h-12 text-blue-600 mx-auto mb-4 animate-spin" />
+                <RefreshCw className="w-12 h-12 text-[#7d1a34] mx-auto mb-4 animate-spin" />
                 <p className="text-gray-500">Loading...</p>
               </div>
             ) : error ? (
               <div className="text-center py-12">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <p className="text-red-600 dark:text-red-400">{error}</p>
-                <button onClick={fetchData} className="mt-4 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600">
+                <button onClick={fetchData} className="mt-4 px-4 py-2 bg-[#7d1a34] dark:bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] dark:hover:bg-[#7d1a34]">
                   Retry
                 </button>
               </div>
@@ -433,7 +435,7 @@ export default function UnifiedMentorApprovalsPage() {
               value={approvalComments}
               onChange={(e) => setApprovalComments(e.target.value)}
               placeholder="Add comments (optional)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-transparent mb-4"
               rows={3}
             />
             <div className="flex gap-3">

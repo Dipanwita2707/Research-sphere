@@ -9,6 +9,9 @@ const getPendingFinanceReviews = async (req, res) => {
       // After DRD Head approval and publication, comes to Finance
       status: { in: ['under_finance_review'] },
     };
+    if (req.tenantId) {
+      where.applicantUser = { universityId: req.tenantId };
+    }
     if (iprType) where.iprType = iprType;
     if (schoolId) where.schoolId = schoolId;
 
@@ -212,8 +215,12 @@ const processFinanceIncentive = async (req, res) => {
 const getFinanceStatistics = async (req, res) => {
   try {
     const { reviewerId } = req.query;
+    const tenantId = req.tenantId || null;
+    const tenantWhere = tenantId
+      ? { iprApplication: { applicantUser: { universityId: tenantId } } }
+      : {};
 
-    const where = reviewerId ? { financeReviewerId: reviewerId } : {};
+    const where = reviewerId ? { financeReviewerId: reviewerId, ...tenantWhere } : tenantWhere;
 
     const [
       totalReviews,
@@ -248,11 +255,13 @@ const getFinanceStatistics = async (req, res) => {
       prisma.iprApplication.count({
         where: {
           status: { in: ['drd_head_approved', 'under_finance_review'] },
+          ...(tenantId ? { applicantUser: { universityId: tenantId } } : {}),
         },
       }),
       prisma.iprApplication.count({
         where: {
           status: 'completed',
+          ...(tenantId ? { applicantUser: { universityId: tenantId } } : {}),
         },
       }),
     ]);
@@ -281,12 +290,13 @@ const getFinanceStatistics = async (req, res) => {
 // Get incentive history for an applicant
 const getApplicantIncentiveHistory = async (req, res) => {
   try {
-    const userId = req.query.userId || req.user.id;
+    const userId = req.params.applicantId || req.query.userId || req.user.id;
 
     const applications = await prisma.iprApplication.findMany({
       where: {
         applicantUserId: userId,
         status: 'completed',
+        ...(req.tenantId ? { applicantUser: { universityId: req.tenantId } } : {}),
       },
       include: {
         financeRecords: {

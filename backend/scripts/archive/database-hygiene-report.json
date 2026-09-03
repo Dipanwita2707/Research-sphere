@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-04-26T10:59:56.652Z",
+  "summary": {
+    "critical": 0,
+    "warnings": 3,
+    "info": 1
+  },
+  "issues": {
+    "critical": [],
+    "warning": [
+      "1 users without employee or student details",
+      "2 employees without any department assignment",
+      "26 faculty/staff without permissions"
+    ],
+    "info": [
+      "  - admin (admin)"
+    ]
+  }
+}

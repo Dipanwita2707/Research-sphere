@@ -130,6 +130,8 @@ export interface PersonSubmission {
   incentiveAmount: number | null;
   calculatedIncentiveAmount: number | null;
   pointsAwarded: number | null;
+  indexingDetails?: Record<string, any> | null;
+  citationCount?: number | null;
   extra?: Record<string, any>;
   authors?: Array<{
     id: string;

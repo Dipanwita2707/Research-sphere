@@ -24,6 +24,7 @@ const employeeRoutes = require('./employee.routes');
 const studentRoutes = require('./student.routes');
 const bulkUploadRoutes = require('./bulkUpload.routes');
 const reportingStructureRoutes = require('./reportingStructure.routes');
+const affiliationRoutes = require('./affiliation.routes');
 
 // =====================================
 // MODULAR IMPORTS (Domain Modules)
@@ -36,10 +37,6 @@ const researchModule = require('../../research');
 const grantsModule = require('../../grants');
 const iprModule = require('../../ipr');
 const financeModule = require('../../finance');
-const notingModule = require('../../noting');
-const dswModule = require('../../dsw');
-const eventManagementModule = require('../../event-management/routes/event.routes');
-const tmsModule = require('../../tms');
 const bugReportsModule = require('../../bug-reports');
 
 // =====================================
@@ -60,6 +57,7 @@ router.use('/employees', employeeRoutes);
 router.use('/students', studentRoutes);
 router.use('/bulk-upload', bulkUploadRoutes);
 router.use('/reporting-structure', reportingStructureRoutes);
+router.use('/affiliation', affiliationRoutes);
 router.use('/analytics', analyticsModule);
 router.use('/drd-analytics', drdAnalyticsModule);
 router.use('/notifications', notificationsModule);
@@ -72,10 +70,6 @@ router.use('/research', researchModule);
 router.use('/grants', grantsModule);
 router.use('/ipr', iprModule);
 router.use('/finance', financeModule);
-router.use('/noting', notingModule);
-router.use('/dsw', dswModule);
-router.use('/events', eventManagementModule);
-router.use('/tms', tmsModule);
 router.use('/bug-reports', bugReportsModule);
 router.use('/admin/bug-reports', require('../../bug-reports/routes/admin.routes'));
 
@@ -97,5 +91,39 @@ router.use('/collaborative-editing', require('../../research/routes/collaborativ
 router.use('/google-docs', require('../../research/routes/googleDocs.routes'));
 
 router.use('/ipr-management', require('../../ipr/routes/iprManagement.routes'));
+
+router.post('/contact', async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ success: false, error: 'All fields are required' });
+    }
+
+    const { emailService } = require('../services/email.service');
+    const recipient = process.env.CONTACT_EMAIL || 'admin@researchsphere.com';
+
+    const htmlContent = `
+      <h3>New Contact Us Message</h3>
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Subject:</strong> ${subject}</p>
+      <p><strong>Message:</strong></p>
+      <p>${message.replace(/\n/g, '<br>')}</p>
+    `;
+
+    const emailResult = await emailService.sendEmail({
+      to: recipient,
+      subject: `[Contact Us] ${subject}`,
+      text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject}\nMessage:\n${message}`,
+      html: htmlContent
+    });
+
+    console.log(`[Contact Form] Message sent successfully to ${recipient}`);
+    return res.status(200).json({ success: true, message: 'Message sent successfully' });
+  } catch (error) {
+    console.error('Error in contact endpoint:', error);
+    return res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+});
 
 module.exports = router;

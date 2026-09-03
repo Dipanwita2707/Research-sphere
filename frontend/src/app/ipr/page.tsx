@@ -28,7 +28,7 @@ const IPR_TYPES = [
     type: 'patent', 
     label: 'Patent', 
     icon: Lightbulb, 
-    color: 'bg-blue-500', 
+    color: 'bg-[#7d1a34]', 
     description: 'Protect your inventions and innovations',
     href: '/ipr/apply?type=patent'
   },
@@ -61,7 +61,7 @@ const IPR_TYPES = [
 const STATUS_CONFIG = {
   draft: { label: 'Draft', icon: Edit, color: 'text-gray-600 bg-gray-100' },
   pending_mentor_approval: { label: 'Pending Mentor Approval', icon: UserCheck, color: 'text-orange-600 bg-orange-100' },
-  submitted: { label: 'Submitted', icon: Clock, color: 'text-blue-600 bg-blue-100' },
+  submitted: { label: 'Submitted', icon: Clock, color: 'text-[#7d1a34] bg-[#fbe2e8]' },
   under_drd_review: { label: 'DRD Review', icon: Eye, color: 'text-yellow-600 bg-yellow-100' },
   drd_approved: { label: 'DRD Approved', icon: CheckCircle, color: 'text-green-600 bg-green-100' },
   under_dean_review: { label: 'Dean Review', icon: Eye, color: 'text-purple-600 bg-purple-100' },
@@ -158,7 +158,7 @@ export default function IPRDashboard() {
               )}
               <Link
                 href="/ipr/filing"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center"
+                className="bg-[#7d1a34] hover:bg-[#5e1024] text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 New IPR Request
@@ -186,7 +186,7 @@ export default function IPRDashboard() {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{iprType.label}</h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">{iprType.description}</p>
-                  <div className="mt-4 flex items-center text-blue-600 text-sm font-medium">
+                  <div className="mt-4 flex items-center text-[#7d1a34] text-sm font-medium">
                     Apply Now
                     <Plus className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                   </div>
@@ -210,13 +210,13 @@ export default function IPRDashboard() {
                   placeholder="Search applications..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               >
                 <option value="all">All Types</option>
                 <option value="patent">Patent</option>
@@ -230,7 +230,7 @@ export default function IPRDashboard() {
           {loading ? (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
               <div className="text-center">
-                <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <div className="animate-spin w-8 h-8 border-4 border-[#7d1a34] border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-gray-600 dark:text-gray-400">Loading applications...</p>
               </div>
             </div>
@@ -273,7 +273,7 @@ export default function IPRDashboard() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#fbe2e8] text-[#7d1a34] capitalize">
                               {app.iprType}
                             </span>
                           </td>
@@ -290,7 +290,7 @@ export default function IPRDashboard() {
                             {app.id ? (
                               <Link
                                 href={`/ipr/applications/${app.id}`}
-                                className="text-blue-600 hover:text-blue-900 flex items-center"
+                                className="text-[#7d1a34] hover:text-[#7d1a34] flex items-center"
                               >
                                 <Eye className="w-4 h-4 mr-1" />
                                 View
@@ -322,7 +322,7 @@ export default function IPRDashboard() {
                 </p>
                 <Link
                   href="/ipr/filing"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Submit Your First Application
@@ -339,8 +339,8 @@ export default function IPRDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
                 <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                  <div className="p-2 bg-[#fbe2e8] dark:bg-[#7d1a34]/20 rounded-lg">
+                    <FileText className="w-5 h-5 text-[#7d1a34]" />
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Applications</p>

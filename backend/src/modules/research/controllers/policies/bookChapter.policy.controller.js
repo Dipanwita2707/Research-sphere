@@ -8,7 +8,10 @@ const cache = require('../../../../shared/config/redis');
 exports.getAllBookChapterPolicies = async (req, res) => {
   try {
     const policies = await prisma.bookChapterIncentivePolicy.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
+      },
       include: {
         createdBy: {
           select: {
@@ -50,6 +53,7 @@ exports.getActivePolicy = async (req, res) => {
     const policy = await prisma.bookChapterIncentivePolicy.findFirst({
       where: {
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         effectiveFrom: { lte: now },
         OR: [
           { effectiveTo: null },
@@ -112,6 +116,7 @@ exports.createBookChapterPolicy = async (req, res) => {
     const overlapping = await prisma.bookChapterIncentivePolicy.findFirst({
       where: {
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         OR: [
           {
             AND: [
@@ -159,7 +164,8 @@ exports.createBookChapterPolicy = async (req, res) => {
         effectiveFrom: new Date(effectiveFrom),
         effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
         createdById: userId,
-        updatedById: userId
+        updatedById: userId,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 
@@ -192,6 +198,24 @@ exports.updateBookChapterPolicy = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
     const updateData = { ...req.body, updatedById: userId };
+
+    const existingPolicy = await prisma.bookChapterIncentivePolicy.findUnique({
+      where: { id }
+    });
+
+    if (!existingPolicy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Book chapter policy not found'
+      });
+    }
+
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
+      });
+    }
 
     // Convert numeric fields if present
     if (updateData.authoredIncentiveAmount) {
@@ -260,6 +284,13 @@ exports.deleteBookChapterPolicy = async (req, res) => {
       });
     }
 
+    if (req.tenantId && policy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
+      });
+    }
+
     await prisma.bookChapterIncentivePolicy.delete({
       where: { id }
     });
@@ -317,6 +348,13 @@ exports.getBookChapterPolicyById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Book chapter policy not found'
+      });
+    }
+
+    if (req.tenantId && policy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { financeService } from '@/features/ipr-management/services/ipr.service';
@@ -145,7 +145,7 @@ export default function FinanceDashboard() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 border-4 border-sgt-200 rounded-full animate-spin border-t-emerald-600 mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-ResearchSphere-200 rounded-full animate-spin border-t-emerald-600 mx-auto"></div>
             <Wallet className="w-6 h-6 text-emerald-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
           </div>
           <p className="mt-4 text-gray-600 font-medium">Loading finance reviews...</p>
@@ -187,7 +187,7 @@ export default function FinanceDashboard() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div className="bg-white rounded-2xl p-6 shadow-sgt card-hover border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere card-hover border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Pending Reviews</p>
@@ -203,7 +203,7 @@ export default function FinanceDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sgt card-hover border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere card-hover border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Processed Today</p>
@@ -219,25 +219,25 @@ export default function FinanceDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sgt card-hover border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere card-hover border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Total Incentives</p>
-              <p className="text-3xl font-bold text-sgt-700 mt-1">
+              <p className="text-3xl font-bold text-ResearchSphere-700 mt-1">
                 ₹{stats?.totalIncentives?.toLocaleString() || 0}
               </p>
-              <p className="text-xs text-sgt-600 mt-2 flex items-center gap-1">
+              <p className="text-xs text-ResearchSphere-600 mt-2 flex items-center gap-1">
                 <Banknote className="w-3 h-3" />
                 Disbursed
               </p>
             </div>
-            <div className="w-14 h-14 bg-sgt-100 rounded-2xl flex items-center justify-center">
-              <DollarSign className="w-7 h-7 text-sgt-700" />
+            <div className="w-14 h-14 bg-ResearchSphere-100 rounded-2xl flex items-center justify-center">
+              <DollarSign className="w-7 h-7 text-ResearchSphere-700" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sgt card-hover border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere card-hover border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Total Points</p>
@@ -255,7 +255,7 @@ export default function FinanceDashboard() {
       </div>
 
       {/* Applications List */}
-      <div className="bg-white rounded-2xl shadow-sgt border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-ResearchSphere border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-lg font-semibold text-gray-900">Applications Awaiting Finance Processing</h2>
         </div>
@@ -276,10 +276,10 @@ export default function FinanceDashboard() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 flex-wrap mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-sgt-700 transition-colors">
+                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-ResearchSphere-700 transition-colors">
                         {app.title}
                       </h3>
-                      <span className="px-3 py-1 bg-sgt-100 text-sgt-700 text-xs rounded-full font-semibold uppercase tracking-wide">
+                      <span className="px-3 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 text-xs rounded-full font-semibold uppercase tracking-wide">
                         {app.iprType}
                       </span>
                       <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full font-medium flex items-center gap-1">
@@ -327,7 +327,7 @@ export default function FinanceDashboard() {
 
       {/* Finance Processing Modal */}
       {showModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-slideUp">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white sticky top-0 z-10">
@@ -365,7 +365,7 @@ export default function FinanceDashboard() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">IPR Type</p>
-                      <span className="inline-flex px-3 py-1 bg-sgt-100 text-sgt-700 rounded-full text-sm font-medium">
+                      <span className="inline-flex px-3 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 rounded-full text-sm font-medium">
                         {selectedApp.iprType.toUpperCase()}
                       </span>
                     </div>

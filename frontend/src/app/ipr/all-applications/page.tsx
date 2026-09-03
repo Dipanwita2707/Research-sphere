@@ -23,14 +23,14 @@ import { logger } from '@/shared/utils/logger';
 const STATUS_CONFIG = {
   draft: { label: 'Draft', icon: Edit, color: 'text-gray-600 bg-gray-100' },
   pending_mentor_approval: { label: 'Pending Mentor', icon: UserCheck, color: 'text-orange-600 bg-orange-100' },
-  submitted: { label: 'Submitted', icon: Clock, color: 'text-blue-600 bg-blue-100' },
+  submitted: { label: 'Submitted', icon: Clock, color: 'text-[#7d1a34] bg-[#fbe2e8]' },
   under_drd_review: { label: 'DRD Review', icon: Eye, color: 'text-yellow-600 bg-yellow-100' },
   drd_approved: { label: 'DRD Approved', icon: CheckCircle, color: 'text-green-600 bg-green-100' },
   under_dean_review: { label: 'Dean Review', icon: Eye, color: 'text-purple-600 bg-purple-100' },
   dean_approved: { label: 'Dean Approved', icon: CheckCircle, color: 'text-green-600 bg-green-100' },
   recommended_to_head: { label: 'Recommended', icon: Eye, color: 'text-teal-600 bg-teal-100' },
   drd_head_approved: { label: 'Head Approved', icon: CheckCircle, color: 'text-green-600 bg-green-100' },
-  submitted_to_govt: { label: 'Submitted to Govt', icon: Eye, color: 'text-blue-600 bg-blue-100' },
+  submitted_to_govt: { label: 'Submitted to Govt', icon: Eye, color: 'text-[#7d1a34] bg-[#fbe2e8]' },
   govt_application_filed: { label: 'Govt Filed', icon: CheckCircle, color: 'text-cyan-600 bg-cyan-100' },
   published: { label: 'Published', icon: CheckCircle, color: 'text-indigo-600 bg-indigo-100' },
   completed: { label: 'Completed', icon: CheckCircle, color: 'text-green-600 bg-green-100' },
@@ -136,7 +136,7 @@ export default function AllIPRApplicationsPage() {
                   placeholder="Search by title, description, or applicant..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7d1a34] w-80"
                 />
               </div>
             </div>
@@ -145,7 +145,7 @@ export default function AllIPRApplicationsPage() {
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               >
                 <option value="all">All Types</option>
                 <option value="patent">Patent</option>
@@ -157,7 +157,7 @@ export default function AllIPRApplicationsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               >
                 <option value="all">All Status</option>
                 <option value="draft">Draft</option>
@@ -178,7 +178,7 @@ export default function AllIPRApplicationsPage() {
         {loading ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12">
             <div className="text-center">
-              <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <div className="animate-spin w-8 h-8 border-4 border-[#7d1a34] border-t-transparent rounded-full mx-auto mb-4"></div>
               <p className="text-gray-600 dark:text-gray-400">Loading applications...</p>
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function AllIPRApplicationsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#fbe2e8] text-[#7d1a34] capitalize">
                             {app.iprType}
                           </span>
                         </td>
@@ -267,7 +267,7 @@ export default function AllIPRApplicationsPage() {
                           <div className="flex items-center space-x-2">
                             <Link
                               href={`/ipr/applications/${app.id}`}
-                              className="text-blue-600 hover:text-blue-900 flex items-center"
+                              className="text-[#7d1a34] hover:text-[#7d1a34] flex items-center"
                             >
                               <Eye className="w-4 h-4 mr-1" />
                               View

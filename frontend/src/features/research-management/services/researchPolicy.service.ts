@@ -39,7 +39,7 @@ export type IndexingCategory =
   | 'pubmed'                              // 5. PubMed
   | 'naas_rating_6_plus'                  // 6. NAAS (Rating ≥ 6) - requires rating
   | 'abdc_scopus_wos'                     // 7. ABDC Journals indexed in SCOPUS/WOS
-  | 'sgtu_in_house'                       // 9. SGTU In-House Journal
+  | 'sgtu_in_house'                       // 9. ResearchSphere In-House Journal
   | 'case_centre_uk';                     // 10. The Case Centre UK
 
 // Category metadata defining required sub-fields for each category
@@ -112,8 +112,8 @@ export const INDEXING_CATEGORIES: CategoryMetadata[] = [
   },
   { 
     value: 'sgtu_in_house', 
-    label: 'SGTU In-House Journal', 
-    description: 'SGT University in-house publications',
+    label: 'ResearchSphere In-House Journal', 
+    description: 'ResearchSphere in-house publications',
     nestedIncentives: false
   },
   { 

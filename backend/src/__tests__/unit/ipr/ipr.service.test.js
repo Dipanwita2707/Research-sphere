@@ -7,6 +7,17 @@ const IprService = require('../../../modules/ipr/services/ipr.service');
 
 function makeRepo(overrides = {}) {
   return {
+    prisma: {
+      userLogin: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      iprContributor: {
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      notification: {
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    },
     findActivePolicy: jest.fn().mockResolvedValue(null),
     count: jest.fn().mockResolvedValue(0),
     findFirst: jest.fn().mockResolvedValue(null),
@@ -143,15 +154,15 @@ describe('IprService', () => {
 
   describe('getStatistics()', () => {
     test('returns stats object with total, pending, approved, rejected', async () => {
-      // getStatistics calls repo.count 6 times and repo.groupBy 2 times
-      repo.count
-        .mockResolvedValueOnce(10)  // total
-        .mockResolvedValueOnce(3)   // submitted (pending)
-        .mockResolvedValueOnce(2)   // underReview
-        .mockResolvedValueOnce(4)   // approved
-        .mockResolvedValueOnce(1)   // rejected
-        .mockResolvedValueOnce(0);  // completed
-      repo.groupBy.mockResolvedValue([]);
+      repo.groupBy
+        .mockResolvedValueOnce([
+          { status: 'submitted', _count: { id: 3 } },
+          { status: 'under_drd_review', _count: { id: 2 } },
+          { status: 'drd_head_approved', _count: { id: 4 } },
+          { status: 'drd_rejected', _count: { id: 1 } },
+        ]) // statusGroups
+        .mockResolvedValueOnce([]) // byType
+        .mockResolvedValueOnce([]); // byStatus
       const result = await service.getStatistics({});
       expect(result).toHaveProperty('total');
       expect(result).toHaveProperty('pending');
@@ -355,16 +366,16 @@ describe('IprService - workflow coverage', () => {
   describe('createContributors()', () => {
     test('does nothing for empty contributors', async () => {
       await service.createContributors('ipr-1', 'Test', 'patent', 'user-1', []);
-      expect(repo.createContributor).not.toHaveBeenCalled();
+      expect(repo.prisma.iprContributor.createMany).not.toHaveBeenCalled();
     });
 
     test('creates contributor records', async () => {
-      repo.findUserByUid.mockResolvedValue({ id: 'contrib-user-1' });
+      repo.prisma.userLogin.findMany.mockResolvedValue([{ uid: 'contrib-uid', id: 'contrib-user-1' }]);
       await service.createContributors('ipr-1', 'Test', 'patent', 'user-1', [
         { uid: 'contrib-uid', name: 'John Doe', email: 'john@example.com' },
       ]);
-      expect(repo.createContributor).toHaveBeenCalledTimes(1);
-      expect(repo.createNotification).toHaveBeenCalledTimes(1);
+      expect(repo.prisma.iprContributor.createMany).toHaveBeenCalledTimes(1);
+      expect(repo.prisma.notification.createMany).toHaveBeenCalledTimes(1);
     });
   });
 

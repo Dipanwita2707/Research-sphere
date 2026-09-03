@@ -71,14 +71,14 @@ interface IprApplication {
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
   pending_mentor_approval: 'bg-orange-100 text-orange-700',
-  submitted: 'bg-blue-100 text-blue-700',
+  submitted: 'bg-[#fbe2e8] text-[#7d1a34]',
   under_drd_review: 'bg-yellow-100 text-yellow-700',
   changes_required: 'bg-orange-100 text-orange-700',
-  resubmitted: 'bg-blue-100 text-blue-700',
+  resubmitted: 'bg-[#fbe2e8] text-[#7d1a34]',
   recommended_to_head: 'bg-purple-100 text-purple-700',
   drd_head_approved: 'bg-green-100 text-green-700',
   drd_rejected: 'bg-red-100 text-red-700',
-  submitted_to_govt: 'bg-blue-100 text-blue-700',
+  submitted_to_govt: 'bg-[#fbe2e8] text-[#7d1a34]',
   govt_application_filed: 'bg-cyan-100 text-cyan-700',
   published: 'bg-indigo-100 text-indigo-700',
   // Kept for backward compatibility
@@ -191,7 +191,7 @@ function IprApplicationDetailContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34]"></div>
       </div>
     );
   }
@@ -203,7 +203,7 @@ function IprApplicationDetailContent() {
         <h2 className="text-lg font-medium text-gray-900">Application not found</h2>
         <button
           onClick={() => router.push('/ipr/my-applications')}
-          className="mt-4 text-blue-600 hover:underline"
+          className="mt-4 text-[#7d1a34] hover:underline"
         >
           Back to My Applications
         </button>
@@ -231,7 +231,7 @@ function IprApplicationDetailContent() {
               </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-              <FileText className="w-7 h-7 text-blue-600" />
+              <FileText className="w-7 h-7 text-[#7d1a34]" />
               {application.title}
             </h1>
             <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -365,7 +365,7 @@ function IprApplicationDetailContent() {
                       }
                     }}
                     onFocus={() => setResponding(suggestion.id)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     rows={2}
                   />
                 </div>

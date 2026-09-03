@@ -283,7 +283,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
+          <Loader2 className="w-12 h-12 text-[#7d1a34] animate-spin mx-auto" />
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading application...</p>
         </div>
       </div>
@@ -301,7 +301,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <Link
             href="/ipr/my-applications"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to My Applications
@@ -332,7 +332,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           </p>
           <Link
             href={`/ipr/applications/${params.id}`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             View Application
@@ -394,38 +394,38 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           <div className={`mb-6 p-4 rounded-xl border ${
             application.changesRequestedBy.isMentor 
               ? 'bg-purple-50 border-purple-200' 
-              : 'bg-blue-50 border-blue-200'
+              : 'bg-[#fdf5ec] border-[#f0e2d2]'
           }`}>
             <div className="flex items-start gap-3">
               {application.changesRequestedBy.isMentor ? (
                 <GraduationCap className={`w-6 h-6 mt-0.5 text-purple-600`} />
               ) : (
-                <User className={`w-6 h-6 mt-0.5 text-blue-600`} />
+                <User className={`w-6 h-6 mt-0.5 text-[#7d1a34]`} />
               )}
               <div className="flex-1">
                 <h3 className={`font-semibold ${
-                  application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-blue-800'
+                  application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-[#7d1a34]'
                 }`}>
                   Changes Requested by {application.changesRequestedBy.isMentor ? 'Mentor' : 'DRD Reviewer'}
                 </h3>
                 <p className={`text-sm mt-1 ${
-                  application.changesRequestedBy.isMentor ? 'text-purple-700' : 'text-blue-700'
+                  application.changesRequestedBy.isMentor ? 'text-purple-700' : 'text-[#7d1a34]'
                 }`}>
                   <span className="font-medium">{application.changesRequestedBy.name}</span> has requested changes to your application.
                 </p>
                 {application.changesRequestedBy.comments && (
                   <div className={`mt-3 p-3 rounded-lg ${
-                    application.changesRequestedBy.isMentor ? 'bg-purple-100' : 'bg-blue-100'
+                    application.changesRequestedBy.isMentor ? 'bg-purple-100' : 'bg-[#fbe2e8]'
                   }`}>
                     <p className={`text-sm ${
-                      application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-blue-800'
+                      application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-[#7d1a34]'
                     }`}>
                       <span className="font-medium">Comments:</span> {application.changesRequestedBy.comments}
                     </p>
                   </div>
                 )}
                 <p className={`text-xs mt-2 ${
-                  application.changesRequestedBy.isMentor ? 'text-purple-600' : 'text-blue-600'
+                  application.changesRequestedBy.isMentor ? 'text-purple-600' : 'text-[#7d1a34]'
                 }`}>
                   After making changes, click &quot;Save & Resubmit&quot; to send your application back for review.
                 </p>
@@ -463,7 +463,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
               placeholder="Enter the title of your IPR"
               required
             />
@@ -476,7 +476,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     {isMentor ? (
                       <GraduationCap className="w-4 h-4 text-purple-600" />
                     ) : (
-                      <User className="w-4 h-4 text-blue-600" />
+                      <User className="w-4 h-4 text-[#7d1a34]" />
                     )}
                     <span className="text-sm font-medium text-gray-700">
                       {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -523,7 +523,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               value={formData.description}
               onChange={handleInputChange}
               rows={6}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
               placeholder="Describe your invention/work in detail"
               required
             />
@@ -536,7 +536,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     {isMentor ? (
                       <GraduationCap className="w-4 h-4 text-purple-600" />
                     ) : (
-                      <User className="w-4 h-4 text-blue-600" />
+                      <User className="w-4 h-4 text-[#7d1a34]" />
                     )}
                     <span className="text-sm font-medium text-gray-700">
                       {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -584,7 +584,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                   name="projectType"
                   value={formData.projectType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                 >
                   <option value="">Select project type</option>
                   <option value="phd">PhD Research</option>
@@ -603,7 +603,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         {isMentor ? (
                           <GraduationCap className="w-4 h-4 text-purple-600" />
                         ) : (
-                          <User className="w-4 h-4 text-blue-600" />
+                          <User className="w-4 h-4 text-[#7d1a34]" />
                         )}
                         <span className="text-sm font-medium text-gray-700">
                           {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -647,7 +647,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                   name="filingType"
                   value={formData.filingType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                 >
                   <option value="">Select filing type</option>
                   <option value="provisional">Provisional</option>
@@ -662,7 +662,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         {isMentor ? (
                           <GraduationCap className="w-4 h-4 text-purple-600" />
                         ) : (
-                          <User className="w-4 h-4 text-blue-600" />
+                          <User className="w-4 h-4 text-[#7d1a34]" />
                         )}
                         <span className="text-sm font-medium text-gray-700">
                           {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -714,7 +714,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                   onClick={() => handleSdgToggle(sdg.code)}
                   className={`p-3 rounded-lg border text-left text-sm transition-all ${
                     formData.selectedSdgs.includes(sdg.code)
-                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      ? 'bg-[#fdf5ec] border-[#7d1a34] text-[#7d1a34]'
                       : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
                   }`}
                 >
@@ -735,7 +735,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               value={formData.remarks}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
               placeholder="Any additional information or remarks"
             />
             {/* Suggestions for Remarks - Students Only */}
@@ -747,7 +747,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     {isMentor ? (
                       <GraduationCap className="w-4 h-4 text-purple-600" />
                     ) : (
-                      <User className="w-4 h-4 text-blue-600" />
+                      <User className="w-4 h-4 text-[#7d1a34]" />
                     )}
                     <span className="text-sm font-medium text-gray-700">
                       {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -787,7 +787,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
           {/* Documents Section - allow applicant to update annexure, prototype, supporting docs */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
+              <FileText className="w-5 h-5 text-[#7d1a34]" />
               Documents & Attachments
             </h2>
             {/* Show existing Annexure */}
@@ -881,7 +881,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
             >
               {saving ? (
                 <>

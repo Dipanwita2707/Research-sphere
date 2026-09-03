@@ -16,7 +16,10 @@ const CONFERENCE_SUB_TYPES = [
 exports.getAllConferencePolicies = async (req, res) => {
   try {
     const policies = await prisma.conferenceIncentivePolicy.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
+      },
       include: {
         createdBy: {
           select: {
@@ -67,6 +70,7 @@ exports.getActivePolicyBySubType = async (req, res) => {
       where: {
         conferenceSubType: subType,
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         effectiveFrom: { lte: currentDate },
         OR: [
           { effectiveTo: null },
@@ -198,6 +202,7 @@ exports.createConferencePolicy = async (req, res) => {
       where: {
         conferenceSubType,
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         OR: [
           {
             AND: [
@@ -246,7 +251,8 @@ exports.createConferencePolicy = async (req, res) => {
         effectiveFrom: effectiveFromDate,
         effectiveTo: effectiveToDate,
         createdById: userId,
-        isActive: true
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 
@@ -300,6 +306,13 @@ exports.updateConferencePolicy = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Conference policy not found'
+      });
+    }
+
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 
@@ -361,6 +374,13 @@ exports.deleteConferencePolicy = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Conference policy not found'
+      });
+    }
+
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 

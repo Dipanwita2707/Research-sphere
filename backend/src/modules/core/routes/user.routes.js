@@ -15,8 +15,8 @@ router.get('/test', (req, res) => {
 // Search users by partial UID for suggestions (available to all authenticated users)
 router.get('/suggestions/:query', protect, userController.searchUsersByPartialUid);
 
-// Search user by UID for auto-fill (temporarily without auth for testing)
-router.get('/search/:uid', userController.searchUserByUid);
+// Search user by UID for auto-fill (protected with auth for tenant isolation)
+router.get('/search/:uid', protect, userController.searchUserByUid);
 
 // Get user by ID (admin only)
 // TODO: Transfer to HR module when implemented

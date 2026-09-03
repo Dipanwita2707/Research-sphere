@@ -153,94 +153,35 @@ class AuditReportScheduler {
   }
 
   /**
-   * Get hardcoded recipients for audit reports
-   * These recipients receive all audit reports automatically
+   * Get active recipients for audit reports from tenant configuration.
+   * No hard-coded university emails — each tenant configures recipients in Admin → Audit.
    */
-  getRecipients(reportType) {
-    // Hardcoded recipients for audit reports - CONFIGURED BY ADMIN
-    const allRecipients = [
-      { 
-        name: 'Sourav Kumar (Primary)',
-        email: 'sourav11092002@gmail.com',
-        role: 'Admin',
-        receiveMonthly: true,
-        receiveWeekly: true,
-        receiveDaily: true
-      },
-      { 
-        name: 'Sourav Kumar (Secondary)',
-        email: 'sourav092002@gmail.com',
-        role: 'Admin',
-        receiveMonthly: true,
-        receiveWeekly: true,
-        receiveDaily: true
-      },
-      { 
-        name: 'Dipanwita Kundu',
-        email: 'dipanwitakundu2707@gmail.com',
-        role: 'Developer',
-        receiveMonthly: true,
-        receiveWeekly: true,
-        receiveDaily: true
-      },
-      { 
-        name: 'Registrar',
-        email: 'registrar@sgtuniversity.ac.in',
-        role: 'Registrar',
-        receiveMonthly: true,
-        receiveWeekly: true,
-        receiveDaily: false
-      },
-      { 
-        name: 'Director DRD',
-        email: 'director.drd@sgtuniversity.ac.in',
-        role: 'Director',
-        receiveMonthly: true,
-        receiveWeekly: true,
-        receiveDaily: true
-      },
-      { 
-        name: 'Vice Chancellor',
-        email: 'vc@sgtuniversity.ac.in',
-        role: 'Vice Chancellor',
-        receiveMonthly: true,
-        receiveWeekly: false,
-        receiveDaily: false
-      },
-      { 
-        name: 'DRD Admin',
-        email: 'admin.drd@sgtuniversity.ac.in',
-        role: 'Admin',
-        receiveMonthly: true,
-        receiveWeekly: true,
-        receiveDaily: true
-      },
-      { 
-        name: 'Compliance Officer',
-        email: 'compliance@sgtuniversity.ac.in',
-        role: 'Compliance Officer',
-        receiveMonthly: true,
-        receiveWeekly: true,
-        receiveDaily: false
-      },
-      { 
-        name: 'Internal Auditor',
-        email: 'auditor@sgtuniversity.ac.in',
-        role: 'Auditor',
-        receiveMonthly: true,
-        receiveWeekly: false,
-        receiveDaily: false
-      }
-    ];
-
+  async getRecipients(reportType) {
     const fieldMap = {
       monthly: 'receiveMonthly',
       weekly: 'receiveWeekly',
       daily: 'receiveDaily'
     };
 
-    // Filter recipients based on report type
-    return allRecipients.filter(r => r[fieldMap[reportType]]);
+    const flag = fieldMap[reportType];
+    if (!flag) return [];
+
+    const recipients = await prisma.auditReportConfig.findMany({
+      where: {
+        isActive: true,
+        [flag]: true
+      },
+      select: {
+        name: true,
+        email: true,
+        role: true,
+        receiveMonthly: true,
+        receiveWeekly: true,
+        receiveDaily: true
+      }
+    });
+
+    return recipients;
   }
 
   /**
@@ -252,11 +193,11 @@ class AuditReportScheduler {
     try {
       const { startDate, endDate } = this.getReportPeriod(reportType);
 
-      // Get recipients
-      const recipientConfigs = this.getRecipients(reportType);
+      // Get recipients from DB config (no hard-coded SGT / university emails)
+      const recipientConfigs = await this.getRecipients(reportType);
       
       if (recipientConfigs.length === 0) {
-        console.log(`⚠️  No recipients configured for ${reportType} reports`);
+        console.log(`⚠️  No recipients configured for ${reportType} reports — skipping send. Add recipients in Audit Report Settings.`);
         return;
       }
 

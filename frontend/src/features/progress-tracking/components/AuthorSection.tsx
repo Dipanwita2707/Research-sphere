@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { AlertCircle, Users, Plus, X, Search, User, Building2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -69,7 +69,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
     authorType: 'Faculty',
     authorCategory: 'Internal',
     authorRole: isBook ? 'Author' : 'Co-Author',
-    affiliation: 'SGT University',
+    affiliation: 'ResearchSphere',
     email: ''
   });
 
@@ -170,7 +170,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
         authorCategory: 'Internal',
         authorRole: newCoAuthor.authorRole,
         email: userEmail,
-        affiliation: 'SGT University',
+        affiliation: 'ResearchSphere',
         designation: userData.designation || ''
       });
 
@@ -203,7 +203,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
       authorType: 'Faculty',
       authorCategory: 'Internal',
       authorRole: isBook ? 'Author' : 'Co-Author',
-      affiliation: 'SGT University',
+      affiliation: 'ResearchSphere',
       email: ''
     });
     setSearchTerm('');
@@ -234,11 +234,11 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
 
   const handleInternalAuthorsChange = (value: number) => {
     if (value < 1) {
-      setError('SGT authors must be at least 1 (you)');
+      setError('ResearchSphere authors must be at least 1 (you)');
       return;
     }
     if (value > totalAuthors) {
-      setError('SGT authors cannot exceed total authors');
+      setError('ResearchSphere authors cannot exceed total authors');
       return;
     }
     setTotalInternalAuthors(value);
@@ -318,7 +318,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            SGT Authors <span className="text-red-500">*</span>
+            ResearchSphere Authors <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
@@ -377,7 +377,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
       {isBookOrChapter && (
         <div className="flex items-center text-sm text-teal-700 bg-teal-50 px-4 py-3 rounded-lg border border-teal-200">
           <Users className="w-5 h-5 mr-2 flex-shrink-0" />
-          Incentive will be distributed equally among all SGT authors
+          Incentive will be distributed equally among all ResearchSphere authors
         </div>
       )}
 
@@ -423,7 +423,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Student(s) from SGT <span className="text-red-500">*</span>
+                Student(s) from ResearchSphere <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-4">
                 {['yes', 'no'].map((v) => (
@@ -549,7 +549,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                       authorType: 'Faculty',
                       authorCategory: 'Internal',
                       authorRole: isBook ? 'Author' : 'Co-Author',
-                      affiliation: 'SGT University',
+                      affiliation: 'ResearchSphere',
                       email: ''
                     });
                     setSearchTerm('');
@@ -572,13 +572,13 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                         ...newCoAuthor,
                         authorCategory: category,
                         affiliation: category ===
-   'Internal' ? 'SGT University' : ''
+   'Internal' ? 'ResearchSphere' : ''
                       });
                       setSearchTerm('');
                     }}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm"
                   >
-                    <option value="Internal">Internal (SGT)</option>
+                    <option value="Internal">Internal (ResearchSphere)</option>
                     <option value="External">External</option>
                   </select>
                 </div>
@@ -712,7 +712,7 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                       authorType: 'Faculty',
                       authorCategory: 'Internal',
                       authorRole: isBook ? 'Author' : 'Co-Author',
-                      affiliation: 'SGT University',
+                      affiliation: 'ResearchSphere',
                       email: ''
                     });
                     setSearchTerm('');

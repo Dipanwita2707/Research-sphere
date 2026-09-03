@@ -86,7 +86,7 @@ const EDITABLE_FIELDS = [
   { key: 'eventCategory', label: 'Event Category', type: 'select', options: ['conference', 'seminar', 'workshop', 'symposium', 'colloquium', 'webinar'] },
   { key: 'organizerRole', label: 'Organizer Role', type: 'select', options: ['organizer', 'coordinator', 'member'] },
   { key: 'virtualConference', label: 'Virtual Conference', type: 'select', options: ['yes', 'no'] },
-  { key: 'conferenceHeldAtSgt', label: 'Held at SGT', type: 'select', options: ['yes', 'no'] },
+  { key: 'conferenceHeldAtSgt', label: 'Held at ResearchSphere', type: 'select', options: ['yes', 'no'] },
   { key: 'conferenceBestPaperAward', label: 'Best Paper Award', type: 'select', options: ['yes', 'no'] },
   { key: 'totalPresenters', label: 'Total Presenters', type: 'number' },
   { key: 'isPresenter', label: 'Is Presenter', type: 'select', options: ['yes', 'no'] },
@@ -96,8 +96,8 @@ const EDITABLE_FIELDS = [
   { key: 'issnIsbnIssueNo', label: 'ISSN/ISBN/Issue No', type: 'text' },
   { key: 'priorityFundingArea', label: 'Priority Funding Area', type: 'text' },
   { key: 'conferenceDate', label: 'Conference Date', type: 'date' },
-  { key: 'isInterdisciplinary', label: 'Interdisciplinary (from SGT)', type: 'select', options: ['yes', 'no'] },
-  { key: 'hasLpuStudents', label: 'Student(s) (from SGT)', type: 'select', options: ['yes', 'no'] },
+  { key: 'isInterdisciplinary', label: 'Interdisciplinary (from ResearchSphere)', type: 'select', options: ['yes', 'no'] },
+  { key: 'hasLpuStudents', label: 'Student(s) (from ResearchSphere)', type: 'select', options: ['yes', 'no'] },
   { key: 'industryCollaboration', label: 'Industry', type: 'select', options: ['yes', 'no'] },
   { key: 'communicatedWithOfficialId', label: 'Communicated with Official ID', type: 'select', options: ['yes', 'no'] },
   { key: 'centralFacilityUsed', label: 'Central Facility Used', type: 'select', options: ['yes', 'no'] },
@@ -211,7 +211,7 @@ const INDEXING_CATEGORY_LABELS: Record<string, string> = {
   'pubmed': 'PubMed',
   'naas_rating_6_plus': 'NAAS (Rating ≥ 6)',
   'abdc_scopus_wos': 'ABDC Journals (SCOPUS/WOS)',
-  'sgtu_in_house': 'SGTU In-House Journal',
+  'sgtu_in_house': 'ResearchSphere In-House Journal',
   'case_centre_uk': 'The Case Centre UK',
   'other_indexed': 'Other Indexed Journals',
   'non_indexed_reputed': 'Non-Indexed Reputed Journals',
@@ -1007,7 +1007,7 @@ export default function ResearchReviewPage() {
                 )}
                 {(((contribution as any).interdisciplinaryFromSgt !== undefined && (contribution as any).interdisciplinaryFromSgt !== null) || isEditMode) && (
                   <div>
-                    <div className="text-sm text-gray-500">Interdisciplinary (SGT)</div>
+                    <div className="text-sm text-gray-500">Interdisciplinary (ResearchSphere)</div>
                     {isEditMode ? (
                       renderEditableField('interdisciplinaryFromSgt', (contribution as any).interdisciplinaryFromSgt ? 'yes' : 'no', 'select', ['yes', 'no'])
                     ) : (
@@ -1424,7 +1424,7 @@ export default function ResearchReviewPage() {
                 )}
                 {((contribution as any).conferenceHeldAtSgt !== undefined || isEditMode) && (
                   <div>
-                    <div className="text-sm text-gray-500">Held at SGT</div>
+                    <div className="text-sm text-gray-500">Held at ResearchSphere</div>
                     {renderEditableField('conferenceHeldAtSgt', (contribution as any).conferenceHeldAtSgt ===
    true ? 'yes' : (contribution as any).conferenceHeldAtSgt ===
    false ? 'no' : '', 'select', ['yes', 'no'])}
@@ -1432,7 +1432,7 @@ export default function ResearchReviewPage() {
                 )}
                 {((contribution as any).interdisciplinaryFromSgt !== undefined || isEditMode) && (
                   <div>
-                    <div className="text-sm text-gray-500">Interdisciplinary (from SGT)</div>
+                    <div className="text-sm text-gray-500">Interdisciplinary (from ResearchSphere)</div>
                     {renderEditableField('interdisciplinaryFromSgt', (contribution as any).interdisciplinaryFromSgt ===
    true ? 'yes' : (contribution as any).interdisciplinaryFromSgt ===
    false ? 'no' : '', 'select', ['yes', 'no'])}
@@ -1440,7 +1440,7 @@ export default function ResearchReviewPage() {
                 )}
                 {((contribution as any).studentsFromSgt !== undefined || isEditMode) && (
                   <div>
-                    <div className="text-sm text-gray-500">Student(s) (from SGT)</div>
+                    <div className="text-sm text-gray-500">Student(s) (from ResearchSphere)</div>
                     {renderEditableField('studentsFromSgt', (contribution as any).studentsFromSgt ===
    true ? 'yes' : (contribution as any).studentsFromSgt ===
    false ? 'no' : '', 'select', ['yes', 'no'])}
@@ -1529,7 +1529,7 @@ export default function ResearchReviewPage() {
                       {contribution.publicationType ===
    'book' || contribution.publicationType ===
    'book_chapter' ? (
-                        <span>{author.affiliation || (author.userId ? 'SGT University' : 'External')}</span>
+                        <span>{author.affiliation || (author.userId ? 'ResearchSphere' : 'External')}</span>
                       ) : (
                         <>
                           {author.authorType?.replace(/_/g, ' ')} • {author.authorRole?.replace(/_/g, ' ')}

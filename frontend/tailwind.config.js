@@ -7,52 +7,83 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // LMS Color Palette
-        lms: {
-          primary: '#005b96',
-          'primary-dark': '#011f4b',
-          'primary-mid': '#03396c',
-          light: '#6497b1',
-          'very-light': '#b3cde0',
-          background: '#f8fafc',
+        // ResearchSphere Brand Palette
+        brand: {
+          50: '#FEF7F4',   // Soft Ivory — page background
+          100: '#FDD7BF',  // Peach Beige — soft fills, hovers
+          200: '#F5C9A6',  // peach tint
+          300: '#EFAE73',  // amber tint
+          400: '#E28B22',  // Amber Orange — accent
+          500: '#C9771B',  // amber hover
+          600: '#841C43',  // Deep Raspberry Wine — primary
+          700: '#6E1738',  // wine hover
+          800: '#4A0F26',  // wine active
+          900: '#232323',  // Charcoal — text, dark surfaces
         },
-        // Corporate Event Module Palette
-        ev: {
-          900: '#011f4b',   // darkest navy — headings, strong text
-          800: '#03396c',   // dark blue — sub-headings, active tabs
-          700: '#005b96',   // primary blue — buttons, links
-          400: '#6497b1',   // mid-blue — borders, muted accents
-          200: '#b3cde0',   // light blue — card borders, dividers
-          50:  '#edf4f8',   // tinted bg for hover / zebra rows
-          bg:  '#f8fafc',   // page background
+        // Semantic aliases
+        charcoal: '#232323',
+        wine: {
+          DEFAULT: '#841C43',
+          dark: '#6E1738',
+          darker: '#4A0F26',
         },
-        // SGT University Blue Theme Palette
+        amber: {
+          DEFAULT: '#E28B22',
+          dark: '#C9771B',
+        },
+        peach: {
+          DEFAULT: '#FDD7BF',
+          dark: '#F5C9A6',
+        },
+        ivory: '#FEF7F4',
+        blush: {
+          DEFAULT: '#FDF5EC',
+          light: '#FFF8F4',
+          deep: '#F5E8DC',
+        },
+        // Backward-compat aliases (map old names to new brand colors)
         sgt: {
-          50: '#ADE1FB',   // Lightest - backgrounds, hover states
-          100: '#8ED4F8',  // Light accents
-          200: '#6FC7F5',  // Light borders
-          300: '#4BBAF2',  // Subtle highlights
-          400: '#266CA9',  // Secondary actions
-          500: '#1A5A8F',  // Primary mid-tone
-          600: '#0F2573',  // Primary - buttons, links
-          700: '#041D56',  // Dark primary - headers
-          800: '#021340',  // Darker - emphasis
-          900: '#01082D',  // Darkest - text, backgrounds
+          50: '#FEF7F4',
+          100: '#FDD7BF',
+          200: '#F5C9A6',
+          300: '#EFAE73',
+          400: '#E28B22',
+          500: '#C9771B',
+          600: '#841C43',
+          700: '#6E1738',
+          800: '#4A0F26',
+          900: '#232323',
         },
-        // Keep primary as alias for backward compatibility
         primary: {
-          50: '#ADE1FB',
-          100: '#8ED4F8',
-          200: '#6FC7F5',
-          300: '#4BBAF2',
-          400: '#266CA9',
-          500: '#1A5A8F',
-          600: '#0F2573',
-          700: '#041D56',
-          800: '#021340',
-          900: '#01082D',
+          50: '#FEF7F4',
+          100: '#FDD7BF',
+          200: '#F5C9A6',
+          300: '#EFAE73',
+          400: '#E28B22',
+          500: '#C9771B',
+          600: '#841C43',
+          700: '#6E1738',
+          800: '#4A0F26',
+          900: '#232323',
         },
-        // Stat card colors (from LMS design)
+        lms: {
+          primary: '#841C43',
+          'primary-dark': '#4A0F26',
+          'primary-mid': '#6E1738',
+          light: '#E28B22',
+          'very-light': '#FDD7BF',
+          background: '#FEF7F4',
+        },
+        ev: {
+          900: '#232323',
+          800: '#4A0F26',
+          700: '#841C43',
+          400: '#C9771B',
+          200: '#FDD7BF',
+          50:  '#FEF7F4',
+          bg:  '#FEF7F4',
+        },
+        // Stat card colors
         card: {
           green: '#dcfce7',
           'green-dark': '#166534',
@@ -69,22 +100,31 @@ module.exports = {
         },
       },
       backgroundImage: {
-        'lms-sidebar': 'linear-gradient(180deg, #03396c 0%, #011f4b 100%)',
-        'lms-header': 'linear-gradient(90deg, #03396c 0%, #011f4b 100%)',
-        'sgt-gradient': 'linear-gradient(135deg, #0F2573 0%, #041D56 50%, #01082D 100%)',
-        'sgt-gradient-light': 'linear-gradient(135deg, #ADE1FB 0%, #266CA9 100%)',
-        'sgt-gradient-radial': 'radial-gradient(ellipse at top, #266CA9 0%, #041D56 100%)',
+        'brand-sidebar': 'linear-gradient(180deg, #232323 0%, #4A0F26 100%)',
+        'brand-header': 'linear-gradient(90deg, #232323 0%, #4A0F26 100%)',
+        'brand-gradient': 'linear-gradient(135deg, #841C43 0%, #4A0F26 50%, #232323 100%)',
+        'brand-gradient-light': 'linear-gradient(135deg, #FEF7F4 0%, #E28B22 100%)',
+        'brand-gradient-radial': 'radial-gradient(ellipse at top, #E28B22 0%, #4A0F26 100%)',
+        // Backward-compat aliases
+        'lms-sidebar': 'linear-gradient(180deg, #232323 0%, #4A0F26 100%)',
+        'lms-header': 'linear-gradient(90deg, #232323 0%, #4A0F26 100%)',
+        'sgt-gradient': 'linear-gradient(135deg, #841C43 0%, #4A0F26 50%, #232323 100%)',
+        'sgt-gradient-light': 'linear-gradient(135deg, #FEF7F4 0%, #E28B22 100%)',
+        'sgt-gradient-radial': 'radial-gradient(ellipse at top, #E28B22 0%, #4A0F26 100%)',
       },
       boxShadow: {
-        'sgt': '0 4px 14px 0 rgba(4, 29, 86, 0.15)',
-        'sgt-lg': '0 10px 40px -10px rgba(4, 29, 86, 0.25)',
-        'sgt-xl': '0 25px 50px -12px rgba(1, 8, 45, 0.35)',
+        'brand': '0 4px 14px 0 rgba(132, 28, 67, 0.15)',
+        'brand-lg': '0 10px 40px -10px rgba(132, 28, 67, 0.25)',
+        'brand-xl': '0 25px 50px -12px rgba(35, 35, 35, 0.35)',
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        // Corporate event module shadows
-        'ev': '0 1px 3px 0 rgba(0, 91, 150, 0.08), 0 1px 2px -1px rgba(0, 91, 150, 0.06)',
-        'ev-md': '0 4px 12px -2px rgba(0, 91, 150, 0.10), 0 2px 4px -2px rgba(0, 91, 150, 0.06)',
-        'ev-lg': '0 10px 24px -4px rgba(0, 91, 150, 0.12), 0 4px 8px -4px rgba(0, 91, 150, 0.06)',
+        'ev': '0 1px 3px 0 rgba(132, 28, 67, 0.08), 0 1px 2px -1px rgba(132, 28, 67, 0.06)',
+        'ev-md': '0 4px 12px -2px rgba(132, 28, 67, 0.10), 0 2px 4px -2px rgba(132, 28, 67, 0.06)',
+        'ev-lg': '0 10px 24px -4px rgba(132, 28, 67, 0.12), 0 4px 8px -4px rgba(132, 28, 67, 0.06)',
+        // Backward-compat aliases
+        'sgt': '0 4px 14px 0 rgba(132, 28, 67, 0.15)',
+        'sgt-lg': '0 10px 40px -10px rgba(132, 28, 67, 0.25)',
+        'sgt-xl': '0 25px 50px -12px rgba(35, 35, 35, 0.35)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],

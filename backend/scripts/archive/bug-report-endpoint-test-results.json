@@ -1,0 +1,113 @@
+{
+  "timestamp": "2026-04-26T10:37:22.973Z",
+  "baseUrl": "http://localhost:5001",
+  "credentials": {
+    "admin": "admin",
+    "financeUser": "1234567"
+  },
+  "summary": {
+    "total": 16,
+    "passed": 15,
+    "failed": 1,
+    "successRate": 93.8,
+    "duration": 21709
+  },
+  "tests": [
+    {
+      "name": "Health Check",
+      "passed": true,
+      "message": "",
+      "duration": 495
+    },
+    {
+      "name": "Admin Login",
+      "passed": true,
+      "message": "",
+      "duration": 4302
+    },
+    {
+      "name": "Finance User Login",
+      "passed": true,
+      "message": "",
+      "duration": 4924
+    },
+    {
+      "name": "Submit Bug Report (No Screenshots)",
+      "passed": true,
+      "message": "",
+      "duration": 1436
+    },
+    {
+      "name": "Submit Bug Report (With Screenshots)",
+      "passed": false,
+      "message": "An unexpected error occurred. Please try again later.",
+      "duration": 1519
+    },
+    {
+      "name": "Validation - Empty Description",
+      "passed": true,
+      "message": "",
+      "duration": 36
+    },
+    {
+      "name": "Validation - Short Description",
+      "passed": true,
+      "message": "",
+      "duration": 34
+    },
+    {
+      "name": "Validation - Long Description",
+      "passed": true,
+      "message": "",
+      "duration": 35
+    },
+    {
+      "name": "Authentication - No Token",
+      "passed": true,
+      "message": "",
+      "duration": 4
+    },
+    {
+      "name": "Admin Access Control - Non-Admin",
+      "passed": true,
+      "message": "",
+      "duration": 34
+    },
+    {
+      "name": "Get All Bug Reports (Admin)",
+      "passed": true,
+      "message": "",
+      "duration": 1616
+    },
+    {
+      "name": "Get Bug Reports with Filters (Admin)",
+      "passed": true,
+      "message": "",
+      "duration": 1190
+    },
+    {
+      "name": "Search Bug Reports (Admin)",
+      "passed": true,
+      "message": "",
+      "duration": 1485
+    },
+    {
+      "name": "Get Bug Report by ID (Admin)",
+      "passed": true,
+      "message": "",
+      "duration": 504
+    },
+    {
+      "name": "Update Status to Resolved (Admin)",
+      "passed": true,
+      "message": "",
+      "duration": 1961
+    },
+    {
+      "name": "Update Status to Unresolved (Admin)",
+      "passed": true,
+      "message": "",
+      "duration": 2125
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Analytics Dashboard Components Test Suite
  * 
  * Tests for ProfileMetricsAnalytics, ComparativeAnalytics, and PublicationOutputVisualization
@@ -224,7 +224,7 @@ describe('Analytics Components Integration', () => {
     render(<ComparativeAnalytics data={comparativeData} />);
     render(<PublicationOutputVisualization data={outputData} />);
 
-    // Check for consistent SGT UMS theme colors
+    // Check for consistent ResearchSphere UMS theme colors
     const blueElements = document.querySelectorAll('[class*="005b96"]');
     expect(blueElements.length).toBeGreaterThan(0);
 

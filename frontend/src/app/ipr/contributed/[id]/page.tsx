@@ -104,7 +104,7 @@ interface Application {
 const STATUS_CONFIG: Record<string, { color: string; bgColor: string; icon: any; label: string }> = {
   draft: { color: 'text-gray-600', bgColor: 'bg-gray-100', icon: FileText, label: 'Draft' },
   pending_mentor_approval: { color: 'text-orange-600', bgColor: 'bg-orange-100', icon: Clock, label: 'Pending Mentor Approval' },
-  submitted: { color: 'text-blue-600', bgColor: 'bg-blue-100', icon: Clock, label: 'Submitted' },
+  submitted: { color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]', icon: Clock, label: 'Submitted' },
   under_drd_review: { color: 'text-yellow-600', bgColor: 'bg-yellow-100', icon: Clock, label: 'Under DRD Review' },
   under_dean_review: { color: 'text-orange-600', bgColor: 'bg-orange-100', icon: Clock, label: 'Under Dean Review' },
   changes_required: { color: 'text-red-600', bgColor: 'bg-red-100', icon: AlertTriangle, label: 'Changes Required' },
@@ -179,7 +179,7 @@ function ContributedIPRDetailContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34]"></div>
       </div>
     );
   }
@@ -232,7 +232,7 @@ function ContributedIPRDetailContent() {
 
         {/* Status and Type Badges */}
         <div className="flex items-center gap-3 mb-4">
-          <span className="px-3 py-1 text-sm font-medium bg-blue-100 text-blue-700 rounded-lg">
+          <span className="px-3 py-1 text-sm font-medium bg-[#fbe2e8] text-[#7d1a34] rounded-lg">
             {IPR_TYPE_LABELS[application.iprType] || application.iprType}
           </span>
           <span className={`px-3 py-1 text-sm font-medium rounded-lg ${statusConfig.bgColor} ${statusConfig.color}`}>
@@ -251,7 +251,7 @@ function ContributedIPRDetailContent() {
           {/* Application Details */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <FileText className="w-5 h-5 mr-2 text-blue-600" />
+              <FileText className="w-5 h-5 mr-2 text-[#7d1a34]" />
               Application Details
             </h2>
             
@@ -302,13 +302,13 @@ function ContributedIPRDetailContent() {
           {/* Filed By Information */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <User className="w-5 h-5 mr-2 text-blue-600" />
+              <User className="w-5 h-5 mr-2 text-[#7d1a34]" />
               Filed By (Primary Applicant)
             </h2>
             
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-[#fbe2e8] rounded-full flex items-center justify-center">
+                <User className="w-6 h-6 text-[#7d1a34]" />
               </div>
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">{getApplicantName(application)}</p>
@@ -330,7 +330,7 @@ function ContributedIPRDetailContent() {
           {application.contributors && application.contributors.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <Users className="w-5 h-5 mr-2 text-blue-600" />
+                <Users className="w-5 h-5 mr-2 text-[#7d1a34]" />
                 All Inventors/Contributors
               </h2>
               
@@ -362,7 +362,7 @@ function ContributedIPRDetailContent() {
           {application.reviews && application.reviews.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
+                <MessageSquare className="w-5 h-5 mr-2 text-[#7d1a34]" />
                 Review Comments
               </h2>
               
@@ -445,7 +445,7 @@ function ContributedIPRDetailContent() {
           {/* Timeline/Status History */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <History className="w-5 h-5 mr-2 text-blue-600" />
+              <History className="w-5 h-5 mr-2 text-[#7d1a34]" />
               Status History
             </h2>
             
@@ -483,7 +483,7 @@ function ContributedIPRDetailContent() {
           {/* Important Dates */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-blue-600" />
+              <Calendar className="w-5 h-5 mr-2 text-[#7d1a34]" />
               Important Dates
             </h2>
             
@@ -509,7 +509,7 @@ function ContributedIPRDetailContent() {
           {(application.school || application.department) && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <Building className="w-5 h-5 mr-2 text-blue-600" />
+                <Building className="w-5 h-5 mr-2 text-[#7d1a34]" />
                 Institution
               </h2>
               

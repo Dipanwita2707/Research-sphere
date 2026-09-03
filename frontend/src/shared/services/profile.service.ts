@@ -56,6 +56,7 @@ export interface UserSettings {
   language: string;
   compactView: boolean;
   showTips: boolean;
+  affiliationOverride?: string | null;
 }
 
 export interface UpdateSettingsData {
@@ -69,6 +70,16 @@ export interface UpdateSettingsData {
   language?: string;
   compactView?: boolean;
   showTips?: boolean;
+  affiliationOverride?: string | null;
+}
+
+export interface AffiliationVariants {
+  current: string;
+  suggested: string;
+  canonicalName: string;
+  variants: string[];
+  aliases: string[];
+  hasOverride: boolean;
 }
 
 export interface ChangePasswordData {
@@ -97,6 +108,11 @@ class ProfileService {
     return response.data;
   }
 
+  async getAffiliationVariants(): Promise<AffiliationVariants> {
+    const response = await api.get('/affiliation/variants');
+    return response.data.data;
+  }
+
   async uploadProfilePhoto(file: File): Promise<{ profileImage: string; profileImagePath: string; profileImageUrl: string; message: string }> {
     const formData = new FormData();
     formData.append('photo', file);
@@ -113,3 +129,31 @@ class ProfileService {
 }
 
 export const profileService = new ProfileService();
+
+export function getProfileImageUrl(urlPath: string | null): string {
+  if (!urlPath) return '';
+  if (urlPath.startsWith('http://') || urlPath.startsWith('https://')) {
+    return urlPath;
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+  try {
+    const origin = new URL(baseUrl).origin;
+    return `${origin}/uploads/${urlPath}`;
+  } catch (e) {
+    return `/uploads/${urlPath}`;
+  }
+}
+
+export async function getProfilePhotoPermissions(): Promise<{
+  hasAccess: boolean;
+  permissions?: {
+    canUploadProfilePhoto: boolean;
+  };
+}> {
+  return {
+    hasAccess: true,
+    permissions: {
+      canUploadProfilePhoto: true
+    }
+  };
+}

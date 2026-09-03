@@ -39,7 +39,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
     authorType: 'Author',
     authorCategory: 'Internal',
     email: '',
-    affiliation: 'SGT University',
+    affiliation: 'ResearchSphere',
     designation: '',
   });
   const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
@@ -122,7 +122,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
         authorType: 'Author',
         authorCategory: 'Internal',
         email: '',
-        affiliation: 'SGT University',
+        affiliation: 'ResearchSphere',
         designation: '',
       });
       return;
@@ -151,7 +151,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
         authorType: 'Author',
         authorCategory: 'Internal',
         email: userEmail,
-        affiliation: 'SGT University',
+        affiliation: 'ResearchSphere',
         designation: userData.designation || '',
       });
     } catch (error) {
@@ -162,7 +162,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
         authorType: 'Author',
         authorCategory: 'Internal',
         email: userData.email || '',
-        affiliation: 'SGT University',
+        affiliation: 'ResearchSphere',
         designation: '',
       });
     }
@@ -184,7 +184,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
         authorType: 'Author',
         authorCategory: 'Internal',
         email: '',
-        affiliation: 'SGT University',
+        affiliation: 'ResearchSphere',
         designation: '',
       });
       setError('You cannot add yourself as a co-author.');
@@ -210,7 +210,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
           authorType: 'Author',
           authorCategory: 'Internal',
           email: userEmail,
-          affiliation: 'SGT University',
+          affiliation: 'ResearchSphere',
           designation: '',
         });
         
@@ -225,7 +225,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
         authorType: 'Author',
         authorCategory: 'Internal',
         email: '',
-        affiliation: 'SGT University',
+        affiliation: 'ResearchSphere',
         designation: '',
       });
       setError('User not found with that UID/Registration Number');
@@ -243,7 +243,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
     
     if (newAuthor.authorCategory ===
    'Internal' && !newAuthor.uid) {
-      setError('UID/Registration Number is required for SGT authors');
+      setError('UID/Registration Number is required for ResearchSphere authors');
       return;
     }
     
@@ -293,7 +293,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
       
       if (newAuthor.authorCategory ===
    'Internal' && internalAdded >= maxInternalAuthors) {
-        setError(`You can only add ${maxInternalAuthors} SGT author(s). You've already added ${internalAdded}.`);
+        setError(`You can only add ${maxInternalAuthors} ResearchSphere author(s). You've already added ${internalAdded}.`);
         return;
       }
       
@@ -312,7 +312,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
       authorType: 'Author',
       authorCategory: 'Internal',
       email: '',
-      affiliation: 'SGT University',
+      affiliation: 'ResearchSphere',
       designation: '',
     });
     setError(null);
@@ -344,7 +344,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
         authorType: author.authorType || 'Author',
         authorCategory: author.authorCategory || 'Internal',
         email: author.email || '',
-        affiliation: author.affiliation || 'SGT University',
+        affiliation: author.affiliation || 'ResearchSphere',
         designation: author.designation || '',
       });
       setShowAuthorForm(true);
@@ -371,7 +371,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
             <span className="ml-2 font-medium text-gray-900">{totalAuthors || 1}</span>
           </div>
           <div>
-            <span className="text-xs text-gray-600">SGT Authors:</span>
+            <span className="text-xs text-gray-600">ResearchSphere Authors:</span>
             <span className="ml-2 font-medium text-gray-900">{totalInternalAuthors || 1}</span>
           </div>
         </div>
@@ -441,7 +441,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  SGT Authors <span className="text-red-500">*</span>
+                  ResearchSphere Authors <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -456,7 +456,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
               </div>
             </div>
             <p className="text-xs text-teal-700">
-              💡 Incentive will be distributed equally among all SGT authors
+              💡 Incentive will be distributed equally among all ResearchSphere authors
             </p>
             {hasAuthorsAdded && (
               <p className="text-xs text-amber-600 mt-2 flex items-center">
@@ -485,7 +485,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
                   
                   const parts = [];
                   if (maxInternalToAdd > 0) {
-                    parts.push(`${maxInternalToAdd} SGT author(s) [${internalAdded} added]`);
+                    parts.push(`${maxInternalToAdd} ResearchSphere author(s) [${internalAdded} added]`);
                   }
                   if (maxExternalToAdd > 0) {
                     parts.push(`${maxExternalToAdd} external author(s) [${externalAdded} added]`);
@@ -521,7 +521,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
                               ...prev, 
                               authorCategory: e.target.value,
                               authorType: 'Author',
-                              affiliation: 'SGT University',
+                              affiliation: 'ResearchSphere',
                               uid: '',
                               name: '',
                               email: '',
@@ -531,7 +531,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
                           }}
                           className="w-4 h-4 text-teal-600"
                         />
-                        <span className="ml-2">SGT University</span>
+                        <span className="ml-2">ResearchSphere</span>
                       </label>
                     )}
                     {totalAuthors > totalInternalAuthors && (
@@ -582,7 +582,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
                           authorType: 'Author',
                           authorCategory: 'Internal',
                           email: '',
-                          affiliation: 'SGT University',
+                          affiliation: 'ResearchSphere',
                           designation: '',
                         });
                         if (newUid.length >= 3) {
@@ -681,7 +681,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
                     value={newAuthor.affiliation}
                     onChange={(e) => setNewAuthor(prev => ({ ...prev, affiliation: e.target.value }))}
                     placeholder={newAuthor.authorCategory ===
-   'Internal' ? 'SGT University' : 'Enter organization/institute name'}
+   'Internal' ? 'ResearchSphere' : 'Enter organization/institute name'}
                     readOnly={newAuthor.authorCategory ===
    'Internal'}
                     className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 ${newAuthor.authorCategory ===
@@ -720,7 +720,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
                         authorType: 'Author',
                         authorCategory: 'Internal',
                         email: '',
-                        affiliation: 'SGT University',
+                        affiliation: 'ResearchSphere',
                         designation: '',
                       });
                     }}
@@ -846,7 +846,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
             >
               <option value="scopus_indexed">Scopus Indexed</option>
               <option value="non_indexed">Non-Indexed</option>
-              <option value="sgt_publication_house">SGT Publication House</option>
+              <option value="sgt_publication_house">ResearchSphere Publication House</option>
             </select>
           </div>
 
@@ -929,7 +929,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
           {/* Interdisciplinary */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Interdisciplinary (SGT) <span className="text-red-500">*</span>
+              Interdisciplinary (ResearchSphere) <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-4">
               {['yes', 'no'].map(v => (
@@ -1175,7 +1175,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
             >
               <option value="scopus_indexed">Scopus Indexed</option>
               <option value="non_indexed">Non-Indexed</option>
-              <option value="sgt_publication_house">SGT Publication House</option>
+              <option value="sgt_publication_house">ResearchSphere Publication House</option>
             </select>
           </div>
           <div>

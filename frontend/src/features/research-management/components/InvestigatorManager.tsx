@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, X, Edit2, Check, User, Users, Building2 } from 'lucide-react';
 import { researchService } from '@/features/research-management/services/research.service';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { useAffiliation } from '@/shared/hooks/useAffiliation';
 import { logger } from '@/shared/utils/logger';
 
 type InvestigatorRole = 'pi' | 'co_pi';
@@ -62,6 +63,7 @@ export default function InvestigatorManager({
   currentUserRole
 }: InvestigatorManagerProps) {
   const { user } = useAuthStore();
+  const { canonicalName: universityName } = useAffiliation();
   const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
@@ -71,7 +73,7 @@ export default function InvestigatorManager({
     investigatorType: 'Faculty',
     investigatorCategory: 'Internal',
     roleType: 'co_pi',
-    affiliation: 'SGT University',
+    affiliation: universityName,
     email: ''
   });
   const [error, setError] = useState('');
@@ -86,6 +88,14 @@ export default function InvestigatorManager({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Keep the "Internal" default affiliation in sync once the dynamically
+  // generated university name has loaded.
+  useEffect(() => {
+    setNewInvestigator((prev) =>
+      prev.investigatorCategory === 'Internal' ? { ...prev, affiliation: universityName } : prev
+    );
+  }, [universityName]);
 
   // Auto-switch to External category when internal limit is reached
   // And set role to PI if external investigator must be PI
@@ -134,7 +144,7 @@ export default function InvestigatorManager({
   };
 
   // Get available roles based on current configuration
-  const getAvailableRoles = (category: 'Internal (SGT)' | 'External'): InvestigatorRole[] => {
+  const getAvailableRoles = (category: 'Internal' | 'External'): InvestigatorRole[] => {
     const roles: InvestigatorRole[] = [];
     
     // Check if PI slot is available
@@ -152,7 +162,7 @@ export default function InvestigatorManager({
    'External') {
         roles.push('pi');
       } else if (!isPIExternal && category ===
-   'Internal (SGT)') {
+   'Internal') {
         roles.push('pi');
       }
     }
@@ -235,7 +245,7 @@ export default function InvestigatorManager({
         investigatorCategory: 'Internal',
         roleType: newInvestigator.roleType,
         email: userEmail,
-        affiliation: 'SGT University',
+        affiliation: universityName,
         designation: userData.designation || '',
         department: userData.department || ''
       });
@@ -329,7 +339,7 @@ export default function InvestigatorManager({
       investigatorType: 'Faculty',
       investigatorCategory: 'Internal',
       roleType: 'co_pi',
-      affiliation: 'SGT University',
+      affiliation: universityName,
       email: ''
     });
     setSearchTerm('');
@@ -362,10 +372,7 @@ export default function InvestigatorManager({
   };
 
   // Get available roles based on currently selected category
-  const availableRoles = getAvailableRoles(
-    newInvestigator.investigatorCategory ===
-   'Internal' ? 'Internal (SGT)' : 'External'
-  );
+  const availableRoles = getAvailableRoles(newInvestigator.investigatorCategory);
 
   return (
     <div className="space-y-4">
@@ -375,7 +382,7 @@ export default function InvestigatorManager({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+            className="text-sm text-[#7d1a34] hover:text-[#5e1024] font-medium flex items-center gap-1"
           >
             <Edit2 className="w-4 h-4" />
             {investigators.length > 0 ? 'Edit' : 'Add'} Team Members
@@ -387,17 +394,17 @@ export default function InvestigatorManager({
       {investigators.length > 0 && (
         <div className="space-y-2">
           {investigators.map((investigator, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   investigator.investigatorCategory ===
-   'Internal' ? 'bg-green-100' : 'bg-blue-100'
+   'Internal' ? 'bg-green-100' : 'bg-[#fbe2e8]'
                 }`}>
                   {investigator.investigatorCategory ===
    'Internal' ? (
                     <User className="w-5 h-5 text-green-600" />
                   ) : (
-                    <Building2 className="w-5 h-5 text-blue-600" />
+                    <Building2 className="w-5 h-5 text-[#7d1a34]" />
                   )}
                 </div>
                 <div>
@@ -424,7 +431,7 @@ export default function InvestigatorManager({
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <span className={`px-2 py-0.5 rounded text-xs ${
                       investigator.investigatorCategory ===
-   'Internal' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+   'Internal' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f]'
                     }`}>
                       {investigator.investigatorCategory}
                     </span>
@@ -433,10 +440,10 @@ export default function InvestigatorManager({
                     {investigator.consortiumOrgName && (
                       <>
                         <span>•</span>
-                        <span className="text-blue-600">{investigator.consortiumOrgName}</span>
+                        <span className="text-[#7d1a34]">{investigator.consortiumOrgName}</span>
                       </>
                     )}
-                    {investigator.affiliation !== 'SGT University' && !investigator.consortiumOrgName && (
+                    {investigator.affiliation !== universityName && !investigator.consortiumOrgName && (
                       <>
                         <span>•</span>
                         <span>{investigator.affiliation}</span>
@@ -455,7 +462,7 @@ export default function InvestigatorManager({
                       className={`px-2 py-1 text-xs rounded ${
                         investigator.isTeamCoordinator 
                           ? 'bg-yellow-100 text-yellow-700' 
-                          : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
+                          : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white0'
                       }`}
                     >
                       {investigator.isTeamCoordinator ? 'Coordinator ✓' : 'Set Coordinator'}
@@ -477,7 +484,7 @@ export default function InvestigatorManager({
 
       {investigators.length ===
    0 && !isEditing && (
-        <div className="text-center py-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+        <div className="text-center py-6 bg-white dark:bg-gray-700/50 rounded-lg border border-dashed border-[#f0e2d2] dark:border-gray-600">
           <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-500 dark:text-gray-400">No team members added yet</p>
         </div>
@@ -485,7 +492,7 @@ export default function InvestigatorManager({
 
       {/* Add investigator form */}
       {isEditing && !disabled && (
-        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800 space-y-4">
+        <div className="p-4 bg-[#fdf5ec]/40 dark:bg-indigo-900/20 rounded-lg border border-[#f0e2d2] dark:border-indigo-800 space-y-4">
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
               {error}
@@ -499,7 +506,7 @@ export default function InvestigatorManager({
               <select
                 value={newInvestigator.roleType}
                 onChange={(e) => setNewInvestigator({ ...newInvestigator, roleType: e.target.value as InvestigatorRole })}
-                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 disabled={newInvestigator.investigatorCategory ===
    'External' && mustExternalBePI()}
               >
@@ -509,7 +516,7 @@ export default function InvestigatorManager({
               </select>
               {newInvestigator.investigatorCategory ===
    'External' && mustExternalBePI() && (
-                <p className="mt-1 text-xs text-blue-600">
+                <p className="mt-1 text-xs text-[#7d1a34]">
                   Only 1 external investigator - must be PI
                 </p>
               )}
@@ -522,9 +529,7 @@ export default function InvestigatorManager({
                 value={newInvestigator.investigatorCategory}
                 onChange={(e) => {
                   const category = e.target.value as 'Internal' | 'External';
-                  const categoryForRoles = category ===
-   'Internal' ? 'Internal (SGT)' : 'External';
-                  const rolesForCategory = getAvailableRoles(categoryForRoles);
+                  const rolesForCategory = getAvailableRoles(category);
                   
                   // If external and must be PI, set to PI; otherwise preserve or pick first available
                   let newRoleType: InvestigatorRole;
@@ -541,7 +546,7 @@ export default function InvestigatorManager({
                     ...newInvestigator,
                     investigatorCategory: category,
                     affiliation: category ===
-   'Internal' ? 'SGT University' : '',
+   'Internal' ? universityName : '',
                     uid: category ===
    'External' ? undefined : newInvestigator.uid,
                     consortiumOrgId: undefined,
@@ -550,10 +555,10 @@ export default function InvestigatorManager({
                   });
                   setSearchTerm('');
                 }}
-                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="Internal" disabled={isInternalLimitReached()}>
-                  Internal (SGT) {isInternalLimitReached() ? '(Limit Reached)' : ''}
+                  Internal ({universityName}) {isInternalLimitReached() ? '(Limit Reached)' : ''}
                 </option>
                 <option value="External">External</option>
               </select>
@@ -570,7 +575,7 @@ export default function InvestigatorManager({
               <select
                 value={newInvestigator.investigatorType}
                 onChange={(e) => setNewInvestigator({ ...newInvestigator, investigatorType: e.target.value as 'Faculty' })}
-                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 disabled
               >
                 <option value="Faculty">Faculty/Employee</option>
@@ -593,7 +598,7 @@ export default function InvestigatorManager({
                     searchInvestigators(e.target.value);
                   }}
                   placeholder="Type to search..."
-                  className="w-full pl-10 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full pl-10 rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               
@@ -604,7 +609,7 @@ export default function InvestigatorManager({
                       key={index}
                       type="button"
                       onClick={() => selectInvestigatorFromSuggestion(suggestion)}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 border-b dark:border-gray-700 last:border-b-0"
+                      className="w-full px-4 py-2 text-left hover:bg-white dark:hover:bg-gray-700 flex items-center gap-3 border-b dark:border-gray-700 last:border-b-0"
                     >
                       <User className="w-4 h-4 text-gray-400" />
                       <div>
@@ -639,7 +644,7 @@ export default function InvestigatorManager({
                         affiliation: org?.organizationName || ''
                       });
                     }}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="">Select Organization</option>
                     {consortiumOrganizations.map(org => {
@@ -663,7 +668,7 @@ export default function InvestigatorManager({
                     type="text"
                     value={newInvestigator.name}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, name: e.target.value })}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Full name"
                   />
                 </div>
@@ -673,7 +678,7 @@ export default function InvestigatorManager({
                     type="email"
                     value={newInvestigator.email || ''}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, email: e.target.value })}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                     placeholder="email@example.com"
                   />
                 </div>
@@ -686,7 +691,7 @@ export default function InvestigatorManager({
                     type="text"
                     value={newInvestigator.designation || ''}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, designation: e.target.value })}
-                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Professor, Researcher, etc."
                   />
                 </div>
@@ -697,7 +702,7 @@ export default function InvestigatorManager({
                       type="text"
                       value={newInvestigator.affiliation}
                       onChange={(e) => setNewInvestigator({ ...newInvestigator, affiliation: e.target.value })}
-                      className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                       placeholder="University/Organization"
                     />
                   </div>
@@ -710,7 +715,7 @@ export default function InvestigatorManager({
             <button
               type="button"
               onClick={addInvestigator}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] flex items-center justify-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Add Team Member
@@ -724,13 +729,13 @@ export default function InvestigatorManager({
                   investigatorType: 'Faculty',
                   investigatorCategory: 'Internal',
                   roleType: 'co_pi',
-                  affiliation: 'SGT University',
+                  affiliation: universityName,
                   email: ''
                 });
                 setSearchTerm('');
                 setError('');
               }}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center gap-2"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-white0 flex items-center justify-center gap-2"
             >
               <Check className="w-4 h-4" />
               Done

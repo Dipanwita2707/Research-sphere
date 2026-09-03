@@ -184,7 +184,7 @@ export default function MentorCollaborativeEditor({
           {hasAnySuggestions && (
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}
-              className="text-blue-600 hover:text-blue-800 text-xs"
+              className="text-[#7d1a34] hover:text-[#7d1a34] text-xs"
             >
               <Eye className="w-4 h-4" />
             </button>

@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { body } = require('express-validator');
 const authController = require('../controllers/auth.controller');
+const forgotPasswordController = require('../controllers/forgotPassword.controller');
 const { protect } = require('../../../shared/middleware/auth');
 const { checkProfilePhotoPermission } = require('../middleware/profilePhoto.middleware');
 
@@ -32,6 +33,8 @@ const updateProfileValidation = [
 
 // Public routes
 router.post('/login', loginValidation, authController.login);
+router.post('/forgot-password', body('email').trim().isEmail().withMessage('Valid email required'), forgotPasswordController.forgotPassword);
+router.post('/reset-password', forgotPasswordController.resetPassword);
 
 // Diagnostic endpoint to check environment configuration
 router.get('/config', (req, res) => {

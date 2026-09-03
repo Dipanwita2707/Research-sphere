@@ -32,13 +32,27 @@ class ContributionService {
   async createContribution(data, files = {}) {
     await this.validateContributionData(data);
 
-    const applicationNumber = await this._generateApplicationNumber(data.publicationType);
     const incentiveCalculation = await this._calculateApplicantIncentives(data);
     const resolvedIds = await this._resolveSchoolAndDepartment(data);
 
-    const contribution = await this.repo.create(
-      this._buildContributionPayload(data, files, applicationNumber, incentiveCalculation, resolvedIds)
-    );
+    let contribution;
+    let attempts = 0;
+    while (attempts < 5) {
+      const applicationNumber = await this._generateApplicationNumber(data.publicationType);
+      try {
+        contribution = await this.repo.create(
+          this._buildContributionPayload(data, files, applicationNumber, incentiveCalculation, resolvedIds)
+        );
+        break;
+      } catch (err) {
+        // P2002 on application_number = concurrent sync generated the same sequence number
+        if (err.code === 'P2002' && err.meta?.target?.includes('application_number') && attempts < 4) {
+          attempts++;
+          continue;
+        }
+        throw err;
+      }
+    }
 
     await this._createApplicantDetails(contribution.id, data.applicantDetails);
     await this._createAuthors(contribution.id, data);
@@ -596,6 +610,7 @@ class ContributionService {
         pointsShare: authorIncentive.points,
         canView: true,
         canEdit: false,
+        scopusAuthorId: t(author.scopusAuthorId, 64),
       })),
       skipDuplicates: true,
     });
@@ -621,6 +636,30 @@ class ContributionService {
     if (notificationRows.length) {
       await this.prisma.notification.createMany({ data: notificationRows });
     }
+  }
+
+  /**
+   * Replace author rows for auto-imported contributions (e.g. Scopus co-author backfill).
+   */
+  async replaceImportedAuthors(contributionId, data) {
+    const authors = Array.isArray(data.authors) ? data.authors : [];
+    if (authors.length === 0) return;
+
+    await this.prisma.researchContributionAuthor.deleteMany({
+      where: { researchContributionId: contributionId },
+    });
+    await this._createAuthors(contributionId, data);
+
+    await this.prisma.researchContribution.update({
+      where: { id: contributionId },
+      data: {
+        totalAuthors: data.totalAuthors || authors.length,
+        internalCoAuthors: data.internalCoAuthors ?? undefined,
+        foreignCollaborationsCount: data.foreignCollaborationsCount ?? undefined,
+        internationalAuthor: data.internationalAuthor ?? undefined,
+        sgtAffiliatedAuthors: data.sgtAffiliatedAuthors ?? undefined,
+      },
+    });
   }
 
   async _createStatusHistory(contributionId, fromStatus, toStatus, changedById, comments) {

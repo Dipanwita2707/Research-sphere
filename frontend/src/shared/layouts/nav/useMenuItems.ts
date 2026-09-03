@@ -71,7 +71,7 @@ export function useMenuItems(perms: NavPermissions, hasVolunteerAssignments: boo
   }
 
   if (navigationSubItems.length > 0) {
-    menuItems.push({ name: 'UMS Navigation', subItems: navigationSubItems });
+    menuItems.push({ name: 'Workspace', subItems: navigationSubItems });
   }
 
   // ── Administration ────────────────────────────────────────────────────────

@@ -124,6 +124,8 @@ export interface CoAuthor {
   firstCollaboration: number; // Year
   lastCollaboration: number; // Year
   sharedPublications: string[]; // Publication IDs
+  scopusAuthorId?: Nullable<string>;
+  orcid?: Nullable<string>;
 }
 
 export interface NetworkNode {
@@ -132,6 +134,8 @@ export interface NetworkNode {
   affiliation: string;
   collaborationCount: number;
   isMainAuthor?: boolean; // True for the profile owner
+  scopusAuthorId?: string | null;
+  orcid?: string | null;
 }
 
 export interface NetworkEdge {
@@ -176,6 +180,7 @@ export interface ResearchProfile {
   syncStatus: SyncStatus;
   syncError: Nullable<string>;
   autoSyncEnabled: boolean;
+  filterSgtOnly: boolean;
   syncFrequencyDays: number;
   
   // Metadata

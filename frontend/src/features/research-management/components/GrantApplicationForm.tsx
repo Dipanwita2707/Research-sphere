@@ -850,7 +850,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#7d1a34]" />
       </div>
     );
   }
@@ -935,9 +935,9 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     </div>
                     
                     {suggestion.suggestionNote && (
-                      <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
-                        <div className="text-xs text-blue-600 mb-1">Reviewer Note</div>
-                        <div className="text-sm text-blue-900">{suggestion.suggestionNote}</div>
+                      <div className="mb-3 p-2 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 border border-[#f0e2d2] dark:border-[#5e1024] rounded">
+                        <div className="text-xs text-[#7d1a34] mb-1">Reviewer Note</div>
+                        <div className="text-sm text-[#7d1a34]">{suggestion.suggestionNote}</div>
                       </div>
                     )}
                     
@@ -1006,7 +1006,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       checked={formData.projectStatus ===
    'submitted'}
                       onChange={handleInputChange}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Submitted</span>
                   </label>
@@ -1018,7 +1018,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       checked={formData.projectStatus ===
    'approved'}
                       onChange={handleInputChange}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Approved</span>
                   </label>
@@ -1041,7 +1041,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         handleInputChange(e);
                         setFormData(prev => ({ ...prev, fundingAgencyType: '', fundingAgencyName: '' }));
                       }}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Government</span>
                   </label>
@@ -1056,7 +1056,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         handleInputChange(e);
                         setFormData(prev => ({ ...prev, fundingAgencyType: '', fundingAgencyName: '' }));
                       }}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Non-Govt</span>
                   </label>
@@ -1071,7 +1071,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         handleInputChange(e);
                         setFormData(prev => ({ ...prev, fundingAgencyType: '', fundingAgencyName: '' }));
                       }}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Industry</span>
                   </label>
@@ -1091,7 +1091,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     name="fundingAgencyType"
                     value={formData.fundingAgencyType}
                     onChange={handleInputChange}
-                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="">Select Funding Agency</option>
                     {FUNDING_AGENCY_OPTIONS.map(opt => (
@@ -1116,7 +1116,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     name="fundingAgencyName"
                     value={formData.fundingAgencyName}
                     onChange={handleInputChange}
-                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter funding agency name"
                   />
                 </div>
@@ -1127,7 +1127,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           {/* Section 2: Basic Project Information */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-orange-600" />
+              <Building2 className="w-5 h-5 text-[#7d1a34]" />
               Project Information
             </h2>
             
@@ -1141,7 +1141,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter full project title"
                 />
               </div>
@@ -1155,7 +1155,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="submittedAmount"
                   value={formData.submittedAmount}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter amount in INR"
                   min="0"
                 />
@@ -1168,7 +1168,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 Sustainable Development Goals (SDGs)
               </label>
               <details className="group">
-                <summary className="cursor-pointer px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 hover:bg-white flex justify-between items-center transition-colors">
+                <summary className="cursor-pointer px-4 py-3 border border-[#f0e2d2] rounded-xl bg-white hover:bg-white flex justify-between items-center transition-colors">
                   <span className="text-gray-600">
                     {formData.sdgGoals.length > 0 
                       ? `${formData.sdgGoals.length} SDG${formData.sdgGoals.length !== 1 ? 's' : ''} selected`
@@ -1184,7 +1184,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           type="checkbox"
                           checked={formData.sdgGoals.includes(sdg.value)}
                           onChange={(e) => handleSDGChange(sdg.value, e.target.checked)}
-                          className="w-4 h-4 text-orange-600 rounded focus:ring-2 focus:ring-orange-500"
+                          className="w-4 h-4 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                         />
                         <span className="text-sm">{sdg.label}</span>
                       </label>
@@ -1220,7 +1220,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           {/* Section 2: Project Type */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
-              <Globe className="w-5 h-5 text-orange-600" />
+              <Globe className="w-5 h-5 text-[#7d1a34]" />
               Project Type & Consortium
             </h2>
             
@@ -1238,7 +1238,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       checked={formData.projectType ===
    'indian'}
                       onChange={handleInputChange}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Indian</span>
                   </label>
@@ -1250,7 +1250,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       checked={formData.projectType ===
    'international'}
                       onChange={handleInputChange}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>International</span>
                   </label>
@@ -1268,7 +1268,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     name="numberOfConsortiumOrgs"
                     value={formData.numberOfConsortiumOrgs}
                     onChange={handleInputChange}
-                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                     min="1"
                     max="10"
                   />
@@ -1279,8 +1279,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             {/* Consortium Organizations */}
             {formData.projectType ===
    'international' && formData.numberOfConsortiumOrgs > 0 && (
-              <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h3 className="font-medium text-blue-900 dark:text-blue-300">Consortium Organizations</h3>
+              <div className="space-y-4 p-4 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 rounded-lg border border-[#f0e2d2] dark:border-[#5e1024]">
+                <h3 className="font-medium text-[#7d1a34] dark:text-[#c8973f]">Consortium Organizations</h3>
                 {consortiumOrganizations.map((org, index) => (
                   <div key={org.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 bg-white dark:bg-gray-700 rounded-lg border dark:border-gray-600">
                     <div>
@@ -1291,7 +1291,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         type="text"
                         value={org.organizationName}
                         onChange={(e) => updateConsortiumOrg(index, 'organizationName', e.target.value)}
-                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                        className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                         placeholder="Organization name"
                       />
                     </div>
@@ -1302,7 +1302,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       <select
                         value={org.country}
                         onChange={(e) => updateConsortiumOrg(index, 'country', e.target.value)}
-                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                        className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                       >
                         <option value="">Select Country</option>
                         {COUNTRY_LIST.map(country => (
@@ -1318,7 +1318,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         type="number"
                         value={org.numberOfMembers}
                         onChange={(e) => updateConsortiumOrg(index, 'numberOfMembers', parseInt(e.target.value) || 1)}
-                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                        className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                         min="1"
                         max="20"
                       />
@@ -1332,7 +1332,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           {/* Section 3: Investigator Configuration */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
-              <Users className="w-5 h-5 text-orange-600" />
+              <Users className="w-5 h-5 text-[#7d1a34]" />
               Project Team Configuration
             </h2>
             
@@ -1355,7 +1355,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         numberOfInternalCoPIs: Math.max(0, prev.numberOfInternalPIs - 1)
                       }));
                     }}
-                    className="text-orange-600 focus:ring-orange-500"
+                    className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                   />
                   <span>No</span>
                 </label>
@@ -1373,7 +1373,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         numberOfInternalCoPIs: prev.numberOfInternalPIs
                       }));
                     }}
-                    className="text-orange-600 focus:ring-orange-500"
+                    className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                   />
                   <span>Yes</span>
                 </label>
@@ -1406,7 +1406,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           numberOfInternalCoPIs: Math.max(0, prev.numberOfInternalPIs - 1)
                         }));
                       }}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Principal Investigator (PI)</span>
                   </label>
@@ -1425,7 +1425,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           numberOfInternalCoPIs: Math.max(0, prev.numberOfInternalPIs - 1)
                         }));
                       }}
-                      className="text-orange-600 focus:ring-orange-500"
+                      className="text-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                     />
                     <span>Co-Principal Investigator (Co-PI)</span>
                   </label>
@@ -1449,7 +1449,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="totalInvestigators"
                   value={formData.totalInvestigators}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                   min={calculateMinimumInvestigators()}
                   max="20"
                 />
@@ -1478,7 +1478,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           numberOfInternalCoPIs: Math.max(0, value - (prev.isPIExternal ? 0 : 1))
                         }));
                       }}
-                      className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                       min="1"
                       max={formData.projectType ===
    'international' 
@@ -1501,7 +1501,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="number"
                       name="numberOfInternalCoPIs"
                       value={formData.numberOfInternalCoPIs}
-                      className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
+                      className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 dark:text-gray-400"
                       disabled
                       readOnly
                     />
@@ -1624,7 +1624,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         {(() => {
                           const calc = calculateInvestigatorIncentive(formData.myRole, 'Internal');
                           return (
-                            <span className="text-blue-600 font-semibold flex items-center justify-end gap-1">
+                            <span className="text-[#7d1a34] font-semibold flex items-center justify-end gap-1">
                               <Award className="w-3.5 h-3.5" />
                               {calc.points}
                             </span>
@@ -1661,7 +1661,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                               inv.investigatorCategory ===
    'Internal' 
                                 ? 'bg-green-100 text-green-700' 
-                                : 'bg-blue-100 text-blue-700'
+                                : 'bg-[#fbe2e8] text-[#7d1a34]'
                             }`}>
                               {inv.investigatorCategory}
                               {inv.consortiumOrgName && ` - ${inv.consortiumOrgName}`}
@@ -1677,7 +1677,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           </td>
                           <td className="px-4 py-2 text-sm text-right">
                             <span className={`font-semibold flex items-center justify-end gap-1 ${
-                              calc.points > 0 ? 'text-blue-600' : 'text-gray-400'
+                              calc.points > 0 ? 'text-[#7d1a34]' : 'text-gray-400'
                             }`}>
                               <Award className="w-3.5 h-3.5" />
                               {calc.points}
@@ -1724,7 +1724,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                               }, 0);
                             const total = applicantCalc.points + teamTotal;
                             return (
-                              <span className="text-blue-700 font-bold flex items-center justify-end gap-1">
+                              <span className="text-[#7d1a34] font-bold flex items-center justify-end gap-1">
                                 <Award className="w-4 h-4" />
                                 {total}
                               </span>
@@ -1748,7 +1748,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           {/* Section 5: Dates */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-orange-600" />
+              <Calendar className="w-5 h-5 text-[#7d1a34]" />
               Project Timeline
             </h2>
             
@@ -1762,7 +1762,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="dateOfSubmission"
                   value={formData.dateOfSubmission}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               
@@ -1775,7 +1775,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="projectStartDate"
                   value={formData.projectStartDate}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               
@@ -1789,7 +1789,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   value={formData.projectEndDate}
                   onChange={handleInputChange}
                   min={formData.projectStartDate || undefined}
-                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full rounded-lg border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 />
                 {formData.projectStartDate && formData.projectEndDate && 
                  new Date(formData.projectEndDate) < new Date(formData.projectStartDate) && (
@@ -1808,7 +1808,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="projectDurationMonths"
                   value={formData.projectDurationMonths}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 bg-gray-50"
+                  className="w-full rounded-lg border-[#f0e2d2] shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white"
                   min="1"
                   placeholder="e.g., 24"
                   readOnly
@@ -1824,7 +1824,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           {/* Section 6: Document Upload */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-orange-600" />
+              <FileText className="w-5 h-5 text-[#7d1a34]" />
               Document Upload
             </h2>
             
@@ -1835,9 +1835,9 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               
               {/* Existing file display */}
               {existingProposalPath && !proposalFile && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                <div className="mb-3 p-3 bg-[#fdf5ec] border border-[#f0e2d2] rounded-lg flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                    <FileText className="w-5 h-5 text-[#7d1a34]" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Current Document</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">{existingProposalPath.split('/').pop()}</p>
@@ -1847,7 +1847,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     href={getFileUrl(existingProposalPath)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    className="text-[#7d1a34] hover:text-[#7d1a34] text-sm font-medium"
                   >
                     View
                   </a>
@@ -1926,7 +1926,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   value={schools.find(s => s.id ===
    formData.schoolId)?.facultyName || 'Not set'}
                   readOnly
-                  className="w-full rounded-lg border-gray-300 bg-gray-50 shadow-sm cursor-not-allowed text-gray-600"
+                  className="w-full rounded-lg border-[#f0e2d2] bg-white shadow-sm cursor-not-allowed text-gray-600"
                 />
               </div>
               
@@ -1939,7 +1939,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   value={departments.find(d => d.id ===
    formData.departmentId)?.departmentName || 'Not set'}
                   readOnly
-                  className="w-full rounded-lg border-gray-300 bg-gray-50 shadow-sm cursor-not-allowed text-gray-600"
+                  className="w-full rounded-lg border-[#f0e2d2] bg-white shadow-sm cursor-not-allowed text-gray-600"
                 />
               </div>
             </div>
@@ -1951,7 +1951,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               type="button"
               onClick={handleSaveDraft}
               disabled={saving}
-              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Draft

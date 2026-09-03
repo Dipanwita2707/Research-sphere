@@ -235,6 +235,7 @@ class AuditService {
    */
   async log({
     actorId = null,
+    universityId = null,
     performedByName = null,
     performedByRole = null,
     action,
@@ -315,6 +316,12 @@ class AuditService {
       if (isUuid(actorId)) {
         auditLogData.actor = {
           connect: { id: actorId }
+        };
+      }
+
+      if (isUuid(universityId)) {
+        auditLogData.university = {
+          connect: { id: universityId }
         };
       }
 

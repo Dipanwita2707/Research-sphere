@@ -1,51 +1,52 @@
-# Multi-stage build for Next.js frontend
+# Multi-stage build for Next.js frontend — standalone output keeps the
+# production image small (only the traced node_modules subset is copied,
+# not the full ~1GB+ node_modules tree).
 FROM node:18-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
 RUN apk add --no-cache libc6-compat
-WORKDIR /app
 
-# Copy package files
+# ---------- Dependencies ----------
+FROM base AS deps
+WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
 
-# Development stage
+# ---------- Development stage (hot reload) ----------
 FROM base AS development
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ .
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 CMD ["npm", "run", "dev"]
 
-# Build stage
+# ---------- Build stage ----------
 FROM base AS builder
 WORKDIR /app
-COPY frontend/package*.json ./
-RUN npm ci
+COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
 
-# Set build-time environment variables
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
+# Rewrites are baked in at build time — set API_PROXY_TARGET via build-arg for Docker.
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG API_PROXY_TARGET=http://localhost:5001
+ENV API_PROXY_TARGET=${API_PROXY_TARGET}
 
-# Build the application
 RUN npm run build
 
-# Production stage
+# ---------- Production stage ----------
 FROM base AS production
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
 
-# Copy built application
+# Standalone output: minimal server + only the deps actually used at runtime
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -53,12 +54,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
 
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+  CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 CMD ["node", "server.js"]

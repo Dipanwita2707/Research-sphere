@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Profile Metrics Analytics Component
  * 
- * Extends the existing SGT UMS analytics dashboard with research profile metrics.
+ * Extends the existing ResearchSphere UMS analytics dashboard with research profile metrics.
  * Displays citation-based metrics and department-wide research impact visualization.
  * Integrates with existing Research Activity Distribution and Monthly Submission Trend.
  */

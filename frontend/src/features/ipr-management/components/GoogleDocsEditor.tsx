@@ -216,7 +216,7 @@ export default function GoogleDocsEditor({
           {isReviewer && !isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 text-sm"
+              className="inline-flex items-center gap-1 px-3 py-1 bg-[#fdf5ec] text-[#7d1a34] rounded-md hover:bg-[#fbe2e8] text-sm"
             >
               <Edit3 className="w-4 h-4" />
               Edit & Suggest
@@ -235,7 +235,7 @@ export default function GoogleDocsEditor({
                 value={currentText}
                 onChange={(e) => handleTextChange(e.target.value)}
                 rows={6}
-                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+                className="w-full px-3 py-2 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] resize-vertical"
                 placeholder="Make your changes..."
               />
             ) : (
@@ -243,7 +243,7 @@ export default function GoogleDocsEditor({
                 type="text"
                 value={currentText}
                 onChange={(e) => handleTextChange(e.target.value)}
-                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                 placeholder="Make your changes..."
               />
             )}
@@ -257,7 +257,7 @@ export default function GoogleDocsEditor({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Explain your suggested change..."
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-[#7d1a34]"
             />
           </div>
 

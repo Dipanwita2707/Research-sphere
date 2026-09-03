@@ -33,6 +33,8 @@ interface ProfileManagementProps {
   onProfileRefresh?: () => Promise<void> | void;
   isOwner: boolean;
   currentUserId: string;
+  /** Admin/superadmin may edit ORCID, Scopus, WoS IDs */
+  canEditResearchIdentityIds?: boolean;
 }
 
 type ManagementTab = 'visibility' | 'publications' | 'sync' | 'export';
@@ -43,6 +45,7 @@ export default function ProfileManagement({
   onProfileRefresh,
   isOwner,
   currentUserId,
+  canEditResearchIdentityIds = false,
 }: ProfileManagementProps) {
   const [activeTab, setActiveTab] = useState<ManagementTab>('visibility');
   const [loading, setLoading] = useState(false);
@@ -112,7 +115,7 @@ export default function ProfileManagement({
               onClick={() => setActiveTab(tab.id)}
               className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  ? 'border-[#7d1a34] text-[#7d1a34] dark:text-[#c8973f]'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
@@ -155,6 +158,7 @@ export default function ProfileManagement({
             loading={loading}
             setLoading={setLoading}
             currentUserId={currentUserId}
+            canEditResearchIdentityIds={canEditResearchIdentityIds}
           />
         )}
         
@@ -206,7 +210,7 @@ function VisibilitySettings({
 
   const visibilityOptions = [
     { value: 'public', label: 'Public', description: 'Visible to everyone' },
-    { value: 'institution', label: 'Institution Only', description: 'Visible to SGT University members only' },
+    { value: 'institution', label: 'Institution Only', description: 'Visible to ResearchSphere members only' },
     { value: 'private', label: 'Private', description: 'Only visible to you' },
   ];
 
@@ -231,7 +235,7 @@ function VisibilitySettings({
                     value={option.value}
                     checked={settings.profile === option.value}
                     onChange={(e) => setSettings(prev => ({ ...prev, profile: e.target.value as any }))}
-                    className="mt-1 text-blue-600 focus:ring-blue-500"
+                    className="mt-1 text-[#7d1a34] focus:ring-[#7d1a34]"
                   />
                   <div>
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -270,7 +274,7 @@ function VisibilitySettings({
                     }))}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       settings[item.key as keyof typeof settings]
-                        ? 'bg-blue-600'
+                        ? 'bg-[#7d1a34]'
                         : 'bg-gray-200 dark:bg-gray-700'
                     }`}
                   >
@@ -293,7 +297,7 @@ function VisibilitySettings({
         <button
           onClick={handleSave}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
         >
           {loading ? (
             <RefreshCw className="w-4 h-4 animate-spin" />
@@ -406,7 +410,7 @@ function PublicationManagement({
         </h3>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Add Publication
@@ -422,9 +426,20 @@ function PublicationManagement({
                 <h4 className="font-medium text-gray-900 dark:text-white">
                   {publication.title}
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {publication.authors.map(a => a.name).join(', ')}
-                </p>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 flex flex-wrap gap-x-1">
+                  {publication.authors.map((a, idx) => {
+                    const isLast = idx === publication.authors.length - 1;
+                    return (
+                      <span
+                        key={idx}
+                        className="hover:text-[#7d1a34] dark:hover:text-[#c8973f] cursor-help transition-colors text-sm"
+                        title={a.affiliation || 'No affiliation data'}
+                      >
+                        {a.name}{!isLast && ','}
+                      </span>
+                    );
+                  })}
+                </div>
                 <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
                   {publication.venue} • {publication.year} • {publication.citationCount} citations
                 </p>
@@ -478,7 +493,7 @@ function PublicationManagement({
             type="button"
             disabled={loading}
             onClick={() => bibInputRef.current?.click()}
-            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors disabled:opacity-50"
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#7d1a34] transition-colors disabled:opacity-50"
           >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">BibTeX</div>
@@ -488,7 +503,7 @@ function PublicationManagement({
             type="button"
             disabled={loading}
             onClick={() => risInputRef.current?.click()}
-            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors disabled:opacity-50"
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#7d1a34] transition-colors disabled:opacity-50"
           >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">RIS</div>
@@ -498,7 +513,7 @@ function PublicationManagement({
             type="button"
             disabled={loading}
             onClick={() => csvInputRef.current?.click()}
-            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors disabled:opacity-50"
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#7d1a34] transition-colors disabled:opacity-50"
           >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">CSV</div>
@@ -518,6 +533,7 @@ function SyncSettings({
   loading, 
   setLoading,
   currentUserId,
+  canEditResearchIdentityIds,
 }: {
   profileData: ProfileData;
   onUpdate: (profile: ProfileData) => void;
@@ -525,14 +541,36 @@ function SyncSettings({
   loading: boolean;
   setLoading: (loading: boolean) => void;
   currentUserId: string;
+  canEditResearchIdentityIds: boolean;
 }) {
   const [formState, setFormState] = useState({
     orcid: profileData.profile.orcid || '',
     scopusAuthorId: profileData.profile.scopusAuthorId || '',
     webOfScienceId: profileData.profile.webOfScienceId || '',
     autoSyncEnabled: profileData.profile.autoSyncEnabled,
+    filterSgtOnly: profileData.profile.filterSgtOnly || false,
     syncFrequencyDays: profileData.profile.syncFrequencyDays || 1,
   });
+
+  React.useEffect(() => {
+    if (profileData?.profile) {
+      setFormState({
+        orcid: profileData.profile.orcid || '',
+        scopusAuthorId: profileData.profile.scopusAuthorId || '',
+        webOfScienceId: profileData.profile.webOfScienceId || '',
+        autoSyncEnabled: profileData.profile.autoSyncEnabled,
+        filterSgtOnly: profileData.profile.filterSgtOnly || false,
+        syncFrequencyDays: profileData.profile.syncFrequencyDays || 1,
+      });
+    }
+  }, [
+    profileData?.profile?.orcid,
+    profileData?.profile?.scopusAuthorId,
+    profileData?.profile?.webOfScienceId,
+    profileData?.profile?.autoSyncEnabled,
+    profileData?.profile?.filterSgtOnly,
+    profileData?.profile?.syncFrequencyDays,
+  ]);
   const [recentRuns, setRecentRuns] = useState<PublicationImportRun[]>([]);
   const [runsLoaded, setRunsLoaded] = useState(false);
   const [runsLoading, setRunsLoading] = useState(false);
@@ -552,6 +590,7 @@ function SyncSettings({
         syncStatus: (identity.syncStatus as any) ?? profileData.profile.syncStatus,
         syncError: identity.syncError ?? profileData.profile.syncError,
         autoSyncEnabled: identity.autoSyncEnabled ?? profileData.profile.autoSyncEnabled,
+        filterSgtOnly: identity.filterSgtOnly ?? profileData.profile.filterSgtOnly,
         syncFrequencyDays: identity.syncFrequencyDays ?? profileData.profile.syncFrequencyDays,
       },
     });
@@ -577,7 +616,14 @@ function SyncSettings({
   const handleSaveSettings = async () => {
     try {
       setLoading(true);
-      const identity = await researchProfileService.updateIdentity(currentUserId, formState);
+      const payload = canEditResearchIdentityIds
+        ? formState
+        : {
+            autoSyncEnabled: formState.autoSyncEnabled,
+            filterSgtOnly: formState.filterSgtOnly,
+            syncFrequencyDays: formState.syncFrequencyDays,
+          };
+      const identity = await researchProfileService.updateIdentity(currentUserId, payload);
       applyIdentityUpdate(identity, 'Research identity settings saved');
     } catch (error) {
       logger.error('Failed to save identity settings:', error);
@@ -590,6 +636,22 @@ function SyncSettings({
   const handleManualSync = async (source: 'orcid' | 'scopus' | 'openalex' | 'all') => {
     try {
       setLoading(true);
+      // Persist filter/sync toggles before sync so a checked "SGT only" box
+      // is applied even if the user did not click Save Settings first.
+      const settingsPayload = canEditResearchIdentityIds
+        ? formState
+        : {
+            autoSyncEnabled: formState.autoSyncEnabled,
+            filterSgtOnly: formState.filterSgtOnly,
+            syncFrequencyDays: formState.syncFrequencyDays,
+          };
+      try {
+        const identity = await researchProfileService.updateIdentity(currentUserId, settingsPayload);
+        applyIdentityUpdate(identity);
+      } catch (saveError) {
+        logger.warn('Could not persist identity settings before sync:', saveError);
+      }
+
       const result = await researchProfileService.syncProfile(currentUserId, source);
       applyIdentityUpdate({
         lastSyncedAt: new Date().toISOString(),
@@ -599,7 +661,7 @@ function SyncSettings({
       await loadImportRuns();
       onMessage(
         'success',
-        `Sync completed: ${result.createdCount} created, ${result.updatedCount} updated, ${result.specialReviewCount} flagged for special review`
+        `Sync completed: ${result.createdCount} created, ${result.updatedCount} updated, ${result.skippedCount || 0} skipped (non-SGT), ${result.specialReviewCount} flagged for special review`
       );
     } catch (error) {
       logger.error('Sync failed:', error);
@@ -616,19 +678,25 @@ function SyncSettings({
           Publication Automation
         </h3>
         
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+        <div className="bg-[#fdf5ec] dark:bg-[#7d1a34]/10 border border-[#f0e2d2] dark:border-[#5e1024] rounded-lg p-4 mb-6">
           <div className="flex items-start gap-3">
-            <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+            <Clock className="w-5 h-5 text-[#7d1a34] dark:text-[#c8973f] mt-0.5" />
             <div>
-              <div className="text-sm font-medium text-blue-900 dark:text-blue-300">
+              <div className="text-sm font-medium text-[#7d1a34] dark:text-[#c8973f]">
                 Last Sync: {profileData.profile.lastSyncedAt ? new Date(profileData.profile.lastSyncedAt).toLocaleString() : 'Never'}
               </div>
-              <div className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+              <div className="text-xs text-[#7d1a34] dark:text-[#c8973f] mt-1">
                 Status: {profileData.profile.syncStatus}
               </div>
             </div>
           </div>
         </div>
+
+        {!canEditResearchIdentityIds && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            ORCID, Scopus, and Web of Science IDs are set by your institution. Contact an administrator if they need to be updated.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
@@ -637,10 +705,13 @@ function SyncSettings({
             </label>
             <input
               type="text"
+              readOnly={!canEditResearchIdentityIds}
               value={formState.orcid}
               onChange={(e) => setFormState((prev) => ({ ...prev, orcid: e.target.value }))}
               placeholder="0000-0000-0000-0000"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+                !canEditResearchIdentityIds ? 'bg-gray-50 text-gray-600 cursor-not-allowed dark:bg-gray-900/40' : ''
+              }`}
             />
           </div>
           <div>
@@ -649,10 +720,13 @@ function SyncSettings({
             </label>
             <input
               type="text"
+              readOnly={!canEditResearchIdentityIds}
               value={formState.scopusAuthorId}
               onChange={(e) => setFormState((prev) => ({ ...prev, scopusAuthorId: e.target.value }))}
               placeholder="Scopus author identifier"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+                !canEditResearchIdentityIds ? 'bg-gray-50 text-gray-600 cursor-not-allowed dark:bg-gray-900/40' : ''
+              }`}
             />
           </div>
           <div>
@@ -661,10 +735,13 @@ function SyncSettings({
             </label>
             <input
               type="text"
+              readOnly={!canEditResearchIdentityIds}
               value={formState.webOfScienceId}
               onChange={(e) => setFormState((prev) => ({ ...prev, webOfScienceId: e.target.value }))}
               placeholder="Optional reviewer reference"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+                !canEditResearchIdentityIds ? 'bg-gray-50 text-gray-600 cursor-not-allowed dark:bg-gray-900/40' : ''
+              }`}
             />
           </div>
           <div>
@@ -677,16 +754,25 @@ function SyncSettings({
                 min={1}
                 value={formState.syncFrequencyDays}
                 onChange={(e) => setFormState((prev) => ({ ...prev, syncFrequencyDays: Number(e.target.value) || 1 }))}
-                className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
               <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                 <input
                   type="checkbox"
                   checked={formState.autoSyncEnabled}
                   onChange={(e) => setFormState((prev) => ({ ...prev, autoSyncEnabled: e.target.checked }))}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-300 text-[#7d1a34] focus:ring-[#7d1a34]"
                 />
                 Enable auto sync
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 ml-4">
+                <input
+                  type="checkbox"
+                  checked={formState.filterSgtOnly}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, filterSgtOnly: e.target.checked }))}
+                  className="rounded border-gray-300 text-[#7d1a34] focus:ring-[#7d1a34]"
+                />
+                Filter SGT affiliated publications only
               </label>
             </div>
           </div>
@@ -726,7 +812,7 @@ function SyncSettings({
               <button
                 onClick={() => handleManualSync('orcid')}
                 disabled={loading || !formState.orcid}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -752,7 +838,7 @@ function SyncSettings({
               <button
                 onClick={() => handleManualSync('scopus')}
                 disabled={loading || !formState.scopusAuthorId}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -775,7 +861,7 @@ function SyncSettings({
               <button
                 onClick={() => handleManualSync('openalex')}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -798,7 +884,7 @@ function SyncSettings({
               <button
                 onClick={() => handleManualSync('all')}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -825,7 +911,7 @@ function SyncSettings({
                   <div key={run.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">{run.triggerType}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-[#fdf5ec] text-[#7d1a34] text-xs">
                         {run.sourceSystems.join(', ') || 'manual'}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs ${

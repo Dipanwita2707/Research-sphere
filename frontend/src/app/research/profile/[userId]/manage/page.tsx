@@ -13,6 +13,7 @@ import { researchProfileService } from '@/features/research-profile/services/res
 import { applyResearchIdentity, buildProfileDataFromAuthUser } from '@/features/research-profile/services/profileFallback';
 import logger from '@/shared/utils/logger';
 import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
+import { useAffiliation } from '@/shared/hooks/useAffiliation';
 
 export default function ProfileManagePage() {
   const params = useParams();
@@ -20,12 +21,17 @@ export default function ProfileManagePage() {
   const userId = params?.userId as string;
   const { user } = useAuthStore();
   const { data: staffDashboardData } = useStaffDashboardSummary({ enabled: !!user });
+  const { canonicalName: universityName } = useAffiliation();
   
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const isOwner = user?.id === userId;
+  const canEditResearchIdentityIds =
+    user?.userType === 'admin' ||
+    user?.role?.name === 'superadmin' ||
+    user?.role?.name === 'admin';
   const hasApplicantAnalyticsAccess =
     user?.userType === 'admin' ||
     !!staffDashboardData?.permissions?.some((dept) =>
@@ -85,7 +91,7 @@ export default function ProfileManagePage() {
       }
 
       if (isOwner && user) {
-        let fallbackProfile = buildProfileDataFromAuthUser(user);
+        let fallbackProfile = buildProfileDataFromAuthUser(user, universityName);
         try {
           const identity = await researchProfileService.getIdentity(userId);
           fallbackProfile = applyResearchIdentity(fallbackProfile, identity);
@@ -129,7 +135,7 @@ export default function ProfileManagePage() {
           </p>
           <button
             onClick={() => router.back()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024]"
           >
             Go Back
           </button>
@@ -154,7 +160,7 @@ export default function ProfileManagePage() {
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => router.push(`/research/profile/${userId}`)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024]"
             >
               View Profile
             </button>
@@ -219,6 +225,7 @@ export default function ProfileManagePage() {
           onProfileRefresh={fetchProfile}
           isOwner={isOwner}
           currentUserId={userId}
+          canEditResearchIdentityIds={canEditResearchIdentityIds}
         />
       </div>
     </div>

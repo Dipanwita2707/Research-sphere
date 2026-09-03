@@ -40,6 +40,7 @@ lerna-debug.log*
 .env.development
 .env.production
 .env.test
+.env.prod
 
 # Vercel
 .vercel
@@ -92,6 +93,7 @@ Thumbs.db
 *.zip
 *.tar
 *.tar.gz
+*.tgz
 *.rar
 *.7z
 

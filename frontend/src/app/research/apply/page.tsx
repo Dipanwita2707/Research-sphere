@@ -67,7 +67,7 @@ export default function ResearchApplyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900 p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header skeleton */}
           <div className="h-8 w-64 bg-gray-200 rounded-lg animate-pulse" />
@@ -99,7 +99,7 @@ export default function ResearchApplyPage() {
   if (canFileResearch ===
    false) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#fdf5ec] dark:bg-gray-900">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border dark:border-gray-700">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
@@ -110,7 +110,7 @@ export default function ResearchApplyPage() {
           </p>
           <button
             onClick={() => router.push('/dashboard')}
-            className="px-6 py-3 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+            className="px-6 py-3 bg-[#7d1a34] dark:bg-[#5e1024] text-white rounded-lg hover:bg-[#5e1024] dark:hover:bg-[#7d1a34] transition-colors"
           >
             Back to Dashboard
           </button>
@@ -129,7 +129,7 @@ export default function ResearchApplyPage() {
    'grant_proposal') {
     router.replace(editId ? `/research/apply-grant?edit=${editId}` : '/research/apply-grant');
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#fdf5ec] dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 dark:border-orange-400"></div>
       </div>
     );
@@ -137,14 +137,14 @@ export default function ResearchApplyPage() {
 
   // Valid type - show form
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900">
       <div className="max-w-6xl mx-auto px-6 py-6">
         {/* Back Button */}
         <Link
           href="/research/apply"
-          className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mb-4 text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-[#f0e2d2] rounded-xl bg-white text-sm font-semibold text-gray-700 hover:text-[#7d1a34] hover:bg-[#fbe2e8]/20 shadow-sm transition-all duration-200 mb-6"
         >
-          <ArrowLeft className="w-4 h-4 mr-1" />
+          <ArrowLeft className="w-4 h-4" />
           Back to Type Selection
         </Link>
 

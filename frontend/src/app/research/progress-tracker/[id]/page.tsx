@@ -69,8 +69,8 @@ const INDEXING_CATEGORIES = [
   },
   { 
     value: 'sgtu_in_house', 
-    label: 'SGTU In-House Journal',
-    description: 'SGT University in-house publications',
+    label: 'ResearchSphere In-House Journal',
+    description: 'ResearchSphere in-house publications',
     requiredFields: [] as string[]
   },
   { 
@@ -408,7 +408,7 @@ export default function TrackerDetailPage() {
           'pubmed': 'PubMed',
           'naas_rating_6_plus': 'NAAS (Rating ≥ 6)',
           'abdc_scopus_wos': 'ABDC Journals (SCOPUS/WOS)',
-          'sgtu_in_house': 'SGTU In-House Journal',
+          'sgtu_in_house': 'ResearchSphere In-House Journal',
           'case_centre_uk': 'The Case Centre UK',
         };
         return value.map((v: string) => categoryLabels[v] || v).join(', ');
@@ -451,7 +451,7 @@ export default function TrackerDetailPage() {
         'corresponding': 'Corresponding',
         'co_author': 'Co-Author'
       },
-      bookIndexingType: { scopus_indexed: 'Scopus Indexed', non_indexed: 'Non-Indexed', sgt_publication_house: 'SGT Publication House' },
+      bookIndexingType: { scopus_indexed: 'Scopus Indexed', non_indexed: 'Non-Indexed', sgt_publication_house: 'ResearchSphere Publication House' },
       bookPublicationType: { authored: 'Authored', edited: 'Edited' },
       nationalInternational: { national: 'National', international: 'International' },
       conferenceType: { national: 'National', international: 'International', regional: 'Regional' },
@@ -488,7 +488,7 @@ export default function TrackerDetailPage() {
       userRole: 'User Role',
       coAuthors: 'Co-Authors',
       naasRating: 'NAAS Rating',
-      sgtAuthors: 'SGT Authors',
+      sgtAuthors: 'ResearchSphere Authors',
       impactFactor: 'Impact Factor',
       manuscriptId: 'Manuscript ID',
       totalAuthors: 'Total Authors',
@@ -811,7 +811,7 @@ export default function TrackerDetailPage() {
                 {/* Interdisciplinary */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Interdisciplinary (SGT) <span className="text-red-500">*</span>
+                    Interdisciplinary (ResearchSphere) <span className="text-red-500">*</span>
                   </label>
                   <div className="flex gap-4">
                     {['yes', 'no'].map((v) => (
@@ -963,7 +963,7 @@ export default function TrackerDetailPage() {
                   return (
                     <div className="border-t border-gray-200 pt-4 mt-4">
                       <div className="flex items-center gap-2 mb-3">
-                        <Info className="w-4 h-4 text-blue-500" />
+                        <Info className="w-4 h-4 text-[#7d1a34]" />
                         <h4 className="text-sm font-medium text-gray-700">Additional Required Fields</h4>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1174,7 +1174,7 @@ export default function TrackerDetailPage() {
                   </span>
                 )}
                 {tracker?.statusHistory && tracker.statusHistory.some((entry: any) => entry.attachments && entry.attachments.length > 0) && (
-                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                  <span className="text-xs px-2 py-1 bg-[#fbe2e8] text-[#7d1a34] rounded-full">
                     {tracker.statusHistory.reduce((total: number, entry: any) => total + (entry.attachments?.length || 0), 0)} uploaded
                   </span>
                 )}
@@ -1187,9 +1187,9 @@ export default function TrackerDetailPage() {
               <div className="p-4 bg-gray-50 space-y-4">
               {/* Previously Uploaded Documents */}
               {tracker?.statusHistory && tracker.statusHistory.some((entry: any) => entry.attachments && entry.attachments.length > 0) && (
-                <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="bg-white rounded-lg p-4 border border-[#f0e2d2]">
                   <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-[#7d1a34]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     Previously Uploaded Documents:
@@ -1197,7 +1197,7 @@ export default function TrackerDetailPage() {
                   <div className="space-y-2">
                     {tracker.statusHistory.map((entry: any, idx: number) => (
                       entry.attachments && entry.attachments.length > 0 && (
-                        <div key={idx} className="border-l-2 border-blue-300 pl-3 py-1">
+                        <div key={idx} className="border-l-2 border-[#f0e2d2] pl-3 py-1">
                           <p className="text-xs text-gray-500 mb-1">
                             {new Date(entry.changedAt).toLocaleDateString()} - {entry.notes || 'Document upload'}
                           </p>
@@ -1208,7 +1208,7 @@ export default function TrackerDetailPage() {
                                 href={getFileUrl(att.path)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-[#fdf5ec] text-[#7d1a34] rounded hover:bg-[#fbe2e8] transition-colors"
                               >
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1402,7 +1402,7 @@ export default function TrackerDetailPage() {
                     
                     {/* Timeline Dot */}
                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                      isMonthlyReport ? 'bg-blue-100 text-blue-700' :
+                      isMonthlyReport ? 'bg-[#fbe2e8] text-[#7d1a34]' :
                       entry.toStatus ===
    'rejected' ? 'bg-red-100' :
                       entry.toStatus ===
@@ -1418,11 +1418,11 @@ export default function TrackerDetailPage() {
                     </div>
                     
                     {/* Content */}
-                    <div className={`flex-1 rounded-lg p-4 ${isMonthlyReport ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                    <div className={`flex-1 rounded-lg p-4 ${isMonthlyReport ? 'bg-[#fdf5ec] border border-[#f0e2d2]' : 'bg-gray-50'}`}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           {isMonthlyReport ? (
-                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-[#fbe2e8] text-[#7d1a34]">
                               📝 Monthly Report - {statusLabels[entry.toStatus]}
                             </span>
                           ) : (

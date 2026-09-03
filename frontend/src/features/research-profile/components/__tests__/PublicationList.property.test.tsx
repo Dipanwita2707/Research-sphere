@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Property-Based Tests for PublicationList Component
  * Task 2.4: Write property test for publication display
  * 
@@ -43,7 +43,7 @@ const authorArbitrary = (): fc.Arbitrary<PublicationAuthor> =>
     ),
     affiliation: fc.oneof(
       fc.constant(null),
-      fc.constantFrom('SGT University', 'MIT', 'Stanford', 'Harvard')
+      fc.constantFrom('ResearchSphere', 'MIT', 'Stanford', 'Harvard')
     ),
     email: fc.oneof(fc.constant(null), fc.emailAddress()),
     isCorresponding: fc.boolean(),

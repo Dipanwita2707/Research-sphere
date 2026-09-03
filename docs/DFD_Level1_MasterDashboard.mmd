@@ -1,0 +1,97 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryTextColor': '#01579b', 'primaryBorderColor': '#0288d1', 'lineColor': '#37474f'}}}%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EXTERNAL ENTITIES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    ADMIN["🔐 ADMIN / IT ADMIN"]
+    STAFF["👔 STAFF / HR STAFF"]
+    STUDENT["👨‍🎓 STUDENT"]
+    FACULTY["👨‍🏫 FACULTY / ACADEMIC STAFF"]
+    PARENT["👨‍👩‍👧 PARENT"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DATA STORES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    DB_USER[("D4: User Store<br/>UserLogin, EmployeeDetails,<br/>StudentDetails, ParentDetails")]
+    DB_ACAD[("D9: Academic Store<br/>FacultySchoolList, Department,<br/>Program, Specialization, Section")]
+    DB_PERM[("D10: Permission Store<br/>UserDeptPermission,<br/>DeptPermission, CentralDeptPermission")]
+    DB_NOTIF[("D11: Notification Store<br/>Notification")]
+    DB_AUDIT[("D12: Audit Store<br/>AuditLog, ChangesHistory,<br/>AuditReportConfig/History")]
+    CACHE[("D7: Redis Cache<br/>Auth Sessions, Permissions")]
+    SENDGRID["📧 SendGrid Service"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% MASTER DASHBOARD PROCESSES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph MASTER_DASHBOARD["🎛️ 4.0 UMS MASTER DASHBOARD"]
+        direction TB
+        P4_1(("4.1<br/>User Profile<br/>Management"))
+        P4_2(("4.2<br/>Academic Structure<br/>Management"))
+        P4_3(("4.3<br/>Department & Scope<br/>Permissions"))
+        P4_4(("4.4<br/>Notification<br/>Dispatcher"))
+        P4_5(("4.5<br/>Audit Logging &<br/>Reports"))
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    %% User Profile Management Flows
+    STAFF -->|"Create/Update Employee"| P4_1
+    ADMIN -->|"Manage Student/Parent/Staff Accounts"| P4_1
+    STUDENT -->|"Update Student Profile"| P4_1
+    PARENT -->|"View/Update Parent Details"| P4_1
+    P4_1 -->|"Read/Write User Data"| DB_USER
+    P4_1 -->|"Session Cache"| CACHE
+    P4_1 -->|"Profile Change Event"| P4_5
+
+    %% Academic Structure Flows
+    ADMIN -->|"Define School/Dept/Program/Section"| P4_2
+    FACULTY -->|"View Courses & Student Sections"| P4_2
+    P4_2 -->|"Read/Write Academic Data"| DB_ACAD
+    P4_2 -->|"Structure Update Log"| P4_5
+
+    %% Permission System Flows
+    ADMIN -->|"Assign Dept/Central/School Permissions"| P4_3
+    P4_3 -->|"Save Permissions"| DB_PERM
+    P4_3 -->|"Cache User Permissions"| CACHE
+    P4_3 -->|"Permission Change Log"| P4_5
+    
+    %% Notification Flows
+    P4_1 -->|"Notification Event"| P4_4
+    P4_2 -->|"Course Allocation Alert"| P4_4
+    P4_3 -->|"Security Alert (Grant/Revoke)"| P4_4
+    P4_4 -->|"Persist Alerts"| DB_NOTIF
+    P4_4 -->|"Send Mail Alerts"| SENDGRID
+    SENDGRID -->|"Delivery Status"| P4_4
+    STUDENT -->|"Fetch Alerts"| P4_4
+    FACULTY -->|"Fetch Alerts"| P4_4
+
+    %% Audit Log Flows
+    P4_1 -.->|"CRUD Trigger"| P4_5
+    P4_2 -.->|"Metadata Trigger"| P4_5
+    P4_3 -.->|"Security Trigger"| P4_5
+    ADMIN -->|"Configure Audit Schedule / View logs"| P4_5
+    P4_5 -->|"Save Audit Trails & Values"| DB_AUDIT
+    P4_5 -->|"Read Change History"| DB_AUDIT
+    P4_5 -->|"Dispatch Audit Reports"| SENDGRID
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% STYLING
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    classDef external fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef process fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef datastore fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    classDef extservice fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    classDef module fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+
+    class ADMIN,STAFF,STUDENT,FACULTY,PARENT external
+    class P4_1,P4_2,P4_3,P4_4,P4_5 process
+    class DB_USER,DB_ACAD,DB_PERM,DB_NOTIF,DB_AUDIT,CACHE datastore
+    class SENDGRID extservice
+    class MASTER_DASHBOARD module

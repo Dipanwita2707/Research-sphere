@@ -1,4 +1,4 @@
-# Task 1 Implementation Summary: Frontend Infrastructure and Mock Data
+﻿# Task 1 Implementation Summary: Frontend Infrastructure and Mock Data
 
 ## Overview
 Successfully implemented the frontend infrastructure and mock data layer for the Research Profile System. This provides a complete foundation for frontend development before backend APIs are ready.
@@ -150,7 +150,7 @@ const results = await mockResearchProfileAPI.searchProfiles({
 ```typescript
 const newPub = await mockResearchProfileAPI.addPublication('user-123', {
   title: 'My Research Paper',
-  authors: [{ name: 'Dr. Smith', affiliation: 'SGT', ... }],
+  authors: [{ name: 'Dr. Smith', affiliation: 'ResearchSphere', ... }],
   venue: 'IEEE Transactions',
   year: 2024,
 });
@@ -176,7 +176,7 @@ With this infrastructure in place, the frontend team can now:
 
 ## Integration Points
 
-### With Existing SGT UMS
+### With Existing ResearchSphere UMS
 - Types are compatible with existing `research.types.ts`
 - Can link to existing research contributions via `researchContributionId`
 - Uses existing user types from `user.types.ts`
@@ -190,7 +190,7 @@ With this infrastructure in place, the frontend team can now:
 ## Files Summary
 
 ```
-Sgt-Ums/frontend/src/
+ResearchSphere/frontend/src/
 ├── shared/types/
 │   ├── research-profile.types.ts  (New - 350 lines)
 │   └── index.ts                   (Updated - added export)

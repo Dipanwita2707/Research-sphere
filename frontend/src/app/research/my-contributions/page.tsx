@@ -24,7 +24,9 @@ import {
   ChevronRight,
   ChevronDown,
   TrendingUp,
-  FolderOpen
+  FolderOpen,
+  Layers,
+  Filter,
 } from 'lucide-react';
 import { researchService, ResearchContribution, ResearchPublicationType, GrantApplication } from '@/features/research-management/services/research.service';
 import { grantPolicyService, GrantIncentivePolicy } from '@/features/research-management/services/grantPolicy.service';
@@ -33,35 +35,38 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
+import { BRAND } from '@/shared/config/brand';
+
+const W = BRAND.palette;
 
 type TabType = 'all' | 'action_required' | 'draft' | 'in_progress' | 'completed';
 
-const TABS: { key: TabType; label: string; icon: React.ElementType; color: string }[] = [
-  { key: 'all', label: 'All', icon: FolderOpen, color: 'text-gray-500' },
-  { key: 'action_required', label: 'Action Required', icon: AlertCircle, color: 'text-amber-500' },
-  { key: 'draft', label: 'Drafts', icon: Edit, color: 'text-gray-500' },
-  { key: 'in_progress', label: 'In Progress', icon: Clock, color: 'text-blue-500' },
-  { key: 'completed', label: 'Completed', icon: CheckCircle, color: 'text-green-500' },
+const TABS: { key: TabType; label: string; icon: React.ElementType; dotColor: string }[] = [
+  { key: 'all',             label: 'All',             icon: FolderOpen,    dotColor: '' },
+  { key: 'action_required', label: 'Action Required', icon: AlertCircle,   dotColor: 'bg-amber' },
+  { key: 'draft',           label: 'Drafts',          icon: Edit,          dotColor: 'bg-charcoal/40' },
+  { key: 'in_progress',     label: 'In Progress',     icon: Clock,         dotColor: 'bg-wine' },
+  { key: 'completed',       label: 'Completed',       icon: CheckCircle,   dotColor: 'bg-wine-dark' },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
-  draft: { label: 'Draft', icon: Edit, color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' },
-  submitted: { label: 'Submitted', icon: Send, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-  pending_mentor_approval: { label: 'Pending Mentor', icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
-  under_review: { label: 'Under Review', icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
-  changes_required: { label: 'Changes Required', icon: AlertCircle, color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200' },
-  resubmitted: { label: 'Resubmitted', icon: RefreshCw, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-  approved: { label: 'Approved', icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
-  rejected: { label: 'Rejected', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
-  completed: { label: 'Completed', icon: CheckCircle, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; dot: string; badge: string; borderColor: string; bgColor: string; color: string }> = {
+  draft:                   { label: 'Draft',            icon: Edit,        dot: 'bg-charcoal/40', badge: 'bg-brand-50 text-charcoal/70',       borderColor: 'border-peach/60',  bgColor: 'bg-brand-50',   color: 'text-charcoal/70' },
+  submitted:               { label: 'Submitted',        icon: Send,        dot: 'bg-wine',        badge: 'bg-peach/50 text-wine',              borderColor: 'border-peach',     bgColor: 'bg-ivory',      color: 'text-wine' },
+  pending_mentor_approval: { label: 'Pending Mentor',   icon: Clock,       dot: 'bg-amber',       badge: 'bg-peach/40 text-amber-dark',        borderColor: 'border-peach',     bgColor: 'bg-ivory',      color: 'text-amber-dark' },
+  under_review:            { label: 'Under Review',     icon: Clock,       dot: 'bg-amber',       badge: 'bg-peach/40 text-amber-dark',        borderColor: 'border-peach',     bgColor: 'bg-ivory',      color: 'text-amber-dark' },
+  changes_required:        { label: 'Changes Required', icon: AlertCircle, dot: 'bg-amber',       badge: 'bg-peach text-amber-dark',           borderColor: 'border-amber/30',  bgColor: 'bg-peach/30',   color: 'text-amber-dark' },
+  resubmitted:             { label: 'Resubmitted',      icon: RefreshCw,   dot: 'bg-wine',        badge: 'bg-peach/50 text-wine',              borderColor: 'border-peach',     bgColor: 'bg-ivory',      color: 'text-wine' },
+  approved:                { label: 'Approved',         icon: CheckCircle, dot: 'bg-wine-dark',   badge: 'bg-peach/60 text-wine-dark',         borderColor: 'border-peach',     bgColor: 'bg-brand-50',   color: 'text-wine-dark' },
+  rejected:                { label: 'Rejected',         icon: XCircle,     dot: 'bg-wine-darker', badge: 'bg-peach/30 text-wine-darker',       borderColor: 'border-peach',     bgColor: 'bg-brand-50',   color: 'text-wine-darker' },
+  completed:               { label: 'Completed',        icon: CheckCircle, dot: 'bg-wine',        badge: 'bg-peach/60 text-wine',              borderColor: 'border-peach',     bgColor: 'bg-brand-50',   color: 'text-wine' },
 };
 
-const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; icon: React.ElementType; color: string; gradient: string }> = {
-  research_paper: { label: 'Research Paper', icon: FileText, color: 'bg-blue-500', gradient: 'from-blue-500 to-blue-600' },
-  book: { label: 'Book', icon: BookOpen, color: 'bg-green-500', gradient: 'from-green-500 to-green-600' },
-  book_chapter: { label: 'Book Chapter', icon: BookOpen, color: 'bg-emerald-500', gradient: 'from-emerald-500 to-emerald-600' },
-  conference_paper: { label: 'Conference Paper', icon: Presentation, color: 'bg-purple-500', gradient: 'from-purple-500 to-purple-600' },
-  grant_proposal: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500', gradient: 'from-orange-500 to-orange-600' },
+const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; icon: React.ElementType; color: string; gradient: string; accent: string; accentBg: string; accentText: string }> = {
+  research_paper:   { label: 'Research Paper',   icon: FileText,     color: 'bg-wine',        gradient: 'from-wine to-wine-dark',       accent: W.wine,   accentBg: 'bg-peach/40', accentText: 'text-wine' },
+  book:             { label: 'Book',              icon: BookOpen,     color: 'bg-amber',       gradient: 'from-amber to-amber-dark',   accent: W.amber,  accentBg: 'bg-peach/50', accentText: 'text-amber-dark' },
+  book_chapter:     { label: 'Book Chapter',      icon: BookOpen,     color: 'bg-amber',       gradient: 'from-amber to-amber-dark',   accent: W.amber,  accentBg: 'bg-peach/50', accentText: 'text-amber-dark' },
+  conference_paper: { label: 'Conference Paper',  icon: Presentation, color: 'bg-wine-dark',   gradient: 'from-wine-dark to-wine-darker', accent: W.wine, accentBg: 'bg-peach/35', accentText: 'text-wine-dark' },
+  grant_proposal:   { label: 'Grant',             icon: DollarSign,   color: 'bg-amber-dark',  gradient: 'from-amber-dark to-wine',    accent: W.amber,  accentBg: 'bg-peach/45', accentText: 'text-amber-dark' },
 };
 
 export default function MyContributionsPage() {
@@ -394,483 +399,467 @@ export default function MyContributionsPage() {
   const filteredContributions = getFilteredContributions();
   const filteredGrants = getFilteredGrants();
 
+  // ── Loading State ────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="min-h-screen bg-blush">
         {/* Header skeleton */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="h-7 w-56 bg-gray-200 rounded-lg animate-pulse mb-2" />
-            <div className="h-4 w-72 bg-gray-100 rounded animate-pulse" />
-          </div>
-          <div className="h-10 w-40 bg-gray-200 rounded-xl animate-pulse" />
-        </div>
-
-        {/* Stats skeleton */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mb-3" />
-              <div className="h-8 w-12 bg-gray-200 rounded-lg animate-pulse" />
+        <div className="bg-blush-light border-b border-blush-deep/80 px-6 py-5">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div>
+              <div className="h-3 w-36 bg-peach/60 rounded animate-pulse mb-2" />
+              <div className="h-6 w-64 bg-peach/70 rounded animate-pulse mb-1" />
+              <div className="h-3.5 w-48 bg-peach/40 rounded animate-pulse" />
             </div>
-          ))}
+            <div className="h-9 w-36 bg-peach/70 rounded-xl animate-pulse" />
+          </div>
         </div>
-
-        {/* Tabs skeleton */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-9 w-28 bg-gray-200 rounded-lg animate-pulse flex-shrink-0" />
-          ))}
-        </div>
-
-        {/* List skeleton */}
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="h-5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2" />
-                    <div className="h-4 w-1/2 bg-gray-100 dark:bg-gray-700 rounded animate-pulse mb-2" />
-                    <div className="h-3 w-1/3 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+        <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+          {/* Stats skeleton */}
+          <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-y md:divide-y-0 divide-blush-deep/60">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="p-5 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-peach/60 animate-pulse flex-shrink-0" />
+                  <div>
+                    <div className="h-6 w-10 bg-peach/70 rounded animate-pulse mb-1" />
+                    <div className="h-3 w-16 bg-peach/40 rounded animate-pulse" />
                   </div>
                 </div>
-                <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse flex-shrink-0" />
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
+          {/* List skeleton */}
+          <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden">
+            <div className="border-b border-blush-deep/60 px-6 py-4">
+              <div className="h-4 w-40 bg-peach/60 rounded animate-pulse" />
+            </div>
+            <div className="divide-y divide-blush-deep/50">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="px-6 py-4 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-peach/60 animate-pulse flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="h-4 w-3/4 bg-peach/70 rounded animate-pulse mb-2" />
+                    <div className="h-3 w-1/2 bg-peach/40 rounded animate-pulse" />
+                  </div>
+                  <div className="h-6 w-24 rounded-full bg-peach/60 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  // ── Main Render ──────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Research Contributions</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Track and manage all your research paper submissions</p>
-        </div>
-        <Link
-          href="/research/apply"
-          className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 transition-all duration-200"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          New Contribution
-        </Link>
-      </div>
+    <div className="min-h-screen bg-blush">
 
-      {/* Stats Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Total</span>
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <FileText className="w-4 h-4 text-blue-600" />
+      {/* ── Page Header ─────────────────────────────────────────── */}
+      <div className="bg-blush-light border-b border-blush-deep/80 shadow-[0_1px_0_rgba(245,232,220,0.6)]">
+        <div className="max-w-7xl mx-auto px-6 py-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs text-wine/70 mb-1 font-semibold tracking-wide uppercase">
+                <Layers className="w-3.5 h-3.5 text-amber" />
+                Research Management
+              </div>
+              <h1 className="text-2xl font-bold text-charcoal tracking-tight font-serif">My Contributions</h1>
+              <p className="text-sm text-charcoal/55 mt-0.5">
+                Track and manage all your research paper submissions
+              </p>
             </div>
+            <Link
+              href="/research/apply"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-white bg-wine hover:bg-wine-dark rounded-xl transition-colors shadow-sm shadow-wine/20"
+            >
+              <Plus className="w-4 h-4" />
+              New Contribution
+            </Link>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">All submissions</p>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">In Progress</span>
-            <div className="p-2 bg-amber-50 rounded-lg">
-              <Clock className="w-4 h-4 text-amber-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-amber-600">{stats.in_progress}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Under review</p>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</span>
-            <div className="p-2 bg-green-50 rounded-lg">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Approved</p>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Incentives</span>
-            <div className="p-2 bg-emerald-50 rounded-lg">
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-emerald-600">₹{stats.totalIncentives.toLocaleString()}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Total earned</p>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Points</span>
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <Award className="w-4 h-4 text-purple-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-purple-600">{stats.totalPoints}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Research points</p>
         </div>
       </div>
 
-      {/* Main Content Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        {/* Tabs */}
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex overflow-x-auto">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab ===
-   tab.key;
-              const count = tab.key ===
-   'all' ? stats.total :
-                           tab.key ===
-   'action_required' ? stats.action_required :
-                           tab.key ===
-   'draft' ? stats.drafts :
-                           tab.key ===
-   'in_progress' ? stats.in_progress :
-                           stats.completed + stats.rejected;
-              
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-all duration-200 ${
-                    isActive 
-                      ? 'border-blue-600 text-blue-600 bg-blue-50/50' 
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : tab.color}`} />
-                  {tab.label}
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                  }`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+
+        {/* ── Stats Bar ──────────────────────────────────────────── */}
+        <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(132,28,67,0.04)]">
+          <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-y md:divide-y-0 divide-blush-deep/60">
+
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-peach to-peach/40 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 text-wine" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-charcoal tabular-nums">{stats.total}</p>
+                <p className="text-xs text-charcoal/50 font-medium">Total</p>
+              </div>
+            </div>
+
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-peach to-peach/40 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 text-amber" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-charcoal tabular-nums">{stats.in_progress}</p>
+                <p className="text-xs text-charcoal/50 font-medium">In Progress</p>
+              </div>
+            </div>
+
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-peach to-peach/40 flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-4 h-4 text-wine-dark" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-charcoal tabular-nums">{stats.completed}</p>
+                <p className="text-xs text-charcoal/50 font-medium">Completed</p>
+              </div>
+            </div>
+
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-peach to-peach/40 flex items-center justify-center flex-shrink-0">
+                <Coins className="w-4 h-4 text-amber-dark" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-charcoal tabular-nums">₹{stats.totalIncentives.toLocaleString()}</p>
+                <p className="text-xs text-charcoal/50 font-medium">Incentives</p>
+              </div>
+            </div>
+
+            <div className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-peach to-peach/40 flex items-center justify-center flex-shrink-0">
+                <Award className="w-4 h-4 text-wine" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-charcoal tabular-nums">{stats.totalPoints}</p>
+                <p className="text-xs text-charcoal/50 font-medium">Points</p>
+              </div>
+            </div>
+
+          </div>
         </div>
 
-        {/* Filters Bar */}
-        <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 border-b border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-[250px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        {/* ── Main Table Card ─────────────────────────────────────── */}
+        <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(132,28,67,0.04)]">
+
+          {/* Tab bar */}
+          <div className="border-b border-blush-deep/60 px-2">
+            <nav className="flex overflow-x-auto">
+              {TABS.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.key;
+                const count = tab.key === 'all' ? stats.total
+                            : tab.key === 'action_required' ? stats.action_required
+                            : tab.key === 'draft' ? stats.drafts
+                            : tab.key === 'in_progress' ? stats.in_progress
+                            : stats.completed + stats.rejected;
+
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`relative flex items-center gap-2 px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150 ${
+                      isActive
+                        ? 'border-wine text-wine'
+                        : 'border-transparent text-charcoal/50 hover:text-charcoal/80'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                    <span className={`px-1.5 py-0.5 rounded-md text-xs font-semibold ${
+                      isActive
+                        ? 'bg-peach/60 text-wine'
+                        : 'bg-brand-50 text-charcoal/45'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Search & Filter bar */}
+          <div className="px-4 py-3 border-b border-blush-deep/50 bg-blush/60 flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal/35" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by title, journal, conference..."
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all dark:text-gray-100 dark:placeholder-gray-400"
+                placeholder="Search by title, journal, conference…"
+                className="w-full pl-9 pr-4 py-2 text-sm bg-blush-light border border-blush-deep/70 rounded-xl focus:ring-2 focus:ring-wine/15 focus:border-wine transition-all text-charcoal placeholder:text-charcoal/35"
               />
             </div>
-          </div>
-          <div className="relative">
-            <select
-              value={publicationTypeFilter}
-              onChange={(e) => setPublicationTypeFilter(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer transition-all dark:text-gray-100"
-            >
-              <option value="">All Publication Types</option>
-              {Object.entries(PUBLICATION_TYPE_CONFIG).map(([key, config]) => (
-                <option key={key} value={key}>{config.label}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
-        </div>
-
-        {/* Contributions List */}
-        <div className="divide-y divide-gray-100 dark:divide-gray-700">
-          {filteredContributions.length ===
-   0 && filteredGrants.length ===
-   0 ? (
-            <div className="py-16 text-center">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FolderOpen className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No contributions found</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
-                {activeTab ===
-   'all' 
-                  ? "You haven't submitted any research contributions yet. Start by creating your first submission."
-                  : `No ${TABS.find(t => t.key ===
-   activeTab)?.label.toLowerCase()} contributions to display.`}
-              </p>
-              <Link
-                href="/research/apply"
-                className="inline-flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-charcoal/35 pointer-events-none" />
+              <select
+                value={publicationTypeFilter}
+                onChange={(e) => setPublicationTypeFilter(e.target.value)}
+                className="pl-9 pr-8 py-2 text-sm bg-blush-light border border-blush-deep/70 rounded-xl focus:ring-2 focus:ring-wine/15 focus:border-wine cursor-pointer transition-all text-charcoal appearance-none"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Create New Contribution
-              </Link>
+                <option value="">All Types</option>
+                {Object.entries(PUBLICATION_TYPE_CONFIG).map(([key, config]) => (
+                  <option key={key} value={key}>{config.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-charcoal/35 pointer-events-none" />
             </div>
-          ) : (
-            <>
-            {/* Grant Applications */}
-            {filteredGrants.map((grant, index) => {
-              const statusConfig = STATUS_CONFIG[grant.status] || STATUS_CONFIG.draft;
-              const StatusIcon = statusConfig.icon;
-              const pubTypeConfig = PUBLICATION_TYPE_CONFIG['grant_proposal'];
-              const PubTypeIcon = pubTypeConfig?.icon || FileText;
-              
-              return (
-                <div key={`grant-${grant.id}`} className="relative">
-                  <Link
-                    href={`/research/grant/${grant.id}`}
-                    className={`block p-5 hover:bg-gray-50/80 dark:hover:bg-gray-700/50 transition-all duration-200 ${
-                      index ===
-   0 ? 'rounded-t-none' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Grant Type Icon */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${pubTypeConfig?.gradient || 'bg-gradient-to-br from-blue-500 to-blue-600'} shadow-lg`}>
-                        <PubTypeIcon className="w-6 h-6 text-white" />
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 mb-1">
-                              {grant.title}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                              {grant.agencyName && (
-                                <span className="inline-flex items-center">
-                                  <span className="font-medium text-gray-700 dark:text-gray-300">{grant.agencyName}</span>
-                                </span>
-                              )}
-                              {grant.submittedAmount && (
-                                <span className="inline-flex items-center gap-1">
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                  Amount: ₹{Number(grant.submittedAmount).toLocaleString()}
-                                </span>
-                              )}
-                              {grant.applicationNumber && (
-                                <span className="inline-flex items-center gap-1">
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                  {grant.applicationNumber}
-                                </span>
-                              )}
-                            </div>
-                            {grant.projectType && (
-                              <div className="mt-2">
-                                <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                                  {grant.projectType ===
-   'indian' ? 'Indian Project' : 'International Project'}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Status & Actions */}
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.borderColor} ${statusConfig.bgColor} ${statusConfig.color}`}>
-                              <StatusIcon className="w-3.5 h-3.5 mr-1.5" />
-                              {statusConfig.label}
-                            </div>
-                            
-                            {/* Action Buttons for Draft */}
-                            {grant.status ===
-   'draft' && (
-                              <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
-                                <button
-                                  onClick={(e) => handleGrantSubmit(grant.id, e)}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Submit for review"
-                                >
-                                  <Send className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => handleGrantDelete(grant.id, e)}
-                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Delete draft"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            )}
-                            
-                            <ChevronRight className="w-5 h-5 text-gray-400" />
-                          </div>
-                        </div>
-                        
-                        {/* Date Info */}
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
-                          <span>Created: {new Date(grant.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                          {grant.updatedAt && grant.updatedAt !== grant.createdAt && (
-                            <span>Updated: {new Date(grant.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
+          </div>
+
+          {/* List */}
+          <div className="divide-y divide-blush-deep/50">
+            {filteredContributions.length === 0 && filteredGrants.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="w-14 h-14 rounded-full bg-peach/50 flex items-center justify-center mx-auto mb-4">
+                  <FolderOpen className="w-7 h-7 text-wine/50" />
                 </div>
-              );
-            })}
-            
-            {/* Research Contributions */}
-            {(
-            filteredContributions.map((contribution, index) => {
-              const statusConfig = STATUS_CONFIG[contribution.status] || STATUS_CONFIG.draft;
-              const StatusIcon = statusConfig.icon;
-              const pubTypeConfig = PUBLICATION_TYPE_CONFIG[contribution.publicationType];
-              const PubTypeIcon = pubTypeConfig?.icon || FileText;
-              const isExpanded = expandedApp ===
-   contribution.id;
-              const contributionShare = getMyContributionShare(contribution);
-              
-              return (
-                <div key={contribution.id} className="relative">
-                  <Link
-                    href={`/research/contribution/${contribution.id}`}
-                    className={`block p-5 hover:bg-gray-50/80 dark:hover:bg-gray-700/50 transition-all duration-200 ${
-                      index ===
-   0 ? 'rounded-t-none' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Publication Type Icon */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${pubTypeConfig?.gradient || 'bg-gradient-to-br from-gray-500 to-gray-600'} shadow-lg`}>
-                        <PubTypeIcon className="w-6 h-6 text-white" />
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 mb-1">
-                              {contribution.title}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                              <span className="font-medium text-gray-600 dark:text-gray-400">
-                                {contribution.applicationNumber || 'Draft'}
-                              </span>
-                              <span className="w-1 h-1 rounded-full bg-gray-300" />
-                              <span>{pubTypeConfig?.label || contribution.publicationType}</span>
-                              {contribution.journalName && (
-                                <>
-                                  <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                  <span className="truncate max-w-[180px]">{contribution.journalName}</span>
-                                </>
-                              )}
-                              {contribution.conferenceName && (
-                                <>
-                                  <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                  <span className="truncate max-w-[180px]">{contribution.conferenceName}</span>
-                                </>
-                              )}
-                            </div>
-                            
-                            {/* Incentives Display */}
-                            {(contributionShare.estimatedIncentive > 0 || contributionShare.estimatedPoints > 0) && (
-                              <div className="flex items-center gap-3 mt-2">
-                                {['approved', 'completed'].includes(contribution.status) && contributionShare.creditedIncentive > 0 ? (
+                <h3 className="text-base font-semibold text-charcoal mb-1">No contributions found</h3>
+                <p className="text-sm text-charcoal/55 mb-6 max-w-sm mx-auto">
+                  {activeTab === 'all'
+                    ? "You haven't submitted any research contributions yet. Start by creating your first submission."
+                    : `No ${TABS.find(t => t.key === activeTab)?.label.toLowerCase()} contributions to display.`}
+                </p>
+                <Link
+                  href="/research/apply"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-wine text-white text-sm font-semibold rounded-xl hover:bg-wine-dark transition-colors shadow-sm shadow-wine/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create New Contribution
+                </Link>
+              </div>
+            ) : (
+              <>
+                {/* ── Grant Applications ── */}
+                {filteredGrants.map((grant) => {
+                  const statusConfig = STATUS_CONFIG[grant.status] || STATUS_CONFIG.draft;
+                  const StatusIcon = statusConfig.icon;
+                  const pubTypeConfig = PUBLICATION_TYPE_CONFIG['grant_proposal'];
+                  const PubTypeIcon = pubTypeConfig?.icon || FileText;
+
+                  return (
+                    <div key={`grant-${grant.id}`}>
+                      <Link
+                        href={`/research/grant/${grant.id}`}
+                        className="flex items-start gap-4 px-6 py-4 hover:bg-blush/80 transition-colors group"
+                      >
+                        {/* Icon */}
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ backgroundColor: `${pubTypeConfig.accent}18` }}
+                        >
+                          <PubTypeIcon className="w-5 h-5" style={{ color: pubTypeConfig.accent }} />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-charcoal truncate group-hover:text-wine transition-colors">
+                                {grant.title}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                {grant.agencyName && (
+                                  <span className="text-xs text-charcoal/55">{grant.agencyName}</span>
+                                )}
+                                {grant.submittedAmount && (
                                   <>
-                                    <span className="inline-flex items-center px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
-                                      <Coins className="w-3.5 h-3.5 mr-1.5" />
-                                      ₹{contributionShare.creditedIncentive.toLocaleString()}
-                                    </span>
-                                    {contributionShare.creditedPoints > 0 && (
-                                      <span className="inline-flex items-center px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium">
-                                        <Award className="w-3.5 h-3.5 mr-1.5" />
-                                        {contributionShare.creditedPoints} pts
-                                      </span>
-                                    )}
-                                    <span className="text-xs text-green-600 font-medium">✓ Credited</span>
+                                    <span className="text-charcoal/25">·</span>
+                                    <span className="text-xs text-charcoal/55">₹{Number(grant.submittedAmount).toLocaleString()}</span>
                                   </>
-                                ) : (
+                                )}
+                                {grant.applicationNumber && (
                                   <>
-                                    <span className="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
-                                      <Coins className="w-3.5 h-3.5 mr-1.5" />
-                                      ₹{contributionShare.estimatedIncentive.toLocaleString()}
-                                    </span>
-                                    {contributionShare.estimatedPoints > 0 && (
-                                      <span className="inline-flex items-center px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium">
-                                        <Award className="w-3.5 h-3.5 mr-1.5" />
-                                        {contributionShare.estimatedPoints} pts
-                                      </span>
-                                    )}
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">Estimated</span>
+                                    <span className="text-charcoal/25">·</span>
+                                    <span className="text-xs font-mono text-charcoal/45">{grant.applicationNumber}</span>
                                   </>
                                 )}
                               </div>
-                            )}
-                          </div>
-                          
-                          {/* Status & Actions */}
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.borderColor} ${statusConfig.bgColor} ${statusConfig.color}`}>
-                              <StatusIcon className="w-3.5 h-3.5 mr-1.5" />
-                              {statusConfig.label}
-                            </div>
-                            
-                            {/* Action Buttons for Draft */}
-                            {contribution.status ===
-   'draft' && (
-                              <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
-                                <button
-                                  onClick={(e) => handleSubmit(contribution.id, e)}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Submit for review"
-                                >
-                                  <Send className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => handleDelete(contribution.id, e)}
-                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Delete draft"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                              <div className="flex items-center gap-3 mt-1.5">
+                                {grant.projectType && (
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${pubTypeConfig.accentBg} ${pubTypeConfig.accentText}`}>
+                                    {grant.projectType === 'indian' ? 'Indian Project' : 'International Project'}
+                                  </span>
+                                )}
+                                <span className="text-xs text-charcoal/45">
+                                  {new Date(grant.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                </span>
                               </div>
-                            )}
-                            
-                            {/* Resubmit for Changes Required */}
-                            {contribution.status ===
-   'changes_required' && (
-                              <button
-                                onClick={(e) => handleResubmit(contribution.id, e)}
-                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                title="Resubmit"
-                              >
-                                <RefreshCw className="w-4 h-4" />
-                              </button>
-                            )}
-                            
-                            <ChevronRight className="w-5 h-5 text-gray-400" />
+                            </div>
+
+                            {/* Status + Actions */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.badge}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
+                                {statusConfig.label}
+                              </span>
+                              {grant.status === 'draft' && (
+                                <div className="flex items-center gap-1" onClick={e => e.preventDefault()}>
+                                  <button
+                                    onClick={e => handleGrantSubmit(grant.id, e)}
+                                    className="p-1.5 text-wine hover:bg-peach/50 rounded-lg transition-colors"
+                                    title="Submit for review"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={e => handleGrantDelete(grant.id, e)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                                    title="Delete draft"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                              <ChevronRight className="w-4 h-4 text-charcoal/25 group-hover:text-wine/60 transition-colors" />
+                            </div>
                           </div>
                         </div>
-                        
-                        {/* Date Info */}
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
-                          <span>Created: {new Date(contribution.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                          {contribution.updatedAt && contribution.updatedAt !== contribution.createdAt && (
-                            <span>Updated: {new Date(contribution.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                          )}
-                        </div>
-                      </div>
+                      </Link>
                     </div>
-                  </Link>
-                </div>
-              );
-            })
+                  );
+                })}
+
+                {/* ── Research Contributions ── */}
+                {filteredContributions.map((contribution) => {
+                  const statusConfig = STATUS_CONFIG[contribution.status] || STATUS_CONFIG.draft;
+                  const StatusIcon = statusConfig.icon;
+                  const pubTypeConfig = PUBLICATION_TYPE_CONFIG[contribution.publicationType];
+                  const PubTypeIcon = pubTypeConfig?.icon || FileText;
+                  const contributionShare = getMyContributionShare(contribution);
+
+                  return (
+                    <div key={contribution.id}>
+                      <Link
+                        href={`/research/contribution/${contribution.id}`}
+                        className="flex items-start gap-4 px-6 py-4 hover:bg-blush/80 transition-colors group"
+                      >
+                        {/* Icon */}
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ backgroundColor: pubTypeConfig ? `${pubTypeConfig.accent}18` : `${W.wine}18` }}
+                        >
+                          <PubTypeIcon
+                            className="w-5 h-5"
+                            style={{ color: pubTypeConfig?.accent || W.wine }}
+                          />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-charcoal truncate group-hover:text-wine transition-colors">
+                                {contribution.title}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                <span className="text-xs font-medium text-charcoal/55">
+                                  {contribution.applicationNumber || 'Draft'}
+                                </span>
+                                <span className="text-charcoal/25">·</span>
+                                <span className="text-xs text-charcoal/55">{pubTypeConfig?.label || contribution.publicationType}</span>
+                                {contribution.journalName && (
+                                  <>
+                                    <span className="text-charcoal/25">·</span>
+                                    <span className="text-xs text-charcoal/45 truncate max-w-[160px]">{contribution.journalName}</span>
+                                  </>
+                                )}
+                                {contribution.conferenceName && (
+                                  <>
+                                    <span className="text-charcoal/25">·</span>
+                                    <span className="text-xs text-charcoal/45 truncate max-w-[160px]">{contribution.conferenceName}</span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Incentives row */}
+                              {(contributionShare.estimatedIncentive > 0 || contributionShare.estimatedPoints > 0) && (
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  {['approved', 'completed'].includes(contribution.status) && contributionShare.creditedIncentive > 0 ? (
+                                    <>
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-peach/55 text-wine-dark">
+                                        <Coins className="w-3 h-3" />
+                                        ₹{contributionShare.creditedIncentive.toLocaleString()}
+                                      </span>
+                                      {contributionShare.creditedPoints > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-peach/40 text-amber-dark">
+                                          <Award className="w-3 h-3" />
+                                          {contributionShare.creditedPoints} pts
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-wine font-medium">✓ Credited</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-peach/45 text-wine">
+                                        <Coins className="w-3 h-3" />
+                                        ₹{contributionShare.estimatedIncentive.toLocaleString()}
+                                      </span>
+                                      {contributionShare.estimatedPoints > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-peach/35 text-amber-dark">
+                                          <Award className="w-3 h-3" />
+                                          {contributionShare.estimatedPoints} pts
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-charcoal/45">Estimated</span>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+
+                              <p className="text-xs text-charcoal/45 mt-1">
+                                {new Date(contribution.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                              </p>
+                            </div>
+
+                            {/* Status + Actions */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.badge}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
+                                {statusConfig.label}
+                              </span>
+
+                              {contribution.status === 'draft' && (
+                                <div className="flex items-center gap-1" onClick={e => e.preventDefault()}>
+                                  <button
+                                    onClick={e => handleSubmit(contribution.id, e)}
+                                    className="p-1.5 text-wine hover:bg-peach/50 rounded-lg transition-colors"
+                                    title="Submit for review"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={e => handleDelete(contribution.id, e)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                                    title="Delete draft"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
+
+                              {contribution.status === 'changes_required' && (
+                                <button
+                                  onClick={e => handleResubmit(contribution.id, e)}
+                                  className="p-1.5 text-amber hover:bg-peach/50 rounded-lg transition-colors"
+                                  title="Resubmit"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              <ChevronRight className="w-4 h-4 text-charcoal/25 group-hover:text-wine/60 transition-colors" />
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })}
+              </>
             )}
-            </>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -135,7 +135,7 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-sm text-gray-500 mt-6">
               If the problem persists, please contact{' '}
               <a
-                href="mailto:support@sgtuniversity.ac.in"
+                href="mailto:mrinal11092002@gmail.com"
                 className="text-blue-600 hover:underline"
               >
                 IT Support

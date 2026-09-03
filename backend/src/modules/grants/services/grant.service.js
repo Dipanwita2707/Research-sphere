@@ -317,11 +317,16 @@ class GrantService {
    * @param {string} id
    * @returns {Promise<object>}
    */
-  async getApplicationById(id) {
+  async getApplicationById(id, tenantId = null) {
     const grant = await this.repo.findById(id, this._detailInclude());
     if (!grant) {
       const err = new Error('Grant application not found');
       err.statusCode = 404;
+      throw err;
+    }
+    if (tenantId && grant.applicantUser?.universityId !== tenantId) {
+      const err = new Error('Access denied: This grant application does not belong to your university.');
+      err.statusCode = 403;
       throw err;
     }
     return grant;
@@ -476,7 +481,7 @@ class GrantService {
    * @param {object} mergedPermissions
    * @returns {Promise<object[]>}
    */
-  async getPendingReviews(userId, mergedPermissions, query = {}) {
+  async getPendingReviews(userId, mergedPermissions, query = {}, tenantId = null) {
     const pagination = parsePaginationQuery(query);
     const hasReviewPerm = mergedPermissions.research_review === true || mergedPermissions.grant_review === true;
     const hasApprovePerm = mergedPermissions.research_approve === true || mergedPermissions.grant_approve === true;
@@ -505,6 +510,9 @@ class GrantService {
     const where = { status: { in: statusFilter } };
     if (!hasApprovePerm && assignedGrantSchoolIds.length > 0) {
       where.schoolId = { in: assignedGrantSchoolIds };
+    }
+    if (tenantId) {
+      where.applicantUser = { universityId: tenantId };
     }
 
     const [grants, total] = await Promise.all([
@@ -1141,6 +1149,7 @@ class GrantService {
           id: true,
           uid: true,
           email: true,
+          universityId: true,
           employeeDetails: {
             select: { firstName: true, lastName: true, displayName: true, designation: true },
           },

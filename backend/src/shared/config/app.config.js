@@ -11,13 +11,21 @@ module.exports = {
   apiVersion: process.env.API_VERSION || 'v1',
   
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-only-insecure-secret',
+    get secret() {
+      const licenseState = require('../utils/licenseState');
+      const baseSecret = process.env.JWT_SECRET || 'dev-only-insecure-secret';
+      return `${baseSecret}::${licenseState.getRuntimeSecret()}`;
+    },
     expire: process.env.JWT_EXPIRE || '7d',
     cookieExpire: parseInt(process.env.JWT_COOKIE_EXPIRE) || 7,
   },
 
   chatJwt: {
-    secret: process.env.CHAT_JWT_SECRET || process.env.JWT_SECRET || 'dev-only-insecure-chat-secret',
+    get secret() {
+      const licenseState = require('../utils/licenseState');
+      const baseSecret = process.env.CHAT_JWT_SECRET || process.env.JWT_SECRET || 'dev-only-insecure-chat-secret';
+      return `${baseSecret}::${licenseState.getRuntimeSecret()}`;
+    },
     accessExpire: process.env.CHAT_JWT_ACCESS_EXPIRE || '15m',
     refreshExpire: process.env.CHAT_JWT_REFRESH_EXPIRE || '30d',
   },

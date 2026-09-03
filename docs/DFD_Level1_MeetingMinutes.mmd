@@ -1,0 +1,83 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryTextColor': '#01579b', 'primaryBorderColor': '#0288d1', 'lineColor': '#37474f'}}}%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EXTERNAL ENTITIES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    MEETING_ORGANIZER["👨‍🏫 ORGANIZER / FACULTY"]
+    APPROVING_OFFICER["🏛️ COMMITTEE CHAIR / DEAN"]
+    ATTENDEE["👨‍🎓 STUDENT / 🧑‍🏫 STAFF ATTENDEE"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DATA STORES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    DB_BOOKING[("D23: Booking Store<br/>SeminarHallRoom / Floor / Block,<br/>BookingRequest, BookingHistory")]
+    DB_MOM[("D25: MoM Store<br/>MeetingMinutes, MeetingMinutesHistory,<br/>MeetingMinutesAttendee")]
+    DB_USER[("D4: User Store<br/>UserLogin, EmployeeDetails")]
+    S3[("D8: AWS S3 Store<br/>Minutes Document PDFs")]
+    SENDGRID["📧 SendGrid Service"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% MEETING MINUTES PROCESSES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph MOM_SYSTEM["📅 11.0 MEETING MINUTES (MoM) & SEMINAR HALL BOOKING"]
+        direction TB
+        P9_1(("9.1<br/>Seminar Hall<br/>Booking Engine"))
+        P9_2(("9.2<br/>Venue Verification<br/>& Approval"))
+        P9_3(("9.3<br/>Meeting Minutes (MoM)<br/>Drafting"))
+        P9_4(("9.4<br/>MoM Approval<br/>Workflow"))
+        P9_5(("9.5<br/>Copy Distribution<br/>& Notifications"))
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    %% Booking Flows
+    MEETING_ORGANIZER -->|"Request Booking (hall, date, timeslot)"| P9_1
+    P9_1 -->|"Check Availability & Save Request"| DB_BOOKING
+    P9_1 -->|"Submit to Reviewer"| P9_2
+
+    %% Verification Flows
+    P9_2 -->|"Query Pending Booking Requests"| DB_BOOKING
+    APPROVING_OFFICER -->|"Approve / Reject booking"| P9_2
+    P9_2 -->|"Write Status & History logs"| DB_BOOKING
+    P9_2 -->|"Notify Organizer"| SENDGRID
+
+    %% Drafting Flow
+    MEETING_ORGANIZER -->|"Draft MoM (subject, agenda, attendees)"| P9_3
+    P9_3 -->|"Upload Minutes PDF"| S3
+    S3 -->|"PDF link details"| P9_3
+    P9_3 -->|"Save Draft MoM"| DB_MOM
+    P9_3 -->|"Submit for Approval"| P9_4
+
+    %% Approval Flow
+    P9_4 -->|"Check Approver Permissions"| DB_USER
+    APPROVING_OFFICER -->|"Approve / Request Changes to MoM"| P9_4
+    P9_4 -->|"Update MoM Status & History"| DB_MOM
+    P9_4 -->|"Final Approval Trigger"| P9_5
+
+    %% Copy Distribution Flow
+    P9_5 -->|"Fetch Attendee Email List"| DB_USER
+    P9_5 -->|"Distribute Approved MoM Copies"| DB_MOM
+    P9_5 -->|"Dispatch Email Alerts with PDF Link"| SENDGRID
+    SENDGRID -->|"Receive Approved Minutes"| ATTENDEE
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% STYLING
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    classDef external fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef process fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef datastore fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    classDef extservice fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    classDef module fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+
+    class MEETING_ORGANIZER,APPROVING_OFFICER,ATTENDEE external
+    class P9_1,P9_2,P9_3,P9_4,P9_5 process
+    class DB_BOOKING,DB_MOM,DB_USER,S3 datastore
+    class SENDGRID extservice
+    class MOM_SYSTEM module

@@ -79,7 +79,7 @@ interface Application {
 const STATUS_CONFIG: Record<string, { color: string; bgColor: string; icon: any; label: string }> = {
   draft: { color: 'text-gray-600', bgColor: 'bg-gray-100', icon: FileText, label: 'Draft' },
   pending_mentor_approval: { color: 'text-orange-600', bgColor: 'bg-orange-100', icon: Clock, label: 'Pending Mentor Approval' },
-  submitted: { color: 'text-blue-600', bgColor: 'bg-blue-100', icon: Clock, label: 'Submitted' },
+  submitted: { color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]', icon: Clock, label: 'Submitted' },
   under_drd_review: { color: 'text-yellow-600', bgColor: 'bg-yellow-100', icon: Clock, label: 'Under DRD Review' },
   under_dean_review: { color: 'text-orange-600', bgColor: 'bg-orange-100', icon: Clock, label: 'Under Dean Review' },
   changes_required: { color: 'text-red-600', bgColor: 'bg-red-100', icon: AlertTriangle, label: 'Changes Required' },
@@ -148,7 +148,7 @@ function ContributedIPRsContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34]"></div>
       </div>
     );
   }
@@ -163,7 +163,7 @@ function ContributedIPRsContent() {
           </Link>
           <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <Users className="w-7 h-7 mr-3 text-blue-600" />
+              <Users className="w-7 h-7 mr-3 text-[#7d1a34]" />
               IPR Applications (As Contributor/Inventor)
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
@@ -190,7 +190,7 @@ function ContributedIPRsContent() {
           </p>
           <Link
             href="/ipr/apply"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024]"
           >
             <Lightbulb className="w-4 h-4 mr-2" />
             File Your Own IPR Application
@@ -211,7 +211,7 @@ function ContributedIPRsContent() {
                   <div className="flex-1">
                     {/* Title and Type */}
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                      <span className="px-2 py-1 text-xs font-medium bg-[#fbe2e8] text-[#7d1a34] rounded">
                         {IPR_TYPE_LABELS[app.iprType] || app.iprType}
                       </span>
                       <span className={`px-2 py-1 text-xs font-medium rounded ${statusConfig.bgColor} ${statusConfig.color}`}>

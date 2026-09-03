@@ -22,7 +22,7 @@ const {
 router.get(
   '/',
   protect, // Require authentication
-  restrictTo('admin', 'super_admin'), // Require admin or super_admin role
+  restrictTo('admin', 'superadmin'), // Require admin or super_admin role
   adminDashboardLimiter, // Rate limit: 100 requests per minute
   searchQueryLimiter, // Rate limit: 30 search requests per minute
   validateBugReportListing, // Validate query parameters
@@ -35,7 +35,7 @@ router.get(
 router.get(
   '/:id',
   protect, // Require authentication
-  restrictTo('admin', 'super_admin'), // Require admin or super_admin role
+  restrictTo('admin', 'superadmin'), // Require admin or super_admin role
   adminDashboardLimiter, // Rate limit: 100 requests per minute
   validateBugReportId, // Validate bug report ID
   checkValidationResult,
@@ -47,7 +47,7 @@ router.get(
 router.patch(
   '/:id/status',
   protect, // Require authentication
-  restrictTo('admin', 'super_admin'), // Require admin or super_admin role
+  restrictTo('admin', 'superadmin'), // Require admin or super_admin role
   adminDashboardLimiter, // Rate limit: 100 requests per minute
   validateResolutionStatusUpdate, // Validate request body and params
   checkValidationResult,

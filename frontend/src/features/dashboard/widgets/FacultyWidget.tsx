@@ -1,10 +1,10 @@
-'use client';
+﻿'use client';
 
 import { GraduationCap, Users, Award, Building2, ChevronRight, Briefcase } from 'lucide-react';
 
 export default function FacultyWidget() {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sgt border border-gray-100 card-hover">
+    <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere border border-gray-100 card-hover">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">

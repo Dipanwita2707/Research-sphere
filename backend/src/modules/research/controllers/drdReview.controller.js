@@ -126,6 +126,10 @@ const getPendingDrdReviews = async (req, res) => {
       status: { in: statusFilter },
     };
 
+    if (req.tenantId) {
+      where.applicantUser = { universityId: req.tenantId };
+    }
+
     // Filter by IPR type if specified
     if (iprType) where.iprType = iprType;
 

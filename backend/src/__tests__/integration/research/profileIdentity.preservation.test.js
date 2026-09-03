@@ -94,9 +94,9 @@ describe('Property 2: Preservation - Non-ORCID Changes Should Not Trigger Sync',
     const runsBefore = await prisma.publicationImportRun.count({
       where: {
         researchProfile: {
-          userId: testUser.id },
-        },
-      },
+          userId: testUser.id
+        }
+      }
     });
 
     // Update settings WITHOUT changing ORCID (only change sync frequency)

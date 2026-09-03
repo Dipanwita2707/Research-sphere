@@ -105,6 +105,13 @@ router.get(
   researchContributionController.getMyResearchContributions
 );
 
+// Get public research repository
+router.get(
+  '/public-repository',
+  protect,
+  researchContributionController.getPublicRepository
+);
+
 // Get contributions where I am a co-author
 router.get(
   '/contributed',

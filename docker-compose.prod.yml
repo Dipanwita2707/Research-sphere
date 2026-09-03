@@ -1,0 +1,77 @@
+# Production compose for EC2 — no local Postgres/Redis containers.
+# Both the database and Redis are already hosted in the cloud (Neon + Redis
+# Cloud), so this file only runs the two application containers, keeping the
+# footprint small enough for a modest EC2 instance (e.g. t3.small/t3.medium).
+#
+# Usage:
+#   cp .env.prod.example .env.prod   # fill in real secrets
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: production
+    image: researchsphere-backend:latest
+    container_name: researchsphere-backend
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Not published directly to the host — the frontend proxies /api/* to
+    # this container over the internal network. Expose only if you need to
+    # hit the API directly for debugging.
+    # ports:
+    #   - "5001:5001"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+        API_PROXY_TARGET: http://backend:5001
+    image: researchsphere-frontend:latest
+    container_name: researchsphere-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PROXY_TARGET: http://backend:5001
+      NEXT_PUBLIC_APP_NAME: ResearchSphere
+    # Published on localhost only — Nginx Proxy Manager handles public 80/443.
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - app-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  app-network:
+    name: researchsphere-net
+    external: true
+
+volumes:
+  backend_uploads:
+    driver: local

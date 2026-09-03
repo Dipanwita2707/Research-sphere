@@ -370,6 +370,11 @@ class ResearchService {
     return response.data;
   }
 
+  async getPublicRepository() {
+    const response = await api.get('/research/public-repository');
+    return response.data;
+  }
+
   async getContributedResearch(params?: { page?: number; limit?: number }) {
     const response = await api.get('/research/contributed', { params });
     return response.data;

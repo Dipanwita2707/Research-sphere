@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Plus, Search, Filter, FileText, Trash2, ArrowRight, BarChart3 } from 'lucide-react';
 import progressTrackerService, {
   ResearchProgressTracker,
   ResearchTrackerStatus,
@@ -17,6 +18,8 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
+
+const STATUS_STEPS = ['writing', 'communicated', 'submitted', 'accepted', 'published'] as const;
 
 export default function ProgressTrackerListPage() {
   const router = useRouter();
@@ -57,23 +60,16 @@ export default function ProgressTrackerListPage() {
     }
   };
 
-  // Debounce search query
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 500);
-
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  useEffect(() => {
-    fetchTrackers();
-  }, [page, statusFilter, typeFilter, debouncedSearch]);
+  useEffect(() => { fetchTrackers(); }, [page, statusFilter, typeFilter, debouncedSearch]);
 
   const handleDelete = async (id: string) => {
     const confirmed = await confirmDelete('Delete Tracker', 'Are you sure you want to delete this tracker?');
     if (!confirmed) return;
-    
     try {
       await progressTrackerService.deleteTracker(id);
       fetchTrackers();
@@ -85,299 +81,249 @@ export default function ProgressTrackerListPage() {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const getProgress = (status: ResearchTrackerStatus) => {
+    if (status === 'rejected') return 60;
+    const idx = STATUS_STEPS.indexOf(status as typeof STATUS_STEPS[number]);
+    return idx >= 0 ? ((idx + 1) / STATUS_STEPS.length) * 100 : 0;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-16 transition-colors duration-200">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+    <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-950">
+
+      {/* ── Page Header ──────────────────────────────────────── */}
+      <div className="bg-white dark:bg-gray-900 border-b border-[#f0e2d2] dark:border-gray-800">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Monthly Research Progress Tracker</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Track your research from writing to publication
-            </p>
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="w-3.5 h-3.5 text-wine" />
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Research Management</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+              Monthly Progress Tracker
+            </h1>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">Track your research from writing to publication</p>
           </div>
           <Link
             href="/research/progress-tracker/new"
-            className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-wine to-[#6E1738] rounded-xl hover:from-[#6E1738] hover:to-[#4A0F26] shadow-sm shadow-wine/20 transition-all duration-200 flex-shrink-0 mt-1"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <Plus className="w-4 h-4" />
             New Research
           </Link>
         </div>
+      </div>
 
-        {/* Stats Cards */}
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-5">
+
+        {/* ── Stats Bar ──────────────────────────────────────── */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700 transition-colors">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Total</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
-          </div>
-          {Object.entries(stats.byStatus).map(([status, count]) => (
-            <div key={status} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700 transition-colors">
-              <div className="text-sm text-gray-500 dark:text-gray-400">{statusLabels[status as ResearchTrackerStatus]}</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{count}</div>
+          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 divide-x divide-y md:divide-y-0 divide-[#f0e2d2] dark:divide-gray-800">
+              <div className="p-4 sm:p-5 flex flex-col">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{stats.total}</span>
+                <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wide">Total</span>
+              </div>
+              {Object.entries(stats.byStatus).map(([status, count]) => (
+                <div key={status} className="p-4 sm:p-5 flex flex-col">
+                  <span className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{count}</span>
+                  <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wide">{statusLabels[status as ResearchTrackerStatus]}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 border border-gray-200 dark:border-gray-700 transition-colors">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
-            <div className="relative">
+        {/* ── Filters Bar ────────────────────────────────────── */}
+        <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-1">
+          <div className="px-3 py-2 flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (page !== 1) setPage(1);
-                }}
-                placeholder="Search by title or tracking number..."
-                className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 shadow-sm focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-colors"
+                onChange={(e) => { setSearchQuery(e.target.value); if (page !== 1) setPage(1); }}
+                placeholder="Search by title or tracking number…"
+                className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 transition-all text-gray-900 dark:text-gray-100 placeholder:text-gray-400 outline-none"
               />
-              {searchQuery && searchQuery !== debouncedSearch && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
-                </div>
-              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value as ResearchTrackerStatus | ''); setPage(1); }}
+                className="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+              >
+                <option value="">All Statuses</option>
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => { setTypeFilter(e.target.value as TrackerPublicationType | ''); setPage(1); }}
+                className="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+              >
+                <option value="">All Types</option>
+                {Object.entries(publicationTypeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as ResearchTrackerStatus | '');
-                setPage(1);
-              }}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-colors"
-            >
-              <option value="">All Statuses</option>
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-            <select
-              value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value as TrackerPublicationType | '');
-                setPage(1);
-              }}
-              className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-colors"
-            >
-              <option value="">All Types</option>
-              {Object.entries(publicationTypeLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
 
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-          <p className="text-red-800 dark:text-red-400">{error}</p>
-        </div>
-      )}
+        {/* ── Error ────────────────────────────────────────── */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-2xl px-5 py-4">
+            <p className="text-sm text-red-700 dark:text-red-400 font-medium">{error}</p>
+          </div>
+        )}
 
-      {/* Loading State */}
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="h-5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-3" />
-                  <div className="flex gap-3 mb-3">
-                    <div className="h-4 w-24 bg-gray-100 dark:bg-gray-600 rounded animate-pulse" />
-                    <div className="h-4 w-32 bg-gray-100 dark:bg-gray-600 rounded animate-pulse" />
-                  </div>
-                  <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse" />
+        {/* ── Loading Skeleton ──────────────────────────────── */}
+        {loading ? (
+          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] divide-y divide-[#f0e2d2] dark:divide-gray-800">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="px-6 py-5 flex items-start gap-4">
+                <div className="flex-1">
+                  <div className="h-4 w-2/3 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse mb-2.5" />
+                  <div className="h-3 w-1/3 bg-white dark:bg-gray-800/60 rounded-lg animate-pulse mb-4" />
+                  <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full animate-pulse" />
                 </div>
-                <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse flex-shrink-0" />
+                <div className="h-6 w-20 rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse flex-shrink-0" />
               </div>
+            ))}
+          </div>
+        ) : trackers.length === 0 ? (
+          /* ── Empty State ──────────────────────────────────── */
+          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] py-16 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-peach/40 dark:bg-wine/10 flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-7 h-7 text-wine dark:text-amber-400" />
             </div>
-          ))}
-        </div>
-      ) : trackers.length ===
-   0 ? (
-        /* Empty State */
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center border border-gray-200 dark:border-gray-700 transition-colors">
-          <div className="text-6xl mb-4">📝</div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No research tracked yet</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
-            Start tracking your research journey from writing to publication
-          </p>
-          <Link
-            href="/research/progress-tracker/new"
-            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
-            Start Your First Research
-          </Link>
-        </div>
-      ) : (
-        /* Trackers List */
-        <div className="space-y-4">
-          {trackers.map((tracker) => (
-            <div
-              key={tracker.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-all cursor-pointer border border-gray-200 dark:border-gray-700"
-              onClick={() => router.push(`/research/progress-tracker/${tracker.id}`)}
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">No research tracked yet</h3>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mb-6 max-w-xs mx-auto">
+              Start tracking your research journey from writing to publication
+            </p>
+            <Link
+              href="/research/progress-tracker/new"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-wine to-[#6E1738] rounded-xl hover:from-[#6E1738] hover:to-[#4A0F26] shadow-sm shadow-wine/20 transition-all duration-200"
             >
-              <div className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">{publicationTypeIcons[tracker.publicationType]}</span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tracker.currentStatus]}`}>
-                        {statusLabels[tracker.currentStatus]}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                        {tracker.trackingNumber}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate pr-4">
-                      {tracker.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {publicationTypeLabels[tracker.publicationType]}
-                      {tracker.school && ` • ${tracker.school.facultyName ?? tracker.school.name}`}
-                      {tracker.department && ` • ${tracker.department.departmentName ?? tracker.department.name}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    {tracker.currentStatus ===
-   'published' && !tracker.researchContributionId && (
-                      <Link
-                        href={`/research/apply?type=${tracker.publicationType}&trackerId=${tracker.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 whitespace-nowrap"
-                      >
-                        File for Incentive
-                      </Link>
-                    )}
-                    {tracker.researchContributionId && (
-                      <span className="px-3 py-1.5 bg-gray-100 text-gray-600 text-sm rounded-lg whitespace-nowrap">
-                        Incentive Filed
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(tracker.id);
-                      }}
-                      disabled={!!tracker.researchContributionId}
-                      className="p-2 text-gray-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={tracker.researchContributionId ? 'Cannot delete - incentive filed' : 'Delete'}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6 mt-4 text-sm text-gray-500">
-                  <span>Started: {formatDate(tracker.createdAt)}</span>
-                  {tracker.expectedCompletionDate && (
-                    <span>Expected: {formatDate(tracker.expectedCompletionDate)}</span>
-                  )}
-                  {tracker.actualCompletionDate && (
-                    <span className="text-green-600">Completed: {formatDate(tracker.actualCompletionDate)}</span>
-                  )}
-                </div>
-              </div>
-              {/* Progress Bar */}
-              <div className="px-6 pb-4">
-                <div className="relative">
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                    {['writing', 'communicated', 'submitted', 'accepted', 'published'].map((status, index) => {
-                      const statusOrder = ['writing', 'communicated', 'submitted', 'accepted', 'published'];
-                      const currentIndex = statusOrder.indexOf(tracker.currentStatus);
-                      const thisIndex = statusOrder.indexOf(status);
-                      const isComplete = thisIndex <= currentIndex && tracker.currentStatus !== 'rejected';
-                      const isCurrent = status ===
-   tracker.currentStatus;
-                      
-                      return (
-                        <div 
-                          key={status} 
-                          className={`text-center ${isComplete ? 'text-indigo-600 font-medium' : ''} ${isCurrent ? 'font-bold' : ''} ${tracker.currentStatus ===
-   'rejected' && status ===
-   'submitted' ? 'text-red-600 font-bold' : ''}`}
-                        >
-                          {status ===
-   'submitted' && tracker.currentStatus ===
-   'rejected' ? 'Rejected' : statusLabels[status as ResearchTrackerStatus]}
+              <Plus className="w-4 h-4" />
+              Start Your First Research
+            </Link>
+          </div>
+        ) : (
+          /* ── Trackers List ────────────────────────────────── */
+          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+            <div className="divide-y divide-[#f0e2d2] dark:divide-gray-800">
+              {trackers.map((tracker) => {
+                const progress = getProgress(tracker.currentStatus);
+                const isRejected = tracker.currentStatus === 'rejected';
+                return (
+                  <div
+                    key={tracker.id}
+                    className="px-6 py-5 hover:bg-white/70 dark:hover:bg-gray-800/30 cursor-pointer transition-colors duration-150 group"
+                    onClick={() => router.push(`/research/progress-tracker/${tracker.id}`)}
+                  >
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                          <span className="text-base">{publicationTypeIcons[tracker.publicationType]}</span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColors[tracker.currentStatus]}`}>
+                            {statusLabels[tracker.currentStatus]}
+                          </span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 font-mono bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md">{tracker.trackingNumber}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    {(() => {
-                      const statusOrder = ['writing', 'communicated', 'submitted', 'accepted', 'published'];
-                      const currentIndex = statusOrder.indexOf(tracker.currentStatus);
-                      // Rejected shows progress up to submitted (index 2) with red color
-                      const progress = tracker.currentStatus ===
-   'rejected' 
-                        ? ((2 + 1) / statusOrder.length) * 100 
-                        : ((currentIndex + 1) / statusOrder.length) * 100;
-                      return (
-                        <div 
-                          className={`h-full ${tracker.currentStatus ===
-   'rejected' ? 'bg-red-500' : 'bg-indigo-600'} transition-all duration-300`}
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-wine dark:group-hover:text-amber-400 transition-colors">{tracker.title}</h3>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                          {publicationTypeLabels[tracker.publicationType]}
+                          {tracker.school && ` \u2022 ${tracker.school.facultyName ?? tracker.school.name}`}
+                          {tracker.department && ` \u2022 ${tracker.department.departmentName ?? tracker.department.name}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                        {tracker.currentStatus === 'published' && !tracker.researchContributionId && (
+                          <Link
+                            href={`/research/apply?type=${tracker.publicationType}&trackerId=${tracker.id}`}
+                            className="px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl hover:from-emerald-700 hover:to-emerald-800 whitespace-nowrap transition-all duration-200 shadow-sm"
+                          >
+                            File for Incentive
+                          </Link>
+                        )}
+                        {tracker.researchContributionId && (
+                          <span className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-xl whitespace-nowrap">
+                            Incentive Filed
+                          </span>
+                        )}
+                        <button
+                          onClick={() => handleDelete(tracker.id)}
+                          disabled={!!tracker.researchContributionId}
+                          className="p-1.5 text-gray-300 dark:text-gray-600 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20"
+                          title={tracker.researchContributionId ? 'Cannot delete - incentive filed' : 'Delete'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <ArrowRight className="w-4 h-4 text-gray-200 dark:text-gray-700 group-hover:text-wine dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all duration-200" />
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] font-medium text-gray-400 dark:text-gray-600 mb-1.5">
+                        {STATUS_STEPS.map((status) => {
+                          const currentIdx = STATUS_STEPS.indexOf(tracker.currentStatus as typeof STATUS_STEPS[number]);
+                          const thisIdx = STATUS_STEPS.indexOf(status);
+                          const isComplete = thisIdx <= currentIdx && !isRejected;
+                          return (
+                            <span key={status} className={isComplete ? 'text-wine dark:text-amber-400 font-semibold' : ''}>
+                              {status === 'submitted' && isRejected ? 'Rejected' : statusLabels[status as ResearchTrackerStatus]}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${isRejected ? 'bg-red-500' : 'bg-gradient-to-r from-wine to-amber'}`}
                           style={{ width: `${Math.min(progress, 100)}%` }}
                         />
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                      </div>
+                    </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-8">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page ===
-   1}
-            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <span className="text-gray-600">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page ===
-   totalPages}
-            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-        </div>
-      )}
+                    <div className="flex items-center gap-4 mt-3 text-[11px] text-gray-400 dark:text-gray-600 font-medium">
+                      <span>Started {formatDate(tracker.createdAt)}</span>
+                      {tracker.expectedCompletionDate && <span>Expected {formatDate(tracker.expectedCompletionDate)}</span>}
+                      {tracker.actualCompletionDate && <span className="text-emerald-600 dark:text-emerald-400">Completed {formatDate(tracker.actualCompletionDate)}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Pagination ─────────────────────────────────────── */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-3">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-700 rounded-xl hover:bg-white dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-sm font-medium text-gray-400 dark:text-gray-500">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-700 rounded-xl hover:bg-white dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
       </div>
     </div>
   );

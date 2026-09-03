@@ -72,7 +72,7 @@ export default function DynamicIPRPage() {
     return (
       <ProtectedRoute>
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34] dark:border-blue-400"></div>
         </div>
       </ProtectedRoute>
     );
@@ -107,7 +107,7 @@ export default function DynamicIPRPage() {
             </p>
             <button
               onClick={() => router.push('/dashboard')}
-              className="px-6 py-3 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              className="px-6 py-3 bg-[#7d1a34] dark:bg-[#5e1024] text-white rounded-lg hover:bg-[#5e1024] dark:hover:bg-[#7d1a34] transition-colors"
             >
               Back to Dashboard
             </button>

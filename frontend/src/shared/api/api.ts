@@ -10,6 +10,9 @@ const MAX_RETRIES = isDev ? 0 : 1; // 0 retries in dev, 1 in prod (fail fast)
 const RETRY_DELAY = 1000; // 1 second
 const SLOW_REQUEST_THRESHOLD_MS = 1200;
 
+// Optional endpoints that may not exist until a module is deployed
+const OPTIONAL_404_ROUTES = ['/events/volunteers/my'];
+
 // Helper to get host URL (without /api/v1)
 export const getHostUrl = (): string => {
   if (/^https?:\/\//i.test(API_URL)) {
@@ -103,6 +106,12 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
           }
         }
+        
+        // Impersonation context for superadmin
+        const impersonatedId = localStorage.getItem('superadmin-impersonate-university-id');
+        if (impersonatedId) {
+          config.headers['x-university-id'] = impersonatedId;
+        }
       } catch (_) {
         // ignore
       }
@@ -180,7 +189,10 @@ api.interceptors.response.use(
    'development') {
       const status = error.response?.status || 'Network';
       const msg = (error.response?.data as any)?.message || error.message;
-      logger.error(`[API] Request failed: ${config.method?.toUpperCase()} ${config.url} - ${status}`, { message: msg, code: (error as any).code });
+      const url = config.url || '';
+      const isOptional404 = status === 404 && OPTIONAL_404_ROUTES.some((route) => url.includes(route));
+      const logFn = isOptional404 ? logger.debug.bind(logger) : logger.error.bind(logger);
+      logFn(`[API] Request failed: ${config.method?.toUpperCase()} ${url} - ${status}`, { message: msg, code: (error as any).code });
     }
     
     return Promise.reject(error);

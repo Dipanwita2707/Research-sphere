@@ -296,7 +296,7 @@ export default function BulkUploadManagement() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <Upload className="w-7 h-7 text-blue-600" />
+            <Upload className="w-7 h-7 text-[#7d1a34]" />
             Bulk Upload Management
           </h1>
           <p className="text-gray-500 mt-1">
@@ -330,7 +330,7 @@ export default function BulkUploadManagement() {
                 className={`flex items-center gap-2 px-5 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                   activeTab ===
    tab.id
-                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    ? 'border-[#7d1a34] text-[#7d1a34] bg-[#fdf5ec]/50'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -343,11 +343,11 @@ export default function BulkUploadManagement() {
 
         <div className="p-6">
           {/* Template Download Section */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+          <div className="mb-6 p-4 bg-gradient-to-r from-[#fdf5ec] to-[#fbf1e5] rounded-xl border border-[#f0e2d2]">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+                  <FileSpreadsheet className="w-5 h-5 text-[#7d1a34]" />
                   Download Template
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
@@ -356,7 +356,7 @@ export default function BulkUploadManagement() {
               </div>
               <button
                 onClick={handleDownloadTemplate}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white text-blue-600 rounded-xl border border-blue-200 hover:bg-blue-50 font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white text-[#7d1a34] rounded-xl border border-[#f0e2d2] hover:bg-[#fdf5ec] font-medium transition-colors"
               >
                 <Download className="w-4 h-4" />
                 Download Template
@@ -364,7 +364,7 @@ export default function BulkUploadManagement() {
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {activeTabConfig.templateFields.map(field => (
-                <span key={field} className="px-2 py-1 bg-white rounded-md text-xs text-gray-600 border border-blue-100">
+                <span key={field} className="px-2 py-1 bg-white rounded-md text-xs text-gray-600 border border-[#f0e2d2]">
                   {field}
                 </span>
               ))}
@@ -379,7 +379,7 @@ export default function BulkUploadManagement() {
             onDrop={handleDrop}
             className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${
               dragActive
-                ? 'border-blue-500 bg-blue-50'
+                ? 'border-[#7d1a34] bg-[#fdf5ec]'
                 : file
                 ? 'border-green-300 bg-green-50'
                 : 'border-gray-300 hover:border-gray-400'
@@ -428,7 +428,7 @@ export default function BulkUploadManagement() {
                   <button
                     onClick={handleUpload}
                     disabled={uploading}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] font-medium disabled:opacity-50"
                   >
                     {uploading ? (
                       <>
@@ -451,7 +451,7 @@ export default function BulkUploadManagement() {
                   Drop your {fileFormatLabel} file here, or{' '}
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-blue-600 hover:text-blue-700"
+                    className="text-[#7d1a34] hover:text-[#5e1024] font-semibold"
                   >
                     browse
                   </button>
@@ -561,7 +561,7 @@ export default function BulkUploadManagement() {
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-              <ChevronRight className="w-4 h-4 text-blue-600" />
+              <ChevronRight className="w-4 h-4 text-[#7d1a34]" />
               Upload Order
             </h4>
             <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
@@ -574,7 +574,7 @@ export default function BulkUploadManagement() {
           </div>
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-              <ChevronRight className="w-4 h-4 text-blue-600" />
+              <ChevronRight className="w-4 h-4 text-[#7d1a34]" />
               Tips
             </h4>
             <ul className="text-sm text-gray-600 space-y-1">
@@ -593,8 +593,8 @@ export default function BulkUploadManagement() {
 
 function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number; color: string }) {
   const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
+    blue: 'bg-[#fdf5ec] text-[#7d1a34]',
+    indigo: 'bg-amber-50 text-[#c8973f]',
     purple: 'bg-purple-50 text-purple-600',
     green: 'bg-green-50 text-green-600',
     orange: 'bg-orange-50 text-orange-600',

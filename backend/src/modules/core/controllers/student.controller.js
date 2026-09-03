@@ -155,6 +155,8 @@ const createStudent = async (req, res) => {
           passwordHash: hashedPassword,
           role: 'student',
           status: 'active',
+          // Tenant binding — required by protect() for non-superadmin users
+          universityId: req.tenantId || req.user?.universityId || null,
         },
       });
 
@@ -235,6 +237,11 @@ const getAllStudents = async (req, res) => {
     } = req.query;
 
     const where = {};
+
+    // Tenant isolation: scope students to the requesting university via their UserLogin
+    if (req.tenantId) {
+      where.userLogin = { universityId: req.tenantId };
+    }
 
     // Search filter
     if (search) {
@@ -360,6 +367,7 @@ const getStudentById = async (req, res) => {
             uid: true,
             email: true,
             status: true,
+            universityId: true,
             createdAt: true,
           },
         },
@@ -413,6 +421,14 @@ const getStudentById = async (req, res) => {
       });
     }
 
+    // Tenant isolation: prevent cross-university access
+    if (req.tenantId && student.userLogin?.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This student does not belong to your university.',
+      });
+    }
+
     res.json({
       success: true,
       data: student,
@@ -449,15 +465,24 @@ const updateStudent = async (req, res) => {
       address,
     } = req.body;
 
-    // Check if student exists
+    // Check if student exists and belongs to this university
     const existingStudent = await prisma.studentDetails.findUnique({
       where: { id },
+      include: { userLogin: { select: { universityId: true } } },
     });
 
     if (!existingStudent) {
       return res.status(404).json({
         success: false,
         message: 'Student not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university modification
+    if (req.tenantId && existingStudent.userLogin?.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This student does not belong to your university.',
       });
     }
 
@@ -566,13 +591,21 @@ const toggleStudentStatus = async (req, res) => {
 
     const student = await prisma.studentDetails.findUnique({
       where: { id },
-      include: { userLogin: true },
+      include: { userLogin: { select: { universityId: true } } },
     });
 
     if (!student) {
       return res.status(404).json({
         success: false,
         message: 'Student not found',
+      });
+    }
+
+    // Tenant isolation
+    if (req.tenantId && student.userLogin?.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This student does not belong to your university.',
       });
     }
 
@@ -751,13 +784,21 @@ const resetStudentPassword = async (req, res) => {
 
     const student = await prisma.studentDetails.findUnique({
       where: { id },
-      include: { userLogin: true },
+      include: { userLogin: { select: { id: true, universityId: true } } },
     });
 
     if (!student) {
       return res.status(404).json({
         success: false,
         message: 'Student not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university password reset
+    if (req.tenantId && student.userLogin?.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This student does not belong to your university.',
       });
     }
 

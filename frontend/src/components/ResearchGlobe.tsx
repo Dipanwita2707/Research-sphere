@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import * as THREE from 'three';
 
 const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
 
@@ -89,12 +90,55 @@ function resolveCoords(name: string): { lat: number; lng: number } | null {
   for (const [key, coords] of Object.entries(AFFILIATION_COORDS)) {
     if (lower.includes(key)) return coords;
   }
-  return null;
+  
+  // Country fallbacks
+  if (lower.includes('india') || lower.includes('iit') || lower.includes('nit') || lower.includes('delhi') || lower.includes('bombay') || lower.includes('madras')) {
+    return { lat: 20.5937, lng: 78.9629 };
+  }
+  if (lower.includes('usa') || lower.includes('united states') || lower.includes('mit') || lower.includes('harvard') || lower.includes('stanford') || lower.includes('california')) {
+    return { lat: 37.0902, lng: -95.7129 };
+  }
+  if (lower.includes('uk') || lower.includes('united kingdom') || lower.includes('oxford') || lower.includes('cambridge') || lower.includes('london')) {
+    return { lat: 55.3781, lng: -3.4360 };
+  }
+  if (lower.includes('china') || lower.includes('peking') || lower.includes('tsinghua')) {
+    return { lat: 35.8617, lng: 104.1954 };
+  }
+  if (lower.includes('singapore') || lower.includes('nus') || lower.includes('nanyang')) {
+    return { lat: 1.3521, lng: 103.8198 };
+  }
+  if (lower.includes('australia') || lower.includes('sydney') || lower.includes('melbourne') || lower.includes('anu')) {
+    return { lat: -25.2744, lng: 133.7751 };
+  }
+  if (lower.includes('canada') || lower.includes('toronto')) {
+    return { lat: 56.1304, lng: -106.3468 };
+  }
+  if (lower.includes('germany') || lower.includes('munich') || lower.includes('berlin')) {
+    return { lat: 51.1657, lng: 10.4515 };
+  }
+  if (lower.includes('france') || lower.includes('paris') || lower.includes('sorbonne')) {
+    return { lat: 46.2276, lng: 2.2137 };
+  }
+  if (lower.includes('japan') || lower.includes('tokyo')) {
+    return { lat: 36.2048, lng: 138.2529 };
+  }
+  if (lower.includes('switzerland') || lower.includes('eth') || lower.includes('zurich')) {
+    return { lat: 46.8182, lng: 8.2275 };
+  }
+
+  // Deterministic hash fallback
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const lat = ((Math.abs(hash) % 100) - 50); // -50 to 50
+  const lng = ((Math.abs(hash >> 8) % 320) - 160); // -160 to 160
+  return { lat, lng };
 }
 
-const SGT = { lat: 28.423, lng: 77.031 };
+const ResearchSphere = { lat: 28.423, lng: 77.031 };
 
-// India POV — valid lat/lng pointing directly at SGT University
+// India POV — valid lat/lng pointing directly at ResearchSphere
 const INDIA_POV = { lat: 22, lng: 78, altitude: 1.2 };
 
 const FALLBACK = [
@@ -131,102 +175,88 @@ interface Props {
   affiliations?: AffiliationPoint[];
 }
 
-// Convert lat/lng/altitude to Three.js XYZ (globe radius = 100)
-function indiaXYZ(alt: number) {
-  const PI = Math.PI;
-  const lat = 22, lng = 78;
-  const phi   = (90 - lat)  * PI / 180;
-  const theta = (lng + 180) * PI / 180;  // globe.gl adds 180° offset
-  const r = 100 * (1 + alt);
-  return {
-    x: -r * Math.sin(phi) * Math.cos(theta),
-    y:  r * Math.cos(phi),
-    z:  r * Math.sin(phi) * Math.sin(theta),
-  };
-}
-
-function useForceIndiaPOV(globeRef: React.MutableRefObject<any>) {
-  const rafRef = useRef<number | null>(null);
-
-  const lock = React.useCallback(() => {
-    if (!globeRef.current) return;
-    const g = globeRef.current;
-    const { x, y, z } = indiaXYZ(1.2);
-
-    const applyOnce = () => {
-      const cam  = typeof g.camera   === 'function' ? g.camera()   : null;
-      const ctrl = typeof g.controls === 'function' ? g.controls() : null;
-      if (!cam || !ctrl) return;
-
-      // Move camera to India
-      cam.position.set(x, y, z);
-      cam.lookAt(0, 0, 0);
-      cam.updateMatrixWorld(true);
-      g.pointOfView(INDIA_POV, 0);
-
-      // Clear any rotation delta
-      if (ctrl._sphericalDelta) ctrl._sphericalDelta.set(0, 0, 0);
-
-      // Sync OrbitControls internal _spherical FROM camera.position
-      ctrl.enableDamping = false;
-      ctrl.target.set(0, 0, 0);
-      ctrl.update();
-      ctrl.enableDamping = true;
-
-      ctrl.reset = () => {};
-      if (typeof ctrl.saveState === 'function') ctrl.saveState();
-      ctrl.enableZoom  = false;
-      ctrl.autoRotate  = false;
-    };
-
-    applyOnce();
-
-    // Run 30 frames (~0.5s) — enough since animateIn=false, no scene spin
-    let frames = 0;
-    const loop = () => {
-      applyOnce();
-      frames++;
-      if (frames < 30) {
-        rafRef.current = requestAnimationFrame(loop);
-      } else {
-        const c = typeof g.controls === 'function' ? g.controls() : null;
-        if (c) { c.autoRotate = true; c.autoRotateSpeed = 0.4; }
-      }
-    };
-    rafRef.current = requestAnimationFrame(loop);
-  }, [globeRef]);
-
-  useEffect(() => () => {
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  return lock;
-}
-
-export default function ResearchGlobe({ width = 570, height = 580, affiliations }: Props): JSX.Element {
+export default function ResearchGlobe({ width = 520, height = 520, affiliations }: Props): JSX.Element {
   const globeRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
-  const lockIndia = useForceIndiaPOV(globeRef);
+  const [bumpTexture, setBumpTexture] = useState<THREE.Texture | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 80);
+    const t = setTimeout(() => setReady(true), 100);
+
+    // Manually load the bump texture using Three.js TextureLoader to ensure it maps correctly on the custom material
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      'https://unpkg.com/three-globe/example/img/earth-topology.png',
+      (texture) => {
+        setBumpTexture(texture);
+      },
+      undefined,
+      (err) => console.error('Error loading bump texture for globe:', err)
+    );
+
     return () => clearTimeout(t);
   }, []);
 
-  // Extra trigger: after globe mounts, wait 300ms then force India again
-  // in case onGlobeReady fired before the component fully settled.
-  useEffect(() => {
-    if (!ready) return;
-    const t = setTimeout(() => lockIndia(), 300);
-    return () => clearTimeout(t);
-  }, [ready, lockIndia]);
+  // Create a custom material that overrides the react-globe.gl default material entirely
+  const customMaterial = React.useMemo(() => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color('#f8fafc'), // pure white clay color
+      roughness: 0.55,
+      metalness: 0.05,
+      bumpScale: 14.0, // High relief contrast
+    });
+    if (bumpTexture) {
+      mat.bumpMap = bumpTexture;
+    }
+    return mat;
+  }, [bumpTexture]);
 
   const handleGlobeReady = React.useCallback(() => {
     if (!globeRef.current) return;
-    const ctrl = globeRef.current.controls();
-    if (ctrl) { ctrl.autoRotate = false; ctrl.enableZoom = false; }
-    lockIndia();
-  }, [lockIndia]);
+    
+    const globe = globeRef.current;
+    
+    // Configure controls for auto-rotation and interactive zooming
+    const controls = globe.controls();
+    if (controls) {
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.65;
+      controls.enableZoom = true;
+      controls.enablePan = false;
+      controls.minDistance = 120;
+      controls.maxDistance = 400;
+    }
+    
+    // Center on India
+    globe.pointOfView({ lat: 22, lng: 78, altitude: 1.25 }, 0);
+
+    // Configure Three.js lighting to highlight the reliefs and add the soft ice-blue backlight
+    const scene = globe.scene();
+    if (scene) {
+      scene.traverse((obj: any) => {
+        if (obj.isDirectionalLight) {
+          // Position key light at top-left to cast gorgeous shadows in the relief crevices
+          obj.position.set(-180, 220, 100);
+          obj.intensity = 1.9;
+          obj.color.set('#ffffff');
+        }
+        if (obj.isAmbientLight) {
+          obj.intensity = 0.9;
+          obj.color.set('#f1f5f9'); // Soft ambient fill
+        }
+      });
+
+      // Add a custom ice-blue backlight/glow from the right-back to replicate the image glow
+      const backlightId = 'globe-ice-backlight';
+      const existing = scene.getObjectByName(backlightId);
+      if (!existing) {
+        const iceBacklight = new THREE.DirectionalLight('#93c5fd', 1.8);
+        iceBacklight.name = backlightId;
+        iceBacklight.position.set(180, -80, -180);
+        scene.add(iceBacklight);
+      }
+    }
+  }, []);
 
   const partnerPoints = React.useMemo(() => {
     if (affiliations && affiliations.length > 0) {
@@ -239,60 +269,64 @@ export default function ResearchGlobe({ width = 570, height = 580, affiliations 
         if (seen.has(key)) continue;
         seen.add(key);
         pts.push({ ...coords, name: a.name, count: a.count });
-        if (pts.length >= 30) break;
+        if (pts.length >= 35) break;
       }
-      if (pts.length >= 3) return pts;
+      if (pts.length >= 1) return pts;
     }
     return FALLBACK;
   }, [affiliations]);
 
   const arcs = React.useMemo(() => partnerPoints.map((u, i) => ({
-    startLat: SGT.lat,
-    startLng: SGT.lng,
+    startLat: ResearchSphere.lat,
+    startLng: ResearchSphere.lng,
     endLat: u.lat,
     endLng: u.lng,
     color: [
-      ['rgba(0,255,255,0.9)', 'rgba(0,220,255,0.6)'],
-      ['rgba(255,0,200,0.9)', 'rgba(220,0,255,0.6)'],
-      ['rgba(0,255,128,0.9)', 'rgba(0,200,180,0.6)'],
-      ['rgba(255,200,0,0.9)', 'rgba(255,100,0,0.6)'],
-      ['rgba(100,180,255,0.9)', 'rgba(60,100,255,0.6)'],
+      ['rgba(124, 58, 237, 0.9)', 'rgba(99, 102, 241, 0.6)'], // Violet to Indigo
+      ['rgba(236, 72, 153, 0.9)', 'rgba(219, 39, 119, 0.6)'], // Pink to Rose
+      ['rgba(59, 130, 246, 0.9)', 'rgba(37, 99, 235, 0.6)'],  // Blue
+      ['rgba(20, 184, 166, 0.9)', 'rgba(13, 148, 136, 0.6)'],  // Teal
+      ['rgba(245, 158, 11, 0.9)', 'rgba(217, 119, 6, 0.6)'],   // Amber
     ][i % 5],
     label: u.name,
   })), [partnerPoints]);
 
   const points = React.useMemo(() => [
-    { lat: SGT.lat, lng: SGT.lng, size: 1.4, color: '#f97316', label: 'SGT University' },
+    { lat: ResearchSphere.lat, lng: ResearchSphere.lng, size: 1.6, color: '#f97316', label: 'ResearchSphere (You)' },
     ...partnerPoints.map((u) => ({
       lat: u.lat,
       lng: u.lng,
-      size: Math.min(0.35 + (u.count / 5) * 0.5, 1.0),
-      color: '#818cf8',
-      label: `${u.name} (${u.count} papers)`,
+      size: Math.min(0.4 + (u.count / 5) * 0.4, 1.2),
+      color: '#4f46e5',
+      label: `${u.name} (${u.count} collaborations)`,
     })),
   ], [partnerPoints]);
 
   return (
-    <div style={{ width, height, overflow: 'hidden' }} className="flex items-center justify-center">
+    <div style={{ width, height, overflow: 'hidden' }} className="flex items-center justify-center cursor-grab active:cursor-grabbing">
       {ready && (
         <Globe
           ref={globeRef}
           width={width}
           height={height}
           backgroundColor="rgba(0,0,0,0)"
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-          bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-          atmosphereColor="#93c5fd"
-          atmosphereAltitude={0.15}
+          globeMaterial={customMaterial}
+          showAtmosphere={true}
+          atmosphereColor="#93c5fd" // Glowing ice-blue atmosphere
+          atmosphereAltitude={0.22}  // Wide glowing atmosphere to match reference image
           animateIn={false}
           onGlobeReady={handleGlobeReady}
+          
+          // Arcs representing collaborations
           arcsData={arcs}
           arcColor="color"
           arcDashLength={0.45}
           arcDashGap={0.12}
           arcDashAnimateTime={1200}
-          arcStroke={0.5}
+          arcStroke={0.65}
           arcAltitudeAutoScale={0.4}
+          
+          // Points
           pointsData={points}
           pointColor="color"
           pointAltitude={0.02}

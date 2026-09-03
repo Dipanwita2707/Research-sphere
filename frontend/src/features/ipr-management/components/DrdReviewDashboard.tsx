@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { getFileUrl } from '@/shared/api/api';
@@ -438,7 +438,7 @@ export default function DrdReviewDashboard() {
     const statusConfig: Record<string, { label: string; color: string; bg: string; ring: string }> = {
       draft: { label: 'Draft', color: 'text-gray-700', bg: 'bg-gray-100', ring: 'ring-gray-200' },
       pending_mentor_approval: { label: 'Pending Mentor', color: 'text-orange-700', bg: 'bg-orange-50', ring: 'ring-orange-200' },
-      submitted: { label: 'Submitted', color: 'text-sgt-700', bg: 'bg-sgt-50', ring: 'ring-sgt-200' },
+      submitted: { label: 'Submitted', color: 'text-ResearchSphere-700', bg: 'bg-ResearchSphere-50', ring: 'ring-ResearchSphere-200' },
       under_drd_review: { label: 'Under Review', color: 'text-amber-700', bg: 'bg-amber-50', ring: 'ring-amber-200' },
       changes_required: { label: 'Changes Required', color: 'text-orange-700', bg: 'bg-orange-50', ring: 'ring-orange-200' },
       resubmitted: { label: 'Resubmitted', color: 'text-purple-700', bg: 'bg-purple-50', ring: 'ring-purple-200' },
@@ -501,9 +501,9 @@ export default function DrdReviewDashboard() {
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center">
           <div className="relative">
-            <div className="w-20 h-20 border-4 border-sgt-100 rounded-full animate-spin border-t-sgt-600"></div>
+            <div className="w-20 h-20 border-4 border-ResearchSphere-100 rounded-full animate-spin border-t-ResearchSphere-600"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-10 h-10 bg-sgt-gradient rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-ResearchSphere-gradient rounded-xl flex items-center justify-center shadow-lg">
                 <FileText className="w-5 h-5 text-white" />
               </div>
             </div>
@@ -518,7 +518,7 @@ export default function DrdReviewDashboard() {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-sgt-gradient rounded-3xl p-8 text-white shadow-sgt-xl">
+      <div className="relative overflow-hidden bg-ResearchSphere-gradient rounded-3xl p-8 text-white shadow-ResearchSphere-xl">
         {/* Background decorations */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white rounded-full -translate-y-1/2 translate-x-1/2"></div>
@@ -526,8 +526,8 @@ export default function DrdReviewDashboard() {
         </div>
         
         {/* Floating elements */}
-        <div className="absolute top-8 right-16 w-3 h-3 bg-sgt-50 rounded-full animate-float opacity-60"></div>
-        <div className="absolute bottom-16 right-32 w-2 h-2 bg-sgt-100 rounded-full animate-float opacity-40" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-8 right-16 w-3 h-3 bg-ResearchSphere-50 rounded-full animate-float opacity-60"></div>
+        <div className="absolute bottom-16 right-32 w-2 h-2 bg-ResearchSphere-100 rounded-full animate-float opacity-40" style={{animationDelay: '0.5s'}}></div>
         
         <div className="relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -537,7 +537,7 @@ export default function DrdReviewDashboard() {
               </div>
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold">DRD Review Dashboard</h1>
-                <p className="text-sgt-100 text-lg mt-1">Manage and review IPR applications</p>
+                <p className="text-ResearchSphere-100 text-lg mt-1">Manage and review IPR applications</p>
               </div>
             </div>
             
@@ -554,7 +554,7 @@ export default function DrdReviewDashboard() {
 
           {/* Workflow Progress */}
           <div className="mt-8 bg-white/10 backdrop-blur rounded-2xl p-5 border border-white/10">
-            <h3 className="text-sm font-semibold text-sgt-100 mb-4 uppercase tracking-wider">IPR Workflow Pipeline</h3>
+            <h3 className="text-sm font-semibold text-ResearchSphere-100 mb-4 uppercase tracking-wider">IPR Workflow Pipeline</h3>
             <div className="flex items-center justify-between overflow-x-auto">
               {[
                 { icon: <Send size={16} />, label: 'Submitted', count: tabStats.pending },
@@ -586,9 +586,9 @@ export default function DrdReviewDashboard() {
 
       {/* User Info Bar */}
       {user && (
-        <div className="bg-gradient-to-r from-sgt-50 to-white rounded-2xl p-4 shadow-sm border border-sgt-100 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-ResearchSphere-50 to-white rounded-2xl p-4 shadow-sm border border-ResearchSphere-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sgt-gradient rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-ResearchSphere-gradient rounded-xl flex items-center justify-center">
               <User className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -606,7 +606,7 @@ export default function DrdReviewDashboard() {
                 Assign Schools
               </a>
             )}
-            <span className="px-3 py-1.5 bg-sgt-100 text-sgt-700 rounded-lg text-sm font-medium">DRD Reviewer</span>
+            <span className="px-3 py-1.5 bg-ResearchSphere-100 text-ResearchSphere-700 rounded-lg text-sm font-medium">DRD Reviewer</span>
           </div>
         </div>
       )}
@@ -629,7 +629,7 @@ export default function DrdReviewDashboard() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sgt border border-gray-100 card-hover">
+        <div className="bg-white rounded-2xl p-5 shadow-ResearchSphere border border-gray-100 card-hover">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
               <Clock className="w-6 h-6 text-amber-600" />
@@ -640,7 +640,7 @@ export default function DrdReviewDashboard() {
           <p className="text-sm text-gray-500 mt-1">Awaiting Review</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-sgt border border-gray-100 card-hover">
+        <div className="bg-white rounded-2xl p-5 shadow-ResearchSphere border border-gray-100 card-hover">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
               <ChevronRight className="w-6 h-6 text-indigo-600" />
@@ -651,7 +651,7 @@ export default function DrdReviewDashboard() {
           <p className="text-sm text-gray-500 mt-1">To DRD Head</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-sgt border border-gray-100 card-hover">
+        <div className="bg-white rounded-2xl p-5 shadow-ResearchSphere border border-gray-100 card-hover">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
               <Building className="w-6 h-6 text-teal-600" />
@@ -662,7 +662,7 @@ export default function DrdReviewDashboard() {
           <p className="text-sm text-gray-500 mt-1">Government Filing</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-sgt border border-gray-100 card-hover">
+        <div className="bg-white rounded-2xl p-5 shadow-ResearchSphere border border-gray-100 card-hover">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
               <Award className="w-6 h-6 text-emerald-600" />
@@ -675,7 +675,7 @@ export default function DrdReviewDashboard() {
       </div>
 
       {/* Tabs & Search */}
-      <div className="bg-white rounded-2xl shadow-sgt border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-ResearchSphere border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Tabs */}
@@ -693,7 +693,7 @@ export default function DrdReviewDashboard() {
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all duration-200 ${
                     activeTab ===
    tab.key
-                      ? 'bg-sgt-gradient text-white shadow-sgt'
+                      ? 'bg-ResearchSphere-gradient text-white shadow-ResearchSphere'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
@@ -719,7 +719,7 @@ export default function DrdReviewDashboard() {
                 placeholder="Search applications..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2.5 w-full lg:w-64 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all"
+                className="pl-10 pr-4 py-2.5 w-full lg:w-64 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400 transition-all"
               />
             </div>
           </div>
@@ -744,7 +744,7 @@ export default function DrdReviewDashboard() {
               <div key={app.id} className="p-6 hover:bg-gray-50/50 transition-all duration-200 group">
                 <div className="flex items-start gap-6">
                   {/* Icon */}
-                  <div className="w-14 h-14 bg-sgt-gradient rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sgt group-hover:scale-105 transition-transform">
+                  <div className="w-14 h-14 bg-ResearchSphere-gradient rounded-2xl flex items-center justify-center flex-shrink-0 shadow-ResearchSphere group-hover:scale-105 transition-transform">
                     <FileText className="w-7 h-7 text-white" />
                   </div>
                   
@@ -754,14 +754,14 @@ export default function DrdReviewDashboard() {
                       <div>
                         <div className="flex items-center gap-3 flex-wrap mb-2">
                           {app.applicationNumber && (
-                            <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg font-bold tracking-wide">
+                            <span className="px-2.5 py-1 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded-lg font-bold tracking-wide">
                               {app.applicationNumber}
                             </span>
                           )}
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-sgt-600 transition-colors">
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-ResearchSphere-600 transition-colors">
                             {app.title}
                           </h3>
-                          <span className="px-2.5 py-1 bg-sgt-100 text-sgt-700 text-xs rounded-lg font-semibold uppercase">
+                          <span className="px-2.5 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 text-xs rounded-lg font-semibold uppercase">
                             {app.iprType}
                           </span>
                           {getStatusBadge(app.status)}
@@ -857,7 +857,7 @@ export default function DrdReviewDashboard() {
                       <>
                         <button
                           onClick={() => handleReviewClick(app)}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-sgt-gradient text-white rounded-xl hover:shadow-sgt transition-all duration-200 font-medium"
+                          className="flex items-center gap-2 px-4 py-2.5 bg-ResearchSphere-gradient text-white rounded-xl hover:shadow-ResearchSphere transition-all duration-200 font-medium"
                         >
                           <MessageSquare className="w-4 h-4" />
                           Review
@@ -889,7 +889,7 @@ export default function DrdReviewDashboard() {
                             setSelectedApp(details);
                             setShowViewDetailsModal(true);
                           }}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all duration-200 text-sm font-medium"
+                          className="flex items-center gap-2 px-4 py-2 bg-[#fdf5ec] text-[#7d1a34] rounded-xl hover:bg-[#fbe2e8] transition-all duration-200 text-sm font-medium"
                         >
                           <Eye className="w-4 h-4" />
                           View Details
@@ -999,16 +999,16 @@ export default function DrdReviewDashboard() {
 
       {/* Government Application ID Modal */}
       {showGovtIdModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp">
-            <div className="bg-sgt-gradient p-6 text-white">
+            <div className="bg-ResearchSphere-gradient p-6 text-white">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
                   <Hash className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">Government Application ID</h3>
-                  <p className="text-sgt-100 text-sm">Add filing reference number</p>
+                  <p className="text-ResearchSphere-100 text-sm">Add filing reference number</p>
                 </div>
               </div>
             </div>
@@ -1028,7 +1028,7 @@ export default function DrdReviewDashboard() {
                   value={govtApplicationId}
                   onChange={(e) => setGovtApplicationId(e.target.value)}
                   placeholder="e.g., IN202341012345"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400 transition-all"
                 />
               </div>
               
@@ -1046,7 +1046,7 @@ export default function DrdReviewDashboard() {
                 <button
                   onClick={handleAddGovtId}
                   disabled={submitting || !govtApplicationId.trim()}
-                  className="flex-1 px-4 py-3 bg-sgt-gradient text-white rounded-xl hover:shadow-sgt font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-3 bg-ResearchSphere-gradient text-white rounded-xl hover:shadow-ResearchSphere font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Adding...' : 'Add ID'}
                 </button>
@@ -1058,7 +1058,7 @@ export default function DrdReviewDashboard() {
 
       {/* Publication ID Modal */}
       {showPubIdModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp">
             <div className={`bg-gradient-to-r ${selectedApp.status ===
    'govt_rejected' ? 'from-red-600 to-red-700' : 'from-emerald-600 to-emerald-700'} p-6 text-white`}>
@@ -1129,7 +1129,7 @@ export default function DrdReviewDashboard() {
 
       {/* Mark as Rejected Modal */}
       {showRejectModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp">
             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white">
               <div className="flex items-center gap-4">
@@ -1192,10 +1192,10 @@ export default function DrdReviewDashboard() {
 
       {/* View Details Modal - For DRD Head to view application details with documents */}
       {showViewDetailsModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="bg-sgt-gradient p-6 text-white flex-shrink-0">
+            <div className="bg-ResearchSphere-gradient p-6 text-white flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
@@ -1203,7 +1203,7 @@ export default function DrdReviewDashboard() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold">Application Details</h2>
-                    <p className="text-sgt-100">Review complete application information</p>
+                    <p className="text-ResearchSphere-100">Review complete application information</p>
                   </div>
                 </div>
                 <button
@@ -1223,7 +1223,7 @@ export default function DrdReviewDashboard() {
               {/* Application Info */}
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-sgt-600" />
+                  <FileText className="w-5 h-5 text-ResearchSphere-600" />
                   Application Information
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -1241,7 +1241,7 @@ export default function DrdReviewDashboard() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">IPR Type</p>
-                    <span className="inline-block px-3 py-1 bg-sgt-100 text-sgt-700 rounded-lg font-semibold text-sm uppercase">
+                    <span className="inline-block px-3 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 rounded-lg font-semibold text-sm uppercase">
                       {selectedApp.iprType}
                     </span>
                   </div>
@@ -1275,7 +1275,7 @@ export default function DrdReviewDashboard() {
               {/* Applicant Details */}
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5 text-sgt-600" />
+                  <User className="w-5 h-5 text-ResearchSphere-600" />
                   Applicant Information
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -1359,14 +1359,14 @@ export default function DrdReviewDashboard() {
               {selectedApp.contributors && selectedApp.contributors.length > 0 && (
                 <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-sgt-600" />
+                    <Users className="w-5 h-5 text-ResearchSphere-600" />
                     Inventors/Contributors
                   </h3>
                   <div className="grid gap-3">
                     {selectedApp.contributors.map((contributor: any, index: number) => (
                       <div key={index} className="flex items-center gap-4 p-3 bg-white rounded-xl border border-gray-100">
-                        <div className="w-10 h-10 bg-sgt-100 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-sgt-600" />
+                        <div className="w-10 h-10 bg-ResearchSphere-100 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-ResearchSphere-600" />
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-gray-900">{contributor.name}</p>
@@ -1381,7 +1381,7 @@ export default function DrdReviewDashboard() {
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
                           contributor.employeeCategory ===
    'internal' || contributor.userId
-                            ? 'bg-blue-100 text-blue-700' 
+                            ? 'bg-[#fbe2e8] text-[#7d1a34]' 
                             : 'bg-purple-100 text-purple-700'
                         }`}>
                           {contributor.employeeCategory ===
@@ -1397,7 +1397,7 @@ export default function DrdReviewDashboard() {
               {selectedApp.sdgs && selectedApp.sdgs.length > 0 && (
                 <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-sgt-600" />
+                    <Sparkles className="w-5 h-5 text-ResearchSphere-600" />
                     Sustainable Development Goals
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -1413,7 +1413,7 @@ export default function DrdReviewDashboard() {
               {/* Documents Section - Always show, with message if no documents */}
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-sgt-600" />
+                  <FileText className="w-5 h-5 text-ResearchSphere-600" />
                   Uploaded Documents
                 </h3>
                 {(selectedApp.annexureFilePath || (selectedApp.supportingDocsFilePaths && selectedApp.supportingDocsFilePaths.length > 0)) ? (
@@ -1430,8 +1430,8 @@ export default function DrdReviewDashboard() {
                         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                           <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <FileText className="w-5 h-5 text-blue-600" />
+                              <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
+                                <FileText className="w-5 h-5 text-[#7d1a34]" />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">Main Annexure</p>
@@ -1442,7 +1442,7 @@ export default function DrdReviewDashboard() {
                               href={fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all text-sm font-medium"
+                              className="px-4 py-2 bg-[#fdf5ec] text-[#7d1a34] rounded-lg hover:bg-[#fbe2e8] transition-all text-sm font-medium"
                             >
                               Open in New Tab
                             </a>
@@ -1492,7 +1492,7 @@ export default function DrdReviewDashboard() {
                               href={fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all text-sm font-medium"
+                              className="px-4 py-2 bg-[#fdf5ec] text-[#7d1a34] rounded-lg hover:bg-[#fbe2e8] transition-all text-sm font-medium"
                             >
                               Open in New Tab
                             </a>
@@ -1532,12 +1532,12 @@ export default function DrdReviewDashboard() {
               {selectedApp.reviews && selectedApp.reviews.length > 0 && (
                 <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-200 shadow-sm">
                   <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-sgt-600" />
+                    <Clock className="w-5 h-5 text-ResearchSphere-600" />
                     Review History
                   </h3>
                   <div className="space-y-4 relative">
                     {/* Timeline line */}
-                    <div className="absolute left-[23px] top-8 bottom-8 w-0.5 bg-gradient-to-b from-sgt-200 via-sgt-300 to-sgt-200"></div>
+                    <div className="absolute left-[23px] top-8 bottom-8 w-0.5 bg-gradient-to-b from-ResearchSphere-200 via-ResearchSphere-300 to-ResearchSphere-200"></div>
                     
                     {selectedApp.reviews.map((review: any, index: number) => {
                       const isApproved = review.decision ===
@@ -1651,10 +1651,10 @@ export default function DrdReviewDashboard() {
 
       {/* Review Modal */}
       {showReviewModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="bg-sgt-gradient p-6 text-white flex-shrink-0">
+            <div className="bg-ResearchSphere-gradient p-6 text-white flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
@@ -1668,7 +1668,7 @@ export default function DrdReviewDashboard() {
                     <h2 className="text-2xl font-bold">
                       {isCollaborativeMode ? 'Collaborative Review' : 'Traditional Review'}
                     </h2>
-                    <p className="text-sgt-100">IPR Application Review</p>
+                    <p className="text-ResearchSphere-100">IPR Application Review</p>
                   </div>
                 </div>
                 <button
@@ -1689,7 +1689,7 @@ export default function DrdReviewDashboard() {
               {/* Application Details */}
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-sgt-600" />
+                  <FileText className="w-5 h-5 text-ResearchSphere-600" />
                   Application Details
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -1699,7 +1699,7 @@ export default function DrdReviewDashboard() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Type</p>
-                    <span className="inline-block px-3 py-1 bg-sgt-100 text-sgt-700 rounded-lg font-semibold text-sm uppercase">
+                    <span className="inline-block px-3 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 rounded-lg font-semibold text-sm uppercase">
                       {selectedApp.iprType}
                     </span>
                   </div>
@@ -1739,7 +1739,7 @@ export default function DrdReviewDashboard() {
               {/* Applicant Details */}
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5 text-sgt-600" />
+                  <User className="w-5 h-5 text-ResearchSphere-600" />
                   Applicant Information
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -1846,14 +1846,14 @@ export default function DrdReviewDashboard() {
               {selectedApp.contributors && selectedApp.contributors.length > 0 && (
                 <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-sgt-600" />
+                    <Users className="w-5 h-5 text-ResearchSphere-600" />
                     Inventors/Contributors
                   </h3>
                   <div className="grid gap-3">
                     {selectedApp.contributors.map((contributor: any, index: number) => (
                       <div key={index} className="flex items-center gap-4 p-3 bg-white rounded-xl border border-gray-100">
-                        <div className="w-10 h-10 bg-sgt-100 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-sgt-600" />
+                        <div className="w-10 h-10 bg-ResearchSphere-100 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-ResearchSphere-600" />
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-gray-900">{contributor.name}</p>
@@ -1865,7 +1865,7 @@ export default function DrdReviewDashboard() {
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
                           contributor.employeeCategory ===
    'internal' || contributor.userId
-                            ? 'bg-blue-100 text-blue-700' 
+                            ? 'bg-[#fbe2e8] text-[#7d1a34]' 
                             : 'bg-purple-100 text-purple-700'
                         }`}>
                           {contributor.employeeCategory ===
@@ -1880,7 +1880,7 @@ export default function DrdReviewDashboard() {
               {/* Documents Section */}
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-sgt-600" />
+                  <FileText className="w-5 h-5 text-ResearchSphere-600" />
                   Uploaded Documents
                 </h3>
                 {(selectedApp.annexureFilePath || selectedApp.supportingDocsFilePaths || selectedApp.prototypeFilePath || 
@@ -1890,9 +1890,9 @@ export default function DrdReviewDashboard() {
                   <div className="grid gap-3">
                     {/* Main Document (annexureFilePath) */}
                     {selectedApp.annexureFilePath && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.annexureFilePath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-blue-600" />
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.annexureFilePath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                        <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-[#7d1a34]" />
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">Main Document</p>
@@ -1904,7 +1904,7 @@ export default function DrdReviewDashboard() {
                     
                     {/* Prototype ZIP (prototypeFilePath) */}
                     {selectedApp.prototypeFilePath && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.prototypeFilePath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.prototypeFilePath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-purple-600" />
                         </div>
@@ -1918,7 +1918,7 @@ export default function DrdReviewDashboard() {
                     
                     {/* Supporting Documents (supportingDocsFilePaths - JSON array) */}
                     {selectedApp.supportingDocsFilePaths && Array.isArray(selectedApp.supportingDocsFilePaths) && selectedApp.supportingDocsFilePaths.map((docPath: string, idx: number) => (
-                      <a key={idx} href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${docPath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a key={idx} href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${docPath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-green-600" />
                         </div>
@@ -1932,7 +1932,7 @@ export default function DrdReviewDashboard() {
                     
                     {/* Legacy fields for backward compatibility */}
                     {selectedApp.abstractFile && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.abstractFile.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.abstractFile.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-red-600" />
                         </div>
@@ -1944,9 +1944,9 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.supportingDocs && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.supportingDocs.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-blue-600" />
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.supportingDocs.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                        <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-[#7d1a34]" />
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">Supporting Documents</p>
@@ -1956,7 +1956,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.nocDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.nocDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.nocDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-green-600" />
                         </div>
@@ -1968,7 +1968,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
@@ -1980,7 +1980,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIIDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
@@ -1992,7 +1992,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIIIDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIIIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIIIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
@@ -2004,7 +2004,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIVDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIVDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-sgt-200 transition-all">
+                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIVDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
@@ -2022,9 +2022,9 @@ export default function DrdReviewDashboard() {
               </div>
 
               {/* Review Form */}
-              <div className="bg-white rounded-2xl p-5 border-2 border-sgt-100">
+              <div className="bg-white rounded-2xl p-5 border-2 border-ResearchSphere-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Edit3 className="w-5 h-5 text-sgt-600" />
+                  <Edit3 className="w-5 h-5 text-ResearchSphere-600" />
                   Your Review
                 </h3>
                 
@@ -2035,7 +2035,7 @@ export default function DrdReviewDashboard() {
                     </label>
                     {/* Permission Info */}
                     {!canApprove && (
-                      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                      <div className="mb-3 p-3 bg-[#fdf5ec] border border-[#f0e2d2] rounded-lg text-sm text-[#7d1a34]">
                         <Shield className="w-4 h-4 inline mr-2" />
                         You can <strong>Recommend</strong> applications for approval. Only DRD Head can give final approval.
                       </div>
@@ -2089,7 +2089,7 @@ export default function DrdReviewDashboard() {
    option.value
                                   ? option.color ===
    'blue' 
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                    ? 'border-[#7d1a34] bg-[#fdf5ec] text-[#7d1a34]'
                                     : option.color ===
    'amber'
                                     ? 'border-amber-500 bg-amber-50 text-amber-700'
@@ -2115,7 +2115,7 @@ export default function DrdReviewDashboard() {
                       onChange={(e) => setReviewData({ ...reviewData, comments: e.target.value })}
                       rows={4}
                       required
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all resize-none"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400 transition-all resize-none"
                       placeholder="Provide your review comments..."
                     />
                   </div>
@@ -2209,10 +2209,10 @@ export default function DrdReviewDashboard() {
                         />
                       </div>
                       
-                      <div className="p-4 bg-sgt-50 rounded-xl border border-sgt-100">
+                      <div className="p-4 bg-ResearchSphere-50 rounded-xl border border-ResearchSphere-100">
                         <div className="flex items-start gap-3">
-                          <Sparkles className="w-5 h-5 text-sgt-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm text-sgt-700">
+                          <Sparkles className="w-5 h-5 text-ResearchSphere-600 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-ResearchSphere-700">
                             <strong>How it works:</strong> Click &quot;Suggest Edit&quot; next to any field to propose changes. 
                             The applicant will be notified and can accept or reject your suggestions.
                           </div>
@@ -2239,7 +2239,7 @@ export default function DrdReviewDashboard() {
               <button
                 onClick={handleSubmitReview}
                 disabled={submitting || !reviewData.comments}
-                className="flex-1 px-6 py-3 bg-sgt-gradient text-white rounded-xl hover:shadow-sgt font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 bg-ResearchSphere-gradient text-white rounded-xl hover:shadow-ResearchSphere font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Submitting...' : 'Submit Review'}
               </button>

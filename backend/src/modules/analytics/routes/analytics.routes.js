@@ -11,6 +11,7 @@ router.get('/overview', restrictTo('admin'), analyticsController.getUniversityOv
 router.get('/schools', restrictTo('admin'), analyticsController.getSchoolWiseStats);
 router.get('/departments', restrictTo('admin'), analyticsController.getDepartmentWiseStats);
 router.get('/ipr', restrictTo('admin'), analyticsController.getIprAnalytics);
+router.get('/categories', restrictTo('admin'), analyticsController.getCategoryAnalytics);
 router.get('/top-performers', restrictTo('admin'), analyticsController.getTopPerformers);
 router.get('/monthly-trend', restrictTo('admin'), analyticsController.getMonthlyTrend);
 

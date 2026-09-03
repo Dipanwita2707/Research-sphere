@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Publication Output Visualization Component
  * 
  * Displays papers per year chart and publication type distribution.
@@ -37,7 +37,7 @@ interface PublicationOutputVisualizationProps {
   loading?: boolean;
 }
 
-// Color palette matching SGT UMS theme
+// Color palette matching ResearchSphere UMS theme
 const COLORS = ['#005b96', '#6497b1', '#03396c', '#b3cde0', '#011f4b'];
 
 function formatNumber(value: number) {

@@ -4,7 +4,13 @@ const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5001';
 const nextConfig = {
   reactStrictMode: false, // Disabled: StrictMode double-invokes effects in dev, causing duplicate API calls
   swcMinify: true,
-  
+
+  // Standalone output produces a minimal, self-contained server bundle
+  // (only the node_modules actually needed at runtime) — required for a
+  // small production Docker image; without this the Dockerfile's
+  // `.next/standalone` copy step has nothing to copy.
+  output: 'standalone',
+
   // Disable ESLint during production builds (for Render deployment)
   eslint: {
     ignoreDuringBuilds: true,

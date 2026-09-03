@@ -1,8 +1,8 @@
-# Research Profile Analytics Dashboard Integration
+﻿# Research Profile Analytics Dashboard Integration
 
 ## Overview
 
-This document describes the implementation of Task 4: Frontend Analytics Dashboard Integration for the Research Profile System. The implementation extends the existing SGT UMS analytics dashboard with research profile metrics, comparative analytics, and publication output visualization.
+This document describes the implementation of Task 4: Frontend Analytics Dashboard Integration for the Research Profile System. The implementation extends the existing ResearchSphere UMS analytics dashboard with research profile metrics, comparative analytics, and publication output visualization.
 
 ## Components Implemented
 
@@ -10,7 +10,7 @@ This document describes the implementation of Task 4: Frontend Analytics Dashboa
 
 **File:** `ProfileMetricsAnalytics.tsx`
 
-**Purpose:** Extends existing SGT UMS analytics with citation-based metrics and department-wide research impact visualization.
+**Purpose:** Extends existing ResearchSphere UMS analytics with citation-based metrics and department-wide research impact visualization.
 
 **Features:**
 - Institution-wide citation metrics (Total Citations, Average h-index, Total Publications, Active Researchers)
@@ -115,7 +115,7 @@ A complete demo page showcasing all three analytics components with:
 - Loading states
 - Empty states
 - Integration note explaining backward compatibility
-- Consistent SGT UMS styling
+- Consistent ResearchSphere UMS styling
 
 **Access:** Navigate to `/research/analytics` in the application
 
@@ -142,16 +142,16 @@ npm test -- AnalyticsDashboard.test.tsx
 
 ### Backward Compatibility
 
-The implementation maintains full backward compatibility with existing SGT UMS modules:
+The implementation maintains full backward compatibility with existing ResearchSphere UMS modules:
 
 1. **No Breaking Changes:** All new components are additive and don't modify existing analytics
 2. **Separate Routes:** Research analytics are on `/research/analytics`, existing DRD analytics remain on `/drd/analytics`
-3. **Consistent Styling:** Uses the same SGT UMS color scheme and design patterns
+3. **Consistent Styling:** Uses the same ResearchSphere UMS color scheme and design patterns
 4. **Independent Data:** Uses separate mock data generators that don't interfere with existing data
 
 ### Design Consistency
 
-All components follow the existing SGT UMS design system:
+All components follow the existing ResearchSphere UMS design system:
 
 - **Colors:** Primary blue (#005b96), accent colors (#6497b1, #03396c, #b3cde0)
 - **Typography:** Consistent font sizes and weights
@@ -161,12 +161,12 @@ All components follow the existing SGT UMS design system:
 
 ### Integration Points
 
-The analytics dashboard can be integrated with existing SGT UMS analytics by:
+The analytics dashboard can be integrated with existing ResearchSphere UMS analytics by:
 
 1. **Adding a Tab:** Add a "Research Metrics" tab to the existing DRD analytics page
 2. **Embedding Components:** Embed individual components in existing analytics sections
 3. **API Integration:** Replace mock data with real API calls to backend services
-4. **Permission System:** Use existing SGT UMS permission framework for access control
+4. **Permission System:** Use existing ResearchSphere UMS permission framework for access control
 
 ## Data Flow
 
@@ -217,7 +217,7 @@ To complete the integration:
 
 1. **Backend API:** Implement backend endpoints for analytics data
 2. **Real Data:** Replace mock data with API calls
-3. **Permissions:** Integrate with SGT UMS permission system
+3. **Permissions:** Integrate with ResearchSphere UMS permission system
 4. **Navigation:** Add links from main navigation to research analytics
 5. **Filters:** Add date range and department filters
 6. **Export:** Add CSV/PDF export functionality
@@ -250,11 +250,11 @@ Task 4 has been successfully implemented with:
 
 All components:
 - Use mock data initially as specified
-- Integrate with existing SGT UMS analytics design
+- Integrate with existing ResearchSphere UMS analytics design
 - Display citation-based metrics
 - Show department-wide research impact
 - Provide comparative analytics with percentile rankings
 - Visualize publication output over time
 - Include comprehensive tests (20/20 passing)
 - Maintain backward compatibility
-- Follow SGT UMS design system
+- Follow ResearchSphere UMS design system

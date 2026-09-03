@@ -1,4 +1,4 @@
-# Task 2.3 Completion Summary
+﻿# Task 2.3 Completion Summary
 
 ## Task: Create publication list component with bibliographic formatting
 
@@ -127,7 +127,7 @@ Time:        2.659 s
 ### File Structure
 
 ```
-Sgt-Ums/frontend/src/features/research-profile/components/
+ResearchSphere/frontend/src/features/research-profile/components/
 ├── PublicationList.tsx                    # Main component
 └── __tests__/
     ├── PublicationList.test.tsx          # Test suite

@@ -6,6 +6,7 @@ import { LogOut, User, Settings, Bell, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '@/shared/services/notification.service';
 import logger from '@/shared/utils/logger';
+import Wordmark from '@/shared/components/brand/Wordmark';
 
 interface HeaderProps {
   onMobileMenuClick?: () => void;
@@ -44,8 +45,11 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
   }, []);
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/login');
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
+    }
   };
 
   const getUserInitials = () => {
@@ -60,20 +64,15 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
     <header 
       className="fixed top-0 left-0 right-0 z-50 h-14"
       style={{ 
-        background: 'linear-gradient(90deg, #005b96 0%, #6497b1 100%)',
-        boxShadow: '0 2px 12px rgba(0,91,150,0.08)'
+        background: 'linear-gradient(90deg, #232323 0%, #4A0F26 100%)',
+        boxShadow: '0 2px 12px rgba(132,28,67,0.18)'
       }}
     >
       <div className="h-full px-2 sm:px-4 flex items-center justify-between">
-        {/* Left: Logo Section - Dark navy header like LMS */}
+        {/* Left: Wordmark */}
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          {/* SGT Logo - white version for dark header */}
           <div className="flex items-center">
-            <img 
-              src="/images/new-header-logo.png" 
-              alt="SGT University" 
-              className="h-8 sm:h-10 object-contain brightness-0 invert"
-            />
+            <Wordmark sizeClassName="text-lg" researchColor="white" sphereColor="amber" />
           </div>
         </div>
 

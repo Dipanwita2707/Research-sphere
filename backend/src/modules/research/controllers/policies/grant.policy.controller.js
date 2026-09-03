@@ -12,7 +12,10 @@ const PROJECT_TYPES = ['indian', 'international'];
 exports.getAllGrantPolicies = async (req, res) => {
   try {
     const policies = await prisma.grantIncentivePolicy.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
+      },
       include: {
         createdBy: {
           select: {
@@ -71,6 +74,7 @@ exports.getActivePolicyByCategoryAndType = async (req, res) => {
         projectCategory,
         projectType,
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         effectiveFrom: { lte: currentDate },
         OR: [
           { effectiveTo: null },
@@ -225,7 +229,8 @@ exports.createGrantPolicy = async (req, res) => {
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
         effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
         createdById: userId,
-        updatedById: userId
+        updatedById: userId,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       },
       include: {
         createdBy: { select: { id: true, email: true } },
@@ -286,6 +291,13 @@ exports.updateGrantPolicy = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Grant policy not found'
+      });
+    }
+
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 
@@ -396,6 +408,13 @@ exports.deleteGrantPolicy = async (req, res) => {
       });
     }
 
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
+      });
+    }
+
     // Soft delete by setting isActive to false
     await prisma.grantIncentivePolicy.update({
       where: { id },
@@ -449,6 +468,7 @@ exports.calculateIncentive = async (req, res) => {
         projectCategory,
         projectType,
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         effectiveFrom: { lte: currentDate },
         OR: [
           { effectiveTo: null },

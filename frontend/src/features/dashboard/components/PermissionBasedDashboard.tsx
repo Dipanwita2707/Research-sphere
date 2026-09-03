@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useAuthStore } from '@/shared/auth/authStore';
 import Link from 'next/link';
@@ -34,13 +34,7 @@ import {
 // Import widgets
 import StudentsWidget from '../widgets/StudentsWidget';
 import FacultyWidget from '../widgets/FacultyWidget';
-import AcademicsWidget from '../widgets/AcademicsWidget';
 import ResearchWidget from '../widgets/ResearchWidget';
-import FinanceWidget from '../widgets/FinanceWidget';
-import LibraryWidget from '../widgets/LibraryWidget';
-import ExaminationsWidget from '../widgets/ExaminationsWidget';
-import AdmissionsWidget from '../widgets/AdmissionsWidget';
-import ReportsWidget from '../widgets/ReportsWidget';
 import SystemWidget from '../widgets/SystemWidget';
 import StaffWidget from '../widgets/StaffWidget';
 
@@ -69,14 +63,6 @@ const CATEGORY_WIDGETS: Record<string, {
     color: 'from-purple-500 to-purple-600',
     href: '/faculty'
   },
-  'Academics': {
-    component: AcademicsWidget,
-    icon: BookOpen,
-    title: 'Academics',
-    description: 'Courses, curriculum and schedules',
-    color: 'from-indigo-500 to-indigo-600',
-    href: '/academics'
-  },
   'Research': {
     component: ResearchWidget,
     icon: Lightbulb,
@@ -100,78 +86,6 @@ const CATEGORY_WIDGETS: Record<string, {
     description: 'IPR and research development',
     color: 'from-teal-500 to-teal-600',
     href: '/drd'
-  },
-  'Finance': {
-    component: FinanceWidget,
-    icon: DollarSign,
-    title: 'Finance',
-    description: 'Financial management and reports',
-    color: 'from-emerald-500 to-emerald-600',
-    href: '/finance'
-  },
-  'Finance Department': {
-    component: FinanceWidget,
-    icon: DollarSign,
-    title: 'Finance',
-    description: 'Financial management and reports',
-    color: 'from-emerald-500 to-emerald-600',
-    href: '/finance'
-  },
-  'Library': {
-    component: LibraryWidget,
-    icon: Library,
-    title: 'Library',
-    description: 'Library resources and books',
-    color: 'from-orange-500 to-orange-600',
-    href: '/library'
-  },
-  'Examinations': {
-    component: ExaminationsWidget,
-    icon: ClipboardList,
-    title: 'Examinations',
-    description: 'Exam schedules and results',
-    color: 'from-red-500 to-red-600',
-    href: '/examinations'
-  },
-  'Admissions': {
-    component: AdmissionsWidget,
-    icon: Building2,
-    title: 'Admissions',
-    description: 'Student admissions management',
-    color: 'from-cyan-500 to-cyan-600',
-    href: '/admissions'
-  },
-  'HR': {
-    component: StaffWidget,
-    icon: UserCog,
-    title: 'Human Resources',
-    description: 'HR and employee management',
-    color: 'from-pink-500 to-pink-600',
-    href: '/hr'
-  },
-  'Human Resources': {
-    component: StaffWidget,
-    icon: UserCog,
-    title: 'Human Resources',
-    description: 'HR and employee management',
-    color: 'from-pink-500 to-pink-600',
-    href: '/hr'
-  },
-  'IT': {
-    component: SystemWidget,
-    icon: Monitor,
-    title: 'IT Systems',
-    description: 'IT infrastructure management',
-    color: 'from-slate-500 to-slate-600',
-    href: '/it'
-  },
-  'Reports': {
-    component: ReportsWidget,
-    icon: BarChart3,
-    title: 'Reports',
-    description: 'Analytics and reporting',
-    color: 'from-violet-500 to-violet-600',
-    href: '/reports'
   },
   'System': {
     component: SystemWidget,
@@ -729,7 +643,7 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
             {allPermissionKeys.includes('file_ipr') && (
               <Link 
                 href="/ipr/apply"
-                className="flex items-center gap-2 p-3 bg-sgt-50 hover:bg-sgt-100 rounded-xl text-sgt-700 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 p-3 bg-ResearchSphere-50 hover:bg-ResearchSphere-100 rounded-xl text-ResearchSphere-700 transition-colors text-sm font-medium"
               >
                 <FileText className="w-4 h-4" />
                 <span>New IPR</span>

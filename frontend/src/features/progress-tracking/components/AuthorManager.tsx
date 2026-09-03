@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, X, Edit2, Check, User, Users, Building2 } from 'lucide-react';
 import { researchService } from '@/features/research-management/services/research.service';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { useAffiliation } from '@/shared/hooks/useAffiliation';
 import logger from '@/shared/utils/logger';
 
 type AuthorRole = 'First Author' | 'Co-Author' | 'Corresponding Author' | 'Author';
@@ -29,6 +30,7 @@ interface AuthorManagerProps {
 
 export default function AuthorManager({ authors, onChange, disabled = false, label = 'Co-Authors', publicationType = 'research_paper' }: AuthorManagerProps) {
   const { user } = useAuthStore();
+  const { canonicalName: universityName } = useAffiliation();
   const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
@@ -41,9 +43,18 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
     authorType: 'Faculty',
     authorCategory: 'Internal',
     authorRole: isBook ? 'Author' : 'Co-Author',
-    affiliation: 'SGT University',
+    affiliation: universityName,
     email: ''
   });
+
+  // Keep the "Internal" default affiliation in sync once the dynamically
+  // generated university name has loaded (initial state uses the fallback
+  // value before the affiliation API call resolves).
+  useEffect(() => {
+    setNewAuthor((prev) =>
+      prev.authorCategory === 'Internal' ? { ...prev, affiliation: universityName } : prev
+    );
+  }, [universityName]);
   const [error, setError] = useState('');
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -119,7 +130,7 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
         authorCategory: 'Internal',
         authorRole: newAuthor.authorRole,
         email: userEmail,
-        affiliation: 'SGT University',
+        affiliation: universityName,
         designation: userData.designation || ''
       });
 
@@ -182,7 +193,7 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
       authorType: 'Faculty',
       authorCategory: 'Internal',
       authorRole: isBook ? 'Author' : 'Co-Author',
-      affiliation: 'SGT University',
+      affiliation: universityName,
       email: ''
     });
     setSearchTerm('');
@@ -253,7 +264,7 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                     </span>
                     <span>•</span>
                     <span>{author.authorType}</span>
-                    {author.affiliation !== 'SGT University' && (
+                    {author.affiliation !== universityName && (
                       <>
                         <span>•</span>
                         <span>{author.affiliation}</span>
@@ -353,7 +364,7 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                     ...newAuthor,
                     authorCategory: category,
                     affiliation: category ===
-   'Internal' ? 'SGT University' : '',
+   'Internal' ? universityName : '',
                     uid: category ===
    'External' ? undefined : newAuthor.uid
                   });
@@ -361,7 +372,7 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                 }}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               >
-                <option value="Internal">Internal (SGT)</option>
+                <option value="Internal">Internal ({universityName})</option>
                 <option value="External">External</option>
               </select>
             </div>
@@ -473,7 +484,7 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
                   authorType: 'Faculty',
                   authorCategory: 'Internal',
                   authorRole: 'Co-Author',
-                  affiliation: 'SGT University',
+                  affiliation: universityName,
                   email: ''
                 });
                 setSearchTerm('');

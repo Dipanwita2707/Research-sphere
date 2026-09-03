@@ -6,9 +6,9 @@
 const sgMail = require('@sendgrid/mail');
 const { emailService: coreEmailService } = require('../../modules/core/services/email.service');
 
-const FROM_EMAIL  = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_FROM || process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || process.env.SMTP_USER || 'noreply@sgtresearch.com';
-const FROM_NAME   = process.env.EMAIL_FROM_NAME || 'SGT Gate Pass System';
-const COLLEGE_NAME = 'SGT University';
+const FROM_EMAIL  = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_FROM || process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || process.env.SMTP_USER || 'noreply@researchsphere.tech';
+const FROM_NAME   = process.env.EMAIL_FROM_NAME || 'ResearchSphere';
+const COLLEGE_NAME = process.env.EMAIL_ORG_NAME || 'ResearchSphere';
 
 let sendGridInitialized = false;
 

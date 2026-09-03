@@ -58,8 +58,8 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
             <option value="">-- Please Select --</option>
             <option value="paper_not_indexed">Papers in Conferences (not Indexed) / Seminars / Workshops</option>
             <option value="paper_indexed_scopus">Paper in conference proceeding indexed in Scopus</option>
-            <option value="keynote_speaker_invited_talks">Keynote Speaker / Session chair / Invited Talks (Outside SGT)</option>
-            <option value="organizer_coordinator_member">Organizer / Coordinator / Member of conference held at SGT</option>
+            <option value="keynote_speaker_invited_talks">Keynote Speaker / Session chair / Invited Talks (Outside ResearchSphere)</option>
+            <option value="organizer_coordinator_member">Organizer / Coordinator / Member of conference held at ResearchSphere</option>
           </select>
         </div>
       </div>
@@ -241,7 +241,7 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Whether conference held at SGT?</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Whether conference held at ResearchSphere?</label>
                   <div className="flex gap-4 mt-2">
                     {['yes', 'no'].map(v => (
                       <label key={v} className="inline-flex items-center">
@@ -285,7 +285,7 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Collaboration Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Interdisciplinary (from SGT)?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Interdisciplinary (from ResearchSphere)?</label>
                 <div className="flex gap-4 mt-2">
                   {['yes', 'no'].map(v => (
                     <label key={v} className="inline-flex items-center">
@@ -303,7 +303,7 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Student(s) (from SGT)?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Student(s) (from ResearchSphere)?</label>
                 <div className="flex gap-4 mt-2">
                   {['yes', 'no'].map(v => (
                     <label key={v} className="inline-flex items-center">
@@ -368,7 +368,7 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Have you used the facility of Central Instrumentation Facility of SGT?
+                    Have you used the facility of Central Instrumentation Facility of ResearchSphere?
                   </label>
                   <div className="flex gap-4 mt-2">
                     {['yes', 'no'].map(v => (

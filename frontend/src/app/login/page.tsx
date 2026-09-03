@@ -1,20 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Wordmark from '@/shared/components/brand/Wordmark';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  BarChart3,
+  BookOpenCheck,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  LogIn,
+  ShieldCheck,
+  User,
+  Users,
+} from 'lucide-react';
+import { BRAND } from '@/shared/config/brand';
 
-const SGT_LOGO_URL = '/sgt-logo.png';
-const NAAC_BADGE_URL = 'https://sgtuniversity.ac.in/assets/images/NAAC-ICON.png';
+const FEATURES = [
+  {
+    icon: Users,
+    title: 'Collaboration Network',
+    description: 'Discover co-authors and build your research network worldwide.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Analytics & Insights',
+    description: 'Track citations, impact metrics, and growth over time.',
+  },
+  {
+    icon: BookOpenCheck,
+    title: 'Publication Tracking',
+    description: 'Manage papers, grants, and patents in one unified workspace.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Secure & Compliant',
+    description: 'Enterprise-grade security keeps your research data safe.',
+  },
+];
 
-const slideImages = [
-  'https://sgtuniversity.ac.in/assets/images/life-at-sgt/news-and-events/job-seekers2.webp',
-  'https://sgtuniversity.ac.in/assets/images/homepage/campus/convocation4.webp',
-  'https://sgtuniversity.ac.in/assets/images/homepage/campus/event_9.webp',
-  'https://sgtuniversity.ac.in/assets/images/homepage/campus/event_10.webp',
-  'https://sgtuniversity.ac.in/assets/images/life-at-sgt/news-and-events/spec-convo1.webp',
-  'https://sgtuniversity.ac.in/assets/images/homepage/campus/home-event11.webp',
+const STATS = [
+  { value: '500+', label: 'Researchers' },
+  { value: '1,200+', label: 'Publications' },
+  { value: '50+', label: 'Institutions' },
 ];
 
 export default function LoginPage() {
@@ -22,17 +53,10 @@ export default function LoginPage() {
   const { login } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slideImages.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,301 +64,246 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(username, password);
-      await new Promise(resolve => setTimeout(resolve, 100));
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const loggedUser = useAuthStore.getState().user;
+      const roleName = loggedUser?.role?.name?.toLowerCase() || loggedUser?.userType?.toLowerCase();
+      if (roleName === 'superadmin') {
+        router.push('/superadmin/dashboard');
+      } else if (roleName === 'admin') {
+        router.push('/dashboard');
+      } else {
+        router.push('/research/my-profile');
+      }
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      setError(message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', width: '100vw', display: 'flex', overflow: 'hidden' }}>
-      <style dangerouslySetInnerHTML={{ __html: `
-        .lp-left {
-          flex: 2.2;
-          position: relative;
-          overflow: hidden;
-          display: none;
+    <div className="relative flex min-h-screen w-full overflow-hidden bg-blush font-sans">
+      <style jsx global>{`
+        @keyframes login-blob-float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(24px, -18px) scale(1.06); }
+          66% { transform: translate(-16px, 14px) scale(0.96); }
         }
-        @media (min-width: 768px) { .lp-left { display: block; } }
+        .login-blob {
+          animation: login-blob-float 14s ease-in-out infinite;
+        }
+        .login-blob-delay {
+          animation-delay: -6s;
+        }
+        .login-input:-webkit-autofill,
+        .login-input:-webkit-autofill:hover,
+        .login-input:-webkit-autofill:focus {
+          -webkit-text-fill-color: #232323;
+          -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+          transition: background-color 5000s ease-in-out 0s;
+        }
+      `}</style>
 
-        .lp-slide {
-          position: absolute;
-          inset: 0;
-          background-size: cover;
-          background-position: center;
-          transition: opacity 1.2s ease-in-out;
-        }
-        .lp-slide::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            to bottom,
-            rgba(10,20,80,0.40) 0%,
-            rgba(10,20,80,0.20) 50%,
-            rgba(10,20,80,0.58) 100%
-          );
-        }
+      {/* ================= LEFT — BRAND PANEL ================= */}
+      <div className="relative hidden w-[44%] max-w-[620px] flex-col justify-between overflow-hidden bg-brand-gradient p-12 text-white lg:flex xl:p-16">
+        {/* Decorative blurred blobs */}
+        <div className="login-blob pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-amber/25 blur-3xl" />
+        <div className="login-blob login-blob-delay pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-peach/20 blur-3xl" />
+        {/* Dot grid texture */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage: 'radial-gradient(#E28B22 1px, transparent 1px)',
+            backgroundSize: '18px 18px',
+          }}
+        />
 
-        .lp-overlay {
-          position: absolute;
-          bottom: 90px;
-          left: 0; right: 0;
-          z-index: 2;
-          text-align: center;
-          padding: 0 2.5rem;
-          pointer-events: none;
-        }
-        .lp-title {
-          color: #fff;
-          font-size: clamp(1.8rem, 3.2vw, 2.8rem);
-          font-weight: 800;
-          text-shadow: 2px 4px 16px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.6);
-          -webkit-text-stroke: 0.5px rgba(0,0,0,0.2);
-          margin-bottom: 14px;
-          line-height: 1.2;
-        }
-        .lp-subtitle {
-          display: inline-block;
-          color: #fff;
-          font-size: clamp(0.82rem, 1.1vw, 1rem);
-          font-weight: 400;
-          text-shadow: 1px 2px 8px rgba(0,0,0,0.8);
-          background: rgba(0,0,0,0.30);
-          backdrop-filter: blur(5px);
-          padding: 7px 22px;
-          border-radius: 50px;
-          line-height: 1.5;
-        }
-
-        .lp-dots {
-          position: absolute;
-          bottom: 32px;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 8px;
-          z-index: 2;
-        }
-        .lp-dot {
-          width: 10px; height: 10px;
-          border-radius: 50%;
-          border: none;
-          cursor: pointer;
-          transition: background-color 0.3s, transform 0.2s;
-          padding: 0;
-        }
-        .lp-dot:hover { transform: scale(1.3); }
-
-        .lp-right {
-          flex: 1;
-          min-width: 380px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #eef2f7;
-          padding: 1.5rem;
-        }
-        @media (max-width: 767px) { .lp-right { min-width: 100%; background: #f0f4f8; } }
-
-        .lp-card {
-          width: 100%;
-          max-width: 372px;
-          background: #fff;
-          border-radius: 18px;
-          padding: 2rem 2.1rem 1.75rem;
-          box-shadow:
-            0 2px 4px rgba(0,0,0,0.04),
-            0 8px 32px rgba(0,0,0,0.09),
-            0 1px 6px rgba(0,0,0,0.05);
-        }
-
-        .lp-field { margin-bottom: 0.95rem; }
-        .lp-label {
-          display: block;
-          font-size: 0.77rem;
-          font-weight: 600;
-          color: #3848a8;
-          margin-bottom: 5px;
-          letter-spacing: 0.01em;
-        }
-        .lp-input {
-          width: 100%;
-          padding: 9px 12px;
-          border: 1.5px solid #cdd5ed;
-          border-radius: 8px;
-          font-size: 0.875rem;
-          color: #1a237e;
-          background: #f7f9ff;
-          outline: none;
-          transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
-          box-sizing: border-box;
-        }
-        .lp-input:focus {
-          border-color: #3848a8;
-          box-shadow: 0 0 0 3px rgba(56,72,168,0.13);
-          background: #fff;
-        }
-        .lp-input::placeholder { color: #aab4d8; }
-
-        .lp-btn {
-          width: 100%;
-          padding: 11px;
-          background: #1e3a8a;
-          color: #fff;
-          font-size: 0.93rem;
-          font-weight: 700;
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-          margin-top: 6px;
-          letter-spacing: 0.03em;
-          transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-          box-shadow: 0 4px 14px rgba(30,58,138,0.28);
-        }
-        .lp-btn:hover:not(:disabled) {
-          background: #173075;
-          box-shadow: 0 6px 20px rgba(30,58,138,0.36);
-          transform: translateY(-1px);
-        }
-        .lp-btn:active:not(:disabled) { transform: translateY(0); }
-        .lp-btn:disabled { background: #93a3c8; cursor: not-allowed; box-shadow: none; }
-
-        @keyframes lp-spin { to { transform: rotate(360deg); } }
-      `}} />
-
-      {/* ── LEFT: SGT campus slideshow ── */}
-      <div className="lp-left">
-        {slideImages.map((src, i) => (
-          <div
-            key={i}
-            className="lp-slide"
-            style={{ backgroundImage: `url(${src})`, opacity: currentSlide === i ? 1 : 0 }}
-          />
-        ))}
-
-        <div className="lp-overlay">
-          <p className="lp-title">Welcome to SGT University</p>
-          <span className="lp-subtitle">
-            Excellence in Education&nbsp;&bull;&nbsp;Innovation in Learning&nbsp;&bull;&nbsp;Future in Making
-          </span>
+        {/* Logo */}
+        <div className="relative z-10">
+          <Wordmark heightClassName="h-14 sm:h-16" className="brightness-0 invert drop-shadow-sm" />
         </div>
 
-        <div className="lp-dots">
-          {slideImages.map((_, i) => (
-            <button
-              key={i}
-              className="lp-dot"
-              onClick={() => setCurrentSlide(i)}
-              style={{ backgroundColor: currentSlide === i ? '#fff' : 'rgba(255,255,255,0.40)' }}
-              aria-label={`Slide ${i + 1}`}
-            />
+        {/* Headline + features */}
+        <div className="relative z-10 my-10">
+          <h1 className="mb-4 text-[2.5rem] font-bold leading-[1.15] tracking-tight">
+            Empowering research.
+            <br />
+            <span className="text-amber">Amplifying impact.</span>
+          </h1>
+          <p className="mb-10 max-w-md text-[15px] leading-relaxed text-white/70">
+            A unified platform for research management, collaboration and analytics —
+            built to help academic teams create impact that matters.
+          </p>
+
+          <div className="space-y-5">
+            {FEATURES.map(({ icon: Icon, title, description }) => (
+              <div key={title} className="flex items-start gap-4">
+                <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+                  <Icon size={18} strokeWidth={1.8} className="text-amber" />
+                </div>
+                <div>
+                  <div className="text-[15px] font-semibold text-white">{title}</div>
+                  <div className="text-[13.5px] leading-snug text-white/60">{description}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats footer */}
+        <div className="relative z-10 flex items-center gap-8 border-t border-white/15 pt-6">
+          {STATS.map((stat) => (
+            <div key={stat.label}>
+              <div className="text-xl font-bold text-white">{stat.value}</div>
+              <div className="text-[12px] text-white/55">{stat.label}</div>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* ── RIGHT: Login form ── */}
-      <div className="lp-right">
-        <div className="lp-card">
+      {/* ================= RIGHT — LOGIN FORM ================= */}
+      <div className="relative flex flex-1 items-center justify-center overflow-y-auto p-6 sm:p-10">
+        <div
+          className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-peach/30 blur-3xl lg:hidden"
+          aria-hidden="true"
+        />
 
-          {/* Logo + NAAC badge */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 14 }}>
-            <img
-              src={SGT_LOGO_URL}
-              alt="SGT University"
-              style={{ height: 66, width: 'auto', objectFit: 'contain' }}
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-            <img
-              src={NAAC_BADGE_URL}
-              alt="NAAC A+"
-              style={{ height: 50, width: 'auto', objectFit: 'contain' }}
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
+        <div className="relative w-full max-w-[420px]">
+          {/* Back link */}
+          <div className="mb-6 flex items-center justify-between lg:hidden">
+            <Wordmark heightClassName="h-11 sm:h-12" />
+            <a href="/" className="text-sm font-semibold text-charcoal/50 hover:text-wine transition-colors flex items-center gap-1">
+              ← Home
+            </a>
+          </div>
+          <div className="mb-4 hidden lg:flex justify-end">
+            <a href="/" className="text-sm font-semibold text-charcoal/40 hover:text-wine transition-colors flex items-center gap-1">
+              ← Back to Home
+            </a>
           </div>
 
-          {/* Title */}
-          <h1 style={{ textAlign: 'center', fontWeight: 800, fontSize: '1.22rem', color: '#1a237e', lineHeight: 1.25, margin: '0 0 5px' }}>
-            University Management System
-          </h1>
-          <p style={{ textAlign: 'center', fontSize: '0.78rem', color: '#5c6bc0', margin: '0 0 18px', lineHeight: 1.5 }}>
-            Enter your credentials to access your dashboards
-          </p>
-
-          {/* Error */}
-          {error && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '9px 12px', marginBottom: 14 }}>
-              <AlertCircle style={{ width: 14, height: 14, color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
-              <p style={{ margin: 0, fontSize: '0.77rem', color: '#b91c1c' }}>{error}</p>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit}>
-            <div className="lp-field">
-              <label className="lp-label">Email Address or UID *</label>
-              <input
-                className="lp-input"
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Enter your email or user ID"
-                required
-                autoFocus
-                disabled={isLoading}
-                autoComplete="username"
-              />
+          <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-brand-xl sm:p-10">
+            <div className="mb-8 hidden justify-center lg:flex">
+              <Wordmark heightClassName="h-11 sm:h-12" />
             </div>
 
-            <div className="lp-field">
-              <label className="lp-label">Password *</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  className="lp-input"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  disabled={isLoading}
-                  autoComplete="current-password"
-                  style={{ paddingRight: 40 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#7986cb', padding: 2, display: 'flex', alignItems: 'center' }}
-                  aria-label="Toggle password visibility"
-                >
-                  {showPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
-                </button>
+            <div className="mb-7 text-center">
+              <h2 className="font-serif text-[26px] font-bold text-charcoal">Welcome back</h2>
+              <p className="mt-1.5 text-[14.5px] text-charcoal/55">
+                Sign in to continue your research journey
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-[13.5px] text-red-700">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
               </div>
-            </div>
+            )}
 
-            <button className="lp-btn" type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <span style={{ width: 15, height: 15, border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'lp-spin 0.7s linear infinite' }} />
-                  Signing in...
-                </span>
-              ) : 'Sign In'}
-            </button>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-charcoal">
+                  Email Address
+                </label>
+                <div className="relative flex items-center">
+                  <User size={18} strokeWidth={1.8} className="pointer-events-none absolute left-4 text-wine" />
+                  <input
+                    id="login-email"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your email address"
+                    required
+                    autoFocus
+                    disabled={isLoading}
+                    autoComplete="username"
+                    className="login-input w-full rounded-xl border border-black/10 bg-white py-3.5 pl-11 pr-4 text-[14.5px] text-charcoal outline-none transition-colors placeholder:text-charcoal/40 focus:border-wine"
+                  />
+                </div>
+              </div>
 
-            <div style={{ textAlign: 'center', marginTop: 14 }}>
-              <a
-                href="/forgot-password"
-                style={{ color: '#1a237e', fontWeight: 700, fontSize: '0.78rem', textDecoration: 'none' }}
-                onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
-                onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="login-password" className="block text-sm font-semibold text-charcoal">
+                    Password
+                  </label>
+                  <a href="/forgot-password" className="text-[13.5px] font-medium text-wine hover:underline">
+                    Forgot Password?
+                  </a>
+                </div>
+                <div className="relative flex items-center">
+                  <Lock size={18} strokeWidth={1.8} className="pointer-events-none absolute left-4 text-wine" />
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    disabled={isLoading}
+                    autoComplete="current-password"
+                    className="login-input w-full rounded-xl border border-black/10 bg-white py-3.5 pl-11 pr-11 text-[14.5px] text-charcoal outline-none transition-colors placeholder:text-charcoal/40 focus:border-wine"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                    aria-label="Toggle password visibility"
+                    className="absolute right-4 flex items-center text-charcoal/40 hover:text-charcoal/70"
+                  >
+                    {showPassword ? <EyeOff size={18} strokeWidth={1.8} /> : <Eye size={18} strokeWidth={1.8} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded accent-wine"
+                />
+                <label htmlFor="remember" className="text-[14px] text-charcoal/80">
+                  Remember me
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-wine py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-wine-dark disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Forgot password?
+                {isLoading ? (
+                  <>
+                    <Loader2 size={17} className="animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn size={17} strokeWidth={2} />
+                    Sign In
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-[14px] text-charcoal/55">
+              Don&apos;t have an account?{' '}
+              <a href="/pricing" className="font-semibold text-wine hover:underline">
+                View Pricing &rarr;
               </a>
             </div>
-          </form>
+          </div>
+
+          <p className="mt-6 text-center text-[12.5px] text-charcoal/40">
+            &copy; {new Date().getFullYear()} {BRAND.name}. All rights reserved.
+          </p>
         </div>
       </div>
     </div>

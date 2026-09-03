@@ -52,12 +52,21 @@
 }
 
 :root {
-  /* SGT University Color Variables */
-  --sgt-lightest: #ADE1FB;
-  --sgt-light: #266CA9;
-  --sgt-primary: #0F2573;
-  --sgt-dark: #041D56;
-  --sgt-darkest: #01082D;
+  /* ResearchSphere Brand Color Variables */
+  --brand-charcoal: #232323;
+  --brand-wine: #841C43;
+  --brand-wine-dark: #6E1738;
+  --brand-wine-darker: #4A0F26;
+  --brand-amber: #E28B22;
+  --brand-amber-dark: #C9771B;
+  --brand-peach: #FDD7BF;
+  --brand-ivory: #FEF7F4;
+  /* Backward-compat aliases */
+  --ResearchSphere-lightest: #FEF7F4;
+  --ResearchSphere-light: #E28B22;
+  --ResearchSphere-primary: #841C43;
+  --ResearchSphere-dark: #4A0F26;
+  --ResearchSphere-darkest: #232323;
 }
 
 body {
@@ -66,6 +75,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #F4F4F8;
   min-height: 100vh;
 }
 
@@ -82,24 +92,24 @@ code {
   display: none;
 }
 
-/* Custom scrollbar with SGT theme */
+/* Custom scrollbar with ResearchSphere theme */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
+  background: transparent;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #266CA9 0%, #0F2573 100%);
-  border-radius: 4px;
+  background: rgba(132, 28, 67, 0.25);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #0F2573 0%, #041D56 100%);
+  background: rgba(132, 28, 67, 0.45);
 }
 
 /* Animations */
@@ -136,10 +146,10 @@ code {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(15, 37, 115, 0.2);
+    box-shadow: 0 0 5px rgba(132, 28, 67, 0.2);
   }
   50% {
-    box-shadow: 0 0 20px rgba(15, 37, 115, 0.4);
+    box-shadow: 0 0 20px rgba(132, 28, 67, 0.4);
   }
 }
 
@@ -181,9 +191,21 @@ code {
   animation: float 3s ease-in-out infinite;
 }
 
-/* SGT Gradient Text */
-.text-sgt-gradient {
-  background: linear-gradient(135deg, #266CA9 0%, #0F2573 50%, #041D56 100%);
+/* ResearchSphere Gradient Text */
+.text-ResearchSphere-gradient {
+  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ResearchSphere Gradient Background */
+.bg-ResearchSphere-gradient {
+  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -196,7 +218,7 @@ code {
 
 .card-hover:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px -15px rgba(4, 29, 86, 0.2);
+  box-shadow: 0 20px 40px -15px rgba(132, 28, 67, 0.2);
 }
 
 /* Glass morphism effect */
@@ -208,10 +230,10 @@ code {
 }
 
 .glass-dark {
-  background: rgba(4, 29, 86, 0.8);
+  background: rgba(35, 35, 35, 0.8);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(38, 108, 169, 0.3);
+  border: 1px solid rgba(226, 139, 34, 0.3);
 }
 
 /* Shimmer loading effect */
@@ -222,9 +244,18 @@ code {
 }
 
 /* Badge styles */
-.badge-sgt {
-  background: linear-gradient(135deg, #0F2573 0%, #041D56 100%);
-  color: white;
+.badge-ResearchSphere {
+  background: linear-gradient(135deg, #841C43 0%, #4A0F26 100%);
+  color: #FEF7F4;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-brand {
+  background: linear-gradient(135deg, #841C43 0%, #4A0F26 100%);
+  color: #FEF7F4;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -271,12 +302,12 @@ code {
 }
 
 .noting-description-editor .ql-toolbar button:hover {
-  background: rgba(15, 37, 115, 0.08);
+  background: rgba(132, 28, 67, 0.08);
   border-radius: 4px;
 }
 
 .noting-description-editor .ql-toolbar button.ql-active {
-  background: rgba(15, 37, 115, 0.12);
+  background: rgba(132, 28, 67, 0.12);
   border-radius: 4px;
 }
 
@@ -516,14 +547,14 @@ code {
 }
 
 .noting-description-content blockquote {
-  border-left: 4px solid #0F2573;
+  border-left: 4px solid #841C43;
   padding-left: 1rem;
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   margin: 1rem 0;
   color: #4b5563;
   font-style: italic;
-  background: #f9fafb;
+  background: #FEF7F4;
 }
 
 .dark .noting-description-content blockquote {
@@ -550,71 +581,71 @@ code {
 
 @layer base {
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    --background: oklch(0.962 0.004 265);     /* Light lavender-gray #F4F4F8 */
+    --foreground: oklch(0.28 0.005 60);       /* Charcoal #232323 */
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.28 0.005 60);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.28 0.005 60);
+    --primary: oklch(0.448 0.179 12.5);      /* Deep Raspberry Wine #841C43 */
+    --primary-foreground: oklch(0.985 0.008 50); /* Ivory */
+    --secondary: oklch(0.95 0.02 55);         /* Peach tint */
+    --secondary-foreground: oklch(0.448 0.179 12.5);
+    --muted: oklch(0.95 0.02 55);
+    --muted-foreground: oklch(0.55 0.02 50);
+    --accent: oklch(0.92 0.05 60);            /* Peach Beige #FDD7BF */
+    --accent-foreground: oklch(0.448 0.179 12.5);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.809 0.105 251.813);
-    --chart-2: oklch(0.623 0.214 259.815);
-    --chart-3: oklch(0.546 0.245 262.881);
-    --chart-4: oklch(0.488 0.243 264.376);
+    --border: oklch(0.9 0.02 55);
+    --input: oklch(0.9 0.02 55);
+    --ring: oklch(0.73 0.155 58);             /* Amber Orange #E28B22 */
+    --chart-1: oklch(0.448 0.179 12.5);
+    --chart-2: oklch(0.73 0.155 58);
+    --chart-3: oklch(0.623 0.214 259.815);
+    --chart-4: oklch(0.546 0.245 262.881);
     --chart-5: oklch(0.424 0.199 265.638);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.28 0.005 60);          /* Charcoal sidebar */
+    --sidebar-foreground: oklch(0.985 0.008 50);
+    --sidebar-primary: oklch(0.73 0.155 58);  /* Amber */
+    --sidebar-primary-foreground: oklch(0.28 0.005 60);
+    --sidebar-accent: oklch(0.448 0.179 12.5);
+    --sidebar-accent-foreground: oklch(0.985 0.008 50);
+    --sidebar-border: oklch(0.448 0.179 12.5);
+    --sidebar-ring: oklch(0.73 0.155 58);
   }
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
+    --background: oklch(0.115 0.008 265);
+    --foreground: oklch(0.985 0.008 50);
+    --card: oklch(0.35 0.01 60);
+    --card-foreground: oklch(0.985 0.008 50);
+    --popover: oklch(0.35 0.01 60);
+    --popover-foreground: oklch(0.985 0.008 50);
+    --primary: oklch(0.73 0.155 58);
+    --primary-foreground: oklch(0.28 0.005 60);
+    --secondary: oklch(0.4 0.01 60);
+    --secondary-foreground: oklch(0.985 0.008 50);
+    --muted: oklch(0.4 0.01 60);
     --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    --accent: oklch(0.448 0.179 12.5);
+    --accent-foreground: oklch(0.985 0.008 50);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.809 0.105 251.813);
-    --chart-2: oklch(0.623 0.214 259.815);
-    --chart-3: oklch(0.546 0.245 262.881);
-    --chart-4: oklch(0.488 0.243 264.376);
+    --ring: oklch(0.73 0.155 58);
+    --chart-1: oklch(0.73 0.155 58);
+    --chart-2: oklch(0.448 0.179 12.5);
+    --chart-3: oklch(0.623 0.214 259.815);
+    --chart-4: oklch(0.546 0.245 262.881);
     --chart-5: oklch(0.424 0.199 265.638);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar: oklch(0.35 0.01 60);
+    --sidebar-foreground: oklch(0.985 0.008 50);
+    --sidebar-primary: oklch(0.73 0.155 58);
+    --sidebar-primary-foreground: oklch(0.28 0.005 60);
+    --sidebar-accent: oklch(0.4 0.01 60);
+    --sidebar-accent-foreground: oklch(0.985 0.008 50);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --sidebar-ring: oklch(0.73 0.155 58);
   }
   .theme {
     --font-sans: var(--font-sans);
@@ -627,5 +658,59 @@ code {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Sleek custom scrollbars for ResearchSphere elements */
+.rs-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.rs-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rs-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+.rs-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(132, 28, 67, 0.15); /* Sleek translucent brand-wine on hover */
+}
+.rs-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(132, 28, 67, 0.35);
+}
+.rs-scrollbar {
+  scrollbar-width: none; /* Hide on Firefox by default */
+  -ms-overflow-style: none; /* Hide on IE */
+}
+.rs-scrollbar:hover {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(132, 28, 67, 0.15) transparent;
+}
+/* Clean Print Layout styles */
+@media print {
+  header, 
+  nav, 
+  aside,
+  .fab-stack,
+  .no-print,
+  button,
+  a[href^="javascript:"],
+  .cn-tool-icon,
+  .cn-reset-btn,
+  .fixed,
+  .sidebar,
+  .navigation-tabs {
+    display: none !important;
+  }
+  
+  body, 
+  main, 
+  .min-h-screen {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 }

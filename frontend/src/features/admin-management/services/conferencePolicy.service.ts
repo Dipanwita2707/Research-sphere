@@ -1,4 +1,4 @@
-import api from '@/shared/api/api';
+﻿import api from '@/shared/api/api';
 import { isAxiosError } from 'axios';
 
 // Conference sub-types
@@ -26,7 +26,7 @@ export const CONFERENCE_SUB_TYPES: { value: ConferenceSubType; label: string; de
   },
   { 
     value: 'organizer_coordinator_member', 
-    label: 'Organizer / Coordinator / Member of Conference held at SGT', 
+    label: 'Organizer / Coordinator / Member of Conference held at ResearchSphere', 
     description: 'Flat incentive amount' 
   },
 ];

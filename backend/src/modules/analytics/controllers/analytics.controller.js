@@ -7,7 +7,7 @@ const cache = require('../../../shared/config/redis');
 exports.getUniversityOverview = async (req, res) => {
   try {
     // Serve from cache when available (analytics data is acceptable to be 2min stale)
-    const CACHE_KEY = 'analytics:overview';
+    const CACHE_KEY = `analytics:overview:${req.tenantId || 'global'}`;
     const cached = await cache.get(CACHE_KEY);
     if (cached) {
       return res.json({ success: true, data: JSON.parse(cached) });
@@ -20,11 +20,16 @@ exports.getUniversityOverview = async (req, res) => {
       activeSchools,
       totalDepartments,
       activeDepartments,
+      uniInfo,
     ] = await Promise.all([
       prisma.facultySchoolList.count(),
       prisma.facultySchoolList.count({ where: { isActive: true } }),
       prisma.department.count(),
       prisma.department.count({ where: { isActive: true } }),
+      req.tenantId ? prisma.university.findUnique({
+        where: { id: req.tenantId },
+        select: { name: true }
+      }) : Promise.resolve(null),
     ]);
 
     // Second batch: Programs and Employees
@@ -59,8 +64,53 @@ exports.getUniversityOverview = async (req, res) => {
       }),
     ]);
 
+    // Fourth batch: Research, Grants and Collaborations
+    const [
+      totalResearch,
+      approvedResearch,
+      totalGrants,
+      approvedGrants,
+      sumGrantsFunding,
+      uniqueCollaborators,
+    ] = await Promise.all([
+      prisma.researchContribution.count(),
+      prisma.researchContribution.count({ where: { status: 'approved' } }),
+      prisma.grantApplication.count(),
+      prisma.grantApplication.count({ where: { status: 'approved' } }),
+      prisma.grantApplication.aggregate({
+        where: { status: 'approved' },
+        _sum: { submittedAmount: true },
+      }),
+      prisma.researchContributionAuthor.groupBy({
+        by: ['name'],
+      }),
+    ]);
+
+    // Fifth batch: category breakdowns (publicationType, iprType)
+    const [byPublicationType, byIprType] = await Promise.all([
+      prisma.researchContribution.groupBy({
+        by: ['publicationType'],
+        _count: { id: true },
+      }),
+      prisma.iprApplication.groupBy({
+        by: ['iprType'],
+        _count: { id: true },
+      }),
+    ]);
+
+    const publicationTypeCounts = {};
+    byPublicationType.forEach(item => {
+      publicationTypeCounts[item.publicationType] = item._count.id;
+    });
+
+    const iprTypeCounts = {};
+    byIprType.forEach(item => {
+      iprTypeCounts[item.iprType] = item._count.id;
+    });
+
     const overviewData = {
       university: {
+        name: uniInfo ? uniInfo.name : 'University',
         schools: { total: totalSchools, active: activeSchools },
         departments: { total: totalDepartments, active: activeDepartments },
         programmes: { total: totalProgrammes },
@@ -73,6 +123,41 @@ exports.getUniversityOverview = async (req, res) => {
         total: totalIprApplications,
         approved: approvedIpr,
         pending: pendingIpr,
+        byType: {
+          patent: iprTypeCounts.patent || 0,
+          copyright: iprTypeCounts.copyright || 0,
+          trademark: iprTypeCounts.trademark || 0,
+          design: iprTypeCounts.design || 0,
+        },
+      },
+      research: {
+        total: totalResearch,
+        approved: approvedResearch,
+      },
+      grants: {
+        total: totalGrants,
+        approved: approvedGrants,
+        totalFunding: sumGrantsFunding._sum.submittedAmount || 0,
+      },
+      collaborations: {
+        total: uniqueCollaborators.length,
+      },
+      // Unified category breakdown across all research-output types, used by the
+      // analytics dashboard to show Research Papers / Books / Chapters / Conferences
+      // / Grants / IPR side-by-side instead of just raw IPR filings.
+      categories: {
+        researchPapers: publicationTypeCounts.research_paper || 0,
+        books: publicationTypeCounts.book || 0,
+        bookChapters: publicationTypeCounts.book_chapter || 0,
+        conferencePapers: publicationTypeCounts.conference_paper || 0,
+        grants: totalGrants,
+        ipr: {
+          total: totalIprApplications,
+          patent: iprTypeCounts.patent || 0,
+          copyright: iprTypeCounts.copyright || 0,
+          trademark: iprTypeCounts.trademark || 0,
+          design: iprTypeCounts.design || 0,
+        },
       },
     };
     await cache.set(CACHE_KEY, JSON.stringify(overviewData), 120);
@@ -109,6 +194,16 @@ exports.getSchoolWiseStats = async (req, res) => {
       iprWhere.iprType = iprType;
     }
 
+    // Research/grant records use the same createdAt-range filter, but never
+    // filter by iprType (that's IPR-specific).
+    const dateOnlyWhere = {};
+    if (dateFrom) {
+      dateOnlyWhere.createdAt = { ...dateOnlyWhere.createdAt, gte: new Date(dateFrom) };
+    }
+    if (dateTo) {
+      dateOnlyWhere.createdAt = { ...dateOnlyWhere.createdAt, lte: new Date(dateTo) };
+    }
+
     const schools = await prisma.facultySchoolList.findMany({
       where: { isActive: true },
       select: {
@@ -140,6 +235,21 @@ exports.getSchoolWiseStats = async (req, res) => {
             iprType: true,
           },
         },
+        researchContributions: {
+          where: dateOnlyWhere,
+          select: {
+            id: true,
+            status: true,
+            publicationType: true,
+          },
+        },
+        grantApplications: {
+          where: dateOnlyWhere,
+          select: {
+            id: true,
+            status: true,
+          },
+        },
       },
       orderBy: { facultyName: 'asc' },
     });
@@ -168,6 +278,21 @@ exports.getSchoolWiseStats = async (req, res) => {
         iprStats.byType[ipr.iprType] = (iprStats.byType[ipr.iprType] || 0) + 1;
       });
 
+      const categories = {
+        researchPapers: 0,
+        books: 0,
+        bookChapters: 0,
+        conferencePapers: 0,
+        grants: school.grantApplications.length,
+        ipr: iprStats.total,
+      };
+      school.researchContributions.forEach(rc => {
+        if (rc.publicationType === 'research_paper') categories.researchPapers++;
+        else if (rc.publicationType === 'book') categories.books++;
+        else if (rc.publicationType === 'book_chapter') categories.bookChapters++;
+        else if (rc.publicationType === 'conference_paper') categories.conferencePapers++;
+      });
+
       return {
         id: school.id,
         code: school.facultyCode,
@@ -177,6 +302,7 @@ exports.getSchoolWiseStats = async (req, res) => {
         employees: totalEmployees,
         programmes: totalProgrammes,
         ipr: iprStats,
+        categories,
       };
     });
 
@@ -216,6 +342,16 @@ exports.getDepartmentWiseStats = async (req, res) => {
       iprWhere.iprType = iprType;
     }
 
+    // Research/grant records use the same createdAt-range filter, but never
+    // filter by iprType (that's IPR-specific).
+    const dateOnlyWhere = {};
+    if (dateFrom) {
+      dateOnlyWhere.createdAt = { ...dateOnlyWhere.createdAt, gte: new Date(dateFrom) };
+    }
+    if (dateTo) {
+      dateOnlyWhere.createdAt = { ...dateOnlyWhere.createdAt, lte: new Date(dateTo) };
+    }
+
     const departments = await prisma.department.findMany({
       where: deptWhere,
       select: {
@@ -244,6 +380,21 @@ exports.getDepartmentWiseStats = async (req, res) => {
             iprType: true,
           },
         },
+        researchContributions: {
+          where: dateOnlyWhere,
+          select: {
+            id: true,
+            status: true,
+            publicationType: true,
+          },
+        },
+        grantApplications: {
+          where: dateOnlyWhere,
+          select: {
+            id: true,
+            status: true,
+          },
+        },
       },
       orderBy: [{ faculty: { facultyName: 'asc' } }, { departmentName: 'asc' }],
     });
@@ -261,6 +412,21 @@ exports.getDepartmentWiseStats = async (req, res) => {
         iprStats.byType[ipr.iprType] = (iprStats.byType[ipr.iprType] || 0) + 1;
       });
 
+      const categories = {
+        researchPapers: 0,
+        books: 0,
+        bookChapters: 0,
+        conferencePapers: 0,
+        grants: dept.grantApplications.length,
+        ipr: iprStats.total,
+      };
+      dept.researchContributions.forEach(rc => {
+        if (rc.publicationType === 'research_paper') categories.researchPapers++;
+        else if (rc.publicationType === 'book') categories.books++;
+        else if (rc.publicationType === 'book_chapter') categories.bookChapters++;
+        else if (rc.publicationType === 'conference_paper') categories.conferencePapers++;
+      });
+
       return {
         id: dept.id,
         code: dept.departmentCode,
@@ -274,6 +440,7 @@ exports.getDepartmentWiseStats = async (req, res) => {
         employees: dept._count.primaryEmployees,
         programmes: dept._count.programs,
         ipr: iprStats,
+        categories,
       };
     });
 
@@ -417,6 +584,134 @@ exports.getIprAnalytics = async (req, res) => {
 };
 
 /**
+ * Get research/grant category analytics (Research Papers, Books, Book Chapters,
+ * Conference Papers, Grants) with the same filter shape as getIprAnalytics.
+ */
+exports.getCategoryAnalytics = async (req, res) => {
+  try {
+    const { schoolId, departmentId, dateFrom, dateTo, publicationType, status } = req.query;
+
+    const where = {};
+    if (schoolId) where.schoolId = schoolId;
+    if (departmentId) where.departmentId = departmentId;
+    if (publicationType) where.publicationType = publicationType;
+    if (status) where.status = status;
+    if (dateFrom) {
+      where.createdAt = { ...where.createdAt, gte: new Date(dateFrom) };
+    }
+    if (dateTo) {
+      where.createdAt = { ...where.createdAt, lte: new Date(dateTo) };
+    }
+
+    const grantWhere = {};
+    if (schoolId) grantWhere.schoolId = schoolId;
+    if (departmentId) grantWhere.departmentId = departmentId;
+    if (status) grantWhere.status = status;
+    if (dateFrom) {
+      grantWhere.createdAt = { ...grantWhere.createdAt, gte: new Date(dateFrom) };
+    }
+    if (dateTo) {
+      grantWhere.createdAt = { ...grantWhere.createdAt, lte: new Date(dateTo) };
+    }
+
+    const [
+      totalContributions,
+      byPublicationType,
+      byStatus,
+      recentContributions,
+      totalGrants,
+      byGrantStatus,
+      recentGrants,
+    ] = await Promise.all([
+      prisma.researchContribution.count({ where }),
+      prisma.researchContribution.groupBy({
+        by: ['publicationType'],
+        where,
+        _count: { id: true },
+      }),
+      prisma.researchContribution.groupBy({
+        by: ['status'],
+        where,
+        _count: { id: true },
+      }),
+      prisma.researchContribution.findMany({
+        where,
+        select: {
+          id: true,
+          applicationNumber: true,
+          title: true,
+          publicationType: true,
+          status: true,
+          createdAt: true,
+          school: { select: { facultyCode: true, facultyName: true } },
+          department: { select: { departmentCode: true, departmentName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+      prisma.grantApplication.count({ where: grantWhere }),
+      prisma.grantApplication.groupBy({
+        by: ['status'],
+        where: grantWhere,
+        _count: { id: true },
+      }),
+      prisma.grantApplication.findMany({
+        where: grantWhere,
+        select: {
+          id: true,
+          applicationNumber: true,
+          title: true,
+          status: true,
+          submittedAmount: true,
+          createdAt: true,
+          school: { select: { facultyCode: true, facultyName: true } },
+          department: { select: { departmentCode: true, departmentName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    const publicationTypeCounts = {};
+    byPublicationType.forEach(item => {
+      publicationTypeCounts[item.publicationType] = item._count.id;
+    });
+
+    const statusCounts = {};
+    byStatus.forEach(item => {
+      statusCounts[item.status] = item._count.id;
+    });
+
+    const grantStatusCounts = {};
+    byGrantStatus.forEach(item => {
+      grantStatusCounts[item.status] = item._count.id;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        total: totalContributions + totalGrants,
+        researchPapers: publicationTypeCounts.research_paper || 0,
+        books: publicationTypeCounts.book || 0,
+        bookChapters: publicationTypeCounts.book_chapter || 0,
+        conferencePapers: publicationTypeCounts.conference_paper || 0,
+        byPublicationType: publicationTypeCounts,
+        byStatus: statusCounts,
+        recentContributions,
+        grants: {
+          total: totalGrants,
+          byStatus: grantStatusCounts,
+          recent: recentGrants,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get category analytics error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch category analytics' });
+  }
+};
+
+/**
  * Get top performers (users with most IPR filings)
  */
 exports.getTopPerformers = async (req, res) => {
@@ -509,7 +804,8 @@ exports.getMonthlyTrend = async (req, res) => {
     const CACHE_KEY = `analytics:monthly:${year}:${schoolId || ''}:${departmentId || ''}`;
     const cached = await cache.get(CACHE_KEY);
     if (cached) {
-      return res.json({ success: true, data: JSON.parse(cached) });
+      const parsed = JSON.parse(cached);
+      return res.json({ success: true, data: parsed.monthlyData, categoryTrend: parsed.categoryTrend });
     }
 
     // Build filter
@@ -522,14 +818,37 @@ exports.getMonthlyTrend = async (req, res) => {
     if (schoolId) where.schoolId = schoolId;
     if (departmentId) where.departmentId = departmentId;
 
-    const applications = await prisma.iprApplication.findMany({
-      where,
-      select: {
-        createdAt: true,
-        status: true,
-        iprType: true,
-      },
-    });
+    const researchWhere = {
+      createdAt: where.createdAt,
+    };
+    if (schoolId) researchWhere.schoolId = schoolId;
+    if (departmentId) researchWhere.departmentId = departmentId;
+
+    const [applications, contributions, grants] = await Promise.all([
+      prisma.iprApplication.findMany({
+        where,
+        select: {
+          createdAt: true,
+          status: true,
+          iprType: true,
+        },
+      }),
+      prisma.researchContribution.findMany({
+        where: researchWhere,
+        select: {
+          createdAt: true,
+          status: true,
+          publicationType: true,
+        },
+      }),
+      prisma.grantApplication.findMany({
+        where: researchWhere,
+        select: {
+          createdAt: true,
+          status: true,
+        },
+      }),
+    ]);
 
     // Group by month
     const monthlyData = Array.from({ length: 12 }, (_, i) => ({
@@ -541,9 +860,24 @@ exports.getMonthlyTrend = async (req, res) => {
       pending: 0,
     }));
 
+    // Category trend: per-month counts for each research-output category, so
+    // the dashboard can chart Research Papers / Books / Chapters / Conferences /
+    // Grants / IPR side-by-side instead of just IPR filings.
+    const categoryTrend = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      monthName: new Date(2000, i, 1).toLocaleString('default', { month: 'short' }),
+      researchPapers: 0,
+      books: 0,
+      bookChapters: 0,
+      conferencePapers: 0,
+      grants: 0,
+      ipr: 0,
+    }));
+
     applications.forEach(app => {
       const month = new Date(app.createdAt).getMonth();
       monthlyData[month].total++;
+      categoryTrend[month].ipr++;
 
       if (app.status === 'completed') {
         monthlyData[month].approved++;
@@ -554,10 +888,25 @@ exports.getMonthlyTrend = async (req, res) => {
       }
     });
 
-    await cache.set(CACHE_KEY, JSON.stringify(monthlyData), 300); // 5 min TTL
+    contributions.forEach(rc => {
+      const month = new Date(rc.createdAt).getMonth();
+      if (rc.publicationType === 'research_paper') categoryTrend[month].researchPapers++;
+      else if (rc.publicationType === 'book') categoryTrend[month].books++;
+      else if (rc.publicationType === 'book_chapter') categoryTrend[month].bookChapters++;
+      else if (rc.publicationType === 'conference_paper') categoryTrend[month].conferencePapers++;
+    });
+
+    grants.forEach(g => {
+      const month = new Date(g.createdAt).getMonth();
+      categoryTrend[month].grants++;
+    });
+
+    const responseData = { monthlyData, categoryTrend };
+    await cache.set(CACHE_KEY, JSON.stringify(responseData), 300); // 5 min TTL
     res.json({
       success: true,
       data: monthlyData,
+      categoryTrend,
     });
   } catch (error) {
     console.error('Get monthly trend error:', error);

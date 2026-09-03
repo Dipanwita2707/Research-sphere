@@ -50,11 +50,11 @@ import { logger } from '@/shared/utils/logger';
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
   draft: { label: 'Draft', icon: Edit, color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' },
-  submitted: { label: 'Submitted', icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+  submitted: { label: 'Submitted', icon: Clock, color: 'text-[#7d1a34]', bgColor: 'bg-[#fdf5ec]', borderColor: 'border-[#f0e2d2]' },
   pending_mentor_approval: { label: 'Pending Mentor Approval', icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
   under_review: { label: 'Under Review', icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
   changes_required: { label: 'Changes Required', icon: AlertCircle, color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200' },
-  resubmitted: { label: 'Resubmitted', icon: RefreshCw, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+  resubmitted: { label: 'Resubmitted', icon: RefreshCw, color: 'text-[#7d1a34]', bgColor: 'bg-[#fdf5ec]', borderColor: 'border-[#f0e2d2]' },
   approved: { label: 'Approved', icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
   rejected: { label: 'Rejected', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
   completed: { label: 'Completed', icon: CheckCircle, color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
@@ -82,7 +82,7 @@ const INDEXING_CATEGORY_LABELS: Record<string, string> = {
   pubmed: 'PubMed',
   naas_rating_6_plus: 'NAAS (Rating ≥ 6)',
   abdc_scopus_wos: 'ABDC Journals (SCOPUS/WOS)',
-  sgtu_in_house: 'SGTU In-House Journal',
+  sgtu_in_house: 'ResearchSphere In-House Journal',
   case_centre_uk: 'The Case Centre UK',
   other_indexed: 'Other Indexed Journals',
   non_indexed_reputed: 'Non-Indexed Reputed Journals',
@@ -100,7 +100,7 @@ const QUARTILE_LABELS: Record<string, { label: string; color: string }> = {
   top1: { label: 'Top 1%', color: 'text-emerald-600 bg-emerald-50' },
   top5: { label: 'Top 5%', color: 'text-green-600 bg-green-50' },
   q1: { label: 'Q1 - Top 25%', color: 'text-green-600 bg-green-50' },
-  q2: { label: 'Q2 - Top 50%', color: 'text-blue-600 bg-blue-50' },
+  q2: { label: 'Q2 - Top 50%', color: 'text-[#7d1a34] bg-[#fdf5ec]' },
   q3: { label: 'Q3 - Top 75%', color: 'text-yellow-600 bg-yellow-50' },
   q4: { label: 'Q4 - Bottom 25%', color: 'text-orange-600 bg-orange-50' },
 };
@@ -283,7 +283,7 @@ export default function ContributionDetailPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-10 h-10 animate-spin text-[#7d1a34] mx-auto mb-4" />
           <p className="text-gray-500 dark:text-gray-400">Loading contribution details...</p>
         </div>
       </div>
@@ -301,7 +301,7 @@ export default function ContributionDetailPage() {
           <p className="text-gray-500 dark:text-gray-400 mb-4">The research contribution you're looking for doesn't exist or has been removed.</p>
           <Link 
             href="/research/my-contributions" 
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to My Contributions
@@ -428,7 +428,7 @@ export default function ContributionDetailPage() {
             if (myIncentive > 0) {
               return (
                 <div>
-                  <p className={`text-2xl font-bold ${isApprovedOrCompleted ? 'text-green-600' : 'text-blue-600'}`}>
+                  <p className={`text-2xl font-bold ${isApprovedOrCompleted ? 'text-green-600' : 'text-[#7d1a34]'}`}>
                     ₹{Number(myIncentive).toLocaleString()}
                   </p>
                   <p className={`text-xs mt-1 ${isApprovedOrCompleted ? 'text-green-600' : 'text-gray-500'}`}>
@@ -494,11 +494,11 @@ export default function ContributionDetailPage() {
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
           <div className="mb-2 flex items-center justify-between pt-1">
             <span className="text-sm text-gray-500 dark:text-gray-400">Authors</span>
-            <Users className="w-5 h-5 text-blue-500" />
+            <Users className="w-5 h-5 text-[#7d1a34]" />
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{contribution.totalAuthors || contribution.authors?.length || 1}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {contribution.sgtAffiliatedAuthors || contribution.totalInternalAuthors || 1} from SGT
+            {contribution.sgtAffiliatedAuthors || contribution.totalInternalAuthors || 1} from ResearchSphere
           </p>
         </div>
 
@@ -556,9 +556,9 @@ export default function ContributionDetailPage() {
    'research_paper' && 
        (contribution as any).indexingCategories && 
        (contribution as any).indexingCategories.length > 0 && (
-        <div className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-gray-800 dark:to-slate-800">
+        <div className="mb-6 rounded-xl border border-[#f0e2d2] bg-gradient-to-br from-[#fdf5ec] to-indigo-50 p-6 dark:border-[#5e1024] dark:from-gray-800 dark:to-slate-800">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
+            <TrendingUp className="w-5 h-5 mr-2 text-[#7d1a34]" />
             Incentive Calculation Details
           </h3>
           <div className="space-y-4">
@@ -567,7 +567,7 @@ export default function ContributionDetailPage() {
               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selected Indexing Categories:</h4>
               <div className="flex flex-wrap gap-2">
                 {(contribution as any).indexingCategories.map((cat: string) => (
-                  <span key={cat} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-800 shadow-sm dark:border-blue-800 dark:bg-gray-800 dark:text-blue-300">
+                  <span key={cat} className="rounded-lg border border-[#f0e2d2] bg-white px-3 py-1.5 text-sm font-medium text-[#7d1a34] shadow-sm dark:border-[#5e1024] dark:bg-gray-800 dark:text-[#c8973f]">
                     {INDEXING_CATEGORY_LABELS[cat] || cat}
                   </span>
                 ))}
@@ -611,7 +611,7 @@ export default function ContributionDetailPage() {
             {/* Distribution Method */}
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <Info className="w-5 h-5 text-[#7d1a34] mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Distribution Method: Role-Based</p>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -662,7 +662,7 @@ export default function ContributionDetailPage() {
                 className={`inline-flex items-center rounded-2xl px-4 py-3 text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab ===
    tab.key
-                    ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-800 dark:text-blue-400'
+                    ? 'bg-white text-[#7d1a34] shadow-sm dark:bg-gray-800 dark:text-[#c8973f]'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-white/80 hover:text-gray-700 dark:hover:bg-gray-800/70 dark:hover:text-gray-200'
                 }`}
               >
@@ -671,7 +671,7 @@ export default function ContributionDetailPage() {
                 {tab.count !== undefined && tab.count > 0 && (
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
                     activeTab ===
-   tab.key ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+   tab.key ? 'bg-[#fbe2e8] text-[#7d1a34] dark:bg-[#7d1a34]/20 dark:text-[#c8973f]' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}>
                     {tab.count}
                   </span>
@@ -714,7 +714,7 @@ export default function ContributionDetailPage() {
               {/* Research/Book Details Grid */}
               <div>
                 <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
-                  <FileText className="w-5 h-5 mr-2 text-blue-500" />
+                  <FileText className="w-5 h-5 mr-2 text-[#7d1a34]" />
                   {contribution.publicationType ===
    'book' ? 'Book Information' :
                    contribution.publicationType ===
@@ -732,7 +732,7 @@ export default function ContributionDetailPage() {
                           <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Indexing Categories</div>
                           <div className="flex flex-wrap gap-2">
                             {(contribution as any).indexingCategories.map((cat: string) => (
-                              <span key={cat} className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                              <span key={cat} className="rounded-full border border-[#f0e2d2] bg-[#fdf5ec] px-3 py-1 text-sm font-medium text-[#7d1a34] dark:border-[#5e1024] dark:bg-[#7d1a34]/20 dark:text-[#c8973f]">
                                 {INDEXING_CATEGORY_LABELS[cat] || cat}
                               </span>
                             ))}
@@ -740,7 +740,7 @@ export default function ContributionDetailPage() {
                         </div>
                       )}
                       {(contribution as any).interdisciplinaryFromSgt !== undefined && (
-                        <DetailItem label="Interdisciplinary (SGT)" value={(contribution as any).interdisciplinaryFromSgt ? 'Yes' : 'No'} />
+                        <DetailItem label="Interdisciplinary (ResearchSphere)" value={(contribution as any).interdisciplinaryFromSgt ? 'Yes' : 'No'} />
                       )}
                       {contribution.quartile && (
                         <DetailItem label="Quartile" value={QUARTILE_LABELS[contribution.quartile]?.label} />
@@ -844,7 +844,7 @@ export default function ContributionDetailPage() {
                         <DetailItem label="Total Authors" value={(contribution as any).totalAuthors?.toString()} />
                       )}
                       {(contribution as any).sgtAffiliatedAuthors && (
-                        <DetailItem label="SGT Authors" value={(contribution as any).sgtAffiliatedAuthors?.toString()} />
+                        <DetailItem label="ResearchSphere Authors" value={(contribution as any).sgtAffiliatedAuthors?.toString()} />
                       )}
                       {(contribution as any).bookLetter && (
                         <DetailItem label="Our Authorized Publications" value={(contribution as any).bookLetter ===
@@ -937,7 +937,7 @@ export default function ContributionDetailPage() {
                     <DetailItem label="Virtual Conference" value={(contribution as any).virtualConference} />
                   )}
                   {(contribution as any).conferenceHeldAtSgt && (
-                    <DetailItem label="Held at SGT" value={(contribution as any).conferenceHeldAtSgt} />
+                    <DetailItem label="Held at ResearchSphere" value={(contribution as any).conferenceHeldAtSgt} />
                   )}
                   {(contribution as any).conferenceBestPaperAward && (
                     <DetailItem label="Best Paper Award" value={(contribution as any).conferenceBestPaperAward} />
@@ -989,7 +989,7 @@ export default function ContributionDetailPage() {
                     icon={TrendingUp}
                   />
                   <CharacteristicBadge 
-                    label="SGT Students" 
+                    label="ResearchSphere Students" 
                     value={contribution.studentsFromSgt}
                     icon={GraduationCap}
                   />
@@ -1053,7 +1053,7 @@ export default function ContributionDetailPage() {
               {/* Documents */}
               <div>
                 <h3 className="mb-4 flex items-center text-lg font-semibold text-gray-900 dark:text-white">
-                  <FileText className="w-5 h-5 mr-2 text-blue-500" />
+                  <FileText className="w-5 h-5 mr-2 text-[#7d1a34]" />
                   Submitted Documents
                 </h3>
                 {(contribution.manuscriptFilePath || (contribution.supportingDocsFilePaths as any)?.files?.length > 0) ? (
@@ -1061,11 +1061,11 @@ export default function ContributionDetailPage() {
                     {contribution.manuscriptFilePath && (() => {
                       const manuscriptInfo = parseManuscriptFilePath(contribution.manuscriptFilePath);
                       return manuscriptInfo ? (
-                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                        <div className="rounded-lg border border-[#f0e2d2] bg-[#fdf5ec] p-4 dark:border-[#5e1024] dark:bg-[#7d1a34]/10">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                                <FileText className="w-5 h-5 text-blue-600" />
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#fbe2e8] dark:bg-[#5e1024]/40">
+                                <FileText className="w-5 h-5 text-[#7d1a34]" />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900 dark:text-white">
@@ -1078,7 +1078,7 @@ export default function ContributionDetailPage() {
                               href={getResearchDocumentDownloadUrl(contribution.id, 'manuscript', manuscriptInfo.name)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                              className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg text-sm font-medium hover:bg-[#5e1024] transition-colors flex items-center space-x-2"
                             >
                               <ExternalLink className="w-4 h-4" />
                               <span>Download</span>
@@ -1195,7 +1195,7 @@ export default function ContributionDetailPage() {
                         author.authorType ===
    'first_author' || author.authorType ===
    'first_and_corresponding_author'
-                          ? 'bg-blue-50 border-blue-200'
+                          ? 'bg-[#fdf5ec] border-[#f0e2d2]'
                           : author.isCorresponding
                           ? 'bg-purple-50 border-purple-200'
                           : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
@@ -1204,7 +1204,7 @@ export default function ContributionDetailPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-4">
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
-                            author.isInternal || author.userId ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
+                            author.isInternal || author.userId ? 'bg-[#fbe2e8] text-[#7d1a34]' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                           }`}>
                             {author.name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
@@ -1219,7 +1219,7 @@ export default function ContributionDetailPage() {
                                     ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
                                     : author.authorRole ===
    'first_author'
-                                    ? 'bg-blue-100 text-blue-700'
+                                    ? 'bg-[#fbe2e8] text-[#7d1a34]'
                                     : author.authorRole ===
    'corresponding_author'
                                     ? 'bg-purple-100 text-purple-700'
@@ -1240,7 +1240,7 @@ export default function ContributionDetailPage() {
                                 <>
                                   {author.orderNumber ===
    1 && (
-                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                                    <span className="px-2 py-0.5 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded-full font-medium">
                                       First Author
                                     </span>
                                   )}
@@ -1543,7 +1543,7 @@ export default function ContributionDetailPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={actionLoading}
-                  className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-[#7d1a34] px-6 py-3 font-medium text-white transition-colors hover:bg-[#5e1024] disabled:opacity-50"
                 >
                   {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
                   Submit for Review
@@ -1584,7 +1584,7 @@ export default function ContributionDetailPage() {
                     <button
                       onClick={handleResubmit}
                       disabled={actionLoading}
-                      className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                      className="flex min-w-[200px] flex-1 items-center justify-center rounded-2xl bg-[#7d1a34] px-6 py-3 font-medium text-white transition-colors hover:bg-[#5e1024] disabled:opacity-50"
                     >
                       {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <RefreshCw className="w-5 h-5 mr-2" />}
                       Resubmit
@@ -1636,7 +1636,7 @@ function DetailItem({ label, value, link }: { label: string; value?: string | nu
           href={link} 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="flex items-center font-medium text-blue-600 hover:underline dark:text-blue-400"
+          className="flex items-center font-medium text-[#7d1a34] hover:underline dark:text-[#c8973f]"
         >
           {value}
           <ExternalLink className="w-3 h-3 ml-1" />

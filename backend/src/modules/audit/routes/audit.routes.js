@@ -9,7 +9,7 @@ const auditController = require('../controllers/audit.controller');
 const { protect, restrictTo } = require('../../../shared/middleware/auth');
 
 // All audit routes require authentication and admin/drd_staff role
-const adminOnly = [protect, restrictTo('admin', 'super_admin', 'drd_staff')];
+const adminOnly = [protect, restrictTo('admin', 'superadmin', 'drd_staff')];
 
 // Audit Logs
 router.get('/logs', ...adminOnly, auditController.getAuditLogs);

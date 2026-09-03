@@ -70,7 +70,7 @@ exports.getMyGrantApplications = async (req, res) => {
 exports.getGrantApplicationById = async (req, res) => {
   try {
     const { id } = req.params;
-    const grant = await grantService.getApplicationById(id);
+    const grant = await grantService.getApplicationById(id, req.tenantId);
     res.json({ success: true, data: grant });
   } catch (error) {
     console.error('Error fetching grant application:', error);
@@ -141,7 +141,7 @@ exports.getPendingGrantReviews = async (req, res) => {
       });
     }
 
-    const result = await grantService.getPendingReviews(userId, mergedPermissions, req.query);
+    const result = await grantService.getPendingReviews(userId, mergedPermissions, req.query, req.tenantId);
     res.json({
       success: true,
       data: result.data || result,

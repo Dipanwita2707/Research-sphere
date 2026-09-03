@@ -1,0 +1,94 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryTextColor': '#01579b', 'primaryBorderColor': '#0288d1', 'lineColor': '#37474f'}}}%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════
+    %% EXTERNAL ENTITIES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    APPLICANT["👨‍🎓 STUDENT / 👨‍🏫 FACULTY APPLICANT"]
+    MENTOR["🧑‍🏫 ASSIGNED FACULTY MENTOR"]
+    DRD_REVIEWER["🕵️ DRD REVIEWER (Scoped)"]
+    DRD_APPROVER["🏛️ DRD HEAD / APPROVER"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% DATA STORES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    DB_RESEARCH[("D13: Research Store<br/>ResearchContribution, Authors,<br/>EditSuggestions, StatusHistory")]
+    DB_TRACKER[("D14: Tracker Store<br/>ResearchProgressTracker,<br/>TrackerStatusHistory")]
+    DB_POLICY[("D15: Policy Store<br/>ResearchPolicy, BookPolicy,<br/>ChapterPolicy, ConfPolicy, GrantPolicy")]
+    DB_USER[("D4: User Store<br/>UserLogin, EmployeeDetails,<br/>StudentDetails")]
+    SENDGRID["📧 SendGrid Service"]
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% RESEARCH MODULE PROCESSES
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    subgraph RESEARCH_MODULE["🔬 5.0 RESEARCH MODULE & POLICY SYSTEM"]
+        direction TB
+        P5_1(("5.1<br/>Contribution Filing<br/>& Drafts"))
+        P5_2(("5.2<br/>Mentor Routing<br/>& Review"))
+        P5_3(("5.3<br/>DRD Reviewer<br/>Queue & Scope"))
+        P5_4(("5.4<br/>DRD Head Approval<br/>& Completion"))
+        P5_5(("5.5<br/>Incentive & Policy<br/>Calculator"))
+        P5_6(("5.6<br/>Research Progress<br/>Tracker"))
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% FLOWS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    %% Research Progress Tracker Flows
+    APPLICANT -->|"Log/Update Writing State"| P5_6
+    P5_6 -->|"Read/Write Tracker Data"| DB_TRACKER
+    P5_6 -.->|"Auto-initiate Filing"| P5_1
+
+    %% Contribution Filing Flows
+    APPLICANT -->|"File Draft / Upload Docs / Submit"| P5_1
+    P5_1 -->|"Read/Write Contribution"| DB_RESEARCH
+    P5_1 -->|"Auth & Role Check"| DB_USER
+    P5_1 -->|"Submit Trigger (If student + mentor UID)"| P5_2
+    P5_1 -->|"Submit Trigger (Direct Path)"| P5_3
+
+    %% Mentor Review Flows
+    P5_1 -->|"Set: pending_mentor_approval"| P5_2
+    P5_2 -->|"Notify Mentor"| SENDGRID
+    MENTOR -->|"Review Draft / Approve / Request Changes"| P5_2
+    P5_2 -->|"Update Status (changes_required / submitted)"| DB_RESEARCH
+    P5_2 -->|"Notify Applicant (Status Update)"| SENDGRID
+
+    %% DRD Reviewer Flows
+    P5_3 -->|"List Pending Scoped Contributions"| DB_RESEARCH
+    DRD_REVIEWER -->|"Start Review / Request Changes / Recommend"| P5_3
+    P5_3 -->|"Scope Mapping (Schools & Depts)"| DB_USER
+    P5_3 -->|"Record Suggestions & Set status"| DB_RESEARCH
+    P5_3 -->|"Notify Applicant of Revisions"| SENDGRID
+    P5_3 -->|"Forward Recommended Item"| P5_4
+
+    %% DRD Head Approval Flows
+    P5_4 -->|"Fetch Recommended / Under_Review"| DB_RESEARCH
+    DRD_APPROVER -->|"Approve / Reject / Mark Completed"| P5_4
+    P5_4 -->|"Update Final Status (approved / rejected / completed)"| DB_RESEARCH
+    P5_4 -->|"Trigger Calculations"| P5_5
+    P5_4 -->|"Notify Applicant & Reviewer"| SENDGRID
+
+    %% Incentive Calculator Flows
+    P5_5 -->|"Fetch Active Policy matching Criteria"| DB_POLICY
+    P5_5 -->|"Calculate Incentive Share & Points"| P5_5
+    P5_5 -->|"Save Incentive Credits & Amounts"| DB_RESEARCH
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% STYLING
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    classDef external fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef process fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef datastore fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    classDef extservice fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    classDef module fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+
+    class APPLICANT,MENTOR,DRD_REVIEWER,DRD_APPROVER external
+    class P5_1,P5_2,P5_3,P5_4,P5_5,P5_6 process
+    class DB_RESEARCH,DB_TRACKER,DB_POLICY,DB_USER datastore
+    class SENDGRID extservice
+    class RESEARCH_MODULE module

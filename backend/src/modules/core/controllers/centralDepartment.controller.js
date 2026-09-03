@@ -7,8 +7,13 @@ const cache = require('../../../shared/config/redis');
 exports.getAllCentralDepartments = async (req, res) => {
   try {
     const { isActive, departmentType } = req.query;
+    const tenantId = req.tenantId || null;
     
     const where = {};
+    // Tenant isolation: scope to university unless superadmin global view
+    if (tenantId) {
+      where.universityId = tenantId;
+    }
     if (isActive !== undefined) {
       where.isActive = isActive === 'true';
     }
@@ -58,6 +63,7 @@ exports.getAllCentralDepartments = async (req, res) => {
 exports.getCentralDepartmentById = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || null;
 
     const department = await prisma.centralDepartment.findUnique({
       where: { id },
@@ -84,6 +90,14 @@ exports.getCentralDepartmentById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Central department not found',
+      });
+    }
+
+    // Tenant isolation: non-superadmin cannot access another university's central department
+    if (tenantId && department.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This central department does not belong to your university.',
       });
     }
 
@@ -118,9 +132,17 @@ exports.createCentralDepartment = async (req, res) => {
       metadata,
     } = req.body;
 
-    // Check if department code already exists
-    const existing = await prisma.centralDepartment.findUnique({
-      where: { departmentCode },
+    const tenantId = req.tenantId || null;
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'University context is required to create a central department.',
+      });
+    }
+
+    // Check if department code already exists within this university
+    const existing = await prisma.centralDepartment.findFirst({
+      where: { departmentCode, universityId: tenantId },
     });
 
     if (existing) {
@@ -143,6 +165,7 @@ exports.createCentralDepartment = async (req, res) => {
         departmentType,
         metadata: metadata || {},
         isActive: true,
+        universityId: tenantId,
       },
       include: {
         headOfDepartment: {
@@ -196,6 +219,7 @@ exports.updateCentralDepartment = async (req, res) => {
       departmentType,
       metadata,
     } = req.body;
+    const tenantId = req.tenantId || null;
 
     // Check if department exists
     const existing = await prisma.centralDepartment.findUnique({
@@ -209,10 +233,18 @@ exports.updateCentralDepartment = async (req, res) => {
       });
     }
 
+    // Tenant isolation: prevent cross-university modification
+    if (tenantId && existing.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This central department does not belong to your university.',
+      });
+    }
+
     // Check if department code is being changed and already exists
     if (departmentCode && departmentCode !== existing.departmentCode) {
-      const codeExists = await prisma.centralDepartment.findUnique({
-        where: { departmentCode },
+      const codeExists = await prisma.centralDepartment.findFirst({
+        where: { departmentCode, universityId: tenantId },
       });
 
       if (codeExists) {
@@ -277,6 +309,7 @@ exports.updateCentralDepartment = async (req, res) => {
 exports.deleteCentralDepartment = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || null;
 
     const department = await prisma.centralDepartment.findUnique({
       where: { id },
@@ -286,6 +319,14 @@ exports.deleteCentralDepartment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Central department not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university deletion
+    if (tenantId && department.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This central department does not belong to your university.',
       });
     }
 
@@ -315,6 +356,7 @@ exports.deleteCentralDepartment = async (req, res) => {
 exports.toggleCentralDepartmentStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || null;
 
     const department = await prisma.centralDepartment.findUnique({
       where: { id },
@@ -324,6 +366,14 @@ exports.toggleCentralDepartmentStatus = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Central department not found',
+      });
+    }
+
+    // Tenant isolation
+    if (tenantId && department.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This central department does not belong to your university.',
       });
     }
 

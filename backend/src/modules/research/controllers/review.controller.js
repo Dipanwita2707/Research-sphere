@@ -16,14 +16,14 @@ exports.getPendingReviews = async (req, res) => {
     const { publicationType } = req.query;
     if (publicationType === 'grant_proposal') return exports.getPendingGrantReviews(req, res);
     if (!publicationType || publicationType === '') return exports.getAllPendingReviews(req, res);
-    const result = await reviewService.getPendingReviews(req.user.id, req.query, req.user?.centralDeptPermissions);
+    const result = await reviewService.getPendingReviews(req.user.id, req.query, req.user?.centralDeptPermissions, req.tenantId);
     res.status(200).json({ success: true, data: result });
   } catch (error) { _err(res, error, 'Failed to get pending reviews'); }
 };
 
 exports.getPendingGrantReviews = async (req, res) => {
   try {
-    const result = await reviewService.getPendingGrantReviews(req.user.id, req.query);
+    const result = await reviewService.getPendingGrantReviews(req.user.id, req.query, req.tenantId);
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
@@ -38,8 +38,8 @@ exports.getAllPendingReviews = async (req, res) => {
     const researchQuery = { ...req.query };
     delete researchQuery.publicationType; // let the service return all types
     const [researchResult, grantResult] = await Promise.all([
-      reviewService.getPendingReviews(req.user.id, researchQuery, req.user?.centralDeptPermissions).catch(() => ({ contributions: [], stats: {} })),
-      reviewService.getPendingGrantReviews(req.user.id, req.query).catch(() => ({ contributions: [], stats: {} }))
+      reviewService.getPendingReviews(req.user.id, researchQuery, req.user?.centralDeptPermissions, req.tenantId).catch(() => ({ contributions: [], stats: {} })),
+      reviewService.getPendingGrantReviews(req.user.id, req.query, req.tenantId).catch(() => ({ contributions: [], stats: {} }))
     ]);
     const allContributions = [...(researchResult.contributions || []), ...(grantResult.contributions || [])];
     const combinedStats = {

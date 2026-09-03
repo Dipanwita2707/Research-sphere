@@ -9,6 +9,118 @@ datasource db {
   extensions = [citext, uuid_ossp(map: "uuid-ossp")]
 }
 
+// =====================================
+// SaaS Multi-Tenancy Models
+// =====================================
+
+model University {
+  id             String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code           String                  @unique @db.VarChar(32)
+  name           String                  @db.VarChar(256)
+  slug           String                  @unique @db.VarChar(64)
+  logoUrl        String?                 @map("logo_url") @db.VarChar(512)
+  primaryColor   String?                 @map("primary_color") @db.VarChar(16)
+  contactEmail   String?                 @map("contact_email") @db.VarChar(256)
+  websiteUrl     String?                 @map("website_url") @db.VarChar(512)
+  address        String?                 @db.Text
+  city           String?                 @db.VarChar(128)
+  state          String?                 @db.VarChar(128)
+  country        String?                 @default("India") @db.VarChar(64)
+  timezone       String?                 @default("Asia/Kolkata") @db.VarChar(64)
+  isActive       Boolean                 @default(true) @map("is_active")
+  trialEndsAt    DateTime?               @map("trial_ends_at") @db.Timestamptz(6)
+  // Admin-curated extra affiliation name variants (aliases) that the
+  // affiliation engine can't derive algorithmically (e.g. alternate
+  // transliterations, historical names). Union'd with the auto-generated
+  // variant list — see backend/src/shared/utils/affiliationEngine.js.
+  affiliationAliases Json?               @default("[]") @map("affiliation_aliases")
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  users                         UserLogin[]
+  schools                       FacultySchoolList[]
+  centralDepts                  CentralDepartment[]
+  roles                         Role[]
+  notifications                 Notification[]
+  auditLogs                     AuditLog[]
+  subscription                  UniversitySubscription?
+  apiUsageDaily                 ApiUsageDaily[]
+  bugReports                    BugReport[]
+  incentivePolicies             IncentivePolicy[]
+  researchIncentivePolicies     ResearchIncentivePolicy[]
+  bookIncentivePolicies         BookIncentivePolicy[]
+  bookChapterIncentivePolicies  BookChapterIncentivePolicy[]
+  conferenceIncentivePolicies   ConferenceIncentivePolicy[]
+  grantIncentivePolicies        GrantIncentivePolicy[]
+
+  @@map("universities")
+}
+
+model SaaSTier {
+  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                String                  @unique @db.VarChar(64)
+  displayName         String                  @map("display_name") @db.VarChar(128)
+  monthlyPriceCents   Int                     @map("monthly_price_cents")
+  yearlyPriceCents    Int                     @map("yearly_price_cents")
+  maxUsers            Int                     @map("max_users")
+  maxApiCallsPerMonth Int                     @map("max_api_calls_per_month")
+  maxStorageGb        Int                     @default(10) @map("max_storage_gb")
+  features            Json                    @default("{}")
+  overagePer1kCalls   Int                     @default(10) @map("overage_per_1k_calls")
+  isPublic            Boolean                 @default(true) @map("is_public")
+  sortOrder           Int                     @default(0) @map("sort_order")
+  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subscriptions       UniversitySubscription[]
+
+  @@map("saas_tiers")
+}
+
+model UniversitySubscription {
+  id                 String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String     @unique @map("university_id") @db.Uuid
+  tierId             String     @map("tier_id") @db.Uuid
+  status             String     @default("trialing") @db.VarChar(32)
+  billingCycle       String     @default("monthly") @map("billing_cycle") @db.VarChar(16)
+  currentPeriodStart DateTime   @map("current_period_start") @db.Date
+  currentPeriodEnd   DateTime   @map("current_period_end") @db.Date
+  cancelAtPeriodEnd  Boolean    @default(false) @map("cancel_at_period_end")
+  externalPaymentId  String?    @map("external_payment_id") @db.VarChar(256)
+  metadata           Json       @default("{}")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university         University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  tier               SaaSTier   @relation(fields: [tierId], references: [id])
+
+  @@map("university_subscriptions")
+}
+
+model ApiUsageDaily {
+  id                  String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId        String     @map("university_id") @db.Uuid
+  date                DateTime   @db.Date
+  totalRequests       Int        @default(0) @map("total_requests")
+  successRequests     Int        @default(0) @map("success_requests")
+  errorRequests       Int        @default(0) @map("error_requests")
+  avgDurationMs       Int        @default(0) @map("avg_duration_ms")
+  p95DurationMs       Int        @default(0) @map("p95_duration_ms")
+  uniqueUsers         Int        @default(0) @map("unique_users")
+  billableUnits       Int        @default(0) @map("billable_units")
+  billableAmountCents Int        @default(0) @map("billable_amount_cents")
+  endpointBreakdown   Json       @default("{}") @map("endpoint_breakdown")
+  computedAt          DateTime   @default(now()) @map("computed_at") @db.Timestamptz(6)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  university          University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([universityId, date])
+  @@index([date])
+  @@index([universityId, date])
+  @@map("api_usage_daily")
+}
+
 model UserLogin {
   id                                                String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   uid                                               String                               @unique @db.VarChar(32)
@@ -20,13 +132,11 @@ model UserLogin {
   role                                              UserRoleEnum
   assignedRoleIds                                   Json?                                @default("[]") @map("assigned_role_ids")
   status                                            String                               @default("active") @db.VarChar(32)
+  universityId                                      String?                              @map("university_id") @db.Uuid
   lastLoginAt                                       DateTime?                            @map("last_login_at") @db.Timestamptz(6)
   createdAt                                         DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                                         DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  Event                                             Event[]
-  EventRegistration                                 EventRegistration[]
-  EventExtraPass                                    EventExtraPass[]
-  EventVolunteer                                    EventVolunteer[]
+  university                                        University?                          @relation(fields: [universityId], references: [id])
   auditLogs                                         AuditLog[]
   createdBookChapterPolicies                        BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
   updatedBookChapterPolicies                        BookChapterIncentivePolicy[]         @relation("BookChapterPolicyUpdatedBy")
@@ -45,23 +155,6 @@ model UserLogin {
   documentChangeReviews                             DocumentChange[]                     @relation("DocumentChangeReviewer")
   employeeDetails                                   EmployeeDetails?
   headOfFaculties                                   FacultySchoolList[]                  @relation("HeadOfFaculty")
-  gate_pass_gate_pass_created_by_idTouser_login     gate_pass[]                          @relation("gate_pass_created_by_idTouser_login")
-  gate_pass_gate_pass_entry_guard_idTouser_login    gate_pass[]                          @relation("gate_pass_entry_guard_idTouser_login")
-  gate_pass_gate_pass_exit_guard_idTouser_login     gate_pass[]                          @relation("gate_pass_exit_guard_idTouser_login")
-  gate_pass_gate_pass_person_to_meet_idTouser_login gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
-  bookingsVerified                                  HostelBooking[]                      @relation("BookingVerifiedBy")
-  bookingsCreated                                   HostelBooking[]                      @relation("BookingCreatedBy")
-  checkinRequestsReviewed                           HostelBooking[]                      @relation("CheckinRequestReviewedBy")
-  roomCancelRequestsReviewed                        HostelBooking[]                      @relation("RoomCancelRequestReviewedBy")
-  refundsProcessed                                  RefundTransaction[]                  @relation("RefundProcessedBy")
-  gate_pass_history                                 gate_pass_history[]
-  daily_entry_guard                                  gate_pass_daily_entry[]      @relation("DailyEntryGuard")
-  daily_exit_guard                                   gate_pass_daily_entry[]      @relation("DailyExitGuard")
-  emailLogsSent                                     EventEmailLog[]              @relation("EmailLogSentBy")
-  certificateTemplatesCreated                       EventCertificateTemplate[]   @relation("CertTemplateCreatedBy")
-  certificateLogsSent                               EventCertificateLog[]        @relation("CertLogSentBy")
-  couponsCreated                                    EventCoupon[]                @relation("CouponCreatedBy")
-  couponUsages                                      CouponUsage[]                @relation("CouponUsageUser")
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
   grantApplicationReviews                           GrantApplicationReview[]             @relation("GrantApplicationReviews")
@@ -82,17 +175,7 @@ model UserLogin {
   iprReviews                                        IprReview[]                          @relation("IprReviews")
   iprStatusChanges                                  IprStatusHistory[]                   @relation("IprStatusChanges")
   iprStatusUpdates                                  IprStatusUpdate[]                    @relation("IprStatusUpdates")
-  sponsorFulfillmentChanges                         SponsorFulfillmentHistory[]           @relation("SponsorFulfillmentChangedBy")
-  notesCreated                                      Note[]                               @relation("NoteCreatedBy")
-  notesHeld                                         Note[]                               @relation("NoteCurrentHolder")
-  noteHistoryNextHolder                             NoteHistory[]                        @relation("NoteHistoryNextHolder")
-  noteHistoryPerformed                              NoteHistory[]                        @relation("NoteHistoryPerformedBy")
   notifications                                     Notification[]                       @relation("UserNotifications")
-  notingAuthorities                                 NotingAuthority[]                    @relation("NotingAuthorityUser")
-  noteCopiesSent                                    NoteCopy[]                           @relation("NoteCopySentBy")
-  noteCopiesReceived                                NoteCopy[]                           @relation("NoteCopyAssignedTo")
-  noteCopyReplies                                   NoteCopyReply[]                      @relation("NoteCopyReplyBy")
-  noteCopyEscalatedTo                               NoteCopy[]                           @relation("NoteCopyEscalatedTo")
   parentLogin                                       ParentDetails?                       @relation("ParentLogin")
   programCoordinators                               Program[]                            @relation("ProgramCoordinator")
   reissueRequestsApproved                           ReissueRequest[]                     @relation("ApprovedBy")
@@ -117,61 +200,30 @@ model UserLogin {
   assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
   departmentPermissions                             UserDepartmentPermission[]
   userSettings                                      UserSettings?                        @relation("UserSettings")
-  clubsAsFacultyFacilitator                         Club[]                               @relation("ClubFacultyFacilitator")
-  clubsAsChairperson                                Club[]                               @relation("ClubChairperson")
-  clubsAsCreator                                    Club[]                               @relation("ClubCreator")
-  clubMemberships                                   ClubMember[]                         @relation("ClubMemberStudent")
-  clubMembersAdded                                  ClubMember[]                         @relation("ClubMemberAddedBy")
-  clubMembersRemoved                                ClubMember[]                         @relation("ClubMemberRemovedBy")
-  clubApplicationsSubmitted                         ClubMemberApplication[]              @relation("ClubApplicationApplicant")
-  clubApplicationsReviewed                          ClubMemberApplication[]              @relation("ClubApplicationReviewedBy")
-  clubChangeRequestsInitiated                       ClubChangeRequest[]                  @relation("ClubChangeRequestedBy")
-  clubChangeRequestsApproved                        ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
-  clubChangeRequestsRejected                        ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
-  clubAuditLogs                                     ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
   // Chat System Relations
-  chatGroupsCreated                                 ChatGroup[]                          @relation("ChatGroupCreatedBy")
-  chatGroupMemberships                              ChatGroupMember[]                    @relation("ChatGroupMemberUser")
-  chatMessagesSent                                  ChatMessage[]                        @relation("ChatMessageSender")
-  directMessagesSent                                DirectMessage[]                      @relation("DirectMessageSender")
-  directMessagesReceived                            DirectMessage[]                      @relation("DirectMessageReceiver")
-  chatStatus                                        UserChatStatus?                      @relation("UserChatStatus")
-  chatUserPermission                                ChatUserPermission?                  @relation("ChatUserPermission")
-  chatSessions                                      ChatSession[]                        @relation("ChatSessionUser")
 
   // Mail System Relations
-  mailMessagesCreated                               MailMessage[]                        @relation("MailMessageSender")
-  mailThreadsCreated                                MailThread[]                         @relation("MailThreadCreator")
-  mailRecipients                                    MailRecipient[]                      @relation("MailRecipientUser")
-  mailParticipants                                  MailParticipant[]                    @relation("MailParticipantUser")
-  mailLabels                                        MailLabel[]                          @relation("MailLabelOwner")
-  mailMessageLabels                                 MailMessageLabel[]                   @relation("MailMessageLabelUser")
-  mailDrafts                                        MailDraft[]                          @relation("MailDraftOwner")
-  mailAttachments                                   MailAttachment[]                     @relation("MailAttachmentUploader")
   reportingStructure                                ReportingStructure[]                 @relation("UserReporting")
   directReports                                     ReportingStructure[]                 @relation("ManagerReporting")
-  sentInvitations                                    EventTeamInvitation[]                @relation("InvitationInviter")
-  receivedInvitations                                EventTeamInvitation[]                @relation("InvitationInvitee")
-  teamJoinRequests                                   EventTeamRequest[]                   @relation("RequestRequester")
-  eventTeamMemberships                               EventTeamMember[]                    @relation("TeamMemberUser")
   // TMS Relations
-  tmsTicketsCreated                                  TmsTicket[]                          @relation("TmsTicketCreatedBy")
-  tmsTicketsAssigned                                 TmsTicket[]                          @relation("TmsTicketAssignedTo")
-  tmsTimelineEntries                                 TmsTimeline[]                        @relation("TmsTimelinePerformedBy")
-  tmsSubCategoryMappings                             TmsSubCategory[]                     @relation("TmsSubCategoryEmployee")
-  tmsCategoryMappings                                TmsCategory[]                        @relation("TmsCategoryEmployee")
-  tmsMasterCategoryMappings                          TmsMasterCategory[]                  @relation("TmsMasterCategoryEmployee")
-  tmsRatings                                         TmsRating[]                          @relation("TmsRatingByUser")
-  tmsRoleHandlers                                    TmsRoleHandler[]                     @relation("TmsRoleHandlerEmployee")
-  stallApplications                                  StallApplication[]                   @relation("StallApplicant")
-  stallsOwned                                        Stall[]                              @relation("StallOwner")
-  payments                                           Payment[]                            @relation("PaymentUser")
-  loanLettersPrinted                                 LoanLetter[]                         @relation("LoanLetterPrintedBy")
-  loanLetterTemplateUpdates                          LoanLetterTemplate[]                 @relation("LoanLetterTemplateUpdatedBy")
   bugReportsCreated                                  BugReport[]                          @relation("BugReportUser")
   bugReportsResolved                                 BugReport[]                          @relation("BugReportResolver")
 
+  @@index([universityId])
   @@map("user_login")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(128)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
 }
 
 model EmployeeDetails {
@@ -215,6 +267,9 @@ model EmployeeDetails {
   @@index([empId])
   @@index([primarySchoolId])
   @@index([primaryDepartmentId])
+  @@index([displayName])
+  @@index([firstName])
+  @@index([lastName])
   @@map("employee_details")
 }
 
@@ -281,6 +336,7 @@ model ReissueRequest {
 model AuditLog {
   id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   actorId        String?         @map("actor_id") @db.Uuid
+  universityId   String?         @map("university_id") @db.Uuid
   action         String          @db.VarChar(256)
   targetTable    String?         @map("target_table") @db.VarChar(128)
   targetId       String?         @map("target_id") @db.Uuid
@@ -302,12 +358,14 @@ model AuditLog {
   sessionId      String?         @map("session_id") @db.VarChar(256)
   severity       AuditSeverity   @default(INFO)
   actor          UserLogin?      @relation(fields: [actorId], references: [id])
+  university     University?     @relation(fields: [universityId], references: [id])
 
   @@index([createdAt])
   @@index([actorId])
   @@index([module])
   @@index([actionType])
   @@index([severity])
+  @@index([universityId])
   @@index([targetTable, action, actorId, targetId], map: "audit_log_actor_target_action_idx")
   @@index([targetTable, targetId, action, createdAt], map: "audit_log_target_action_created_at_idx")
   @@map("audit_log")
@@ -580,7 +638,8 @@ model CentralDepartmentPermission {
 
 model FacultySchoolList {
   id                       String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  facultyCode              String                    @unique @map("faculty_code") @db.VarChar(32)
+  universityId             String                    @map("university_id") @db.Uuid
+  facultyCode              String                    @map("faculty_code") @db.VarChar(32)
   facultyName              String                    @map("faculty_name") @db.VarChar(256)
   facultyType              FacultyTypeEnum           @map("faculty_type")
   shortName                String?                   @map("short_name") @db.VarChar(64)
@@ -595,6 +654,7 @@ model FacultySchoolList {
   metadata                 Json                      @default("{}")
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  university               University                @relation(fields: [universityId], references: [id], onDelete: Cascade)
   departments              Department[]
   primaryEmployees         EmployeeDetails[]         @relation("PrimarySchool")
   headOfFaculty            UserLogin?                @relation("HeadOfFaculty", fields: [headOfFacultyId], references: [id])
@@ -604,6 +664,8 @@ model FacultySchoolList {
   researchPapers           ResearchPaper[]           @relation("SchoolResearchPapers")
   researchProgressTrackers ResearchProgressTracker[] @relation("SchoolResearchProgressTrackers")
 
+  @@unique([universityId, facultyCode])
+  @@index([universityId])
   @@map("faculty_school_list")
 }
 
@@ -640,7 +702,8 @@ model Department {
 
 model CentralDepartment {
   id                     String                        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  departmentCode         String                        @unique @map("department_code") @db.VarChar(32)
+  universityId           String                        @map("university_id") @db.Uuid
+  departmentCode         String                        @map("department_code") @db.VarChar(32)
   departmentName         String                        @map("department_name") @db.VarChar(256)
   shortName              String?                       @map("short_name") @db.VarChar(64)
   description            String?
@@ -653,17 +716,21 @@ model CentralDepartment {
   metadata               Json                          @default("{}")
   createdAt              DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  university             University                    @relation(fields: [universityId], references: [id], onDelete: Cascade)
   headOfDepartment       UserLogin?                    @relation("HeadOfCentralDepartment", fields: [headOfDepartmentId], references: [id])
   centralDeptPermissions CentralDepartmentPermission[]
   primaryEmployees       EmployeeDetails[]             @relation("PrimaryCentralDepartment")
 
+  @@unique([universityId, departmentCode])
+  @@index([universityId])
   @@map("central_department")
 }
 
 model Role {
   id                           String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  roleCode                     String             @unique @map("role_code") @db.VarChar(32)
-  name                         String             @unique @db.VarChar(128)
+  universityId                 String?            @map("university_id") @db.Uuid
+  roleCode                     String             @map("role_code") @db.VarChar(32)
+  name                         String             @db.VarChar(128)
   description                  String?
   departmentType               RoleDepartmentType @default(BOTH) @map("department_type")
   permissions                  Json               @default("{}")
@@ -672,7 +739,11 @@ model Role {
   createdBy                    String?            @map("created_by") @db.Uuid
   createdAt                    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                    DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  university                   University?        @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
+  @@unique([universityId, roleCode])
+  @@unique([universityId, name])
+  @@index([universityId])
   @@map("role")
 }
 
@@ -702,8 +773,6 @@ model Program {
   sections             Section[]
   students             StudentDetails[]
   specializations      ProgramSpecialization[]
-  feeStructures        FeeStructure[]
-  loanLetters          LoanLetter[]
 
   @@map("program")
 }
@@ -717,115 +786,8 @@ model ProgramSpecialization {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   program              Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  feeStructures        FeeStructure[]
-  loanLetters          LoanLetter[]
 
   @@map("program_specialization")
-}
-
-model FeeStructure {
-  id                 String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  type               FeeTypeEnum
-  batchYear          Int                    @map("batch_year")
-  programId          String?                @map("program_id") @db.Uuid
-  specializationId   String?                @map("specialization_id") @db.Uuid
-  isActive           Boolean                @default(true) @map("is_active")
-  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  program            Program?               @relation(fields: [programId], references: [id], onDelete: Cascade)
-  specialization     ProgramSpecialization?  @relation(fields: [specializationId], references: [id], onDelete: Cascade)
-  heads              FeeHead[]
-
-  @@index([type, batchYear], map: "fee_structure_type_batch_year_idx")
-  @@index([type, programId, specializationId, isActive, batchYear], map: "fee_structure_lookup_idx")
-  @@map("fee_structure")
-}
-
-model FeeHead {
-  id               String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  feeStructureId   String       @map("fee_structure_id") @db.Uuid
-  headName         String       @map("head_name") @db.VarChar(256)
-  amount           Decimal      @db.Decimal(12, 2)
-  semesterAmounts  Json?        @map("semester_amounts")
-  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  feeStructure     FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
-
-  @@index([feeStructureId], map: "fee_head_fee_structure_id_idx")
-  @@map("fee_head")
-}
-
-model LoanLetter {
-  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  uniqueNumber       String    @unique @map("unique_number") @db.VarChar(32)
-  /// Case-insensitive uniqueness is enforced by the manual SQL index
-  /// "loan_letter_application_number_unique_ci".
-  applicationNumber  String    @map("application_number") @db.VarChar(64)
-  studentEmail       String?   @map("student_email") @db.VarChar(256)
-  studentPhone       String?   @map("student_phone") @db.VarChar(32)
-  studentName        String    @map("student_name") @db.VarChar(256)
-  relationPrefix     String    @map("relation_prefix") @db.VarChar(32)
-  relationName       String    @map("relation_name") @db.VarChar(256)
-  programId          String    @map("program_id") @db.Uuid
-  programCode        String    @map("program_code") @db.VarChar(32)
-  programName        String    @map("program_name") @db.VarChar(256)
-  selectedSemesters  Json      @default("[]") @map("selected_semesters")
-  transportIncluded  Boolean   @default(false) @map("transport_included")
-  hostelIncluded     Boolean   @default(false) @map("hostel_included")
-  specializationId   String?   @map("specialization_id") @db.Uuid
-  printedById        String    @map("printed_by_id") @db.Uuid
-  issuedAt           DateTime  @default(now()) @map("issued_at") @db.Timestamptz(6)
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  program            Program                @relation(fields: [programId], references: [id])
-  specialization     ProgramSpecialization? @relation(fields: [specializationId], references: [id])
-  printedBy          UserLogin              @relation("LoanLetterPrintedBy", fields: [printedById], references: [id])
-
-  @@index([issuedAt], map: "loan_letter_issued_at_idx")
-  @@index([programId, issuedAt], map: "loan_letter_program_id_issued_at_idx")
-  @@index([printedById, issuedAt], map: "loan_letter_printed_by_id_issued_at_idx")
-  @@map("loan_letter")
-}
-
-model LoanLetterCounter {
-  counterYear Int      @id @map("counter_year")
-  lastValue   Int      @default(0) @map("last_value")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@map("loan_letter_counter")
-}
-
-/// Singleton template (id = 'default') for customising the printed loan-letter layout.
-model LoanLetterTemplate {
-  id              String     @id @default("default") @db.VarChar(32)
-  universityName  String     @default("SHREE GURU GOBIND SINGH TRICENTENARY UNIVERSITY (SGT UNIVERSITY \u00ae)") @map("university_name") @db.Text
-  universityShort String     @default("SGT University \u00ae") @map("university_short") @db.VarChar(128)
-  universityAddr  String     @default("Gurugram, Haryana") @map("university_addr") @db.VarChar(256)
-  universityLegal String     @default("(Established by State Legislature Act 2013 & Recognized by UGC)") @map("university_legal") @db.VarChar(512)
-  branchTitle     String     @default("Accounts Branch") @map("branch_title") @db.VarChar(128)
-  refPrefix       String     @default("SGTU/Bank Loan") @map("ref_prefix") @db.VarChar(128)
-  headerImageUrl     String?    @map("header_image_url") @db.VarChar(1024)
-  headerImageWidth   Int        @default(100) @map("header_image_width")
-  headerImageAlign   String     @default("center") @map("header_image_align") @db.VarChar(16)
-  headerImageX       Int        @default(50) @map("header_image_x")
-  headerImageY       Int        @default(50) @map("header_image_y")
-  headerInlineWithText Boolean  @default(false) @map("header_inline_with_text")
-  watermarkImageUrl  String?    @map("watermark_image_url") @db.VarChar(1024)
-  watermarkOpacity   Int        @default(20) @map("watermark_opacity")
-  watermarkWidth     Int        @default(30) @map("watermark_width")
-  watermarkX         Int        @default(50) @map("watermark_x")
-  watermarkY         Int        @default(50) @map("watermark_y")
-  templateBody       String?    @map("template_body") @db.Text
-  footerNotes     Json       @default("[]") @map("footer_notes")
-  bankDetails     Json       @default("{}") @map("bank_details")
-  signatoryTitle  String     @default("Authorized Signatory") @map("signatory_title") @db.VarChar(128)
-  signatoryDept   String     @default("(Finance Department)") @map("signatory_dept") @db.VarChar(128)
-  signatoryOrg    String     @default("SGT University, Gurugram") @map("signatory_org") @db.VarChar(256)
-  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  updatedById     String?    @map("updated_by_id") @db.Uuid
-  updatedBy       UserLogin? @relation("LoanLetterTemplateUpdatedBy", fields: [updatedById], references: [id])
-
-  @@map("loan_letter_template")
 }
 
 model Section {
@@ -909,6 +871,9 @@ model StudentDetails {
   @@index([programId])
   @@index([graduationDate])
   @@index([sectionId])
+  @@index([displayName])
+  @@index([firstName])
+  @@index([lastName])
   @@map("student_details")
 }
 
@@ -1192,6 +1157,7 @@ model IprStatusUpdate {
 
 model IncentivePolicy {
   id                   String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId         String     @map("university_id") @db.Uuid
   iprType              String     @map("ipr_type") @db.VarChar(50)
   policyName           String     @map("policy_name") @db.VarChar(255)
   baseIncentiveAmount  Decimal    @map("base_incentive_amount") @db.Decimal(15, 2)
@@ -1209,10 +1175,12 @@ model IncentivePolicy {
   updatedAt            DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy            UserLogin  @relation("IncentivePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   updatedBy            UserLogin? @relation("IncentivePolicyUpdatedBy", fields: [updatedById], references: [id])
+  university           University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
-  @@unique([iprType, isActive], name: "unique_active_policy_per_type")
+  @@unique([universityId, iprType, isActive], name: "unique_active_policy_per_type")
   @@index([iprType])
   @@index([isActive])
+  @@index([universityId])
   @@map("incentive_policy")
 }
 
@@ -1229,6 +1197,9 @@ model UserSettings {
   language           String    @default("en") @db.VarChar(10)
   compactView        Boolean   @default(false) @map("compact_view")
   showTips           Boolean   @default(true) @map("show_tips")
+  // User-provided override for their displayed research affiliation string.
+  // When null, the UI falls back to the affiliation engine's suggested name.
+  affiliationOverride String?  @map("affiliation_override") @db.VarChar(256)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   user               UserLogin @relation("UserSettings", fields: [userId], references: [id], onDelete: Cascade)
@@ -1387,6 +1358,7 @@ model DocumentChange {
 model Notification {
   id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   userId        String    @map("user_id") @db.Uuid
+  universityId  String?   @map("university_id") @db.Uuid
   type          String    @db.VarChar(50)
   title         String    @db.VarChar(255)
   message       String
@@ -1397,12 +1369,14 @@ model Notification {
   metadata      Json      @default("{}")
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   user          UserLogin @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  university    University? @relation(fields: [universityId], references: [id])
 
   @@index([userId])
   @@index([isRead])
   @@index([userId, isRead], map: "notification_userId_isRead_idx")
   @@index([type])
   @@index([referenceId])
+  @@index([universityId])
   @@map("notification")
 }
 
@@ -1540,6 +1514,8 @@ model ResearchContribution {
   @@index([conferenceSubType])
   @@index([sourceType])
   @@index([specialReviewRequired])
+  @@index([doi])
+  @@index([applicantUserId, doi])
   @@map("research_contribution")
 }
 
@@ -1548,9 +1524,11 @@ model ResearchProfileIdentity {
   userId             String               @unique @map("user_id") @db.Uuid
   orcid              String?              @db.VarChar(32)
   scopusAuthorId     String?              @map("scopus_author_id") @db.VarChar(64)
+  pubmedId           String?              @map("pubmed_id") @db.VarChar(64)
   webOfScienceId     String?              @map("web_of_science_id") @db.VarChar(64)
   affiliationAliases Json?                @default("[]") @map("affiliation_aliases")
   autoSyncEnabled    Boolean              @default(true) @map("auto_sync_enabled")
+  filterSgtOnly      Boolean              @default(false) @map("filter_sgt_only")
   syncFrequencyDays  Int                  @default(1) @map("sync_frequency_days")
   syncStatus         String               @default("never_synced") @map("sync_status") @db.VarChar(32)
   syncError          String?              @map("sync_error")
@@ -1563,6 +1541,7 @@ model ResearchProfileIdentity {
 
   @@index([orcid])
   @@index([scopusAuthorId])
+  @@index([pubmedId])
   @@index([autoSyncEnabled, lastSyncedAt])
   @@map("research_profile_identity")
 }
@@ -1682,6 +1661,7 @@ model ResearchContributionAuthor {
   designation            String?                @db.VarChar(256)
   isInternational        Boolean                @default(false) @map("is_international")
   authorPosition         Int?                   @map("author_position")
+  scopusAuthorId         String?                @map("scopus_author_id") @db.VarChar(64)
   researchContribution   ResearchContribution   @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_author_contribution_fkey")
   user                   UserLogin?             @relation("ResearchContributionAuthors", fields: [userId], references: [id])
 
@@ -1756,6 +1736,7 @@ model ResearchContributionEditSuggestion {
 
 model ResearchIncentivePolicy {
   id                              String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId                    String                 @map("university_id") @db.Uuid
   publicationType                 String                 @map("publication_type") @db.VarChar(50)
   policyName                      String                 @map("policy_name") @db.VarChar(255)
   baseIncentiveAmount             Decimal                @map("base_incentive_amount") @db.Decimal(15, 2)
@@ -1778,14 +1759,17 @@ model ResearchIncentivePolicy {
   positionBasedDistribution       Json?                  @map("position_based_distribution")
   createdBy                       UserLogin              @relation("ResearchPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "research_incentive_policy_created_by_fkey")
   updatedBy                       UserLogin?             @relation("ResearchPolicyUpdatedBy", fields: [updatedById], references: [id], map: "research_incentive_policy_updated_by_fkey")
+  university                      University             @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@index([publicationType])
   @@index([isActive])
+  @@index([universityId])
   @@map("research_incentive_policy")
 }
 
 model BookIncentivePolicy {
   id                      String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String     @map("university_id") @db.Uuid
   policyName              String     @map("policy_name") @db.VarChar(255)
   authoredIncentiveAmount Decimal    @map("authored_incentive_amount") @db.Decimal(15, 2)
   authoredPoints          Int        @map("authored_points")
@@ -1803,13 +1787,16 @@ model BookIncentivePolicy {
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy               UserLogin  @relation("BookPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "book_incentive_policy_created_by_fkey")
   updatedBy               UserLogin? @relation("BookPolicyUpdatedBy", fields: [updatedById], references: [id], map: "book_incentive_policy_updated_by_fkey")
+  university              University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@index([isActive])
+  @@index([universityId])
   @@map("book_incentive_policy")
 }
 
 model BookChapterIncentivePolicy {
   id                      String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String     @map("university_id") @db.Uuid
   policyName              String     @map("policy_name") @db.VarChar(255)
   authoredIncentiveAmount Decimal    @map("authored_incentive_amount") @db.Decimal(15, 2)
   authoredPoints          Int        @map("authored_points")
@@ -1827,13 +1814,16 @@ model BookChapterIncentivePolicy {
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy               UserLogin  @relation("BookChapterPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "book_chapter_incentive_policy_created_by_fkey")
   updatedBy               UserLogin? @relation("BookChapterPolicyUpdatedBy", fields: [updatedById], references: [id], map: "book_chapter_incentive_policy_updated_by_fkey")
+  university              University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@index([isActive])
+  @@index([universityId])
   @@map("book_chapter_incentive_policy")
 }
 
 model ConferenceIncentivePolicy {
   id                  String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId        String     @map("university_id") @db.Uuid
   policyName          String     @map("policy_name") @db.VarChar(255)
   conferenceSubType   String     @map("conference_sub_type") @db.VarChar(50)
   quartileIncentives  Json?      @default("[]") @map("quartile_incentives")
@@ -1852,14 +1842,17 @@ model ConferenceIncentivePolicy {
   updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy           UserLogin  @relation("ConferencePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "conference_incentive_policy_created_by_fkey")
   updatedBy           UserLogin? @relation("ConferencePolicyUpdatedBy", fields: [updatedById], references: [id], map: "conference_incentive_policy_updated_by_fkey")
+  university          University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@index([isActive])
   @@index([conferenceSubType])
+  @@index([universityId])
   @@map("conference_incentive_policy")
 }
 
 model GrantIncentivePolicy {
   id                      String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String     @map("university_id") @db.Uuid
   policyName              String     @map("policy_name") @db.VarChar(255)
   projectCategory         String     @map("project_category") @db.VarChar(50)
   projectType             String     @map("project_type") @db.VarChar(50)
@@ -1875,14 +1868,16 @@ model GrantIncentivePolicy {
   effectiveTo             DateTime?  @map("effective_to") @db.Timestamptz(6)
   createdById             String     @map("created_by_id") @db.Uuid
   updatedById             String?    @map("updated_by_id") @db.Uuid
-  createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy               UserLogin  @relation("GrantPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "grant_incentive_policy_created_by_fkey")
   updatedBy               UserLogin? @relation("GrantPolicyUpdatedBy", fields: [updatedById], references: [id], map: "grant_incentive_policy_updated_by_fkey")
+  university              University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@index([isActive])
   @@index([projectCategory])
   @@index([projectType])
+  @@index([universityId])
   @@map("grant_incentive_policy")
 }
 
@@ -2112,217 +2107,6 @@ model GrantApplicationEditSuggestion {
   @@map("grant_application_edit_suggestion")
 }
 
-model Note {
-  id                               String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  notingId                         String                      @unique @map("noting_id") @db.VarChar(64)
-  category                         NoteCategoryEnum
-  subcategory                      String                      @map("subcategory") @db.VarChar(64)
-  departmentId                     String?                     @map("department_id") @db.Uuid
-  departmentScope                  String?                     @map("department_scope") @db.VarChar(32) // school | central
-  departmentName                   String?                     @map("department_name") @db.VarChar(256)
-  description                      String
-  approvalPeriod                   NoteApprovalPeriodEnum      @map("approval_period")
-  recurringFrequency               NoteRecurringFrequencyEnum? @map("recurring_frequency")
-  policyWithinSgtu                 Boolean?                    @map("policy_within_sgtu")
-  policyOutsideSgtu                Boolean?                    @map("policy_outside_sgtu")
-  policyBoth                       Boolean?                    @map("policy_both")
-  policyJustification              String?                     @map("policy_justification")
-  amountRequired                   Boolean                     @default(false) @map("amount_required")
-  amount                           Decimal?                    @db.Decimal(12, 2)
-  status                           NoteStatusEnum              @default(draft)
-  createdById                      String                      @map("created_by_id") @db.Uuid
-  currentHolderId                  String?                     @map("current_holder_id") @db.Uuid
-  createdAt                        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                        DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  policyCompliant                  Boolean?                    @map("policy_compliant")
-  currentFlowIndex                 Int?                        @map("current_flow_index")
-  eventName                        String?
-  eventType                        EventType?
-  eventStartDate                   DateTime?
-  eventEndDate                     DateTime?
-  eventPaymentType                 EventPaymentType?
-  eventParticipationType ParticipationType?       @map("event_participation_type")
-  eventRegistrationFeeIndividual Float?            @map("event_registration_fee_individual")
-  eventRegistrationFeeTeam       Float?            @map("event_registration_fee_team")
-  eventApproxCapacity Int?                        @map("event_approx_capacity")
-  eventDutyLeaveAvailable Boolean?                @map("event_duty_leave_available")
-  eventDutyLeaveEligibility Json?                  @map("event_duty_leave_eligibility") // Deprecated: only students eligible. Kept for backward compat.
-  eventDutyLeaveRoleType   String?                 @map("event_duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
-  eventHasSponsorship Boolean?                    @map("event_has_sponsorship")
-  eventSponsors       Json?                       @map("event_sponsors") // Advanced: [{name, sponsorType, contactPerson, contributionType, cashAmount, paymentStatus, inKindItems, ...}] or legacy [{name, amount, type}]
-  eventHasResources   Boolean?                    @map("event_has_resources")
-  eventResources      Json?                       @map("event_resources") // [{type, description, pricePerPiece, quantity, cost, totalCost}]
-  eventCertification  Boolean?                    @map("event_certification") // Certificate milega ya nahi
-  eventCapacityFixed  Int?                        @map("event_capacity_fixed") // Internal capacity fixed (different from approx)
-  eventPrizesAwards                 Json?                       @map("event_prizes_awards") // [{position, rank, title, prizeType, prizeAmount?, additionalPerks?, sortOrder}] - matches EventPrize
-  // Event Visibility / Settings (copied to EventVisibility on approval)
-  eventVisibilitySettings           Json?                       @map("event_visibility_settings") // {visibleToRoles, studentFilterType, allowedSchoolIds, allowedDepartmentIds, allowedProgramIds, allowedBatchYears, allowedSectionIds, allowExtraPasses, maxExtraPassesPerUser}
-  // Stall & Festival Noting Fields
-  notingEventType     String?                     @map("noting_event_type") @db.VarChar(32) // venue | stall | festival
-  stallConfig         Json?                       @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[]}
-  festivalMeta        Json?                       @map("festival_meta") // {name, startDate, endDate, description, coordinator}
-  subEvents           Json?                       @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
-  // Optional club association for event notings â€” when set, the club's chairperson
-  // automatically receives full event management permissions upon event creation.
-  eventClubId         String?                     @map("event_club_id") @db.Uuid
-  eventClub           Club?                       @relation("EventNotingClub", fields: [eventClubId], references: [id])
-  clubName            String?                     @map("club_name") @db.VarChar(256)
-  clubCategoryId      String?                     @map("club_category_id") @db.Uuid
-  clubPurpose         String?                     @map("club_purpose") @db.Text
-  clubAcademicSession String?                     @map("club_academic_session") @db.VarChar(64)
-  clubTargetStudentGroup String[]                 @default([]) @map("club_target_student_group")
-  clubMeetingFrequency   ClubMeetingFrequencyEnum? @map("club_meeting_frequency")
-  clubExpectedActivityTypes String[]              @default([]) @map("club_expected_activity_types")
-  clubEstimatedAnnualActivityCount Int?           @map("club_estimated_annual_activity_count")
-  clubExpectedStudentStrength Int?                @map("club_expected_student_strength")
-  clubFacultyFacilitatorId String?                @map("club_faculty_facilitator_id") @db.Uuid
-  clubChairpersonId        String?                @map("club_chairperson_id") @db.Uuid
-  clubInitialMembers       String[]               @default([]) @map("club_initial_members")
-  clubProposedEmail        String?                @map("club_proposed_email") @db.VarChar(256)
-  clubSocialMediaHandles   Json?                  @map("club_social_media_handles") // {facebook?, instagram?, twitter?, linkedin?}
-  clubCodeOfConductAccepted Boolean?              @map("club_code_of_conduct_accepted")
-  clubAntiDiscriminationAccepted Boolean?         @map("club_anti_discrimination_accepted")
-  autoForwardedToManager   Boolean                @default(false) @map("auto_forwarded_to_manager")
-  manualForwardReason      String?                @map("manual_forward_reason") @db.Text
-  reportingChainHistory    Json?                  @map("reporting_chain_history")
-  Event               Event[]
-  createdBy           UserLogin                   @relation("NoteCreatedBy", fields: [createdById], references: [id])
-  currentHolder       UserLogin?                  @relation("NoteCurrentHolder", fields: [currentHolderId], references: [id])
-  attachments         NoteAttachment[]
-  history             NoteHistory[]
-  points              NotePoint[]
-  clubCreation        Club?                       @relation("ClubCreationNoting")
-  clubChangeRequest   ClubChangeRequest?          @relation("ClubChangeRequestNoting")
-  copies              NoteCopy[]
-
-  @@index([status])
-  @@index([category, subcategory])
-  @@index([createdAt], map: "note_createdAt_idx")
-  @@index([createdById], map: "note_createdById_idx")
-  @@index([currentHolderId], map: "note_currentHolderId_idx")
-  @@index([status, createdById], map: "note_status_createdById_idx")
-  @@index([status, currentHolderId], map: "note_status_currentHolderId_idx")
-  @@index([createdById, updatedAt(sort: Desc)], map: "note_created_by_updated_at_idx")
-  @@index([currentHolderId, status, updatedAt(sort: Desc)], map: "note_current_holder_status_updated_at_idx")
-  @@index([updatedAt], map: "note_updatedAt_idx")
-  @@index([status, updatedAt], map: "note_status_updatedAt_idx")
-  @@index([eventName])
-  @@index([subcategory, status], map: "note_subcategory_status_idx")
-  @@index([departmentId], map: "note_department_id_idx")
-  @@index([departmentScope], map: "note_department_scope_idx")
-  @@index([clubCategoryId], map: "note_clubCategoryId_idx")
-  @@index([eventClubId], map: "note_eventClubId_idx")
-  @@map("note")
-}
-
-model NotePoint {
-  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  noteId    String @map("note_id") @db.Uuid
-  sortOrder Int    @map("sort_order")
-  content   String
-  note      Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
-
-  @@index([noteId], map: "note_point_noteId_idx")
-  @@index([noteId, sortOrder], map: "note_point_noteId_sortOrder_idx")
-  @@map("note_point")
-}
-
-model NoteHistory {
-  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  noteId        String     @map("note_id") @db.Uuid
-  action        String     @db.VarChar(32)
-  performedById String     @map("performed_by_id") @db.Uuid
-  remarks       String?
-  nextHolderId  String?    @map("next_holder_id") @db.Uuid
-  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  nextHolder    UserLogin? @relation("NoteHistoryNextHolder", fields: [nextHolderId], references: [id])
-  note          Note       @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  performedBy   UserLogin  @relation("NoteHistoryPerformedBy", fields: [performedById], references: [id])
-
-  @@index([action])
-  @@index([noteId, createdAt], map: "note_history_noteId_createdAt_idx")
-  @@index([performedById], map: "note_history_performedById_idx")
-  @@index([performedById, action], map: "note_history_performedById_action_idx")
-  @@index([performedById, action, noteId], map: "note_history_performed_by_action_note_id_idx")
-  @@index([performedById, createdAt], map: "note_history_performedById_createdAt_idx")
-  @@index([noteId, action], map: "note_history_noteId_action_idx")
-  @@map("note_history")
-}
-
-model NoteAttachment {
-  id              String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  noteId          String  @map("note_id") @db.Uuid
-  filePath        String  @map("file_path") @db.VarChar(512)
-  fileName        String  @map("file_name") @db.VarChar(256)
-  fileDescription String? @map("file_description")
-  note            Note    @relation(fields: [noteId], references: [id], onDelete: Cascade)
-
-  @@index([noteId], map: "note_attachment_noteId_idx")
-  @@map("note_attachment")
-}
-
-model NotingAuthority {
-  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  roleKey   String    @map("role_key") @db.VarChar(64)
-  userId    String    @map("user_id") @db.Uuid
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user      UserLogin @relation("NotingAuthorityUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([roleKey, userId])
-  @@map("noting_authority")
-}
-
-// Post-approval copy sharing with escalation tracking
-model NoteCopy {
-  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  noteId           String          @map("note_id") @db.Uuid
-  sentById         String          @map("sent_by_id") @db.Uuid
-  assignedToId     String          @map("assigned_to_id") @db.Uuid
-  remarks          String
-  status           String          @default("pending") @db.VarChar(32) // pending | replied | forwarded | completed
-  escalationLevel  Int             @default(0) @map("escalation_level") // 0=initial, 1+=escalated
-  escalatedToId    String?         @map("escalated_to_id") @db.Uuid // boss who was auto-notified
-  rootCopyId       String?         @map("root_copy_id") @db.Uuid // links all copies in escalation chain for global completion
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  note             Note            @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  sentBy           UserLogin       @relation("NoteCopySentBy", fields: [sentById], references: [id])
-  assignedTo       UserLogin       @relation("NoteCopyAssignedTo", fields: [assignedToId], references: [id])
-  escalatedTo      UserLogin?      @relation("NoteCopyEscalatedTo", fields: [escalatedToId], references: [id])
-  replies          NoteCopyReply[]
-  rootCopy         NoteCopy?       @relation("CopyChain", fields: [rootCopyId], references: [id])
-  chainCopies      NoteCopy[]      @relation("CopyChain")
-
-  @@index([noteId])
-  @@index([rootCopyId])
-  @@index([assignedToId])
-  @@index([sentById])
-  @@index([status])
-  @@index([assignedToId, status], map: "note_copy_assignedToId_status_idx")
-  @@index([assignedToId, createdAt(sort: Desc)], map: "note_copy_assignedToId_createdAt_idx")
-  @@index([noteId, rootCopyId, createdAt], map: "note_copy_note_root_created_at_idx")
-  @@index([noteId, assignedToId], map: "note_copy_noteId_assignedToId_idx")
-  @@map("note_copy")
-}
-
-// Replies from assigned users on copies
-model NoteCopyReply {
-  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  copyId      String    @map("copy_id") @db.Uuid
-  repliedById String    @map("replied_by_id") @db.Uuid
-  remarks     String
-  attachments Json?     @default("[]") // [{filePath, fileName, fileDescription?}]
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  copy        NoteCopy  @relation(fields: [copyId], references: [id], onDelete: Cascade)
-  repliedBy   UserLogin @relation("NoteCopyReplyBy", fields: [repliedById], references: [id])
-
-  @@index([copyId])
-  @@index([repliedById])
-  @@index([copyId, createdAt], map: "note_copy_reply_copyId_createdAt_idx")
-  @@map("note_copy_reply")
-}
-
 model ReportingStructure {
   id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   userId        String     @map("user_id") @db.Uuid
@@ -2352,885 +2136,6 @@ model ReportingStructure {
   @@index([isActive, managerId])
   @@index([isActive, hierarchyDepth])
   @@map("reporting_structure")
-}
-
-model gate_pass {
-  id                                                 String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  pass_id                                            String                   @unique @db.VarChar(64)
-  visitor_name                                       String                   @db.VarChar(255)
-  mobile_number                                      String                   @db.VarChar(20)
-  email                                              String?                  @db.VarChar(255)
-  id_proof_type                                      id_proof_type_enum?
-  id_proof_number                                    String?                  @db.VarChar(100)
-  photo_file_path                                    String?
-  photo                                              String?                  @db.VarChar(64)
-  gender                                             gender_enum?
-  age                                                Int?
-  purpose_of_visit                                   visit_purpose_enum
-  purpose_other                                      String?                  @db.VarChar(255)
-  department_to_visit                                String?                  @db.VarChar(255)
-  person_to_meet_id                                  String?                  @db.Uuid
-  person_to_meet_name                                String?                  @db.VarChar(255)
-  visit_date                                         DateTime                 @db.Date
-  expected_entry_time                                String                   @db.VarChar(10)
-  expected_exit_time                                 String?                  @db.VarChar(10)
-  has_vehicle                                        Boolean                  @default(false)
-  vehicle_type                                       vehicle_type_enum?
-  vehicle_number                                     String?                  @db.VarChar(50)
-  vehicle_model                                      String?                  @db.VarChar(100)
-  number_of_persons                                  Int                      @default(1)
-  items_carrying                                     String?
-  special_instructions                               String?
-  status                                             gate_pass_status_enum    @default(active)
-  qr_code                                            String?
-  actual_entry_time                                  DateTime?                @db.Timestamptz(6)
-  actual_exit_time                                   DateTime?                @db.Timestamptz(6)
-  entry_gate                                         String?                  @db.VarChar(100)
-  exit_gate                                          String?                  @db.VarChar(100)
-  entry_guard_id                                     String?                  @db.Uuid
-  exit_guard_id                                      String?                  @db.Uuid
-  entry_remarks                                      String?
-  exit_remarks                                       String?
-  denial_reason                                      String?
-  created_by_id                                      String                   @db.Uuid
-  created_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
-  stay_required                                      Boolean?                 @default(false)
-  verification_code                                  String?                  @db.VarChar(10)
-  visitor_relation                                   String?                  @db.VarChar(100)
-  visit_end_date                                     DateTime?                @db.Date
-  entry_time                                         String?                  @db.VarChar(10)
-  qr_status                                          qr_status_enum?          @default(inactive)
-  pass_status                                        pass_status_enum?        @default(created)
-  qr_activation_time                                 DateTime?                @db.Timestamptz(6)
-  extension_count                                    Int                      @default(0)
-  extension_reason                                   String?
-  cancellation_time                                  DateTime?                @db.Timestamptz(6)
-  cancellation_reason                                String?                  @db.Text
-  checkout_unique_id                                 String?                  @unique
-  checkout_verification_code                         String?
-  checkout_qr_code                                   String?
-  checkout_qr_expires_at                             DateTime?                @db.Timestamptz(6)
-  linked_pass_id                                     String?                  @db.Uuid
-  hostel_bookings                                    HostelBooking[]
-  linked_pass                                        gate_pass?               @relation("PassExtension", fields: [linked_pass_id], references: [id])
-  extended_passes                                    gate_pass[]              @relation("PassExtension")
-  user_login_gate_pass_created_by_idTouser_login     UserLogin                @relation("gate_pass_created_by_idTouser_login", fields: [created_by_id], references: [id])
-  user_login_gate_pass_entry_guard_idTouser_login    UserLogin?               @relation("gate_pass_entry_guard_idTouser_login", fields: [entry_guard_id], references: [id])
-  user_login_gate_pass_exit_guard_idTouser_login     UserLogin?               @relation("gate_pass_exit_guard_idTouser_login", fields: [exit_guard_id], references: [id])
-  user_login_gate_pass_person_to_meet_idTouser_login UserLogin?               @relation("gate_pass_person_to_meet_idTouser_login", fields: [person_to_meet_id], references: [id])
-  gate_pass_history                                  gate_pass_history[]
-  gate_pass_notification                             gate_pass_notification[]
-  refund_transactions                                RefundTransaction[]
-  daily_entries                                      gate_pass_daily_entry[]
-
-  @@index([created_by_id])
-  @@index([mobile_number])
-  @@index([pass_id])
-  @@index([status])
-  @@index([visit_date])
-}
-
-model gate_pass_history {
-  id              String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  gate_pass_id    String                @db.Uuid
-  action          gate_pass_action_enum
-  performed_by_id String                @db.Uuid
-  remarks         String?
-  metadata        Json?
-  created_at      DateTime              @default(now()) @db.Timestamptz(6)
-  gate_pass       gate_pass             @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
-  user_login      UserLogin             @relation(fields: [performed_by_id], references: [id])
-
-  @@index([gate_pass_id])
-}
-
-model gate_pass_daily_entry {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  gate_pass_id    String    @db.Uuid
-  day_number      Int
-  entry_date      DateTime  @db.Date
-  entry_time      DateTime  @db.Timestamptz(6)
-  exit_time       DateTime? @db.Timestamptz(6)
-  entry_gate      String?   @db.VarChar(100)
-  exit_gate       String?   @db.VarChar(100)
-  entry_guard_id  String?   @db.Uuid
-  exit_guard_id   String?   @db.Uuid
-  entry_remarks   String?
-  exit_remarks    String?
-  created_at      DateTime  @default(now()) @db.Timestamptz(6)
-
-  gate_pass       gate_pass  @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
-  entry_guard     UserLogin? @relation("DailyEntryGuard", fields: [entry_guard_id], references: [id])
-  exit_guard      UserLogin? @relation("DailyExitGuard", fields: [exit_guard_id], references: [id])
-
-  @@index([gate_pass_id, entry_date])
-  @@index([gate_pass_id])
-  @@map("gate_pass_daily_entries")
-}
-
-model gate_pass_notification {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  gate_pass_id      String                      @db.Uuid
-  recipient_type    notification_recipient_enum
-  recipient_id      String?                     @db.Uuid
-  recipient_email   String?                     @db.VarChar(255)
-  recipient_phone   String?                     @db.VarChar(20)
-  notification_type notification_type_enum
-  status            notification_status_enum    @default(pending)
-  sent_at           DateTime?                   @db.Timestamptz(6)
-  created_at        DateTime                    @default(now()) @db.Timestamptz(6)
-  gate_pass         gate_pass                   @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
-
-  @@index([gate_pass_id])
-}
-
-model Event {
-  id                         String              @id
-  eventId                    String              @unique
-  notingId                   String?             @db.Uuid
-  name                       String
-  eventType                  EventType
-  description                String?
-  longDescription            String?
-  startDate                  DateTime
-  endDate                    DateTime
-  paymentType                EventPaymentType
-  venue                      String?
-  maxCapacity                Int?
-  approxCapacity             Int?                        @map("approx_capacity")
-  registrationFee            Float?
-  teamRegistrationFee       Float?                       @map("team_registration_fee")
-  registrationStartDate      DateTime?
-  registrationEndDate        DateTime?
-  status                     EventStatus         @default(draft)
-  publishedAt                DateTime?
-
-  // Event Branding
-  bannerImageUrl             String?
-  logoImageUrl               String?
-
-  // Opportunity Mode & Participation
-  opportunityMode            OpportunityMode?    @default(online)
-  participationType          ParticipationType?  @default(individual)
-  minTeamSize                Int?
-  maxTeamSize                Int?
-  interCollegeAllowed        Boolean?            @default(false)
-  interSpecializationAllowed Boolean?            @default(false)
-
-  // Contact Details
-  contactPersonName          String?
-  contactEmail               String?
-  contactMobile              String?
-  alternateContact           String?
-  websiteUrl                 String?
-  socialMediaLinks           Json?
-
-  // Duty Leave & Sponsorship (from Noting)
-  dutyLeaveAvailable         Boolean?                    @map("duty_leave_available")
-  dutyLeaveEligibility        Json?                       @map("duty_leave_eligibility") // Deprecated: only students eligible
-  dutyLeaveRoleType           String?                     @map("duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
-  hasSponsorship             Boolean?                    @map("has_sponsorship")
-  sponsors                   Json?                       // Advanced: [{name, sponsorType, contactPerson, contributionType, cashAmount, paymentStatus, inKindItems, ...}] or legacy [{name, amount, type}]
-  showSponsorshipPublicly    Boolean?            @default(false)  @map("show_sponsorship_publicly")  // Creator decides at publish: show sponsorship to users
-  hasResources               Boolean?                    @map("has_resources")
-  resources                  Json?
-  capacityFixed              Int?                        @map("capacity_fixed")  // Internal capacity fixed from noting
-
-  // Additional Information
-  eligibilityCriteria        String?
-  eligibilityDisplayFormat   String?             @map("eligibility_display_format") @db.VarChar(32) // points | paragraph | both
-  rulesAndGuidelines         String?
-  rulesDisplayFormat        String?             @map("rules_display_format") @db.VarChar(32) // points | paragraph | both
-  prizeDetails               String?
-  certificateAvailable       Boolean?            @default(false)
-  faqs                       Json?
-
-  // Advanced Registration Settings
-  autoApproveRegistration    Boolean             @default(true)           // Auto-approve or manual approval
-  maxTeamLimit               Int?                                          // Max number of teams allowed
-  teamRegistrationDeadline   DateTime?                                     // Separate deadline for team finalization
-  allowEditAfterSubmission   Boolean             @default(false)           // Allow editing after submission
-  requireFormSubmission      Boolean             @default(false)           // Require form before team creation
-  lookingForTeammatesEnabled Boolean             @default(true)            // Enable "Looking for Teammates" feature
-
-  // Team Settings (additional)
-  allowCrossInstituteTeams   Boolean             @default(false)           // Allow teams from different institutes
-  allowTeamEditAfterSubmission Boolean           @default(false)           // Allow team editing after submission
-  autoApproveTeams           Boolean             @default(true)            // Auto-approve teams
-
-  // Registration Control Settings
-  registrationCap            Int?                                          // Overall registration limit
-  showParticipantsPublicly   Boolean             @default(false)           // Show participants publicly
-  allowWithdrawRegistration  Boolean             @default(true)            // Allow withdraw registration
-  lockTeamAfterDeadline      Boolean             @default(true)            // Lock team after deadline
-  allowExtraPasses           Boolean             @default(false)
-  maxExtraPassesPerUser      Int                 @default(0)
-
-  // Team Discovery Settings
-  allowPublicTeamListing     Boolean             @default(true)            // Allow public team listing
-  allowJoinRequests          Boolean             @default(true)            // Allow join requests
-  allowInviteSystem          Boolean             @default(true)            // Allow invite system
-
-  // Prize Settings
-  prizesEnabled              Boolean             @default(false)           // Enable prize section
-
-  // Stall & Festival Event Fields
-  notingEventType            String?             @map("noting_event_type") @db.VarChar(32) // venue | stall | festival
-  stallConfig                Json?               @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[], applicationDeadline}
-  hasStalls                  Boolean             @default(false) @map("has_stalls")
-  applicationDeadline        DateTime?           @map("application_deadline") // Deadline for stall applications
-  festivalMeta               Json?               @map("festival_meta") // {name, startDate, endDate, description, coordinator}
-  subEvents                  Json?               @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
-  festivalNotingId           String?             @map("festival_noting_id") @db.Uuid // links sub-events to parent festival noting
-
-  // Metadata
-  createdById                String              @db.Uuid
-  createdAt                  DateTime            @default(now())
-  updatedAt                  DateTime
-
-  // Relations
-  user_login                 UserLogin           @relation(fields: [createdById], references: [id])
-  note                       Note?               @relation(fields: [notingId], references: [id])
-  EventEntry                 EventEntry[]
-  EventExtraPass             EventExtraPass[]
-  EventRegistration          EventRegistration[]
-  EventVolunteer             EventVolunteer[]
-  EventCustomField           EventCustomField[]
-  EventTeam                  EventTeam[]
-  EventPrize                 EventPrize[]
-  Payment                    Payment[]
-  StallApplication           StallApplication[]
-  Stall                      Stall[]
-  EventFeedback              EventFeedback[]
-  StallFeedback              StallFeedback[]
-  EventVisibility            EventVisibility?
-  EventEmailLog              EventEmailLog[]
-  EventEmailCredit           EventEmailCredit?
-  EmailCreditLog             EmailCreditLog[]
-  EventCoupon                EventCoupon[]
-  EventCertificateTemplate   EventCertificateTemplate[]
-  EventCertificateLog        EventCertificateLog[]
-  SponsorFulfillmentHistory SponsorFulfillmentHistory[]
-  EventRound                 EventRound[]
-
-  @@index([createdById])
-  @@index([eventId])
-  @@index([eventType])
-  @@index([notingId])
-  @@index([festivalNotingId])
-  @@index([startDate])
-  @@index([status])
-  @@index([status, startDate], map: "event_status_startDate_idx")
-  @@index([status, createdAt(sort: Desc)], map: "event_status_createdAt_idx")
-  @@index([createdById, status, createdAt(sort: Desc)], map: "event_createdBy_status_createdAt_idx")
-  @@index([opportunityMode])
-  @@index([participationType])
-}
-
-// =====================================
-// Sponsor Fulfillment History
-// =====================================
-model SponsorFulfillmentHistory {
-  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId          String   @map("event_id")
-  sponsorId        String   @map("sponsor_id")         // stable sponsor.id from JSON
-  changeType       String   @map("change_type") @db.VarChar(32) // status_change | amount_change | payment_update | delivery_update
-  previousSnapshot Json?    @map("previous_snapshot")   // relevant fields before change
-  newSnapshot      Json?    @map("new_snapshot")        // relevant fields after change
-  summary          String?                              // human-readable e.g. "â‚¹5000 â†’ â‚¹4000"
-  changedById      String   @map("changed_by_id") @db.Uuid
-  changedAt        DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
-
-  event            Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  changedBy        UserLogin @relation("SponsorFulfillmentChangedBy", fields: [changedById], references: [id], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([sponsorId])
-  @@map("sponsor_fulfillment_history")
-}
-
-// =====================================
-// Event Visibility / Settings
-// =====================================
-model EventVisibility {
-  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId               String   @unique                         // one-to-one with Event
-  isActive              Boolean  @default(true)                   // Global ON/OFF toggle (admin-controlled)
-  autoClosed            Boolean  @default(false) @map("auto_closed")          // true = system auto-closed due to date expiry
-  manuallyOverridden    Boolean  @default(false) @map("manually_overridden")  // true = admin manually toggled after date expiry
-  visibleToRoles        Json     @default("[]")                   // ["student","faculty","staff","parent","admin"]
-  // Student-level granular filters (applied only when "student" is in visibleToRoles)
-  studentFilterType     String   @default("all") @map("student_filter_type") @db.VarChar(32)  // all | custom
-  allowedSchoolIds      Json     @default("[]") @map("allowed_school_ids")          // UUID[] of FacultySchoolList
-  allowedDepartmentIds  Json     @default("[]") @map("allowed_department_ids")      // UUID[] of Department
-  allowedProgramIds     Json     @default("[]") @map("allowed_program_ids")         // UUID[] of Program
-  allowedBatchYears     Json     @default("[]") @map("allowed_batch_years")         // Int[] e.g. [2023, 2024]
-  allowedSectionIds     Json     @default("[]") @map("allowed_section_ids")         // UUID[] of Section
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  event                 Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([isActive])
-  @@map("event_visibility")
-}
-
-model EventEntry {
-  id                String            @id
-  eventId           String
-  registrationId    String
-  volunteerId       String
-  entryType         EntryType
-  entryCount        Int               @default(1)
-  scannedAt         DateTime          @default(now())
-  gateLocation      String?
-  remarks           String?
-  Event             Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  EventRegistration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  EventVolunteer    EventVolunteer    @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
-
-  @@index([entryType])
-  @@index([eventId])
-  @@index([registrationId])
-  @@index([scannedAt])
-  @@index([volunteerId])
-  @@index([eventId, entryType], map: "event_entry_eventId_entryType_idx")
-  @@index([eventId, scannedAt(sort: Desc)], map: "event_entry_eventId_scannedAt_idx")
-}
-
-model EventRegistration {
-  id                          String                           @id
-  registrationId              String                           @unique
-  eventId                     String
-  userId                      String                           @db.Uuid
-  teamId                String?                      @db.Uuid                    // Team association for team events
-  status                RegistrationStatus           @default(pending)
-  qrCode                String                       @unique
-  paymentStatus         PaymentStatus?
-  paymentId             String?
-  amountPaid            Float?
-  hasEntered            Boolean                      @default(false)
-  enteredAt             DateTime?
-  extraPassCount        Int                          @default(0)
-  totalAllowedEntries   Int                          @default(1)
-  checkedInCount        Int                          @default(0)
-  checkedOutCount       Int                          @default(0)
-  studentInsideAssumed  Boolean                      @default(false)
-  registeredAt          DateTime                     @default(now())
-  updatedAt             DateTime
-
-  // Form submission data
-  formData              Json?                                                      // Store form field responses
-  formSubmittedAt       DateTime?
-
-  // Registration tracking
-  isTeamLeader          Boolean                      @default(false)              // Is this user the team leader
-  lookingForTeammates   Boolean                      @default(false)              // User is seeking teammates
-
-  // Coupon / discount fields
-  couponId              String?                      @db.Uuid @map("coupon_id")   // Applied coupon
-  discountAmount        Float?                       @map("discount_amount")       // Discount applied in â‚¹
-  originalAmount        Float?                       @map("original_amount")       // Amount before discount
-
-  EventEntry            EventEntry[]
-  Event                 Event                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
-  EventFieldResponse    EventFieldResponse[]
-  EventExtraPass        EventExtraPass[]
-  Payment               Payment[]
-  EventCoupon           EventCoupon?                 @relation(fields: [couponId], references: [id])
-  CouponUsage           CouponUsage?
-
-  @@unique([eventId, userId])
-  @@index([eventId])
-  @@index([qrCode])
-  @@index([registrationId])
-  @@index([status])
-  @@index([userId])
-  @@index([teamId])
-  @@index([lookingForTeammates])
-  @@index([eventId, status], map: "event_registration_eventId_status_idx")
-  @@index([eventId, userId, status], map: "event_registration_eventId_userId_status_idx")
-  @@index([couponId])
-  @@index([eventId, paymentStatus], map: "event_registration_eventId_paymentStatus_idx")
-  @@index([eventId, registeredAt(sort: Desc)], map: "event_registration_eventId_registeredAt_idx")
-  @@index([eventId, hasEntered], map: "event_registration_eventId_hasEntered_idx")
-  @@index([userId, status], map: "event_registration_userId_status_idx")
-  @@index([userId, registeredAt(sort: Desc)], map: "event_registration_userId_registeredAt_idx")
-}
-
-model EventExtraPass {
-  id              String            @id
-  eventId         String
-  registrationId  String
-  createdById     String            @db.Uuid
-  guestName       String
-  guestEmail      String
-  mobileNumber    String
-  relationship    String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime
-
-  Event             Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  EventRegistration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  user_login        UserLogin         @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([registrationId])
-  @@index([createdById])
-  @@index([eventId, registrationId], map: "event_extra_pass_eventId_registrationId_idx")
-  @@index([registrationId, createdAt], map: "event_extra_pass_registrationId_createdAt_idx")
-}
-
-model EventVolunteer {
-  id           String       @id
-  eventId      String
-  userId       String       @db.Uuid
-  role         String?
-  canScanQr    Boolean      @default(false)
-  assignedGate String?
-  assignedAt   DateTime     @default(now())
-  EventEntry   EventEntry[]
-  Event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user_login   UserLogin    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([eventId, userId])
-  @@index([canScanQr])
-  @@index([eventId])
-  @@index([userId])
-  @@index([userId, role], map: "event_volunteer_userId_role_idx")
-  @@index([eventId, role], map: "event_volunteer_eventId_role_idx")
-}
-
-// Event feedback (10 points 1-10 + short description)
-model EventFeedback {
-  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  points            Json     // [1-10, 1-10, ...] 10 ratings
-  shortDescription  String?  @map("short_description") @db.Text
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  Event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([createdAt])
-  @@map("event_feedback")
-}
-
-// =====================================
-// Advanced Event Registration System
-// ====================================
-// Custom fields configured by event organizer
-model EventCustomField {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  fieldName         String                @map("field_name") @db.VarChar(128)
-  fieldLabel        String                @map("field_label") @db.VarChar(256)
-  fieldType         EventFieldType        @map("field_type")
-  isRequired        Boolean               @default(false) @map("is_required")
-  placeholder       String?               @db.VarChar(256)
-  helpText          String?               @map("help_text") @db.VarChar(512)
-  options           Json?                                                          // For dropdown/radio/checkbox options
-  validationRules   Json?                 @map("validation_rules")                 // Min/max length, regex pattern, etc.
-  defaultValue      String?               @map("default_value")
-  sortOrder         Int                   @default(0) @map("sort_order")
-  isActive          Boolean               @default(true) @map("is_active")
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  Event             Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  EventFieldResponse EventFieldResponse[]
-
-  @@index([eventId])
-  @@index([sortOrder])
-  @@map("event_custom_field")
-}
-
-// User responses to custom fields
-model EventFieldResponse {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  registrationId    String
-  fieldId           String              @db.Uuid
-  value             String?                                                        // Text value
-  fileUrl           String?             @map("file_url")                           // For file uploads
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  EventRegistration EventRegistration   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  EventCustomField  EventCustomField    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-
-  @@unique([registrationId, fieldId])
-  @@index([registrationId])
-  @@index([fieldId])
-  @@map("event_field_response")
-}
-
-// Teams for team-based events
-model EventTeam {
-  id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId               String
-  teamId                String                @unique @map("team_id") @db.VarChar(64)    // Human-readable team ID
-  name                  String                @db.VarChar(256)
-  leaderId              String                @map("leader_id") @db.Uuid
-  status                EventTeamStatus       @default(forming)
-  lookingForMembers     Boolean               @default(true) @map("looking_for_members")
-  isComplete            Boolean               @default(false) @map("is_complete")        // Team has min members
-  isLocked              Boolean               @default(false) @map("is_locked")          // Team finalized
-  metadata              Json                  @default("{}")
-  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  Event                 Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  EventTeamMember       EventTeamMember[]
-  EventTeamInvitation   EventTeamInvitation[]
-  EventTeamRequest      EventTeamRequest[]
-  EventRegistration     EventRegistration[]
-  Payment               Payment[]
-
-  @@unique([eventId, name])
-  @@index([eventId])
-  @@index([leaderId])
-  @@index([status])
-  @@index([lookingForMembers])
-  @@map("event_team")
-}
-
-// Team membership
-model EventTeamMember {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  teamId            String                @db.Uuid
-  userId            String                @db.Uuid
-  role              EventTeamMemberRole   @default(member)
-  status            EventTeamMemberStatus @default(confirmed)
-  joinedAt          DateTime              @default(now()) @map("joined_at") @db.Timestamptz(6)
-  leftAt            DateTime?             @map("left_at") @db.Timestamptz(6)
-
-  EventTeam         EventTeam             @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user              UserLogin             @relation("TeamMemberUser", fields: [userId], references: [id])
-
-  @@unique([teamId, userId])
-  @@index([teamId])
-  @@index([userId])
-  @@index([status])
-  @@index([teamId, status], map: "event_team_member_teamId_status_idx")
-  @@map("event_team_member")
-}
-
-// Invitations sent by team leader to potential members
-model EventTeamInvitation {
-  id                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  teamId            String                    @db.Uuid
-  inviterId         String                    @map("inviter_id") @db.Uuid            // Team leader who sent invite
-  inviteeId         String                    @map("invitee_id") @db.Uuid            // User being invited
-  status            EventInvitationStatus     @default(pending)
-  message           String?                   @db.VarChar(500)
-  expiresAt         DateTime?                 @map("expires_at") @db.Timestamptz(6)
-  respondedAt       DateTime?                 @map("responded_at") @db.Timestamptz(6)
-  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  EventTeam         EventTeam                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  inviter           UserLogin                 @relation("InvitationInviter", fields: [inviterId], references: [id])
-  invitee           UserLogin                 @relation("InvitationInvitee", fields: [inviteeId], references: [id])
-
-  @@unique([teamId, inviteeId])
-  @@index([teamId])
-  @@index([inviterId])
-  @@index([inviteeId])
-  @@index([status])
-  @@map("event_team_invitation")
-}
-
-// Requests sent by users to join teams
-model EventTeamRequest {
-  id                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  teamId            String                    @db.Uuid
-  requesterId       String                    @map("requester_id") @db.Uuid          // User requesting to join
-  status            EventRequestStatus        @default(pending)
-  message           String?                   @db.VarChar(500)
-  respondedById     String?                   @map("responded_by_id") @db.Uuid       // Team leader who responded
-  respondedAt       DateTime?                 @map("responded_at") @db.Timestamptz(6)
-  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  EventTeam         EventTeam                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  requester         UserLogin                 @relation("RequestRequester", fields: [requesterId], references: [id])
-
-  @@unique([teamId, requesterId])
-  @@index([teamId])
-  @@index([requesterId])
-  @@index([status])
-  @@map("event_team_request")
-}
-
-// Event prizes/rewards
-model EventPrize {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  position          Int                 @default(1)                                     // 1 = 1st, 2 = 2nd, etc.
-  rank              String              @db.VarChar(64)                                 // "Winner", "Runner-up", "Custom"
-  title             String              @db.VarChar(128)                                // Display title
-  description       String?             @db.VarChar(512)
-  prizeType         PrizeType           @default(certificate) @map("prize_type")
-  prizeAmount       Float?              @map("prize_amount")                            // For cash prizes
-  additionalPerks   Json?               @map("additional_perks")                        // Certificate, internship, etc.
-  sortOrder         Int                 @default(0) @map("sort_order")
-  isActive          Boolean             @default(true) @map("is_active")
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  Event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([sortOrder])
-  @@map("event_prize")
-}
-
-// Event rounds/phases
-model EventRound {
-  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId         String
-  name            String        @db.VarChar(128)
-  description     String?       @db.VarChar(512)
-  startTime       DateTime      @map("start_time") @db.Timestamptz(6)
-  endTime         DateTime      @map("end_time") @db.Timestamptz(6)
-  roundType       String?       @map("round_type") @db.VarChar(32) // elimination, final, general, registration
-  isDefault       Boolean       @default(false) @map("is_default")
-  sortOrder       Int           @default(0) @map("sort_order")
-  isActive        Boolean       @default(true) @map("is_active")
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  Event           Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([sortOrder])
-  @@map("event_round")
-}
-
-// =====================================
-// Guest House / Hostel Management
-// ====================================
-enum RoomTypeEnum {
-  standard
-  deluxe
-  suite
-  presidential
-  ac
-  non_ac
-
-  @@map("room_type_enum")
-}
-
-enum BookingStatusEnum {
-  pending
-  confirmed
-  cancelled
-  completed
-
-  @@map("booking_status_enum")
-}
-
-model Hostel {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name            String       @unique @db.VarChar(200)
-  description     String?      @db.Text
-  address         String?      @db.Text
-  phone           String?      @db.VarChar(20)
-  email           String?      @db.VarChar(100)
-  hostel_category String?      @db.VarChar(50)
-  is_active       Boolean      @default(true)
-  created_at      DateTime     @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
-
-  rooms           HostelRoom[]
-
-  @@index([is_active])
-  @@index([hostel_category])
-  @@map("hostel")
-}
-
-model HostelRoom {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hostel_id       String            @db.Uuid
-  room_number     String            @db.VarChar(50)
-  floor_number    Int?
-  room_type       RoomTypeEnum      @default(standard)
-  max_occupancy   Int               @default(2)
-  price_per_night Decimal           @default(1000) @db.Decimal(10, 2)
-  amenities       String?           @db.Text
-  is_available    Boolean           @default(true)
-  created_at      DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
-
-  hostel          Hostel            @relation(fields: [hostel_id], references: [id], onDelete: Cascade)
-  bookings        HostelBooking[]
-
-  @@unique([hostel_id, room_number])
-  @@index([hostel_id])
-  @@index([is_available])
-  @@index([room_type])
-  @@map("hostel_room")
-}
-
-model HostelBooking {
-  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gate_pass_id        String             @db.Uuid
-  room_id             String?            @db.Uuid
-  room_number         String?            @db.VarChar(50)
-  hostel_name         String?            @db.VarChar(100)
-  guest_count         Int                @default(1)
-  check_in_datetime   DateTime?          @db.Timestamptz(6)
-  check_out_datetime  DateTime?          @db.Timestamptz(6)
-  billable_days       Int                @default(1)
-  check_in_remarks    String?            @db.Text
-  total_price         Decimal?           @db.Decimal(10, 2)
-  price_per_day       Decimal?           @db.Decimal(10, 2)
-  payment_status      String?            @default("pending") @db.VarChar(32)
-  payment_qr_code     String?            @db.Text
-  payment_reference   String?            @db.VarChar(100)
-  booking_status      BookingStatusEnum? @default(pending)
-  verified_by_id                 String?            @db.Uuid
-  created_by_id                  String             @db.Uuid
-  verified_at                    DateTime?          @db.Timestamptz(6)
-  checkout_reminder_sent         Boolean            @default(false)
-  requested_checkin_time         DateTime?          @db.Timestamptz(6)
-  checkin_request_status         String?            @db.VarChar(20)
-  checkin_request_reject_reason  String?            @db.Text
-  checkin_request_reviewed_by_id String?            @db.Uuid
-  checkin_request_reviewed_at    DateTime?          @db.Timestamptz(6)
-  room_cancel_request_status         String?            @db.VarChar(20)
-  room_cancel_request_reason         String?            @db.Text
-  room_cancel_request_requested_at   DateTime?          @db.Timestamptz(6)
-  room_cancel_request_reviewed_by_id String?            @db.Uuid
-  room_cancel_request_reviewed_at    DateTime?          @db.Timestamptz(6)
-  room_cancel_request_reject_reason  String?            @db.Text
-  created_at                     DateTime           @default(now()) @db.Timestamptz(6)
-  updated_at                     DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
-
-  gate_pass                      gate_pass          @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
-  room                           HostelRoom?        @relation(fields: [room_id], references: [id])
-  verified_by                    UserLogin?         @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
-  created_by                     UserLogin          @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
-  checkin_request_reviewed_by    UserLogin?         @relation("CheckinRequestReviewedBy", fields: [checkin_request_reviewed_by_id], references: [id])
-  room_cancel_request_reviewed_by UserLogin?        @relation("RoomCancelRequestReviewedBy", fields: [room_cancel_request_reviewed_by_id], references: [id])
-  refund_transactions            RefundTransaction[]
-
-  @@index([gate_pass_id])
-  @@index([room_id])
-  @@index([booking_status])
-  @@index([check_in_datetime])
-  @@index([check_out_datetime])
-  @@index([verified_by_id])
-  @@index([created_by_id])
-  @@index([checkin_request_status])
-  @@index([room_cancel_request_status])
-  @@map("hostel_booking")
-}
-
-model RefundTransaction {
-  id                       String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  booking_id               String             @db.Uuid
-  pass_id                  String             @db.Uuid
-  original_amount          Float
-  cancellation_fee_percent Float
-  cancellation_fee_amount  Float
-  refund_amount            Float
-  refund_status            refund_status_enum @default(pending)
-  processed_by_id          String?            @db.Uuid
-  processed_at             DateTime?          @db.Timestamptz(6)
-  remarks                  String?            @db.Text
-  created_at               DateTime           @default(now()) @db.Timestamptz(6)
-
-  booking      HostelBooking @relation(fields: [booking_id], references: [id])
-  gate_pass    gate_pass     @relation(fields: [pass_id], references: [id])
-  processed_by UserLogin?    @relation("RefundProcessedBy", fields: [processed_by_id], references: [id])
-
-  @@index([booking_id])
-  @@index([pass_id])
-  @@index([refund_status])
-  @@map("refund_transactions")
-}
-
-// =====================================
-// Advanced Registration Enums
-// ====================================
-enum PrizeType {
-  cash
-  certificate
-  internship
-  merchandise
-  trophy
-  scholarship
-  voucher
-  custom
-
-  @@map("prize_type_enum")
-}
-
-enum EventFieldType {
-  text
-  textarea
-  number
-  email
-  phone
-  url
-  date
-  time
-  datetime
-  dropdown
-  radio
-  checkbox
-  file
-  image
-
-  @@map("event_field_type_enum")
-}
-
-enum EventTeamStatus {
-  forming         // Team is being created
-  complete        // Team has minimum members
-  confirmed       // Team is finalized
-  disqualified    // Team disqualified
-  withdrawn       // Team withdrew
-
-  @@map("event_team_status_enum")
-}
-
-enum EventTeamMemberRole {
-  leader
-  member
-
-  @@map("event_team_member_role_enum")
-}
-
-enum EventTeamMemberStatus {
-  pending
-  confirmed
-  removed
-  left
-
-  @@map("event_team_member_status_enum")
-}
-
-enum EventInvitationStatus {
-  pending
-  accepted
-  declined
-  expired
-  cancelled
-
-  @@map("event_invitation_status_enum")
-}
-
-enum EventRequestStatus {
-  pending
-  accepted
-  rejected
-  cancelled
-
-  @@map("event_request_status_enum")
 }
 
 enum RoleDepartmentType {
@@ -3550,1682 +2455,6 @@ enum quartile_enum {
   Q4
 }
 
-enum NoteCategoryEnum {
-  academic
-  administrative
-
-  @@map("note_category_enum")
-}
-
-enum NoteStatusEnum {
-  draft
-  pending
-  approved
-  rejected
-  reverted
-
-  @@map("note_status_enum")
-}
-
-enum NoteApprovalPeriodEnum {
-  one_time
-  recurring
-
-  @@map("note_approval_period_enum")
-}
-
-enum NoteRecurringFrequencyEnum {
-  weekly
-  monthly
-  quarterly
-  half_yearly
-  annually
-
-  @@map("note_recurring_frequency_enum")
-}
-
-enum gate_pass_action_enum {
-  created
-  updated
-  checked_in
-  checked_out
-  denied
-  cancelled
-  notification_sent
-}
-
-enum gate_pass_status_enum {
-  pending
-  active
-  checked_in
-  completed
-  denied
-  expired
-  cancelled
-}
-
-enum gender_enum {
-  male
-  female
-  other
-}
-
-enum id_proof_type_enum {
-  aadhaar
-  pan
-  driving_license
-  voter_id
-  passport
-}
-
-enum notification_recipient_enum {
-  visitor
-  host
-  security
-}
-
-enum notification_status_enum {
-  pending
-  sent
-  failed
-}
-
-enum notification_type_enum {
-  email
-  sms
-  whatsapp
-}
-
-enum vehicle_type_enum {
-  two_wheeler
-  four_wheeler
-  other
-}
-
-enum qr_status_enum {
-  inactive
-  active
-  expired
-  used
-}
-
-enum pass_status_enum {
-  created
-  pending
-  approved
-  rejected
-  active
-  completed
-  cancelled
-  checked_in
-  checked_out
-  expired
-}
-
-enum visit_purpose_enum {
-  meeting
-  delivery
-  maintenance
-  emergency
-  event
-  interview
-  personal
-  other
-}
-
-enum EntryType {
-  entry
-  exit
-}
-
-enum EventPaymentType {
-  free
-  paid
-}
-
-enum CouponDiscountType {
-  percentage
-  fixed
-}
-
-enum EventStatus {
-  draft
-  published
-  ongoing
-  completed
-  cancelled
-}
-
-enum EventType {
-  workshop
-  seminar
-  conference
-  competition
-  cultural
-  sports
-  tech_fest
-  hackathon
-  webinar
-  fest
-  other
-}
-
-enum OpportunityMode {
-  online
-  offline
-  hybrid
-}
-
-enum ParticipationType {
-  individual
-  team
-}
-
-enum PaymentStatus {
-  pending
-  completed
-  failed
-  refunded
-}
-
-enum RegistrationStatus {
-  draft               // Form started but not submitted
-  pending             // Submitted, awaiting approval
-  confirmed           // Registration confirmed
-  cancelled           // Registration cancelled
-  waitlisted          // On waitlist
-  rejected            // Registration rejected by organizer
-  incomplete_team     // Team-based: team not complete yet
-}
-
-// =====================================
-// Event Coupon System
-// ====================================
-model EventCoupon {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String              @map("event_id")                 // links to Event.id
-  code              String              @map("code") @db.VarChar(64)     // coupon code (unique per event)
-  discountType      CouponDiscountType  @map("discount_type")            // percentage | fixed
-  discountValue     Float               @map("discount_value")           // % or â‚¹ amount
-  maxDiscountCap    Float?              @map("max_discount_cap")         // max â‚¹ cap for percentage discounts
-  minAmount         Float?              @map("min_amount")               // minimum amount to apply coupon
-  maxUses           Int?                @map("max_uses")                 // null = unlimited
-  maxUsesPerUser    Int?                @default(1) @map("max_uses_per_user") // null = unlimited per user
-  usedCount         Int                 @default(0) @map("used_count")   // atomic counter
-  expiresAt         DateTime?           @map("expires_at") @db.Timestamptz(6)
-  isActive          Boolean             @default(true) @map("is_active")
-  description       String?             @db.VarChar(512)
-  createdById       String              @db.Uuid @map("created_by_id")
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdBy         UserLogin           @relation("CouponCreatedBy", fields: [createdById], references: [id])
-  EventRegistration EventRegistration[]
-  CouponUsage       CouponUsage[]
-
-  @@unique([eventId, code])
-  @@index([eventId])
-  @@index([code])
-  @@index([isActive])
-  @@index([expiresAt])
-  @@map("event_coupon")
-}
-
-model CouponUsage {
-  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  couponId       String          @db.Uuid @map("coupon_id")
-  registrationId String          @unique @map("registration_id")  // one coupon usage per registration
-  userId         String          @db.Uuid @map("user_id")
-  discountAmount Float           @map("discount_amount")          // actual â‚¹ discount applied
-  originalAmount Float           @map("original_amount")          // amount before discount
-  finalAmount    Float           @map("final_amount")             // amount after discount
-  usedAt         DateTime        @default(now()) @map("used_at") @db.Timestamptz(6)
-
-  coupon         EventCoupon     @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  registration   EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  user           UserLogin       @relation("CouponUsageUser", fields: [userId], references: [id])
-
-  @@index([couponId])
-  @@index([userId])
-  @@index([couponId, userId])
-  @@map("coupon_usage")
-}
-
-// =====================================
-// DSW (Dean of Students' Welfare) System
-// ====================================
-model ClubCategory {
-  id          String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name        String          @db.VarChar(128)
-  description String?
-  icon        String?         @db.VarChar(64) // Emoji icon for main categories
-  parentId    String?         @map("parent_id") @db.Uuid // NULL for main categories, UUID for sub-categories
-  isActive    Boolean         @default(true) @map("is_active")
-  sortOrder   Int             @default(0) @map("sort_order")
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  // Relations
-  parent      ClubCategory?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    ClubCategory[]  @relation("CategoryHierarchy")
-  clubs       Club[]
-
-  @@unique([name, parentId]) // Unique within parent (allows same name for different parents)
-  @@index([parentId])
-  @@index([isActive])
-  @@map("club_category")
-}
-
-model Club {
-  id                           String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId                       String                    @unique @map("club_id") @db.VarChar(64)
-  name                         String                    @unique @db.VarChar(256)
-  categoryId                   String                    @map("category_id") @db.Uuid
-  purpose                      String                    @db.Text
-  academicSession              String                    @map("academic_session") @db.VarChar(64)
-  facultyFacilitatorId         String                    @map("faculty_facilitator_id") @db.Uuid
-  chairpersonId                String                    @map("chairperson_id") @db.Uuid
-  targetStudentGroup           String[]                  @default([]) @map("target_student_group")
-  expectedActivityTypes        String[]                  @map("expected_activity_types")
-  codeOfConductAccepted        Boolean                   @map("code_of_conduct_accepted")
-  antiDiscriminationAccepted   Boolean                   @map("anti_discrimination_accepted")
-  meetingFrequency             ClubMeetingFrequencyEnum  @map("meeting_frequency")
-  estimatedAnnualActivityCount Int                       @map("estimated_annual_activity_count")
-  proposedEmail                String?                   @map("proposed_email") @db.VarChar(256)
-  socialMediaHandles           Json?                     @map("social_media_handles")
-  expectedStudentStrength      Int?                      @map("expected_student_strength")
-  status                       ClubStatusEnum            @default(draft)
-  lifecycleState               ClubLifecycleStateEnum    @default(draft) @map("lifecycle_state")
-  notingId                     String?                   @unique @map("noting_id") @db.Uuid
-  creatorId                    String?                   @map("creator_id") @db.Uuid
-  approvedAt                   DateTime?                 @map("approved_at") @db.Timestamptz(6)
-  createdAt                    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  metadata                     Json                      @default("{}")
-  category                     ClubCategory              @relation(fields: [categoryId], references: [id])
-  facultyFacilitator           UserLogin                 @relation("ClubFacultyFacilitator", fields: [facultyFacilitatorId], references: [id])
-  chairperson                  UserLogin                 @relation("ClubChairperson", fields: [chairpersonId], references: [id])
-  creator                      UserLogin?                @relation("ClubCreator", fields: [creatorId], references: [id])
-  noting                       Note?                     @relation("ClubCreationNoting", fields: [notingId], references: [id])
-  eventNotings                 Note[]                    @relation("EventNotingClub")
-  members                      ClubMember[]
-  applications                 ClubMemberApplication[]
-  auditLogs                    ClubAuditLog[]
-  changeRequests               ClubChangeRequest[]
-
-  @@index([status])
-  @@index([status, categoryId], map: "club_status_categoryId_idx")
-  @@index([lifecycleState])
-  @@index([categoryId])
-  @@index([facultyFacilitatorId])
-  @@index([chairpersonId])
-  @@index([academicSession])
-  @@index([creatorId])
-  @@index([createdAt])
-  @@map("club")
-}
-
-model ClubMember {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId    String   @map("club_id") @db.Uuid
-  studentId String   @map("student_id") @db.Uuid
-  joinedAt  DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
-  isActive  Boolean  @default(true) @map("is_active")
-  addedById String   @map("added_by_id") @db.Uuid
-  removedAt DateTime? @map("removed_at") @db.Timestamptz(6)
-  removedById String? @map("removed_by_id") @db.Uuid
-  metadata  Json     @default("{}")
-  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  student   UserLogin @relation("ClubMemberStudent", fields: [studentId], references: [id])
-  addedBy   UserLogin @relation("ClubMemberAddedBy", fields: [addedById], references: [id])
-  removedBy UserLogin? @relation("ClubMemberRemovedBy", fields: [removedById], references: [id])
-
-  @@unique([clubId, studentId])
-  @@index([clubId])
-  @@index([studentId])
-  @@index([isActive])
-  @@index([studentId, isActive])           // myClubs OR filter: members.some{studentId, isActive}
-  @@index([clubId, isActive])              // active member count (_count where isActive=true)
-  @@index([clubId, isActive, joinedAt])    // getClubById members: where isActive + orderBy joinedAt
-  @@map("club_member")
-}
-
-model ClubMemberApplication {
-  id            String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId        String                      @map("club_id") @db.Uuid
-  applicantId   String                      @map("applicant_id") @db.Uuid
-  applicantName String                      @map("applicant_name") @db.VarChar(256)
-  email         String?                     @db.Citext
-  mobileNumber  String?                     @map("mobile_number") @db.VarChar(20)
-  program       String?                     @db.VarChar(128)
-  course        String?                     @db.VarChar(128)
-  status        ClubMemberApplicationStatus @default(pending)
-  reviewNote    String?                     @map("review_note") @db.VarChar(500)
-  reviewedById  String?                     @map("reviewed_by_id") @db.Uuid
-  reviewedAt    DateTime?                   @map("reviewed_at") @db.Timestamptz(6)
-  createdAt     DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  club        Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  applicant   UserLogin @relation("ClubApplicationApplicant", fields: [applicantId], references: [id])
-  reviewedBy  UserLogin? @relation("ClubApplicationReviewedBy", fields: [reviewedById], references: [id])
-
-  @@index([clubId, status], map: "club_member_application_club_status_idx")
-  @@index([applicantId], map: "club_member_application_applicant_idx")
-  @@index([createdAt], map: "club_member_application_created_at_idx")
-  @@map("club_member_application")
-}
-
-model ClubChangeRequest {
-  id                 String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId             String                         @map("club_id") @db.Uuid
-  notingId           String                         @unique @map("noting_id") @db.Uuid
-  changeType         ClubChangeTypeEnum             @map("change_type")
-  requestedChanges   Json                           @map("requested_changes")
-  justification      String                         @db.Text
-  status             ClubChangeRequestStatusEnum    @default(pending)
-  requestedById      String                         @map("requested_by_id") @db.Uuid
-  approvedById       String?                        @map("approved_by_id") @db.Uuid
-  rejectedById       String?                        @map("rejected_by_id") @db.Uuid
-  approvedAt         DateTime?                      @map("approved_at") @db.Timestamptz(6)
-  rejectedAt         DateTime?                      @map("rejected_at") @db.Timestamptz(6)
-  rejectionReason    String?                        @map("rejection_reason")
-  createdAt          DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime                       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  club               Club                           @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  noting             Note                           @relation("ClubChangeRequestNoting", fields: [notingId], references: [id])
-  requestedBy        UserLogin                      @relation("ClubChangeRequestedBy", fields: [requestedById], references: [id])
-  approvedBy         UserLogin?                     @relation("ClubChangeApprovedBy", fields: [approvedById], references: [id])
-  rejectedBy         UserLogin?                     @relation("ClubChangeRejectedBy", fields: [rejectedById], references: [id])
-
-  @@index([clubId])
-  @@index([status])
-  @@index([changeType])
-  @@index([createdAt])
-  @@map("club_change_request")
-}
-
-model ClubAuditLog {
-  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId        String   @map("club_id") @db.Uuid
-  action        String   @db.VarChar(128)
-  performedById String   @map("performed_by_id") @db.Uuid
-  previousState Json?    @map("previous_state")
-  newState      Json?    @map("new_state")
-  changes       Json?
-  source        String   @default("dsw_ui") @db.VarChar(64)
-  ipAddress     String?  @map("ip_address") @db.VarChar(64)
-  userAgent     String?  @map("user_agent") @db.VarChar(512)
-  metadata      Json     @default("{}")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  club          Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  performedBy   UserLogin @relation("ClubAuditLogPerformedBy", fields: [performedById], references: [id])
-
-  @@index([clubId])
-  @@index([action])
-  @@index([performedById])
-  @@index([createdAt])
-  @@map("club_audit_log")
-}
-
-// =====================================
-// Stall Management Models
-// ====================================
-model StallApplication {
-  id                       String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId                  String    @map("event_id")
-  applicantId              String    @map("applicant_id") @db.Uuid
-  stallId                  String    @unique @map("stall_id") @db.VarChar(16) // e.g. "ST04231"
-  stallName                String    @map("stall_name") @db.VarChar(256)
-  stallType                String    @map("stall_type") @db.VarChar(64) // Food | Product | Service | Information | Other
-  stallDescription         String?   @map("stall_description") @db.Text
-  businessName             String?   @map("business_name") @db.VarChar(256)
-  contactNumber            String?   @map("contact_number") @db.VarChar(32)
-  emailId                  String?   @map("email_id") @db.VarChar(256)
-  isSelling                Boolean   @default(false) @map("is_selling")
-  priceRangeMin            Float?    @map("price_range_min")
-  priceRangeMax            Float?    @map("price_range_max")
-  stallSize                String    @default("6x6") @map("stall_size") @db.VarChar(32) // 6x6 | 10x10 | custom
-  customStallSize          String?   @map("custom_stall_size") @db.VarChar(64)
-  electricityRequired      Boolean   @default(false) @map("electricity_required")
-  additionalPowerWatts     Int?      @map("additional_power_watts")
-  tableRequired            Boolean   @default(false) @map("table_required")
-  chairsCount              Int       @default(0) @map("chairs_count")
-  specialSetup             String[]  @default([]) @map("special_setup")
-  specialSetupOther        String?   @map("special_setup_other") @db.VarChar(256)
-  stallCategory            String    @default("Standard") @map("stall_category") @db.VarChar(64) // Standard | Premium | Sponsored
-  stallFees                Float     @default(0) @map("stall_fees")
-  paymentMode              String?   @map("payment_mode") @db.VarChar(32) // UPI | BankTransfer | Cash
-  transactionId            String?   @map("transaction_id") @db.VarChar(256)
-  paymentScreenshot        String?   @map("payment_screenshot") @db.VarChar(512)
-  documents                String[]  @default([]) // file paths
-  eventRulesAccepted       Boolean   @default(false) @map("event_rules_accepted")
-  refundPolicyAccepted     Boolean   @default(false) @map("refund_policy_accepted")
-  safetyComplianceAccepted Boolean   @default(false) @map("safety_compliance_accepted")
-  stallQrCode              String?   @map("stall_qr_code") @db.Text
-  applicationStatus        String    @default("pending") @map("application_status") @db.VarChar(32) // pending | approved | rejected
-  reviewedById             String?   @map("reviewed_by_id") @db.Uuid
-  reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  rejectionReason          String?   @map("rejection_reason") @db.Text
-  appliedAt                DateTime  @default(now()) @map("applied_at") @db.Timestamptz(6)
-  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  applicant  UserLogin @relation("StallApplicant", fields: [applicantId], references: [id])
-
-  @@index([eventId])
-  @@index([applicantId])
-  @@index([applicationStatus])
-  @@index([stallId])
-  @@index([eventId, applicationStatus], map: "stall_application_eventId_status_idx")
-  @@map("stall_application")
-}
-
-model Stall {
-  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId        String    @map("event_id")
-  stallId        String    @unique @map("stall_id") @db.VarChar(16) // e.g. "ST04231"
-  stallName      String    @map("stall_name") @db.VarChar(256)
-  stallType      String?   @map("stall_type") @db.VarChar(64)
-  stallCategory  String?   @map("stall_category") @db.VarChar(64)
-  description    String?   @db.Text
-  ownerName      String?   @map("owner_name") @db.VarChar(256)
-  ownerId        String?   @map("owner_id") @db.Uuid
-  source         String    @default("creator") @db.VarChar(32) // creator | student-approved
-  size           String?   @db.VarChar(32)
-  location       String?   @db.VarChar(256) // assigned location on floor map
-  stallQrCode    String?   @map("stall_qr_code") @db.Text
-  isActive       Boolean   @default(true) @map("is_active")
-  stallMetadata  Json?     @map("stall_metadata") // { businessName, electricityRequired, waterRequired, specialRequirements, products[] }
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  event         Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  owner         UserLogin?      @relation("StallOwner", fields: [ownerId], references: [id])
-  StallFeedback StallFeedback[]
-
-  @@index([eventId])
-  @@index([source])
-  @@index([isActive])
-  @@map("stall")
-}
-
-model StallFeedback {
-  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId          String   @map("event_id")
-  stallId          String   @map("stall_id") @db.VarChar(16)
-  points           Json
-  shortDescription String?  @map("short_description") @db.Text
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  stall Stall @relation(fields: [stallId], references: [stallId], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([stallId])
-  @@index([stallId, eventId], map: "stall_feedback_stallId_eventId_idx")
-  @@map("stall_feedback")
-}
-
-enum ClubStatusEnum {
-  draft
-  pending_approval
-  approved
-  active
-  suspended
-  archived
-
-  @@map("club_status_enum")
-}
-
-enum ClubLifecycleStateEnum {
-  draft
-  under_approval
-  approved
-  active
-  suspended
-  archived
-
-  @@map("club_lifecycle_state_enum")
-}
-
-enum ClubTargetGroupEnum {
-  all
-  ug
-  pg
-  phd
-
-  @@map("club_target_group_enum")
-}
-
-
-
-enum ClubMeetingFrequencyEnum {
-  monthly
-  quarterly
-  half_yearly
-  annually
-  event_based
-
-  @@map("club_meeting_frequency_enum")
-}
-
-enum ClubChangeTypeEnum {
-  name_change
-  category_change
-  purpose_change
-  facilitator_change
-  chairperson_change
-  governance_change
-  operational_change
-  other
-
-  @@map("club_change_type_enum")
-}
-
-enum ClubChangeRequestStatusEnum {
-  pending
-  approved
-  rejected
-
-  @@map("club_change_request_status_enum")
-}
-
-// ============ CHAT SYSTEM =============
-enum ChatMemberRoleEnum {
-  owner
-  admin
-  moderator
-  member
-
-  @@map("chat_member_role_enum")
-}
-
-enum ChatMessageTypeEnum {
-  text
-  file
-  image
-  voice
-  video
-  document
-
-  @@map("chat_message_type_enum")
-}
-
-enum LastSeenPrivacyEnum {
-  everyone
-  contacts
-  nobody
-
-  @@map("last_seen_privacy_enum")
-}
-
-model ChatGroup {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name              String                @db.VarChar(100)
-  description       String?               @db.VarChar(500)
-  avatar            String?               @db.VarChar(255)
-  createdById       String                @map("created_by_id") @db.Uuid
-  isEncrypted       Boolean               @default(false) @map("is_encrypted")
-  isActive          Boolean               @default(true) @map("is_active")
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  createdBy         UserLogin             @relation("ChatGroupCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  members           ChatGroupMember[]     @relation("ChatGroupMembers")
-  permissions       ChatGroupPermission?  @relation("ChatGroupPermissions")
-  messages          ChatMessage[]         @relation("ChatGroupMessages")
-
-  @@index([createdById])
-  @@index([isActive])
-  @@index([createdAt])
-  @@map("chat_group")
-}
-
-model ChatGroupMember {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  groupId           String                @map("group_id") @db.Uuid
-  userId            String                @map("user_id") @db.Uuid
-  memberRole        ChatMemberRoleEnum    @default(member) @map("member_role")
-  customPermissions Json?                 @map("custom_permissions")
-  isMuted           Boolean               @default(false) @map("is_muted")
-  mutedUntil        DateTime?             @map("muted_until") @db.Timestamptz(6)
-  joinedAt          DateTime              @default(now()) @map("joined_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  group             ChatGroup             @relation("ChatGroupMembers", fields: [groupId], references: [id], onDelete: Cascade)
-  user              UserLogin             @relation("ChatGroupMemberUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, userId])
-  @@index([userId])
-  @@index([groupId])
-  @@index([memberRole])
-  @@map("chat_group_member")
-}
-
-model ChatGroupPermission {
-  id                    String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  groupId               String              @unique @map("group_id") @db.Uuid
-  canSendMessage        Boolean             @default(true) @map("can_send_message")
-  canUploadFiles        Boolean             @default(true) @map("can_upload_files")
-  canSendVoice          Boolean             @default(true) @map("can_send_voice")
-  canSendVideo          Boolean             @default(true) @map("can_send_video")
-  canSendEmoji          Boolean             @default(true) @map("can_send_emoji")
-  canEditMessage        Boolean             @default(true) @map("can_edit_message")
-  canDeleteMessage      Boolean             @default(true) @map("can_delete_message")
-  canPinMessage         Boolean             @default(false) @map("can_pin_message")
-  canMentionAll         Boolean             @default(false) @map("can_mention_all")
-  canAddMembers         Boolean             @default(false) @map("can_add_members")
-  canRemoveMembers      Boolean             @default(false) @map("can_remove_members")
-  adminOnlyMessaging    Boolean             @default(false) @map("admin_only_messaging")
-  readOnlyMode          Boolean             @default(false) @map("read_only_mode")
-  privateDMAllowed      Boolean             @default(true) @map("private_dm_allowed")
-  searchMembers         Boolean             @default(true) @map("search_members")
-  maxFileSize           Int                 @default(10485760) @map("max_file_size")  // 10MB default
-  
-  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  group                 ChatGroup           @relation("ChatGroupPermissions", fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@map("chat_group_permission")
-}
-
-model ChatMessage {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  groupId           String                @map("group_id") @db.Uuid
-  senderId          String                @map("sender_id") @db.Uuid
-  messageType       ChatMessageTypeEnum   @default(text) @map("message_type")
-  content           String?               @db.Text
-  encryptedContent  String?               @map("encrypted_content") @db.Text
-  filePath          String?               @map("file_path") @db.VarChar(500)
-  fileName          String?               @map("file_name") @db.VarChar(255)
-  fileSize          Int?                  @map("file_size")
-  mimeType          String?               @map("mime_type") @db.VarChar(100)
-  duration          Int?                  // For voice/video in seconds
-  waveformData      Json?                 @map("waveform_data")  // Array of amplitudes for voice
-  replyToId         String?               @map("reply_to_id") @db.Uuid
-  mentions          Json?                 // Array of user IDs mentioned
-  isPinned          Boolean               @default(false) @map("is_pinned")
-  isEdited          Boolean               @default(false) @map("is_edited")
-  readBy            Json                  @default("[]") @map("read_by")  // Array of {userId, readAt}
-  isDeleted         Boolean               @default(false) @map("is_deleted")
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  group             ChatGroup             @relation("ChatGroupMessages", fields: [groupId], references: [id], onDelete: Cascade)
-  sender            UserLogin             @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  replyTo           ChatMessage?          @relation("ChatMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies           ChatMessage[]         @relation("ChatMessageReplies")
-
-  @@index([groupId, createdAt])
-  @@index([senderId])
-  @@index([messageType])
-  @@index([isPinned])
-  @@index([isDeleted])
-  @@map("chat_message")
-}
-
-model DirectMessage {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  senderId          String                @map("sender_id") @db.Uuid
-  receiverId        String                @map("receiver_id") @db.Uuid
-  messageType       ChatMessageTypeEnum   @default(text) @map("message_type")
-  content           String?               @db.Text
-  encryptedContent  String?               @map("encrypted_content") @db.Text
-  filePath          String?               @map("file_path") @db.VarChar(500)
-  fileName          String?               @map("file_name") @db.VarChar(255)
-  fileSize          Int?                  @map("file_size")
-  mimeType          String?               @map("mime_type") @db.VarChar(100)
-  duration          Int?                  // For voice/video in seconds
-  waveformData      Json?                 @map("waveform_data")
-  replyToId         String?               @map("reply_to_id") @db.Uuid
-  isEdited          Boolean               @default(false) @map("is_edited")
-  isDeleted         Boolean               @default(false) @map("is_deleted")
-  readAt            DateTime?             @map("read_at") @db.Timestamptz(6)
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  sender            UserLogin             @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver          UserLogin             @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  replyTo           DirectMessage?        @relation("DirectMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies           DirectMessage[]       @relation("DirectMessageReplies")
-
-  @@index([senderId, receiverId, createdAt])
-  @@index([receiverId, senderId, createdAt])
-  @@index([readAt])
-  @@map("direct_message")
-}
-
-model UserChatStatus {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId            String                @unique @map("user_id") @db.Uuid
-  isOnline          Boolean               @default(false) @map("is_online")
-  lastSeenAt        DateTime?             @map("last_seen_at") @db.Timestamptz(6)
-  socketId          String?               @map("socket_id") @db.VarChar(100)
-  lastSeenPrivacy   LastSeenPrivacyEnum   @default(everyone) @map("last_seen_privacy")
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user              UserLogin             @relation("UserChatStatus", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([isOnline])
-  @@index([lastSeenAt])
-  @@map("user_chat_status")
-}
-
-model ChatUserPermission {
-  id                    String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId                String              @unique @map("user_id") @db.Uuid
-  
-  // Chat Access Control
-  chatEnabled           Boolean             @default(true) @map("chat_enabled")
-  
-  // Individual User-Level Permissions
-  canPrivateMessage     Boolean             @default(true) @map("can_private_message")
-  canCreateGroup        Boolean             @default(true) @map("can_create_group")
-  canUploadProfilePhoto Boolean             @default(true) @map("can_upload_profile_photo")
-  
-  // Privacy Permissions (user-level)
-  canSetLastSeen        Boolean             @default(true) @map("can_set_last_seen")
-  canSetOnlineStatus    Boolean             @default(true) @map("can_set_online_status")
-  canSetProfilePrivacy  Boolean             @default(true) @map("can_set_profile_privacy")
-  canSetAboutPrivacy    Boolean             @default(true) @map("can_set_about_privacy")
-  canSetStatusPrivacy   Boolean             @default(true) @map("can_set_status_privacy")
-  canSetReadReceipts    Boolean             @default(true) @map("can_set_read_receipts")
-  canSetMessageTimer    Boolean             @default(true) @map("can_set_message_timer")
-  canSetGroupsPrivacy   Boolean             @default(true) @map("can_set_groups_privacy")
-  canBlockContacts      Boolean             @default(true) @map("can_block_contacts")
-  
-  // Customization Permissions (user-level)
-  canChangeTheme        Boolean             @default(true) @map("can_change_theme")
-  canChangeWallpaper    Boolean             @default(true) @map("can_change_wallpaper")
-  
-  // Notification Permissions (user-level)
-  canToggleNotifications Boolean            @default(true) @map("can_toggle_notifications")
-  
-  // Metadata
-  addedBy               String?             @map("added_by") @db.Uuid
-  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user                  UserLogin           @relation("ChatUserPermission", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([chatEnabled])
-  @@index([userId])
-  @@map("chat_user_permission")
-}
-
-// =====================================================================
-// INTERNAL MAIL SYSTEM (Gmail-like)
-// ====================================================================
-enum MailRecipientType {
-  TO
-  CC
-  BCC
-}
-
-model MailThread {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  subject         String            @db.VarChar(500)
-  createdById     String            @map("created_by_id") @db.Uuid
-  lastMessageAt   DateTime          @default(now()) @map("last_message_at") @db.Timestamptz(6)
-  lastMessageSnippet String?        @map("last_message_snippet") @db.VarChar(200)
-  messageCount    Int               @default(1) @map("message_count")
-  isActive        Boolean           @default(true) @map("is_active")
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  createdBy       UserLogin         @relation("MailThreadCreator", fields: [createdById], references: [id])
-  messages        MailMessage[]     @relation("MailThreadMessages")
-  participants    MailParticipant[] @relation("MailThreadParticipants")
-
-  @@index([createdById])
-  @@index([lastMessageAt])
-  @@index([subject])
-  @@map("mail_thread")
-}
-
-model MailMessage {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  threadId        String            @map("thread_id") @db.Uuid
-  senderId        String            @map("sender_id") @db.Uuid
-  subject         String            @db.VarChar(500)
-  body            String            @db.Text
-  bodyPlainText   String?           @map("body_plain_text") @db.Text
-  replyToId       String?           @map("reply_to_id") @db.Uuid
-  forwardedFromId String?           @map("forwarded_from_id") @db.Uuid
-  isSystemMessage Boolean           @default(false) @map("is_system_message")
-  metadata        Json?             @db.JsonB
-  sentAt          DateTime          @default(now()) @map("sent_at") @db.Timestamptz(6)
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  thread          MailThread        @relation("MailThreadMessages", fields: [threadId], references: [id], onDelete: Cascade)
-  sender          UserLogin         @relation("MailMessageSender", fields: [senderId], references: [id])
-  replyTo         MailMessage?      @relation("MailMessageReply", fields: [replyToId], references: [id])
-  replies         MailMessage[]     @relation("MailMessageReply")
-  forwardedFrom   MailMessage?      @relation("MailMessageForward", fields: [forwardedFromId], references: [id])
-  forwards        MailMessage[]     @relation("MailMessageForward")
-  recipients      MailRecipient[]   @relation("MailMessageRecipients")
-  attachments     MailAttachment[]  @relation("MailMessageAttachments")
-  labels          MailMessageLabel[] @relation("MailMessageLabels")
-
-  @@index([threadId, sentAt])
-  @@index([senderId, sentAt])
-  @@index([replyToId])
-  @@map("mail_message")
-}
-
-model MailRecipient {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  messageId       String            @map("message_id") @db.Uuid
-  userId          String            @map("user_id") @db.Uuid
-  recipientType   MailRecipientType @map("recipient_type")
-  readAt          DateTime?         @map("read_at") @db.Timestamptz(6)
-  isDeleted       Boolean           @default(false) @map("is_deleted")
-  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
-  isStarred       Boolean           @default(false) @map("is_starred")
-  isArchived      Boolean           @default(false) @map("is_archived")
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  message         MailMessage       @relation("MailMessageRecipients", fields: [messageId], references: [id], onDelete: Cascade)
-  user            UserLogin         @relation("MailRecipientUser", fields: [userId], references: [id])
-
-  @@unique([messageId, userId], name: "unique_recipient_per_message")
-  @@index([userId, readAt])
-  @@index([userId, isDeleted])
-  @@index([userId, isStarred])
-  @@index([userId, isArchived])
-  @@index([messageId])
-  @@map("mail_recipient")
-}
-
-model MailParticipant {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  threadId        String            @map("thread_id") @db.Uuid
-  userId          String            @map("user_id") @db.Uuid
-  lastReadAt      DateTime?         @map("last_read_at") @db.Timestamptz(6)
-  isDeleted       Boolean           @default(false) @map("is_deleted")
-  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
-  isMuted         Boolean           @default(false) @map("is_muted")
-  isStarred       Boolean           @default(false) @map("is_starred")
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  thread          MailThread        @relation("MailThreadParticipants", fields: [threadId], references: [id], onDelete: Cascade)
-  user            UserLogin         @relation("MailParticipantUser", fields: [userId], references: [id])
-
-  @@unique([threadId, userId], name: "unique_participant_per_thread")
-  @@index([userId, isDeleted])
-  @@index([threadId])
-  @@map("mail_participant")
-}
-
-model MailLabel {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId          String?           @map("user_id") @db.Uuid
-  name            String            @db.VarChar(100)
-  color           String?           @db.VarChar(20)
-  icon            String?           @db.VarChar(50)
-  isSystem        Boolean           @default(false) @map("is_system")
-  sortOrder       Int               @default(0) @map("sort_order")
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user            UserLogin?        @relation("MailLabelOwner", fields: [userId], references: [id])
-  messageLabels   MailMessageLabel[] @relation("MailLabelMessages")
-
-  @@index([userId])
-  @@index([isSystem])
-  @@map("mail_label")
-}
-
-model MailMessageLabel {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  messageId       String            @map("message_id") @db.Uuid
-  labelId         String            @map("label_id") @db.Uuid
-  userId          String            @map("user_id") @db.Uuid
-  appliedAt       DateTime          @default(now()) @map("applied_at") @db.Timestamptz(6)
-
-  message         MailMessage       @relation("MailMessageLabels", fields: [messageId], references: [id], onDelete: Cascade)
-  label           MailLabel         @relation("MailLabelMessages", fields: [labelId], references: [id], onDelete: Cascade)
-  user            UserLogin         @relation("MailMessageLabelUser", fields: [userId], references: [id])
-
-  @@unique([messageId, labelId, userId], name: "unique_label_per_message_per_user")
-  @@index([userId, labelId])
-  @@index([messageId])
-  @@map("mail_message_label")
-}
-
-model MailAttachment {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  messageId       String            @map("message_id") @db.Uuid
-  uploadedById    String            @map("uploaded_by_id") @db.Uuid
-  fileName        String            @map("file_name") @db.VarChar(256)
-  filePath        String            @map("file_path") @db.VarChar(512)
-  fileSize        Int               @map("file_size")
-  mimeType        String            @map("mime_type") @db.VarChar(128)
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  message         MailMessage       @relation("MailMessageAttachments", fields: [messageId], references: [id], onDelete: Cascade)
-  uploadedBy      UserLogin         @relation("MailAttachmentUploader", fields: [uploadedById], references: [id])
-
-  @@index([messageId])
-  @@map("mail_attachment")
-}
-
-model MailDraft {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId          String            @map("user_id") @db.Uuid
-  threadId        String?           @map("thread_id") @db.Uuid
-  replyToId       String?           @map("reply_to_id") @db.Uuid
-  mode            String            @default("new") @db.VarChar(20)
-  subject         String?           @db.VarChar(500)
-  body            String?           @db.Text
-  toRecipients    Json              @default("[]") @map("to_recipients")
-  ccRecipients    Json              @default("[]") @map("cc_recipients")
-  bccRecipients   Json              @default("[]") @map("bcc_recipients")
-  attachments     Json              @default("[]")
-  lastSavedAt     DateTime          @default(now()) @map("last_saved_at") @db.Timestamptz(6)
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user            UserLogin         @relation("MailDraftOwner", fields: [userId], references: [id])
-
-  @@index([userId])
-  @@map("mail_draft")
-}
-enum ClubMemberApplicationStatus {
-  pending
-  approved
-  rejected
-
-  @@map("club_member_application_status")
-}
-
-// =====================================
-// Payment Model for Razorpay Integration
-// ====================================
-model Payment {
-  id                    String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  registrationId        String?
-  eventId               String
-  userId                String        @db.Uuid
-  teamId                String?       @db.Uuid
-  razorpayOrderId       String        @unique @map("razorpay_order_id")
-  razorpayPaymentId     String?       @unique @map("razorpay_payment_id")
-  razorpaySignature     String?       @map("razorpay_signature")
-  amount                Float
-  currency              String        @default("INR") @db.VarChar(3)
-  status                PaymentRecordStatus @default(created)
-  paymentFor            PaymentFor    @default(individual)
-  receipt               String        @unique @db.VarChar(128)
-  attempts              Int           @default(0)
-  paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
-  failedAt              DateTime?     @map("failed_at") @db.Timestamptz(6)
-  refundedAt            DateTime?     @map("refunded_at") @db.Timestamptz(6)
-  webhookVerified       Boolean       @default(false) @map("webhook_verified")
-  metadata              Json?         @default("{}")
-  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  EventRegistration     EventRegistration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  Event                 Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user_login            UserLogin          @relation("PaymentUser", fields: [userId], references: [id])
-  EventTeam             EventTeam?         @relation(fields: [teamId], references: [id])
-
-  @@index([registrationId])
-  @@index([eventId])
-  @@index([userId])
-  @@index([teamId])
-  @@index([razorpayOrderId])
-  @@index([status])
-  @@index([receipt])
-  @@index([eventId, status], map: "payment_eventId_status_idx")
-  @@index([registrationId, status], map: "payment_registrationId_status_idx")
-  @@index([teamId, eventId], map: "payment_teamId_eventId_idx")
-  @@map("payment")
-}
-
-enum PaymentRecordStatus {
-  created
-  authorized
-  captured
-  failed
-  refunded
-
-  @@map("payment_record_status_enum")
-}
-
-enum PaymentFor {
-  individual
-  team
-
-  @@map("payment_for_enum")
-}
-// ====================================
-// TMS (Ticket Management System) Models
-// ===================================
-model TmsMasterCategory {
-  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name        String        @db.VarChar(256)
-  description String?       @db.VarChar(512)
-  sortOrder   Int           @default(0) @map("sort_order")
-  isActive    Boolean       @default(true) @map("is_active")
-  isAcademic  Boolean       @default(false) @map("is_academic")
-  employeeId  String?       @map("employee_id") @db.Uuid
-  employee    UserLogin?    @relation("TmsMasterCategoryEmployee", fields: [employeeId], references: [id])
-  categories  TmsCategory[]
-  tickets     TmsTicket[]   @relation("TmsTicketMasterCategory")
-  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@map("tms_master_category")
-}
-
-model TmsCategory {
-  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name             String            @db.VarChar(256)
-  description      String?           @db.VarChar(512)
-  sortOrder        Int               @default(0) @map("sort_order")
-  isActive         Boolean           @default(true) @map("is_active")
-  masterCategoryId String            @map("master_category_id") @db.Uuid
-  masterCategory   TmsMasterCategory @relation(fields: [masterCategoryId], references: [id], onDelete: Cascade)
-  employeeId       String?           @map("employee_id") @db.Uuid
-  employee         UserLogin?        @relation("TmsCategoryEmployee", fields: [employeeId], references: [id])
-  subCategories    TmsSubCategory[]
-  tickets          TmsTicket[]       @relation("TmsTicketCategory")
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@map("tms_category")
-}
-
-model TmsSubCategory {
-  id           String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name         String           @db.VarChar(256)
-  description  String?          @db.VarChar(512)
-  sortOrder    Int              @default(0) @map("sort_order")
-  isActive     Boolean          @default(true) @map("is_active")
-  categoryId   String           @map("category_id") @db.Uuid
-  category     TmsCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  employeeId   String?          @map("employee_id") @db.Uuid
-  employee     UserLogin?       @relation("TmsSubCategoryEmployee", fields: [employeeId], references: [id])
-  priority     TmsPriorityEnum  @default(medium)
-  slaHours     Int              @default(48) @map("sla_hours")
-  tickets      TmsTicket[]      @relation("TmsTicketSubCategory")
-  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@map("tms_sub_category")
-}
-
-model TmsTicket {
-  id                String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  requestId         String            @unique @map("request_id") @db.VarChar(32)
-  messageType       TmsMessageTypeEnum @map("message_type")
-  subject           String            @db.VarChar(256)
-  masterCategoryId  String            @map("master_category_id") @db.Uuid
-  masterCategory    TmsMasterCategory @relation("TmsTicketMasterCategory", fields: [masterCategoryId], references: [id])
-  categoryId        String            @map("category_id") @db.Uuid
-  category          TmsCategory       @relation("TmsTicketCategory", fields: [categoryId], references: [id])
-  subCategoryId     String            @map("sub_category_id") @db.Uuid
-  subCategory       TmsSubCategory    @relation("TmsTicketSubCategory", fields: [subCategoryId], references: [id])
-  contactNumber     String            @map("contact_number") @db.VarChar(20)
-  description       String
-  documentPath      String?           @map("document_path")
-  documentName      String?           @map("document_name") @db.VarChar(256)
-  priority          TmsPriorityEnum   @default(medium)
-  status            TmsTicketStatusEnum @default(open)
-  currentLevel      TmsEscalationLevelEnum @default(sub_category) @map("current_level")
-  createdById       String            @map("created_by_id") @db.Uuid
-  createdBy         UserLogin         @relation("TmsTicketCreatedBy", fields: [createdById], references: [id])
-  assignedToId      String?           @map("assigned_to_id") @db.Uuid
-  assignedTo        UserLogin?        @relation("TmsTicketAssignedTo", fields: [assignedToId], references: [id])
-  resolvedAt        DateTime?         @map("resolved_at") @db.Timestamptz(6)
-  closedAt          DateTime?         @map("closed_at") @db.Timestamptz(6)
-  lastEscalatedAt   DateTime?         @map("last_escalated_at") @db.Timestamptz(6)
-  escalationDeadline DateTime?        @map("escalation_deadline") @db.Timestamptz(6)
-  closureRemarks    String?           @map("closure_remarks")
-  timeline          TmsTimeline[]
-  rating            TmsRating?
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@index([requestId])
-  @@index([status])
-  @@index([createdById])
-  @@index([assignedToId])
-  @@index([currentLevel])
-  @@index([escalationDeadline])
-  @@index([createdAt])
-  @@map("tms_ticket")
-}
-
-model TmsTimeline {
-  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  ticketId      String              @map("ticket_id") @db.Uuid
-  ticket        TmsTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  action        TmsTimelineActionEnum
-  fromLevel     TmsEscalationLevelEnum? @map("from_level")
-  toLevel       TmsEscalationLevelEnum? @map("to_level")
-  remarks       String?
-  performedById String?             @map("performed_by_id") @db.Uuid
-  performedBy   UserLogin?          @relation("TmsTimelinePerformedBy", fields: [performedById], references: [id])
-  isAutomatic   Boolean             @default(false) @map("is_automatic")
-  metadata      Json                @default("{}")
-  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@index([ticketId])
-  @@index([createdAt])
-  @@map("tms_timeline")
-}
-
-model TmsRating {
-  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  ticketId  String    @unique @map("ticket_id") @db.Uuid
-  ticket    TmsTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  rating    Int       @db.SmallInt
-  feedback  String?
-  ratedById String    @map("rated_by_id") @db.Uuid
-  ratedBy   UserLogin @relation("TmsRatingByUser", fields: [ratedById], references: [id])
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  @@map("tms_rating")
-}
-
-// Stores the employee assigned to handle tickets at Registrar / Dean / VC levels
-model TmsRoleHandler {
-  id         String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  role       TmsEscalationLevelEnum
-  employeeId String               @map("employee_id") @db.Uuid
-  employee   UserLogin            @relation("TmsRoleHandlerEmployee", fields: [employeeId], references: [id])
-  isActive   Boolean              @default(true) @map("is_active")
-  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@unique([role])
-  @@map("tms_role_handler")
-}
-
-enum TmsMessageTypeEnum {
-  grievance
-  assistance
-  enquiry
-  feedback
-
-  @@map("tms_message_type_enum")
-}
-
-enum TmsPriorityEnum {
-  low
-  medium
-  high
-  urgent
-
-  @@map("tms_priority_enum")
-}
-
-enum TmsTicketStatusEnum {
-  open
-  in_progress
-  escalated
-  resolved
-  closed
-
-  @@map("tms_ticket_status_enum")
-}
-
-enum TmsEscalationLevelEnum {
-  sub_category
-  category
-  master_category
-  registrar
-  dean_academics
-  vice_chancellor
-
-  @@map("tms_escalation_level_enum")
-}
-
-enum TmsTimelineActionEnum {
-  created
-  assigned
-  escalated
-  forwarded
-  remarked
-  status_changed
-  resolved
-  closed
-  reopened
-  auto_escalated
-  rated
-
-  @@map("tms_timeline_action_enum")
-}
-
-enum refund_status_enum {
-  pending
-  processed
-  failed
-  cancelled
-}
-
-// =====================================
-// Event Certificate System
-// ====================================
-// Template uploaded by the event organizer (image background + text config)
-model EventCertificateTemplate {
-  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  name              String    @default("Certificate of Participation")
-  certificateType   String    @default("participation") @db.VarChar(32)  // participation | winner
-  templateS3Key     String?                                              // S3 key for uploaded template image
-  templateUrl       String?                                              // Full S3 URL
-  title             String    @default("Certificate of Participation")   // Text overlay title
-  content           String    @default("")                               // Body text with placeholders like [Candidate Name], [Event Name]
-  textColor         String    @default("#1c4980") @db.VarChar(16)
-  isDefault         Boolean   @default(false)                            // Preset templates
-  createdById       String    @db.Uuid
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  event             Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdBy         UserLogin @relation("CertTemplateCreatedBy", fields: [createdById], references: [id])
-  certificateLogs   EventCertificateLog[]
-
-  @@index([eventId])
-  @@map("event_certificate_template")
-}
-
-// Log of certificate send operations
-model EventCertificateLog {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId         String
-  templateId      String    @db.Uuid
-  sentById        String    @db.Uuid
-  certificateType String    @default("participation") @db.VarChar(32)
-  title           String
-  content         String
-  textColor       String    @default("#1c4980") @db.VarChar(16)
-  filter          String    @default("all") @db.VarChar(32)
-  registrationIds Json      @default("[]")
-  recipientCount  Int       @default(0)
-  sentCount       Int       @default(0)
-  failedCount     Int       @default(0)
-  status          String    @default("processing") @db.VarChar(16)  // processing | sent | partial | failed
-  errors          Json      @default("[]")
-  sentAt          DateTime  @default(now())
-
-  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  template        EventCertificateTemplate @relation(fields: [templateId], references: [id])
-  sentBy          UserLogin @relation("CertLogSentBy", fields: [sentById], references: [id])
-  recipients      CertificateRecipientLog[]
-
-  @@index([eventId])
-  @@index([sentById])
-  @@index([sentAt])
-  @@map("event_certificate_log")
-}
-
-// Per-recipient certificate delivery tracking
-model CertificateRecipientLog {
-  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  certificateLogId    String    @db.Uuid
-  email               String
-  name                String    @default("")
-  status              String    @default("pending") @db.VarChar(16)  // pending | sent | failed
-  failureReason       String?
-  certificateS3Key    String?                                        // S3 key for generated PDF
-  verificationCode    String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid  // Public verification ID
-  sentAt              DateTime?
-  failedAt            DateTime?
-  createdAt           DateTime  @default(now())
-
-  certificateLog      EventCertificateLog @relation(fields: [certificateLogId], references: [id], onDelete: Cascade)
-
-  @@index([certificateLogId])
-  @@index([email])
-  @@index([verificationCode])
-  @@map("certificate_recipient_log")
-}
-
-// =====================================
-// Event Email Log
-// =====================================
-model EventEmailLog {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId         String
-  sentById        String    @db.Uuid
-  subject         String
-  body            String
-  filter          String    @default("all") @db.VarChar(32)   // all | confirmed | pending | cancelled
-  registrationIds Json      @default("[]")                    // string[] â€“ if non-empty, targetted send
-  recipientCount  Int       @default(0)
-  sentCount       Int       @default(0)
-  failedCount     Int       @default(0)
-  status          String    @default("sent") @db.VarChar(16)  // sent | partial | failed | scheduled | cancelled
-  replyTo         String?
-  recipientEmails Json      @default("[]")                    // [{email, name}]
-  errors          Json      @default("[]")                    // string[]
-  sentAt          DateTime  @default(now())
-  scheduledAt     DateTime?                                   // non-null â†’ scheduled send
-
-  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  sentBy          UserLogin @relation("EmailLogSentBy", fields: [sentById], references: [id])
-  recipients      EmailRecipientLog[]
-
-  @@index([eventId])
-  @@index([sentById])
-  @@index([sentAt])
-}
-
-// Per-recipient delivery & open tracking
-model EmailRecipientLog {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  emailLogId      String    @db.Uuid
-  email           String
-  name            String    @default("")
-  status          String    @default("sent") @db.VarChar(16)  // sent | delivered | bounced | failed
-  failureReason   String?
-  openCount       Int       @default(0)
-  firstOpenedAt   DateTime?
-  lastOpenedAt    DateTime?
-  deliveredAt     DateTime?
-  failedAt        DateTime?
-  createdAt       DateTime  @default(now())
-
-  emailLog        EventEmailLog @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
-
-  @@index([emailLogId])
-  @@index([email])
-}
-
-// =====================================
-// Event Email Credit System
-// ====================================
-// One credit record per event â€” updated automatically when registrations change
-model EventEmailCredit {
-  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId      String   @unique
-  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  totalCredits Int      @default(0)     // totalRegistrations * 3, never decremented on cancel
-  usedCredits  Int      @default(0)     // incremented atomically when emails are sent
-  updatedAt    DateTime @updatedAt
-
-  @@map("event_email_credit")
-}
-
-// Audit log for every credit allocation or deduction
-model EmailCreditLog {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId     String
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  action      String   @db.VarChar(16)  // 'allocate' | 'deduct'
-  amount      Int
-  description String?
-  emailLogId  String?                   // set when action = 'deduct'
-  createdAt   DateTime @default(now())
-
-  @@index([eventId])
-  @@index([createdAt])
-  @@map("email_credit_log")
-}
-
-// =====================================================================
-// SEMINAR HALL BOOKING SYSTEM
-// Supports: Seminar Halls, Auditoriums, Classrooms, Conference Rooms
-// Hierarchical structure: Block -> Floor -> Room
-// =====================================================================
-
-// Enums for Seminar Hall Booking
-enum SeminarHallRoomTypeEnum {
-  seminar_hall
-  auditorium
-  classroom
-  conference_room
-  meeting_room
-  lab
-  workshop_space
-
-    @@map("seminar_hall_resource_room_type_enum")
-}
-
-enum SeminarHallBookingStatusEnum {
-  pending
-  approved
-  rejected
-  cancel_pending
-  cancelled
-  reschedule_pending
-  rescheduled
-
-  @@map("seminar_hall_booking_status_enum")
-}
-
-enum SeminarHallBookingKindEnum {
-  new_booking
-  cancel_request
-  reschedule_request
-
-  @@map("seminar_hall_booking_kind_enum")
-}
-
-// Building Block - Top level hierarchy
-model SeminarHallBlock {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name              String                      @db.VarChar(100)
-  description       String?                     @db.Text
-  blockNumber       String?                     @db.VarChar(20) @map("block_number")
-  location          String?                     @db.VarChar(255)
-  isActive          Boolean                     @default(true) @map("is_active")
-  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  floors            SeminarHallFloor[]
-  rooms             SeminarHallRoom[]
-
-  @@unique([name])
-  @@index([isActive])
-  @@index([createdAt])
-  @@map("seminar_hall_block")
-}
-
-// Floor - Second level hierarchy (under Block)
-model SeminarHallFloor {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  blockId           String                      @map("block_id") @db.Uuid
-  floorNumber       Int                         @map("floor_number")
-  name              String                      @db.VarChar(100)
-  description       String?                     @db.Text
-  isActive          Boolean                     @default(true) @map("is_active")
-  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  block             SeminarHallBlock            @relation(fields: [blockId], references: [id], onDelete: Cascade)
-  rooms             SeminarHallRoom[]
-
-  @@unique([blockId, floorNumber])
-  @@unique([blockId, name])
-  @@index([blockId])
-  @@index([isActive])
-  @@index([createdAt])
-  @@map("seminar_hall_floor")
-}
-
-// Room - Third level hierarchy (under Floor)
-model SeminarHallRoom {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  blockId           String                      @map("block_id") @db.Uuid
-  floorId           String                      @map("floor_id") @db.Uuid
-  name              String                      @db.VarChar(100)
-  roomNumber        String?                     @db.VarChar(20) @map("room_number")
-  type              SeminarHallRoomTypeEnum                @default(seminar_hall) @map("room_type")
-  capacity          Int                         @default(30)
-  chairs            Int                         @default(30)
-  description       String?                     @db.Text
-  isActive          Boolean                     @default(true) @map("is_active")
-  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  block             SeminarHallBlock            @relation(fields: [blockId], references: [id], onDelete: Cascade)
-  floor             SeminarHallFloor            @relation(fields: [floorId], references: [id], onDelete: Cascade)
-  facilities        RoomFacilityMapping[]
-  bookingRequests   SeminarHallBookingRequest[]
-
-  @@unique([floorId, name])
-  @@unique([floorId, roomNumber])
-  @@index([blockId])
-  @@index([floorId])
-  @@index([type])
-  @@index([isActive])
-  @@index([createdAt])
-  @@map("seminar_hall_room")
-}
-
-// Facility - Reference table for room features (projector, mic, whiteboard, etc.)
-model RoomFacility {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name              String                      @db.VarChar(100)
-  description       String?                     @db.Text
-  category          String?                     @db.VarChar(50) // e.g., 'audio', 'visual', 'seating', 'accessibility'
-  isActive          Boolean                     @default(true) @map("is_active")
-  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  roomMappings      RoomFacilityMapping[]
-
-  @@unique([name])
-  @@index([category])
-  @@index([isActive])
-  @@map("room_facility")
-}
-
-// Junction table: Room -> Facility (many-to-many)
-model RoomFacilityMapping {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  roomId            String                      @map("room_id") @db.Uuid
-  facilityId        String                      @map("facility_id") @db.Uuid
-  quantity          Int                         @default(1)
-  notes             String?                     @db.Text
-  createdAt         DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  room              SeminarHallRoom             @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  facility          RoomFacility                @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-
-  @@unique([roomId, facilityId])
-  @@index([roomId])
-  @@index([facilityId])
-  @@map("room_facility_mapping")
-}
-
-// Main Booking Request entity - tracks all booking requests (new, cancel, reschedule)
-model SeminarHallBookingRequest {
-  id                        String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  requestId                 String                      @unique @db.VarChar(20) @map("request_id") // e.g., REQ-2025-0001
-  roomId                    String                      @map("room_id") @db.Uuid
-  
-  // Requester information
-  requesterName             String                      @map("requester_name") @db.VarChar(100)
-  requesterEmail            String                      @map("requester_email") @db.Citext
-  requesterPhone            String?                     @map("requester_phone") @db.VarChar(20)
-  department                String                      @db.VarChar(100)
-  
-  // Booking details
-  bookingDate               DateTime                    @map("booking_date") @db.Date
-  startTime                 String                      @map("start_time") @db.VarChar(5) // HH:MM format
-  endTime                   String                      @map("end_time") @db.VarChar(5)   // HH:MM format
-  timeSlot                  String                      @map("time_slot") @db.VarChar(20) // "AM", "PM", "FULL_DAY", "9:00-10:30"
-  purpose                   String                      @db.VarChar(255)
-  additionalRequirements    String?                     @map("additional_requirements") @db.Text
-  
-  // Request type and status
-  requestKind               SeminarHallBookingKindEnum      @default(new_booking) @map("request_kind")
-  status                    SeminarHallBookingStatusEnum    @default(pending)
-  
-  // For cancel/reschedule requests
-  originalBookingDate       DateTime?                   @map("original_booking_date") @db.Date
-  originalTimeSlot          String?                     @map("original_time_slot") @db.VarChar(20)
-  originalStartTime         String?                     @map("original_start_time") @db.VarChar(5)
-  originalEndTime           String?                     @map("original_end_time") @db.VarChar(5)
-  
-  requestedBookingDate      DateTime?                   @map("requested_booking_date") @db.Date
-  requestedTimeSlot         String?                     @map("requested_time_slot") @db.VarChar(20)
-  requestedStartTime        String?                     @map("requested_start_time") @db.VarChar(5)
-  requestedEndTime          String?                     @map("requested_end_time") @db.VarChar(5)
-  
-  // Admin remarks and approval
-  adminRemark               String?                     @map("admin_remark") @db.Text
-  approvedBy                String?                     @map("approved_by") @db.Uuid
-  approvedAt                DateTime?                   @map("approved_at") @db.Timestamptz(6)
-  rejectedBy                String?                     @map("rejected_by") @db.Uuid
-  rejectedAt                DateTime?                   @map("rejected_at") @db.Timestamptz(6)
-  rejectionReason           String?                     @map("rejection_reason") @db.Text
-  
-  // Audit trail
-  createdAt                 DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  room                      SeminarHallRoom             @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  history                   SeminarHallBookingHistory[]
-
-  @@index([roomId])
-  @@index([bookingDate])
-  @@index([status])
-  @@index([requestKind])
-  @@index([requesterEmail])
-  @@index([department])
-  @@index([createdAt])
-  @@index([approvedAt])
-  @@map("seminar_hall_booking_request")
-}
-
-// Audit History - tracks status changes
-model SeminarHallBookingHistory {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  bookingRequestId  String                      @map("booking_request_id") @db.Uuid
-  oldStatus         String?                     @map("old_status") @db.VarChar(50)
-  newStatus         String                      @map("new_status") @db.VarChar(50)
-  action            String                      @db.VarChar(100) // "created", "approved", "rejected", "cancelled", "rescheduled"
-  actionDetails     String?                     @map("action_details") @db.Text
-  changedBy         String?                     @map("changed_by") @db.Uuid
-  changedAt         DateTime                    @default(now()) @map("changed_at") @db.Timestamptz(6)
-
-  bookingRequest    SeminarHallBookingRequest   @relation(fields: [bookingRequestId], references: [id], onDelete: Cascade)
-
-  @@index([bookingRequestId])
-  @@index([changedAt])
-  @@map("seminar_hall_booking_history")
-}
-
-
-
-// Chat Authentication Sessions — scoped JWT sessions for chat module
-model ChatSession {
-  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId           String    @db.Uuid
-  sessionType      String    @default("chat") @db.VarChar(16)
-  deviceId         String?   @db.VarChar(128)
-  platform         String?   @db.VarChar(16)
-  deviceName       String?   @db.VarChar(128)
-  ipAddress        String?   @db.VarChar(45)
-  userAgent        String?   @db.Text
-  refreshTokenHash String    @map("refresh_token_hash") @db.VarChar(128)
-  lastUsedAt       DateTime  @default(now()) @map("last_used_at")
-  expiresAt        DateTime  @map("expires_at")
-  revokedAt        DateTime? @map("revoked_at")
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  userLogin        UserLogin @relation("ChatSessionUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([refreshTokenHash])
-  @@index([userId, revokedAt])
-  @@map("chat_sessions")
-}
-
 
 // =====================================
 // Bug Report System
@@ -5239,6 +2468,7 @@ enum ResolutionStatus {
 model BugReport {
   id               String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   userId           String              @map("user_id") @db.Uuid
+  universityId     String?             @map("university_id") @db.Uuid
   userRole         String              @map("user_role") @db.VarChar(32)
   userIdentifier   String              @map("user_identifier") @db.VarChar(64)
   userEmail        String?             @map("user_email") @db.VarChar(255)
@@ -5253,12 +2483,14 @@ model BugReport {
 
   user             UserLogin           @relation("BugReportUser", fields: [userId], references: [id], onDelete: Cascade)
   resolver         UserLogin?          @relation("BugReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+  university       University?         @relation(fields: [universityId], references: [id])
   screenshots      BugReportScreenshot[]
 
   @@index([userId])
   @@index([createdAt])
   @@index([resolutionStatus])
   @@index([resolvedBy])
+  @@index([universityId])
   @@map("bug_reports")
 }
 
@@ -5278,4 +2510,31 @@ model BugReportScreenshot {
 
   @@index([bugReportId])
   @@map("bug_report_screenshots")
+}
+
+// =====================================
+// Software License Protection
+// =====================================
+
+/// Hardware-bound license record with explicit admin approval control.
+/// Each license key is issued by the developer and requires explicit approval
+/// or hardware binding. Set isActive = false to revoke access instantly.
+model License {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  licenseKey         String    @unique @map("license_key") @db.VarChar(128)
+  assignedTo         String    @map("assigned_to") @db.VarChar(256)
+  hardwareId         String?   @map("hardware_id") @db.VarChar(128)
+  allowedHardwareIds String[]  @default([]) @map("allowed_hardware_ids")
+  pendingHardwareId  String?   @map("pending_hardware_id") @db.VarChar(128)
+  requiresApproval   Boolean   @default(true) @map("requires_approval")
+  isActive           Boolean   @default(true) @map("is_active")
+  notes              String?   @db.Text
+  activatedAt        DateTime? @map("activated_at") @db.Timestamptz(6)
+  revokedAt          DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([licenseKey])
+  @@index([isActive])
+  @@map("licenses")
 }

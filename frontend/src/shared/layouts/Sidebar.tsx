@@ -126,6 +126,15 @@ const getNavItems = (
   permissions: DepartmentPermission[],
   extraFlags?: { isChairperson?: boolean; hasVolunteerAssignments?: boolean }
 ): NavItem[] => {
+  if (userRole === 'superadmin' || userType === 'superadmin') {
+    return [
+      { name: 'SaaS Dashboard', href: '/superadmin/dashboard', icon: LayoutDashboard },
+      { name: 'Universities', href: '/superadmin/universities', icon: Building },
+      { name: 'Billing & Tiers', href: '/superadmin/billing', icon: DollarSign },
+      { name: 'API Monitor', href: '/superadmin/api-monitor', icon: BarChart3 },
+    ];
+  }
+
   const isStudent = userRole ===
    'student' || userType ===
    'student';
@@ -135,9 +144,7 @@ const getNavItems = (
   const isStaff = userRole ===
    'staff' || userType ===
    'staff';
-  const isAdmin = userRole ===
-   'admin' || userType ===
-   'admin';
+  const isAdmin = userRole === 'admin' || userType === 'admin' || userRole === 'superadmin' || userType === 'superadmin';
   const canCreateEvent = isFaculty || extraFlags?.isChairperson;
   const canBrowseEvents = true;
   const hasVolunteerAssignments = extraFlags?.hasVolunteerAssignments ?? false;
@@ -145,7 +152,12 @@ const getNavItems = (
   logger.debug('getNavItems - role:', userRole, 'type:', userType, 'isAdmin:', isAdmin);
   logger.debug('getNavItems - permissions:', permissions);
   
-  const items: NavItem[] = [{ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }];
+  const items: NavItem[] = [];
+  if (isAdmin) {
+    items.push({ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard });
+  } else {
+    items.push({ name: 'Profile', href: '/research/my-profile', icon: LayoutDashboard });
+  }
   
   // Check permissions
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(permissions, 'ipr_file_new');
@@ -176,23 +188,6 @@ const getNavItems = (
     });
   }
   
-  // Finance - Show with permission-gated sub-items
-  if (hasFinanceAccess) {
-    const financeSubItems: NavItem[] = [
-      { name: 'Dashboard', href: '/finance/dashboard', icon: LayoutDashboard },
-    ];
-    if (isAdmin || hasPermission(permissions, 'configure_fee_structure')) {
-      financeSubItems.push({ name: 'Fee Structure', href: '/finance/fees', icon: Receipt });
-    }
-    if (isAdmin || hasPermission(permissions, 'print_loan_letter')) {
-      financeSubItems.push({ name: 'Loan Letters', href: '/finance/loan-letter', icon: FileText });
-    }
-    if (isAdmin || hasPermission(permissions, 'finance_analytics')) {
-      financeSubItems.push({ name: 'Finance Analytics', href: '/finance/analytics', icon: BarChart3 });
-    }
-    items.push({ name: 'Finance', href: '/finance/dashboard', icon: DollarSign, subItems: financeSubItems });
-  }
-
   // Research & IPR - Show unified menu for faculty and students
   if (canFileResearch || canFileIpr || canFileBook) {
     const researchIprSubItems: NavItem[] = [
@@ -218,46 +213,6 @@ const getNavItems = (
       href: '/my-work',
       icon: BookOpen,
       subItems: researchIprSubItems
-    });
-  }
-  
-  // Event Management - Not for staff/guard role (gate entry only access)
-  const eventSubItems: NavItem[] = [
-    ...(canBrowseEvents ? [{ name: 'Browse Events', href: '/events', icon: List }] : []),
-    { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
-    { name: 'My Certificates', href: '/events/my-certificates', icon: Award },
-    { name: 'Stall Application', href: '/events/stall-opportunities', icon: Store },
-    { name: 'Event Feedback Scanner', href: '/event-feedback-scanner', icon: QrCode },
-  ];
-  // My Created Events — only faculty and club chairpersons
-  if (canCreateEvent) {
-    eventSubItems.splice(1, 0, { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare });
-  }
-  // Volunteer — only users who are actually assigned as volunteers
-  if (hasVolunteerAssignments) {
-    eventSubItems.push({ name: 'Volunteer', href: '/events/volunteer', icon: Shield });
-  }
-  if (!isStaff) {
-    items.push({
-      name: 'Event Management',
-      href: canBrowseEvents ? '/events' : '/events/registrations',
-      icon: Calendar,
-      subItems: eventSubItems,
-    });
-  }
-  
-  
-  // Gate Entry - For staff/guard only (shown as main nav item)
-  if (isStaff) {
-    items.push({
-      name: 'Gate Entry',
-      href: '/admin/gate-entry',
-      icon: Shield,
-      subItems: [
-        { name: 'All Passes', href: '/admin/gate-entry', icon: List },
-        { name: 'Verify Pass', href: '/admin/gate-entry/verify', icon: QrCode },
-        { name: 'Create Pass', href: '/admin/gate-entry/create-pass', icon: Plus },
-      ]
     });
   }
 
@@ -336,7 +291,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
   const [hasVolunteerAssignments, setHasVolunteerAssignments] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    const roleName = user?.role?.name?.toLowerCase() || user?.userType?.toLowerCase();
+    if (user && roleName !== 'superadmin') {
       fetchUserPermissions();
       fetchEventFlags();
     }
@@ -377,8 +333,11 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       if (Array.isArray(assignments) && assignments.length > 0) {
         setHasVolunteerAssignments(true);
       }
-    } catch (error) {
-      logger.error('Error fetching volunteer assignments for sidebar:', error);
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status !== 404) {
+        logger.error('Error fetching volunteer assignments for sidebar:', error);
+      }
     }
   };
 
@@ -397,13 +356,13 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         onClick={onToggleCollapse}
         className="absolute -right-3 top-8 z-50 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-200"
       >
-        <ChevronLeft className={`w-4 h-4 text-[#03396c] transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} />
+        <ChevronLeft className={`w-4 h-4 text-[#4A0F26] transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} />
       </button>
 
       {/* User Section - Like LMS with avatar, name, role badge */}
       <div className={`flex flex-col items-center py-6 border-b border-white/10 ${isCollapsed ? 'px-2' : 'px-4'}`}>
         <div 
-          className={`rounded-full bg-gradient-to-br from-[#03396c] to-[#011f4b] flex items-center justify-center text-white font-bold shadow-lg border-4 border-white/20 ${
+          className={`rounded-full bg-gradient-to-br from-[#4A0F26] to-[#232323] flex items-center justify-center text-white font-bold shadow-lg border-4 border-white/20 ${
             isCollapsed ? 'w-10 h-10 text-sm' : 'w-16 h-16 text-xl'
           }`}
         >
@@ -412,7 +371,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         {!isCollapsed && (
           <div className="text-center mt-3">
             <h3 className="text-white font-semibold text-sm">{getUserDisplayName(user)}</h3>
-            <span className="inline-block mt-2 px-3 py-1 bg-[#005b96] text-white text-[10px] font-bold rounded-full tracking-wide">
+            <span className="inline-block mt-2 px-3 py-1 bg-[#841C43] text-white text-[10px] font-bold rounded-full tracking-wide">
               {getUserRoleLabel(user)}
             </span>
           </div>
@@ -435,7 +394,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                     onClick={() => toggleExpand(item.name)}
                     className={`w-full flex items-center justify-between px-4 py-3 mx-2 rounded-lg transition-all duration-200 ${
                       isActive 
-                        ? 'bg-[#1a5a8a] text-white' 
+                        ? 'bg-[#E28B22] text-white' 
                         : 'text-white/80 hover:bg-white/10 hover:text-white'
                     }`}
                     style={{ width: 'calc(100% - 16px)' }}
@@ -460,7 +419,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                             onClick={onMobileClose}
                             className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                               isSubActive 
-                                ? 'bg-[#1a5a8a] text-white font-medium' 
+                                ? 'bg-[#E28B22] text-white font-medium' 
                                 : 'text-white/70 hover:bg-white/10 hover:text-white'
                             }`}
                           >
@@ -479,7 +438,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                   className={`flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-all duration-200 ${
                     isCollapsed ? 'justify-center' : ''
                   } ${isActive 
-                    ? 'bg-[#1a5a8a] text-white' 
+                    ? 'bg-[#E28B22] text-white' 
                     : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }`}
                   style={{ width: 'calc(100% - 16px)' }}
@@ -497,7 +456,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       {/* Footer - Like LMS */}
       {!isCollapsed && (
         <div className="border-t border-white/10 p-4 text-center">
-          <p className="text-[10px] text-white/50">© 2025 SGT Learning Platform</p>
+          <p className="text-[10px] text-white/50">© 2025 ResearchSphere Learning Platform</p>
           <p className="text-[10px] text-white/40">Version 2.0</p>
         </div>
       )}
@@ -511,7 +470,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         className={`hidden md:flex md:flex-col fixed left-0 top-14 bottom-0 z-30 transition-all duration-300 ease-in-out ${
           isCollapsed ? 'w-16' : 'w-60'
         }`}
-        style={{ background: 'linear-gradient(180deg, #03396c 0%, #011f4b 100%)' }}
+        style={{ background: 'linear-gradient(180deg, #4A0F26 0%, #232323 100%)' }}
       >
         {sidebarContent}
       </aside>
@@ -522,7 +481,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onMobileClose} />
           <aside 
             className="fixed inset-y-0 left-0 w-60 z-50 md:hidden flex flex-col pt-14"
-            style={{ background: 'linear-gradient(180deg, #03396c 0%, #011f4b 100%)' }}
+            style={{ background: 'linear-gradient(180deg, #4A0F26 0%, #232323 100%)' }}
           >
             {sidebarContent}
           </aside>

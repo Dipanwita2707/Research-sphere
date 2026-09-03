@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tests for PublicationList Component
  * Task 2.3: Create publication list component with bibliographic formatting
  * 
@@ -23,7 +23,7 @@ const createMockPublication = (overrides?: Partial<Publication>): Publication =>
   researchContributionId: null,
   title: 'Sample Research Paper',
   authors: [
-    { name: 'John Doe', affiliation: 'SGT University', email: null, isCorresponding: true, authorOrder: 1 },
+    { name: 'John Doe', affiliation: 'ResearchSphere', email: null, isCorresponding: true, authorOrder: 1 },
     { name: 'Jane Smith', affiliation: 'MIT', email: null, isCorresponding: false, authorOrder: 2 },
   ],
   venue: 'Journal of Computer Science',
@@ -66,7 +66,7 @@ describe('PublicationList Component', () => {
       const publication = createMockPublication({
         title: 'Machine Learning in Healthcare',
         authors: [
-          { name: 'Dr. Smith', affiliation: 'SGT', email: null, isCorresponding: true, authorOrder: 1 },
+          { name: 'Dr. Smith', affiliation: 'ResearchSphere', email: null, isCorresponding: true, authorOrder: 1 },
           { name: 'Dr. Jones', affiliation: 'MIT', email: null, isCorresponding: false, authorOrder: 2 },
         ],
         venue: 'Nature Medicine',

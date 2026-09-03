@@ -1,34 +1,35 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const p = new PrismaClient();
 
-async function checkUser() {
-  try {
-    const user = await prisma.userLogin.findUnique({
-      where: { uid: '1234567' },
-      select: { 
-        uid: true, 
-        email: true, 
-        role: true, 
-        status: true,
-        passwordHash: true
-      }
-    });
-    
-    console.log('User 123456:', JSON.stringify(user, null, 2));
-    
-    if (user) {
-      console.log('Password hash exists:', !!user.passwordHash);
-      console.log('Status:', user.status);
-      console.log('Role:', user.role);
-    } else {
-      console.log('User not found');
-    }
-    
-  } catch (error) {
-    console.error('Error:', error.message);
-  } finally {
-    await prisma.$disconnect();
-  }
-}
+(async () => {
+  const id = '8fa6bb69-6cd9-48da-84a7-c3061e4dafbb';
+  const u = await p.userLogin.findUnique({
+    where: { id },
+    include: { employeeDetails: true, studentLogin: true },
+  });
+  console.log('USER', JSON.stringify(u, null, 2));
 
-checkUser();
+  const admins = await p.userLogin.findMany({
+    where: { role: { in: ['admin', 'superadmin'] } },
+    select: { id: true, email: true, username: true, role: true, isActive: true },
+  });
+  console.log('ADMINS', JSON.stringify(admins, null, 2));
+
+  const all = await p.userLogin.findMany({
+    select: { id: true, email: true, username: true, role: true, isActive: true },
+  });
+  console.log('ALL LOGINS', JSON.stringify(all, null, 2));
+
+  console.log('counts', {
+    emp: await p.employeeDetails.count(),
+    stu: await p.studentDetails.count(),
+    logins: await p.userLogin.count(),
+  });
+
+  await p.$disconnect();
+})().catch(async (e) => {
+  console.error(e);
+  await p.$disconnect();
+  process.exit(1);
+});

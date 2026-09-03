@@ -219,9 +219,9 @@ describe('PublicationSyncService', () => {
     expect(authorId).toBe('https://openalex.org/A123456789');
     expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(global.fetch.mock.calls[0][0]).toContain('per-page=10');
-    expect(global.fetch.mock.calls[0][0]).toContain('last_known_institution.id%3AI987654321');
+    expect(global.fetch.mock.calls[0][0]).toContain('last_known_institutions.id%3AI987654321');
     expect(global.fetch.mock.calls[1][0]).toContain('per-page=10');
-    expect(global.fetch.mock.calls[1][0]).not.toContain('last_known_institution.id');
+    expect(global.fetch.mock.calls[1][0]).not.toContain('last_known_institutions.id');
   });
 
   test('_findExistingContribution ignores publication import and DOI matches owned by another user', async () => {

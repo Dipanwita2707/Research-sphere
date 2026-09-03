@@ -16,15 +16,21 @@ function resolveDepartment(user: User): string {
   return user.employeeDetails?.department?.name || 'Department not available';
 }
 
-function resolveSchool(user: User): string {
-  return user.employeeDetails?.department?.school?.name || 'SGT University';
+function resolveSchool(user: User, universityName: string): string {
+  return user.employeeDetails?.department?.school?.name || universityName;
 }
 
 function resolveDesignation(user: User): string {
   return user.employeeDetails?.designation?.name || user.employee?.designation || 'Faculty';
 }
 
-export function buildProfileDataFromAuthUser(user: User): ProfileData {
+/**
+ * @param universityName Canonical university name (from the affiliation
+ * engine, via `useAffiliation()`) used as the fallback "school" label when
+ * the user has no department/school on record. Defaults to a generic
+ * "University" if not supplied, instead of a hardcoded institution name.
+ */
+export function buildProfileDataFromAuthUser(user: User, universityName = 'University'): ProfileData {
   const name = resolveDisplayName(user);
 
   return {
@@ -35,7 +41,7 @@ export function buildProfileDataFromAuthUser(user: User): ProfileData {
       photo: user.profileImageUrl || null,
       designation: resolveDesignation(user),
       department: resolveDepartment(user),
-      school: resolveSchool(user),
+      school: resolveSchool(user, universityName),
     },
     profile: {
       id: user.id,
@@ -51,6 +57,7 @@ export function buildProfileDataFromAuthUser(user: User): ProfileData {
       syncStatus: 'never_synced',
       syncError: null,
       autoSyncEnabled: false,
+      filterSgtOnly: false,
       syncFrequencyDays: 30,
       visibility: {
         profile: 'public',
@@ -106,6 +113,7 @@ export function applyResearchIdentity(
       syncStatus: (identity.syncStatus as ProfileData['profile']['syncStatus']) ?? profileData.profile.syncStatus,
       syncError: identity.syncError ?? profileData.profile.syncError,
       autoSyncEnabled: identity.autoSyncEnabled ?? profileData.profile.autoSyncEnabled,
+      filterSgtOnly: identity.filterSgtOnly ?? profileData.profile.filterSgtOnly,
       syncFrequencyDays: identity.syncFrequencyDays ?? profileData.profile.syncFrequencyDays,
     },
   };

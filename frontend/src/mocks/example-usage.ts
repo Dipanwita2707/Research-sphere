@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Example Usage of Research Profile Mock Data
  * 
  * This file demonstrates how to use the mock data generators and API functions.
@@ -140,7 +140,7 @@ export async function exampleAddPublication(userId: string) {
       authors: [
         {
           name: 'Dr. John Doe',
-          affiliation: 'SGT University',
+          affiliation: 'ResearchSphere',
           email: null,
           isCorresponding: true,
           authorOrder: 1,

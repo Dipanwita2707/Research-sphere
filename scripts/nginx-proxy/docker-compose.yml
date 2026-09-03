@@ -1,0 +1,26 @@
+# Nginx Proxy Manager — handles HTTPS (Let's Encrypt) for researchsphere.duckdns.org
+# and forwards traffic to the ResearchSphere frontend container.
+#
+# Setup:
+#   cd ~/nginx-proxy
+#   docker compose up -d
+#   Open http://YOUR_EC2_IP:81 — default login admin@example.com / changeme
+
+services:
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"    # HTTP (redirects to HTTPS after cert is issued)
+      - "443:443"  # HTTPS
+      - "81:81"    # Admin UI
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - researchsphere-net
+
+networks:
+  researchsphere-net:
+    external: true

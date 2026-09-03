@@ -1,0 +1,154 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'primaryTextColor': '#2e7d32', 'primaryBorderColor': '#81c784', 'lineColor': '#37474f', 'secondaryColor': '#e1f5fe', 'tertiaryColor': '#fff3e0'}}}%%
+
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════
+    %% MASTER DASHBOARD CORE FEATURES
+    %% ═══════════════════════════════════════════════════════════════════
+    subgraph MASTER_FEATURES["🎛️ MASTER DASHBOARD CORE FEATURES"]
+        direction TB
+        USER_MGMT["👤 USER MANAGEMENT<br/>- UserLogin profiles & hashes<br/>- Employee & Student details<br/>- Account status control (active/inactive)"]
+        ACAD_MGMT["🏛️ ACADEMIC STRUCTURE<br/>- Schools, Depts, Programs<br/>- Specializations, Batches<br/>- Section capacities & teacher IDs"]
+        PERM_MGMT["🔐 PERMISSIONS ENGINE<br/>- Central & School Dept mapping<br/>- Granular permissions (permissionDefinitions.js)<br/>- Assigned School scope bounds"]
+        NOTIF_MGMT["🔔 NOTIFICATION ENGINE<br/>- SendGrid transactional emails<br/>- Real-time inbox database alerts<br/>- Read/Unread tracking status"]
+        AUDIT_MGMT["📝 AUDIT LOG SYSTEM<br/>- Actor, severity, method logging<br/>- ChangeHistory value diffs (old/new JSON)<br/>- Daily/Weekly/Monthly cron jobs"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% INTEGRATED SYSTEM MODULES & THEIR MAPPED INTERACTIONS (PDF SEQUENCE)
+    %% ═══════════════════════════════════════════════════════════════════
+    subgraph RESEARCH_MOD["🔬 1.0 RESEARCH & IPR"]
+        R_FLOW["Research & IPR filing"]
+        R_SYNC["Publication Sync / ORCID"]
+        R_REP["Monthly Report Tracking"]
+    end
+
+    subgraph CHAT_MOD["💬 2.0 CHAT APPLICATION"]
+        C_CONN["Socket Presence & DMs"]
+        C_SESS["JWT Chat sessions"]
+    end
+
+    subgraph LOAN_MOD["📄 3.0 LOAN LETTER"]
+        L_FLOW["Tuition calculations"]
+        L_PRINT["PDF template printing"]
+    end
+
+    subgraph EVENT_MOD["🎪 4.0 EVENT MODULE"]
+        E_FLOW["Event Lifecycle"]
+    end
+
+    subgraph DSW_MOD["🏛️ 5.0 DSW MODULE"]
+        D_FLOW["Club Management"]
+    end
+
+    subgraph NOTING_MOD["📝 6.0 NOTING MODULE"]
+        N_FLOW["Noting Workflows"]
+    end
+
+    subgraph RESOURCE_MGMT_MOD["🏢 7.0 RESOURCE RESERVATION & CAB BOOKING"]
+        M_RES["Resource Reservation<br/>(Seminar Hall Booking)"]
+        M_CAB["Cab Booking"]
+    end
+
+    subgraph MOM_MOD["📅 8.0 MEETING MINUTES (MoM)"]
+        M_MOM["Meeting Minutes (MoM) Workspace"]
+    end
+
+    subgraph GATE_ENTRY_MOD["🚧 9.0 GATE ENTRY & PASSES"]
+        G_PASS["Gate Pass & QR Scans"]
+        G_HOSTEL["Hostel Booking Flow"]
+    end
+
+    subgraph TMS_MOD["🎫 10.0 TICKET MANAGEMENT SYSTEM (TMS)"]
+        T_FLOW["Grievance Resolution"]
+        T_ESC["Auto-Escalation Crons"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════
+    %% CONNECTION PATHS
+    %% ═══════════════════════════════════════════════════════════════════
+    
+    %% Research Connections
+    R_FLOW -->|"Checks DRD permissions<br/>(research_file/review/approve)"| PERM_MGMT
+    R_FLOW -->|"Pulls student/author data"| USER_MGMT
+    R_FLOW -->|"Notifies approval / resubmissions"| NOTIF_MGMT
+    R_FLOW -->|"Logs evaluation status updates"| AUDIT_MGMT
+    R_SYNC -->|"Automated syncing logs"| AUDIT_MGMT
+    R_REP -->|"Triggers progress reports"| AUDIT_MGMT
+
+    %% Chat Connections
+    C_CONN -->|"Checks chat permissions<br/>(chatEnabled, canPrivateMessage)"| PERM_MGMT
+    C_CONN -->|"Pulls chat participant data"| USER_MGMT
+    C_CONN -->|"Pipes offline alerts"| NOTIF_MGMT
+    C_SESS -->|"Verifies token states"| USER_MGMT
+
+    %% Loan Letter Connections
+    L_FLOW -->|"Checks finance permissions<br/>(print_loan_letter)"| PERM_MGMT
+    L_FLOW -->|"Parses batched fee parameters"| ACAD_MGMT
+    L_PRINT -->|"Pulls student credentials"| USER_MGMT
+    L_PRINT -->|"Logs templates / prints details"| AUDIT_MGMT
+
+    %% Event Connections
+    E_FLOW -->|"Checks event roles<br/>(event_create/publish)"| PERM_MGMT
+    E_FLOW -->|"Scopes visibility filters"| ACAD_MGMT
+    E_FLOW -->|"Dispatches tickets & emails"| NOTIF_MGMT
+    E_FLOW -->|"Logs transactions & Webhooks"| AUDIT_MGMT
+
+    %% DSW Connections
+    D_FLOW -->|"Checks club roles<br/>(dsw_manage_members)"| PERM_MGMT
+    D_FLOW -->|"Appends approved clubs"| ACAD_MGMT
+    D_FLOW -->|"Logs member updates"| AUDIT_MGMT
+
+    %% Noting Connections
+    N_FLOW -->|"Checks permissions<br/>(noting_create/approve)"| PERM_MGMT
+    N_FLOW -->|"Triggers workflow alerts"| NOTIF_MGMT
+    N_FLOW -->|"Logs approval transitions"| AUDIT_MGMT
+
+    %% Resource Management Connections
+    M_RES -->|"Checks booking permissions"| PERM_MGMT
+    M_RES -->|"Allocates venue time slots"| ACAD_MGMT
+    M_CAB -->|"Checks transport permissions"| PERM_MGMT
+    M_CAB -->|"Logs vehicle trip routes"| AUDIT_MGMT
+
+    %% Meeting Minutes Connections
+    M_MOM -->|"Checks MoM permissions"| PERM_MGMT
+    M_MOM -->|"Notifies committee attendees"| NOTIF_MGMT
+    M_MOM -->|"Logs minutes publications"| AUDIT_MGMT
+    M_MOM -->|"Pulls attendee credentials"| USER_MGMT
+
+    %% Gate Entry Connections
+    G_PASS -->|"Checks security permissions"| PERM_MGMT
+    G_PASS -->|"Pulls student visitor details"| USER_MGMT
+    G_PASS -->|"Logs check-in/out events"| AUDIT_MGMT
+    G_HOSTEL -->|"Validates room allocations"| USER_MGMT
+    G_HOSTEL -->|"Triggers check-in alerts"| NOTIF_MGMT
+
+    %% TMS Connections
+    T_FLOW -->|"Checks handler permissions"| PERM_MGMT
+    T_FLOW -->|"Pulls submitter metadata"| USER_MGMT
+    T_FLOW -->|"Dispatches status update alerts"| NOTIF_MGMT
+    T_ESC -->|"Hourly escalation checks"| AUDIT_MGMT
+
+    %% Styling
+    classDef core fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#01579b
+    classDef research fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20
+    classDef chat fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#880e4f
+    classDef loan fill:#f9fbe7,stroke:#c0ca33,stroke-width:2px,color:#827717
+    classDef event fill:#fff8e1,stroke:#ffb300,stroke-width:2px,color:#ff6f00
+    classDef dsw fill:#ede7f6,stroke:#673ab7,stroke-width:2px,color:#311b92
+    classDef note fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#4a148c
+    classDef resource fill:#efebe9,stroke:#795548,stroke-width:2px,color:#4e342e
+    classDef mom fill:#efebe9,stroke:#8d6e63,stroke-width:2px,color:#3e2723
+    classDef gate fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40
+    classDef tms fill:#fbe9e7,stroke:#ff5722,stroke-width:2px,color:#d84315
+
+    class USER_MGMT,ACAD_MGMT,PERM_MGMT,NOTIF_MGMT,AUDIT_MGMT core
+    class R_FLOW,R_SYNC,R_REP research
+    class C_CONN,C_SESS chat
+    class L_FLOW,L_PRINT loan
+    class E_FLOW event
+    class D_FLOW dsw
+    class N_FLOW note
+    class M_RES,M_CAB resource
+    class M_MOM mom
+    class G_PASS,G_HOSTEL gate
+    class T_FLOW,T_ESC tms

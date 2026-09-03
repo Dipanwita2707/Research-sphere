@@ -41,6 +41,9 @@ const RESEARCH_LIST_SELECT = {
   autoCalculatedFields: true,
   schoolId: true,
   departmentId: true,
+  doi: true,
+  publicationDate: true,
+  indexingDetails: true,
   school: {
     select: {
       id: true,
@@ -490,6 +493,51 @@ exports.downloadDocument = async (req, res) => {
     res.setHeader('Content-Length', fileData.contentLength);
     fileData.stream.pipe(res);
   } catch (error) { _err(res, error, 'Failed to download document'); }
+};
+
+exports.getPublicRepository = async (req, res) => {
+  try {
+    const all = await contributionRepo.findAll({
+      where: {
+        status: { in: ['approved', 'completed'] }
+      },
+      select: {
+        id: true,
+        applicationNumber: true,
+        title: true,
+        publicationType: true,
+        journalName: true,
+        publisherName: true,
+        conferenceName: true,
+        doi: true,
+        publicationDate: true,
+        completedAt: true,
+        createdAt: true,
+        status: true,
+        schoolId: true,
+        departmentId: true,
+        school: { select: { id: true, facultyName: true } },
+        department: { select: { id: true, departmentName: true } },
+        authors: {
+          select: {
+            id: true,
+            name: true,
+            affiliation: true,
+            isCorresponding: true
+          }
+        }
+      },
+      orderBy: { completedAt: 'desc' }
+    });
+    
+    return res.status(200).json({
+      success: true,
+      data: all
+    });
+  } catch (error) {
+    logger.error('Error fetching public research repository', { error: error.message, stack: error.stack });
+    return res.status(500).json({ success: false, message: 'Failed to fetch public research repository' });
+  }
 };
 
 // Backward compatibility: calculateIncentives used by review.controller

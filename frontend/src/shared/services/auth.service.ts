@@ -1,4 +1,5 @@
 import api from '@/shared/api/api';
+import { logger } from '@/shared/utils/logger';
 
 export interface LoginCredentials {
   username: string;
@@ -70,8 +71,12 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
-    await api.post('/auth/logout');
-    // Cookie is cleared by the server
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      // Best-effort: still clear local session if backend is down or unreachable
+      logger.warn('AuthService - logout request failed (local session will still be cleared):', error);
+    }
   }
 
   async getCurrentUser(): Promise<User> {

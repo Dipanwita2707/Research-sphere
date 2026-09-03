@@ -76,14 +76,19 @@ const validateSchoolData = (data) => {
 exports.getAllSchools = async (req, res) => {
   try {
     const { isActive, facultyType } = req.query;
-    
-    // Create cache key based on filters
-    const cacheKey = `${cache.CACHE_KEYS.SCHOOL}list:${isActive || 'all'}:${facultyType || 'all'}`;
+    const tenantId = req.tenantId || null;
+
+    // Include tenantId in cache key to prevent cross-university cache leakage
+    const cacheKey = `${cache.CACHE_KEYS.SCHOOL}list:${tenantId || 'global'}:${isActive || 'all'}:${facultyType || 'all'}`;
     
     const { data: schools, fromCache } = await cache.getOrSet(
       cacheKey,
       async () => {
         const where = {};
+        // Tenant isolation: scope to university unless superadmin global view
+        if (tenantId) {
+          where.universityId = tenantId;
+        }
         if (isActive !== undefined) {
           where.isActive = isActive === 'true';
         }
@@ -162,6 +167,7 @@ exports.getAllSchools = async (req, res) => {
 exports.getSchoolById = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || null;
 
     const school = await prisma.facultySchoolList.findUnique({
       where: { id },
@@ -197,6 +203,14 @@ exports.getSchoolById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'School not found',
+      });
+    }
+
+    // Tenant isolation: non-superadmin cannot fetch another university's school
+    if (tenantId && school.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This school does not belong to your university.',
       });
     }
 
@@ -273,6 +287,14 @@ exports.createSchool = async (req, res) => {
       }
     }
 
+    const tenantId = req.tenantId || null;
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'University context is required to create a school.',
+      });
+    }
+
     const school = await prisma.facultySchoolList.create({
       data: {
         facultyCode: facultyCode.toUpperCase(), // Store as uppercase for consistency
@@ -288,6 +310,7 @@ exports.createSchool = async (req, res) => {
         websiteUrl,
         metadata: metadata || {},
         isActive: true,
+        universityId: tenantId,
       },
       include: {
         headOfFaculty: {
@@ -371,6 +394,8 @@ exports.updateSchool = async (req, res) => {
       });
     }
 
+    const tenantId = req.tenantId || null;
+
     // Check if school exists
     const existing = await prisma.facultySchoolList.findUnique({
       where: { id },
@@ -381,6 +406,14 @@ exports.updateSchool = async (req, res) => {
         success: false,
         message: 'School not found',
         error: 'SCHOOL_NOT_FOUND',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university modification
+    if (tenantId && existing.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This school does not belong to your university.',
       });
     }
 
@@ -498,6 +531,8 @@ exports.deleteSchool = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const tenantId = req.tenantId || null;
+
     // Check if school has departments
     const school = await prisma.facultySchoolList.findUnique({
       where: { id },
@@ -514,6 +549,14 @@ exports.deleteSchool = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'School not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university deletion
+    if (tenantId && school.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This school does not belong to your university.',
       });
     }
 
@@ -551,6 +594,8 @@ exports.toggleSchoolStatus = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const tenantId = req.tenantId || null;
+
     const school = await prisma.facultySchoolList.findUnique({
       where: { id },
     });
@@ -559,6 +604,14 @@ exports.toggleSchoolStatus = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'School not found',
+      });
+    }
+
+    // Tenant isolation
+    if (tenantId && school.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This school does not belong to your university.',
       });
     }
 
@@ -630,6 +683,7 @@ exports.bulkCreate = async (req, res) => {
             websiteUrl: row.websiteUrl || null,
             metadata: {},
             isActive: true,
+            universityId: req.tenantId || null,
           },
         });
         results.created.push({ row: rowNum, facultyCode: code, id: created.id });

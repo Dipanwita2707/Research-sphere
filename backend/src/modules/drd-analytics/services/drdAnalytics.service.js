@@ -680,17 +680,43 @@ class DrdAnalyticsService {
       return adminResult;
     }
 
+    const prismaKeysMap = {
+      assignedIprAnalyticsSchoolIds: 'assignedSchoolIds',
+      assignedResearchAnalyticsSchoolIds: 'assignedResearchSchoolIds',
+      assignedBookAnalyticsSchoolIds: 'assignedBookSchoolIds',
+      assignedConferenceAnalyticsSchoolIds: 'assignedConferenceSchoolIds',
+      assignedGrantAnalyticsSchoolIds: 'assignedGrantSchoolIds',
+      assignedMonthlyReportSchoolIds: 'assignedMonthlyReportSchoolIds',
+      assignedMonthlyReportDepartmentIds: 'assignedMonthlyReportDepartmentIds',
+    };
+
     const explicitSchoolIds = [];
     const directCentralDeptIds = [];
     directCentralPerms.forEach((permission) => {
       if (!permissionKeys.some((permissionKey) => permission.permissions?.[permissionKey] === true)) return;
       schoolFields.forEach((field) => {
-        if (!(field in permission)) return;
-        explicitSchoolIds.push(...(permission[field] || []));
+        const dbField = prismaKeysMap[field] || field;
+        let value = null;
+        if (field in permission) {
+          value = permission[field];
+        } else if (dbField in permission) {
+          value = permission[dbField];
+        } else if (permission.permissions && field in permission.permissions) {
+          value = permission.permissions[field];
+        }
+        if (value) explicitSchoolIds.push(...value);
       });
       departmentFields.forEach((field) => {
-        if (!(field in permission)) return;
-        directCentralDeptIds.push(...(permission[field] || []));
+        const dbField = prismaKeysMap[field] || field;
+        let value = null;
+        if (field in permission) {
+          value = permission[field];
+        } else if (dbField in permission) {
+          value = permission[dbField];
+        } else if (permission.permissions && field in permission.permissions) {
+          value = permission.permissions[field];
+        }
+        if (value) directCentralDeptIds.push(...value);
       });
     });
 
@@ -924,9 +950,9 @@ class DrdAnalyticsService {
         : [],
     ]);
 
-    const schoolMap = new Map(schools.map((s) => [s.id, s]));
-    const deptMap = new Map(depts.map((d) => [d.id, d]));
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    const schoolMap = new Map((schools || []).map((s) => [s.id, s]));
+    const deptMap = new Map((depts || []).map((d) => [d.id, d]));
+    const userMap = new Map((users || []).map((u) => [u.id, u]));
 
     // Mutate rows in-place to attach resolved name objects — same shape as
     // the old JOIN result so personSeed / schoolSeed / departmentSeed work unchanged.
@@ -1130,32 +1156,48 @@ class DrdAnalyticsService {
       throw error;
     }
 
-    // Only fetch base permissions if any category's access is not yet cached
-    const _base = categories.some((cat) => {
-      const cfg = APPLICANT_CATEGORY_CONFIG[cat];
-      return cfg && !_getAccessCached(_buildAccessCacheKey(user.id, cfg.permissionKeys, cfg.schoolFields, cfg.departmentFields || []));
-    }) ? await this._fetchUserBasePermissions(user) : null;
+    const isOwner = user.id === personId;
+    let accessEntries = [];
 
-    // Resolve per-category access scopes in parallel using shared base perms
-    const accessSettled = await Promise.allSettled(
-      categories.map(async (cat) => {
-        const access = await this._resolveApplicantAccessByCategory(user, cat, _base);
-        return { category: cat, access };
-      })
-    );
-    const accessEntries = [];
-    for (const result of accessSettled) {
-      if (result.status === 'fulfilled') {
-        accessEntries.push(result.value);
-      } else {
-        if (requestedCategory === 'all' && result.reason?.statusCode === 403) continue;
-        throw result.reason;
+    if (isOwner) {
+      // Owner has full implicit access to their own analytics data, bypassing school/dept scopes
+      accessEntries = categories.map((cat) => ({
+        category: cat,
+        access: {
+          isUniversity: true,
+          allowedSchoolIds: [],
+          allowedDepartmentIds: [],
+          scopeLevel: 'personal',
+          canViewAllReviewers: false,
+        },
+      }));
+    } else {
+      // Only fetch base permissions if any category's access is not yet cached
+      const _base = categories.some((cat) => {
+        const cfg = APPLICANT_CATEGORY_CONFIG[cat];
+        return cfg && !_getAccessCached(_buildAccessCacheKey(user.id, cfg.permissionKeys, cfg.schoolFields, cfg.departmentFields || []));
+      }) ? await this._fetchUserBasePermissions(user) : null;
+
+      // Resolve per-category access scopes in parallel using shared base perms
+      const accessSettled = await Promise.allSettled(
+        categories.map(async (cat) => {
+          const access = await this._resolveApplicantAccessByCategory(user, cat, _base);
+          return { category: cat, access };
+        })
+      );
+      for (const result of accessSettled) {
+        if (result.status === 'fulfilled') {
+          accessEntries.push(result.value);
+        } else {
+          if (requestedCategory === 'all' && result.reason?.statusCode === 403) continue;
+          throw result.reason;
+        }
       }
-    }
-    if (accessEntries.length === 0) {
-      const error = new Error('You do not have permission to view applicant analytics');
-      error.statusCode = 403;
-      throw error;
+      if (accessEntries.length === 0) {
+        const error = new Error('You do not have permission to view applicant analytics');
+        error.statusCode = 403;
+        throw error;
+      }
     }
 
     // Build the common select for applicant lookup rows
@@ -1391,35 +1433,48 @@ class DrdAnalyticsService {
     const category = filters.category || 'all';
 
     const categories = category === 'all' ? APPLICANT_CATEGORIES : [category];
+    const isOwner = user.id === personId;
+    let combinedAccess;
 
-    // Only fetch base permissions if any category's access is not yet cached
-    const _base = categories.some((cat) => {
-      const cfg = APPLICANT_CATEGORY_CONFIG[cat];
-      return cfg && !_getAccessCached(_buildAccessCacheKey(user.id, cfg.permissionKeys, cfg.schoolFields, cfg.departmentFields || []));
-    }) ? await this._fetchUserBasePermissions(user) : null;
+    if (isOwner) {
+      combinedAccess = {
+        isUniversity: true,
+        allowedSchoolIds: [],
+        allowedDepartmentIds: [],
+        scopeLevel: 'personal',
+        canViewAllReviewers: false,
+      };
+    } else {
+      // Only fetch base permissions if any category's access is not yet cached
+      const _base = categories.some((cat) => {
+        const cfg = APPLICANT_CATEGORY_CONFIG[cat];
+        return cfg && !_getAccessCached(_buildAccessCacheKey(user.id, cfg.permissionKeys, cfg.schoolFields, cfg.departmentFields || []));
+      }) ? await this._fetchUserBasePermissions(user) : null;
 
-    // Resolve access only for the requested category (or all when requested)
-    const accessSettled = await Promise.allSettled(
-      categories.map(async (cat) => {
-        const access = await this._resolveApplicantAccessByCategory(user, cat, _base);
-        return { category: cat, access };
-      })
-    );
-    const accessEntries = [];
-    for (const result of accessSettled) {
-      if (result.status === 'fulfilled') {
-        accessEntries.push(result.value);
-      } else {
-        if (category === 'all' && result.reason?.statusCode === 403) continue;
-        throw result.reason;
+      // Resolve access only for the requested category (or all when requested)
+      const accessSettled = await Promise.allSettled(
+        categories.map(async (cat) => {
+          const access = await this._resolveApplicantAccessByCategory(user, cat, _base);
+          return { category: cat, access };
+        })
+      );
+      const accessEntries = [];
+      for (const result of accessSettled) {
+        if (result.status === 'fulfilled') {
+          accessEntries.push(result.value);
+        } else {
+          if (category === 'all' && result.reason?.statusCode === 403) continue;
+          throw result.reason;
+        }
       }
+      if (accessEntries.length === 0) {
+        const error = new Error('You do not have permission to view applicant analytics');
+        error.statusCode = 403;
+        throw error;
+      }
+      combinedAccess = combineAccess(accessEntries.map((e) => e.access));
     }
-    if (accessEntries.length === 0) {
-      const error = new Error('You do not have permission to view applicant analytics');
-      error.statusCode = 403;
-      throw error;
-    }
-    const combinedAccess = combineAccess(accessEntries.map((e) => e.access));
+
     const scopeWhere = createScopeWhere(combinedAccess, null, null);
 
     // Lightweight scope validation: find any record for this person in the caller's scope
@@ -1441,6 +1496,27 @@ class DrdAnalyticsService {
         where: scopeGate,
         select: { id: true, school: { select: { shortName: true, facultyName: true } }, department: { select: { departmentName: true, shortName: true } }, applicantUser: { select: { uid: true, employeeDetails: { select: { displayName: true } }, studentLogin: { select: { displayName: true } } } } },
       });
+    }
+
+    if (!anchorRecord) {
+      if (isOwner) {
+        const profileUser = await prisma.userLogin.findUnique({
+          where: { id: personId },
+          select: {
+            uid: true,
+            employeeDetails: { select: { displayName: true } },
+            studentLogin: { select: { displayName: true } },
+          }
+        });
+        if (profileUser) {
+          anchorRecord = {
+            id: 'owner',
+            school: { shortName: 'Owner', facultyName: 'Owner' },
+            department: { shortName: 'Owner', departmentName: 'Owner' },
+            applicantUser: profileUser
+          };
+        }
+      }
     }
 
     if (!anchorRecord) {
@@ -1469,6 +1545,101 @@ class DrdAnalyticsService {
 
     // ── Research / Book / Conference ────────────────────────────────────────
     if (['all', 'research', 'book', 'conference'].includes(category)) {
+      // Helper function to check if two names match (initials & spelling checks)
+      const getEditDistance = (s1, s2) => {
+        if (s1.length === 0) return s2.length;
+        if (s2.length === 0) return s1.length;
+        const matrix = [];
+        for (let i = 0; i <= s2.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= s1.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= s2.length; i++) {
+          for (let j = 1; j <= s1.length; j++) {
+            if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+              matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+              matrix[i][j] = Math.min(
+                matrix[i - 1][j - 1] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j] + 1
+              );
+            }
+          }
+        }
+        return matrix[s2.length][s1.length];
+      };
+
+      const isSimilarWord = (w1, w2) => {
+        if (w1 === w2) return true;
+        if (w1.length === 1 && w2.startsWith(w1)) return true;
+        if (w2.length === 1 && w1.startsWith(w2)) return true;
+        const dist = getEditDistance(w1, w2);
+        const maxLen = Math.max(w1.length, w2.length);
+        if (maxLen >= 5 && dist <= 2) return true;
+        return false;
+      };
+
+      const isSamePerson = (nameA, nameB) => {
+        if (!nameA || !nameB) return false;
+        
+        const normalize = (n) => n.toLowerCase()
+          .replace(/[^a-z\s]/g, '')
+          .replace(/aa+/g, 'a')
+          .replace(/ee+/g, 'e')
+          .replace(/oo+/g, 'o')
+          .split(/\s+/)
+          .filter(Boolean);
+
+        const normA = normalize(nameA);
+        const normB = normalize(nameB);
+        
+        if (normA.length === 0 || normB.length === 0) return false;
+
+        if (normA.join(' ') === normB.join(' ')) return true;
+
+        const shorter = normA.length < normB.length ? normA : normB;
+        const longer = normA.length < normB.length ? normB : normA;
+        
+        let matchedParts = 0;
+        const usedIndices = new Set();
+        
+        shorter.forEach(sPart => {
+          const matchedIdx = longer.findIndex((lPart, idx) => {
+            if (usedIndices.has(idx)) return false;
+            return isSimilarWord(sPart, lPart);
+          });
+          if (matchedIdx !== -1) {
+            matchedParts++;
+            usedIndices.add(matchedIdx);
+          }
+        });
+        
+        return matchedParts === shorter.length;
+      };
+
+      // Load all system identities to do name matching fallback lookups
+      const systemIdentities = await prisma.researchProfileIdentity.findMany({
+        select: {
+          scopusAuthorId: true,
+          orcid: true,
+          user: {
+            select: {
+              employeeDetails: { select: { displayName: true } },
+              studentLogin: { select: { displayName: true } },
+            },
+          },
+        },
+      });
+
+      const resolveIdentityByName = (authorName) => {
+        for (const item of systemIdentities) {
+          const profileName = item.user?.employeeDetails?.displayName || item.user?.studentLogin?.displayName;
+          if (profileName && isSamePerson(authorName, profileName)) {
+            return { scopusAuthorId: item.scopusAuthorId, orcid: item.orcid };
+          }
+        }
+        return null;
+      };
+
       const pubTypes = researchPubTypes[category] || researchPubTypes.all;
       const rows = await prisma.researchContribution.findMany({
         where: {
@@ -1500,10 +1671,12 @@ class DrdAnalyticsService {
           incentiveAmount: true,
           calculatedIncentiveAmount: true,
           pointsAwarded: true,
+          indexingDetails: true,
           authors: {
             orderBy: { authorOrder: 'asc' },
             select: {
               id: true,
+              userId: true,
               uid: true,
               name: true,
               affiliation: true,
@@ -1512,6 +1685,17 @@ class DrdAnalyticsService {
               isCorresponding: true,
               authorType: true,
               isInternal: true,
+              scopusAuthorId: true,
+              user: {
+                select: {
+                  researchProfileIdentity: {
+                    select: {
+                      scopusAuthorId: true,
+                      orcid: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -1548,17 +1732,46 @@ class DrdAnalyticsService {
           incentiveAmount: r.incentiveAmount ? Number(r.incentiveAmount) : null,
           calculatedIncentiveAmount: r.calculatedIncentiveAmount ? Number(r.calculatedIncentiveAmount) : null,
           pointsAwarded: r.pointsAwarded || null,
-          authors: (r.authors || []).map((author) => ({
-            id: author.id,
-            uid: author.uid || null,
-            name: author.name,
-            affiliation: author.affiliation || null,
-            department: author.department || null,
-            authorOrder: author.authorOrder,
-            isCorresponding: !!author.isCorresponding,
-            authorType: author.authorType,
-            isInternal: !!author.isInternal,
-          })),
+          indexingDetails: r.indexingDetails || null,
+          citationCount: (r.indexingDetails && typeof r.indexingDetails === 'object' && r.indexingDetails.citationCount !== undefined) ? r.indexingDetails.citationCount : 0,
+          authors: (r.authors || []).map((author) => {
+            let scopusAuthorId = author.scopusAuthorId || author.user?.researchProfileIdentity?.scopusAuthorId || null;
+            let orcid = author.user?.researchProfileIdentity?.orcid || null;
+
+            if (!scopusAuthorId && r.indexingDetails && typeof r.indexingDetails === 'object') {
+              const summaryAuthors = r.indexingDetails?.affiliationSummary?.authors;
+              if (Array.isArray(summaryAuthors)) {
+                const normalized = String(author.name || '').trim().toLowerCase();
+                const fromSummary = summaryAuthors.find(
+                  (item) => String(item?.name || '').trim().toLowerCase() === normalized
+                );
+                if (fromSummary?.scopusAuthorId) scopusAuthorId = fromSummary.scopusAuthorId;
+              }
+            }
+
+            if (!scopusAuthorId || !orcid) {
+              const matchedIdentity = resolveIdentityByName(author.name);
+              if (matchedIdentity) {
+                if (!scopusAuthorId) scopusAuthorId = matchedIdentity.scopusAuthorId;
+                if (!orcid) orcid = matchedIdentity.orcid;
+              }
+            }
+
+            return {
+              id: author.id,
+              userId: author.userId || null,
+              uid: author.uid || null,
+              name: author.name,
+              affiliation: author.affiliation || null,
+              department: author.department || null,
+              authorOrder: author.authorOrder,
+              isCorresponding: !!author.isCorresponding,
+              authorType: author.authorType,
+              isInternal: !!author.isInternal,
+              scopusAuthorId,
+              orcid,
+            };
+          }),
         });
       });
     }

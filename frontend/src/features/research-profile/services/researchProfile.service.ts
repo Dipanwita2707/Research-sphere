@@ -8,6 +8,7 @@ export interface ResearchProfileIdentity {
   webOfScienceId?: string | null;
   affiliationAliases?: string[];
   autoSyncEnabled: boolean;
+  filterSgtOnly: boolean;
   syncFrequencyDays: number;
   syncStatus: string;
   syncError: string | null;

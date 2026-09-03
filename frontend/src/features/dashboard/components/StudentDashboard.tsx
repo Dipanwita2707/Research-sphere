@@ -50,16 +50,14 @@ const Legend = dynamic(() => import('recharts').then(m => ({ default: m.Legend }
 const ResponsiveContainer = dynamic(() => import('recharts').then(m => ({ default: m.ResponsiveContainer })), { ssr: false });
 import { logger } from '@/shared/utils/logger';
 import { FadeInUp } from '../animations/AnimatedComponents';
+import { Panel, BentoGrid, BentoItem, MetricCard } from '@/shared/dashboard-kit';
 // Lazy-load below-the-fold heavy components so they don't block initial paint
-const UniversityEventsSlideshow = dynamic(() => import('./UniversityEventsSlideshow'), { ssr: false });
 const PermissionBasedDashboard = dynamic(() => import('./PermissionBasedDashboard'), { ssr: false });
 const CurrentActionSection = dynamic(() => import('./CurrentActionSection'), { ssr: false });
 const RecentNotifications = dynamic(() => import('./RecentNotifications'), { ssr: false });
-const SocialFootprints = dynamic(() => import('./SocialFootprints'), { ssr: false });
 const Footer = dynamic(() => import('../layouts/Footer'), { ssr: false });
 const TourGuide = dynamic(() => import('./TourGuide'), { ssr: false });
 import { TourStep, TourStartButton } from './TourGuide';
-import { eventService } from '@/features/event-management/services/event.service';
 
 interface StudentData {
   uid: string;
@@ -205,8 +203,8 @@ const examSchedule: ExamDetail[] = [
   }
 ];
 
-// Slideshow data for SGT University mega events and news
-const sgtEventSlides = [
+// Slideshow data for ResearchSphere mega events and news
+const ResearchSphereEventSlides = [
   {
     id: 1,
     image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&h=600&fit=crop',
@@ -225,7 +223,7 @@ const sgtEventSlides = [
     id: 3,
     image: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&h=600&fit=crop',
     title: 'International Sports Meet',
-    description: 'SGT University hosts inter-university sports championship with 50+ institutions.',
+    description: 'ResearchSphere hosts inter-university sports championship with 50+ institutions.',
     category: 'Sports'
   },
   {
@@ -383,8 +381,8 @@ const guidelinesData = [
   }
 ];
 
-// SGT Times categories
-const sgtTimesCategories = [
+// ResearchSphere Times categories
+const ResearchSphereTimesCategories = [
   { name: 'All', count: 18 },
   { name: 'Achievement', count: 4 },
   { name: 'Innovation', count: 3 },
@@ -394,24 +392,24 @@ const sgtTimesCategories = [
   { name: 'Research', count: 2 }
 ];
 
-// SGT Times headlines data with categories
-const sgtTimesData: Record<string, Array<{id: number; title: string; category: string; date: string; excerpt: string; url: string}>> = {
+// ResearchSphere Times headlines data with categories
+const ResearchSphereTimesData: Record<string, Array<{id: number; title: string; category: string; date: string; excerpt: string; url: string}>> = {
   All: [
     {
       id: 1,
-      title: 'SGT University Ranks Among Top 100 in NIRF Rankings 2026',
+      title: 'ResearchSphere Ranks Among Top 100 in NIRF Rankings 2026',
       category: 'Achievement',
       date: 'Feb 1, 2026',
       excerpt: 'Significant jump in national rankings showcases academic excellence and research output...',
-      url: 'https://sgttimes.com/nirf-rankings-2026'
+      url: 'https://#/nirf-rankings-2026'
     },
     {
       id: 2,
-      title: 'New AI Research Center Inaugurated at SGT Campus',
+      title: 'New AI Research Center Inaugurated at ResearchSphere Campus',
       category: 'Innovation',
       date: 'Jan 28, 2026',
       excerpt: 'State-of-the-art facility to foster cutting-edge research in artificial intelligence...',
-      url: 'https://sgttimes.com/ai-research-center'
+      url: 'https://#/ai-research-center'
     },
     {
       id: 3,
@@ -419,7 +417,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Placements',
       date: 'Jan 25, 2026',
       excerpt: 'Highest package of 45 LPA offered by leading tech giants including Google and Microsoft...',
-      url: 'https://sgttimes.com/placement-records-2026'
+      url: 'https://#/placement-records-2026'
     },
     {
       id: 4,
@@ -427,7 +425,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Global',
       date: 'Jan 20, 2026',
       excerpt: 'MoU signed for student and faculty exchange programs with Massachusetts Institute of Technology...',
-      url: 'https://sgttimes.com/mit-collaboration'
+      url: 'https://#/mit-collaboration'
     },
     {
       id: 5,
@@ -435,15 +433,15 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Events',
       date: 'Jan 18, 2026',
       excerpt: 'Three-day technology festival features hackathons, workshops, and industry talks...',
-      url: 'https://sgttimes.com/tech-summit-2026'
+      url: 'https://#/tech-summit-2026'
     },
     {
       id: 6,
-      title: 'SGT Students Win National Robotics Championship',
+      title: 'ResearchSphere Students Win National Robotics Championship',
       category: 'Achievement',
       date: 'Jan 15, 2026',
       excerpt: 'Team of 5 engineering students secures first place in prestigious robotics competition...',
-      url: 'https://sgttimes.com/robotics-championship'
+      url: 'https://#/robotics-championship'
     },
     {
       id: 7,
@@ -451,7 +449,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Innovation',
       date: 'Jan 12, 2026',
       excerpt: 'University implements IoT sensors across campus for energy optimization and security...',
-      url: 'https://sgttimes.com/smart-campus-iot'
+      url: 'https://#/smart-campus-iot'
     },
     {
       id: 8,
@@ -459,7 +457,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Placements',
       date: 'Jan 10, 2026',
       excerpt: 'Major e-commerce giants announce mega recruitment drive with attractive packages...',
-      url: 'https://sgttimes.com/amazon-flipkart-drive'
+      url: 'https://#/amazon-flipkart-drive'
     },
     {
       id: 9,
@@ -467,31 +465,31 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Global',
       date: 'Jan 8, 2026',
       excerpt: 'Collaborative research programs in medicine and biotechnology announced...',
-      url: 'https://sgttimes.com/oxford-partnership'
+      url: 'https://#/oxford-partnership'
     },
     {
       id: 10,
-      title: 'Cultural Fest "Rang-e-SGT" Mesmerizes with Star Performances',
+      title: 'Cultural Fest "Rang-e-Sphere" Mesmerizes with Star Performances',
       category: 'Events',
       date: 'Jan 5, 2026',
       excerpt: 'Three-day cultural extravaganza features celebrity performances and student competitions...',
-      url: 'https://sgttimes.com/rang-e-sgt-2026'
+      url: 'https://#/Rang-e-Sphere-2026'
     },
     {
       id: 11,
-      title: 'Research Paper by SGT Faculty Published in Nature Journal',
+      title: 'Research Paper by ResearchSphere Faculty Published in Nature Journal',
       category: 'Research',
       date: 'Jan 3, 2026',
       excerpt: 'Breakthrough research in cancer treatment gets international recognition...',
-      url: 'https://sgttimes.com/nature-publication'
+      url: 'https://#/nature-publication'
     },
     {
       id: 12,
-      title: 'SGT Debate Team Wins Inter-University Championship',
+      title: 'ResearchSphere Debate Team Wins Inter-University Championship',
       category: 'Achievement',
       date: 'Dec 28, 2025',
       excerpt: 'Students outshine competitors from 50+ universities in national debate competition...',
-      url: 'https://sgttimes.com/debate-championship'
+      url: 'https://#/debate-championship'
     },
     {
       id: 13,
@@ -499,15 +497,15 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Innovation',
       date: 'Dec 25, 2025',
       excerpt: 'University moves towards carbon neutrality with renewable energy infrastructure...',
-      url: 'https://sgttimes.com/solar-project'
+      url: 'https://#/solar-project'
     },
     {
       id: 14,
       title: 'Deloitte and PwC Offer Pre-Placement Opportunities',
       category: 'Placements',
       date: 'Dec 22, 2025',
-      excerpt: 'Leading consulting firms open internship and full-time positions for SGT students...',
-      url: 'https://sgttimes.com/consulting-offers'
+      excerpt: 'Leading consulting firms open internship and full-time positions for ResearchSphere Students...',
+      url: 'https://#/consulting-offers'
     },
     {
       id: 15,
@@ -515,7 +513,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Global',
       date: 'Dec 20, 2025',
       excerpt: 'Universities from USA, UK, Canada, and Australia offer admission guidance...',
-      url: 'https://sgttimes.com/study-abroad-fair'
+      url: 'https://#/study-abroad-fair'
     },
     {
       id: 16,
@@ -523,7 +521,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Events',
       date: 'Dec 18, 2025',
       excerpt: '2000+ students compete in various sporting events showcasing athletic talent...',
-      url: 'https://sgttimes.com/annual-sports-meet'
+      url: 'https://#/annual-sports-meet'
     },
     {
       id: 17,
@@ -531,59 +529,59 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Research',
       date: 'Dec 15, 2025',
       excerpt: 'Government funding secured for collaborative research in healthcare technology...',
-      url: 'https://sgttimes.com/research-grant'
+      url: 'https://#/research-grant'
     },
     {
       id: 18,
-      title: 'SGT Alumni Association Hosts Grand Homecoming Event',
+      title: 'ResearchSphere Alumni Association Hosts Grand Homecoming Event',
       category: 'Achievement',
       date: 'Dec 12, 2025',
       excerpt: '1000+ alumni return to campus for networking and knowledge sharing...',
-      url: 'https://sgttimes.com/alumni-homecoming'
+      url: 'https://#/alumni-homecoming'
     }
   ],
   Achievement: [
     {
       id: 1,
-      title: 'SGT University Ranks Among Top 100 in NIRF Rankings 2026',
+      title: 'ResearchSphere Ranks Among Top 100 in NIRF Rankings 2026',
       category: 'Achievement',
       date: 'Feb 1, 2026',
       excerpt: 'Significant jump in national rankings showcases academic excellence and research output...',
-      url: 'https://sgttimes.com/nirf-rankings-2026'
+      url: 'https://#/nirf-rankings-2026'
     },
     {
       id: 6,
-      title: 'SGT Students Win National Robotics Championship',
+      title: 'ResearchSphere Students Win National Robotics Championship',
       category: 'Achievement',
       date: 'Jan 15, 2026',
       excerpt: 'Team of 5 engineering students secures first place in prestigious robotics competition...',
-      url: 'https://sgttimes.com/robotics-championship'
+      url: 'https://#/robotics-championship'
     },
     {
       id: 12,
-      title: 'SGT Debate Team Wins Inter-University Championship',
+      title: 'ResearchSphere Debate Team Wins Inter-University Championship',
       category: 'Achievement',
       date: 'Dec 28, 2025',
       excerpt: 'Students outshine competitors from 50+ universities in national debate competition...',
-      url: 'https://sgttimes.com/debate-championship'
+      url: 'https://#/debate-championship'
     },
     {
       id: 18,
-      title: 'SGT Alumni Association Hosts Grand Homecoming Event',
+      title: 'ResearchSphere Alumni Association Hosts Grand Homecoming Event',
       category: 'Achievement',
       date: 'Dec 12, 2025',
       excerpt: '1000+ alumni return to campus for networking and knowledge sharing...',
-      url: 'https://sgttimes.com/alumni-homecoming'
+      url: 'https://#/alumni-homecoming'
     }
   ],
   Innovation: [
     {
       id: 2,
-      title: 'New AI Research Center Inaugurated at SGT Campus',
+      title: 'New AI Research Center Inaugurated at ResearchSphere Campus',
       category: 'Innovation',
       date: 'Jan 28, 2026',
       excerpt: 'State-of-the-art facility to foster cutting-edge research in artificial intelligence...',
-      url: 'https://sgttimes.com/ai-research-center'
+      url: 'https://#/ai-research-center'
     },
     {
       id: 7,
@@ -591,7 +589,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Innovation',
       date: 'Jan 12, 2026',
       excerpt: 'University implements IoT sensors across campus for energy optimization and security...',
-      url: 'https://sgttimes.com/smart-campus-iot'
+      url: 'https://#/smart-campus-iot'
     },
     {
       id: 13,
@@ -599,7 +597,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Innovation',
       date: 'Dec 25, 2025',
       excerpt: 'University moves towards carbon neutrality with renewable energy infrastructure...',
-      url: 'https://sgttimes.com/solar-project'
+      url: 'https://#/solar-project'
     }
   ],
   Placements: [
@@ -609,7 +607,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Placements',
       date: 'Jan 25, 2026',
       excerpt: 'Highest package of 45 LPA offered by leading tech giants including Google and Microsoft...',
-      url: 'https://sgttimes.com/placement-records-2026'
+      url: 'https://#/placement-records-2026'
     },
     {
       id: 8,
@@ -617,15 +615,15 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Placements',
       date: 'Jan 10, 2026',
       excerpt: 'Major e-commerce giants announce mega recruitment drive with attractive packages...',
-      url: 'https://sgttimes.com/amazon-flipkart-drive'
+      url: 'https://#/amazon-flipkart-drive'
     },
     {
       id: 14,
       title: 'Deloitte and PwC Offer Pre-Placement Opportunities',
       category: 'Placements',
       date: 'Dec 22, 2025',
-      excerpt: 'Leading consulting firms open internship and full-time positions for SGT students...',
-      url: 'https://sgttimes.com/consulting-offers'
+      excerpt: 'Leading consulting firms open internship and full-time positions for ResearchSphere Students...',
+      url: 'https://#/consulting-offers'
     }
   ],
   Global: [
@@ -635,7 +633,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Global',
       date: 'Jan 20, 2026',
       excerpt: 'MoU signed for student and faculty exchange programs with Massachusetts Institute of Technology...',
-      url: 'https://sgttimes.com/mit-collaboration'
+      url: 'https://#/mit-collaboration'
     },
     {
       id: 9,
@@ -643,7 +641,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Global',
       date: 'Jan 8, 2026',
       excerpt: 'Collaborative research programs in medicine and biotechnology announced...',
-      url: 'https://sgttimes.com/oxford-partnership'
+      url: 'https://#/oxford-partnership'
     },
     {
       id: 15,
@@ -651,7 +649,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Global',
       date: 'Dec 20, 2025',
       excerpt: 'Universities from USA, UK, Canada, and Australia offer admission guidance...',
-      url: 'https://sgttimes.com/study-abroad-fair'
+      url: 'https://#/study-abroad-fair'
     }
   ],
   Events: [
@@ -661,15 +659,15 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Events',
       date: 'Jan 18, 2026',
       excerpt: 'Three-day technology festival features hackathons, workshops, and industry talks...',
-      url: 'https://sgttimes.com/tech-summit-2026'
+      url: 'https://#/tech-summit-2026'
     },
     {
       id: 10,
-      title: 'Cultural Fest "Rang-e-SGT" Mesmerizes with Star Performances',
+      title: 'Cultural Fest "Rang-e-Sphere" Mesmerizes with Star Performances',
       category: 'Events',
       date: 'Jan 5, 2026',
       excerpt: 'Three-day cultural extravaganza features celebrity performances and student competitions...',
-      url: 'https://sgttimes.com/rang-e-sgt-2026'
+      url: 'https://#/Rang-e-Sphere-2026'
     },
     {
       id: 16,
@@ -677,17 +675,17 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Events',
       date: 'Dec 18, 2025',
       excerpt: '2000+ students compete in various sporting events showcasing athletic talent...',
-      url: 'https://sgttimes.com/annual-sports-meet'
+      url: 'https://#/annual-sports-meet'
     }
   ],
   Research: [
     {
       id: 11,
-      title: 'Research Paper by SGT Faculty Published in Nature Journal',
+      title: 'Research Paper by ResearchSphere Faculty Published in Nature Journal',
       category: 'Research',
       date: 'Jan 3, 2026',
       excerpt: 'Breakthrough research in cancer treatment gets international recognition...',
-      url: 'https://sgttimes.com/nature-publication'
+      url: 'https://#/nature-publication'
     },
     {
       id: 17,
@@ -695,7 +693,7 @@ const sgtTimesData: Record<string, Array<{id: number; title: string; category: s
       category: 'Research',
       date: 'Dec 15, 2025',
       excerpt: 'Government funding secured for collaborative research in healthcare technology...',
-      url: 'https://sgttimes.com/research-grant'
+      url: 'https://#/research-grant'
     }
   ]
 };
@@ -708,12 +706,12 @@ const yourAuthorities = [
     name: 'Prof. (Dr.) Prateek Agrawal',
     position: 'Mentor',
     role: 'Your Mentor',
-    department: 'SGT University',
-    image: 'https://sgtuniversity.ac.in/assets/images/about-sgt/university/Prateek-Agrawal.jpg',
-    email: 'prateek.agrawal@sgtuniversity.org',
+    department: 'ResearchSphere',
+    image: 'https://researchsphere.app/assets/images/about/university/Prateek-Agrawal.jpg',
+    email: 'prateek.agrawal@researchsphere.app',
     phone: '1800 102 5661',
     type: 'mentor',
-    profileUrl: 'https://sgtuniversity.ac.in/about/our-officers/dean-academics.html'
+    profileUrl: 'https://researchsphere.app/about/our-officers/dean-academics.html'
   },
   // HOD - Prateek Agrawal
   {
@@ -721,12 +719,12 @@ const yourAuthorities = [
     name: 'Prof. (Dr.) Prateek Agrawal',
     position: 'HOD',
     role: 'Head of Department',
-    department: 'SGT University',
-    image: 'https://sgtuniversity.ac.in/assets/images/about-sgt/university/Prateek-Agrawal.jpg',
-    email: 'prateek.agrawal@sgtuniversity.org',
+    department: 'ResearchSphere',
+    image: 'https://researchsphere.app/assets/images/about/university/Prateek-Agrawal.jpg',
+    email: 'prateek.agrawal@researchsphere.app',
     phone: '1800 102 5661',
     type: 'hod',
-    profileUrl: 'https://sgtuniversity.ac.in/about/our-officers/dean-academics.html'
+    profileUrl: 'https://researchsphere.app/about/our-officers/dean-academics.html'
   },
   // Dean - Prateek Agrawal
   {
@@ -734,12 +732,12 @@ const yourAuthorities = [
     name: 'Prof. (Dr.) Prateek Agrawal',
     position: 'Dean',
     role: 'Dean',
-    department: 'SGT University',
-    image: 'https://sgtuniversity.ac.in/assets/images/about-sgt/university/Prateek-Agrawal.jpg',
-    email: 'prateek.agrawal@sgtuniversity.org',
+    department: 'ResearchSphere',
+    image: 'https://researchsphere.app/assets/images/about/university/Prateek-Agrawal.jpg',
+    email: 'prateek.agrawal@researchsphere.app',
     phone: '1800 102 5661',
     type: 'dean',
-    profileUrl: 'https://sgtuniversity.ac.in/about/our-officers/dean-academics.html'
+    profileUrl: 'https://researchsphere.app/about/our-officers/dean-academics.html'
   },
   // Pro Vice-Chancellors
   {
@@ -747,11 +745,11 @@ const yourAuthorities = [
     name: 'Prof. (Dr.) Atul Kumar Nasa',
     position: 'Pro Vice-Chancellor',
     role: 'Academic Leadership',
-    department: 'SGT University',
-    image: 'https://sgtuniversity.ac.in/assets/images/about-sgt/university/Dr-Atul-Kumar-Nasa.webp',
-    email: 'info@sgtuniversity.org',
+    department: 'ResearchSphere',
+    image: 'https://researchsphere.app/assets/images/about/university/Dr-Atul-Kumar-Nasa.webp',
+    email: 'info@researchsphere.app',
     phone: '1800 102 5661',
-    profileUrl: 'https://sgtuniversity.ac.in/about/our-officers/dr-atul-kumar-nasa.html',
+    profileUrl: 'https://researchsphere.app/about/our-officers/dr-atul-kumar-nasa.html',
     type: 'provc'
   },
   // Vice-Chancellor
@@ -760,11 +758,11 @@ const yourAuthorities = [
     name: 'Prof. (Dr.) Hemant Verma',
     position: 'Vice-Chancellor',
     role: 'University Leadership',
-    department: 'SGT University',
-    image: 'https://sgtuniversity.ac.in/assets/images/about-sgt/university/hemant-sir.png',
-    email: 'info@sgtuniversity.org',
+    department: 'ResearchSphere',
+    image: 'https://researchsphere.app/assets/images/about/university/hemant-sir.png',
+    email: 'info@researchsphere.app',
     phone: '1800 102 5661',
-    profileUrl: 'https://sgtuniversity.ac.in/about/our-officers/dr-hemant-verma.html',
+    profileUrl: 'https://researchsphere.app/about/our-officers/dr-hemant-verma.html',
     type: 'vc'
   },
   // Other Dignities
@@ -773,11 +771,11 @@ const yourAuthorities = [
     name: 'Dr. Subodh Kumar',
     position: 'Registrar',
     role: 'Administration',
-    department: 'SGT University',
-    image: 'https://sgtuniversity.ac.in/assets/images/about-sgt/university/dr-subodh-kumar.png',
-    email: 'info@sgtuniversity.org',
+    department: 'ResearchSphere',
+    image: 'https://researchsphere.app/assets/images/about/university/dr-subodh-kumar.png',
+    email: 'info@researchsphere.app',
     phone: '1800 102 5661',
-    profileUrl: 'https://sgtuniversity.ac.in/about/our-officers/registrar.html',
+    profileUrl: 'https://researchsphere.app/about/our-officers/registrar.html',
     type: 'dignity'
   },
   {
@@ -785,11 +783,11 @@ const yourAuthorities = [
     name: 'Dr. Joginder Yadav',
     position: 'Director - Admissions and New Initiative',
     role: 'Student Services',
-    department: 'SGT University',
-    image: 'https://sgtuniversity.ac.in/assets/images/about-sgt/university/Dr-Joginder-Yadav.webp',
-    email: 'info@sgtuniversity.org',
+    department: 'ResearchSphere',
+    image: 'https://researchsphere.app/assets/images/about/university/Dr-Joginder-Yadav.webp',
+    email: 'info@researchsphere.app',
     phone: '1800 102 5661',
-    profileUrl: 'https://sgtuniversity.ac.in/about/our-officers/dr-joginder-yadav.html',
+    profileUrl: 'https://researchsphere.app/about/our-officers/dr-joginder-yadav.html',
     type: 'dignity'
   }
 ];
@@ -812,7 +810,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '31 Jan 2026',
       category: 'Academic',
       details: 'A comprehensive career counselling session will be conducted for second year undergraduate students of Mittal School of Business. The session will cover various career opportunities, industry trends, and guidance for internships and placements. Students are requested to attend with their resume drafts.',
-      fileReference: 'SGT/20.2/ST/2024/001/IC/260131/0001'
+      fileReference: 'ResearchSphere/20.2/ST/2024/001/IC/260131/0001'
     },
     {
       id: 2,
@@ -820,7 +818,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '31 Jan 2026',
       category: 'Academic',
       details: 'The EDU Revolution program has announced Phase I results for attendance benefits. Selected students will receive up to 10% attendance benefit for Term-II of the academic session 2025-26. This benefit is awarded based on academic performance, participation in co-curricular activities, and consistent attendance in previous terms.',
-      fileReference: 'SGT/10.2/ANN(DAA)/2024/023(23.2)(Vol–1)/IC/260131/0133'
+      fileReference: 'ResearchSphere/10.2/ANN(DAA)/2024/023(23.2)(Vol–1)/IC/260131/0133'
     },
     {
       id: 3,
@@ -828,7 +826,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '31 Jan 2026',
       category: 'Academic',
       details: 'The Department of Computer Science invites faculty members and research scholars to attend the Ph.D. Public Viva-Voce Examination. The candidate will present their research work on "Advanced Machine Learning Algorithms for Real-time Data Processing". All interested participants are requested to register in advance.',
-      fileReference: 'SGT/10.2/ANN(EXAM)/2024/023(23.4)(Vol–7)/IC/260131/0131'
+      fileReference: 'ResearchSphere/10.2/ANN(EXAM)/2024/023(23.4)(Vol–7)/IC/260131/0131'
     },
     {
       id: 4,
@@ -836,7 +834,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '30 Jan 2026',
       category: 'Academic',
       details: 'The mid-semester examinations for all undergraduate and postgraduate programs will be conducted from February 15-28, 2026. Students are advised to check the detailed datesheet on the university portal. Special attention should be given to examination guidelines and required documents.',
-      fileReference: 'SGT/10.2/ANN(EXAM)/2024/023/IC/260130/0125'
+      fileReference: 'ResearchSphere/10.2/ANN(EXAM)/2024/023/IC/260130/0125'
     },
     {
       id: 5,
@@ -844,7 +842,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '29 Jan 2026',
       category: 'Academic',
       details: 'A 3-day intensive workshop on Advanced Data Analytics and Machine Learning will be organized from February 10-12, 2026. Industry experts and academicians will conduct hands-on sessions covering Python, R, TensorFlow, and real-world case studies. Registration closes on February 5, 2026.',
-      fileReference: 'SGT/10.2/ANN(DAA)/2024/021/IC/260129/0118'
+      fileReference: 'ResearchSphere/10.2/ANN(DAA)/2024/021/IC/260129/0118'
     }
   ],
   'Administrative/Misc': [
@@ -854,7 +852,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '30 Jan 2026',
       category: 'Administrative/Misc',
       details: 'All students are required to renew their University ID cards for the academic year 2025-26. The renewal process will be conducted at the Administrative Block from February 1-15, 2026. Students must bring their old ID card, two passport-size photographs, and a copy of their fee receipt.',
-      fileReference: 'SGT/ADMIN/2024/ID/001'
+      fileReference: 'ResearchSphere/ADMIN/2024/ID/001'
     },
     {
       id: 7,
@@ -862,7 +860,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '28 Jan 2026',
       category: 'Administrative/Misc',
       details: 'The Central Library will extend its working hours during the examination period from February 1 to March 31, 2026. New timings: Monday-Saturday: 7:00 AM to 11:00 PM, Sunday: 9:00 AM to 9:00 PM. The 24-hour reading room will remain operational with prior registration.',
-      fileReference: 'SGT/LIB/2024/TIMING/003'
+      fileReference: 'ResearchSphere/LIB/2024/TIMING/003'
     },
     {
       id: 8,
@@ -870,7 +868,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '27 Jan 2026',
       category: 'Administrative/Misc',
       details: 'A new transport route has been introduced for students residing in Greater Noida Extension. The bus will operate on a fixed schedule with pickup points at Pari Chowk, Alpha-1, and Knowledge Park-3. Students interested in availing this facility should register at the Transport Section by February 5, 2026.',
-      fileReference: 'SGT/TRANS/2024/ROUTE/012'
+      fileReference: 'ResearchSphere/TRANS/2024/ROUTE/012'
     },
     {
       id: 9,
@@ -878,7 +876,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '25 Jan 2026',
       category: 'Administrative/Misc',
       details: 'A mandatory safety and fire drill will be conducted across all hostels and academic blocks on February 3, 2026, at 10:00 AM. All students and staff members are required to participate. The drill will include evacuation procedures, use of fire extinguishers, and emergency protocols.',
-      fileReference: 'SGT/SAFETY/2024/DRILL/002'
+      fileReference: 'ResearchSphere/SAFETY/2024/DRILL/002'
     }
   ],
   'Co-Curricular/Sports/Cultural': [
@@ -887,16 +885,16 @@ const announcementsData: Record<string, Announcement[]> = {
       title: 'Annual Inter-University Sports Championship 2026 - Registration Open',
       date: '31 Jan 2026',
       category: 'Co-Curricular/Sports/Cultural',
-      details: 'SGT University invites student athletes to register for the Annual Inter-University Sports Championship 2026. Events include Cricket, Football, Basketball, Badminton, Table Tennis, Athletics, and Swimming. Trials will be conducted from February 8-12, 2026. Interested students should contact the Sports Department.',
-      fileReference: 'SGT/SPORTS/2026/CHAMP/001'
+      details: 'ResearchSphere invites student athletes to register for the Annual Inter-University Sports Championship 2026. Events include Cricket, Football, Basketball, Badminton, Table Tennis, Athletics, and Swimming. Trials will be conducted from February 8-12, 2026. Interested students should contact the Sports Department.',
+      fileReference: 'ResearchSphere/SPORTS/2026/CHAMP/001'
     },
     {
       id: 11,
-      title: 'Cultural Fest "Rang-e-SGT 2026" - Call for Participants',
+      title: 'Cultural Fest "Rang-e-Sphere 2026" - Call for Participants',
       date: '30 Jan 2026',
       category: 'Co-Curricular/Sports/Cultural',
-      details: 'The much-awaited cultural fest "Rang-e-SGT 2026" will be held from March 15-17, 2026. Events include Dance, Music, Drama, Fashion Show, Stand-up Comedy, and Literary competitions. Celebrity performances and industry interactions are planned. Register your team by February 10, 2026.',
-      fileReference: 'SGT/CULTURAL/2026/FEST/001'
+      details: 'The much-awaited cultural fest "Rang-e-Sphere 2026" will be held from March 15-17, 2026. Events include Dance, Music, Drama, Fashion Show, Stand-up Comedy, and Literary competitions. Celebrity performances and industry interactions are planned. Register your team by February 10, 2026.',
+      fileReference: 'ResearchSphere/CULTURAL/2026/FEST/001'
     },
     {
       id: 12,
@@ -904,7 +902,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '29 Jan 2026',
       category: 'Co-Curricular/Sports/Cultural',
       details: 'Department of Engineering is organizing TechXplore 2026, a National Level Technical Symposium featuring Hackathons, Project Competitions, Technical Paper Presentations, and Robotics challenges. Total prize pool of ₹5 Lakhs. Open for participation from all universities. Register before February 15, 2026.',
-      fileReference: 'SGT/TECH/2026/SYMP/001'
+      fileReference: 'ResearchSphere/TECH/2026/SYMP/001'
     },
     {
       id: 13,
@@ -912,7 +910,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '28 Jan 2026',
       category: 'Co-Curricular/Sports/Cultural',
       details: 'The Sports and Wellness Department is launching weekly Yoga and Wellness sessions starting February 5, 2026. Sessions will be conducted every Tuesday and Thursday from 6:00-7:00 AM at the University Auditorium lawn. Professional yoga instructors will guide students through meditation, asanas, and breathing exercises.',
-      fileReference: 'SGT/WELLNESS/2026/YOGA/001'
+      fileReference: 'ResearchSphere/WELLNESS/2026/YOGA/001'
     }
   ],
   Examination: [
@@ -922,7 +920,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '31 Jan 2026',
       category: 'Examination',
       details: 'The End Semester Examination datesheet for Term-II has been published on the university portal. Examinations will commence from April 1, 2026. Students must carry their admit cards and university ID cards. Any discrepancies in the datesheet should be reported to the Examination Cell by February 7, 2026.',
-      fileReference: 'SGT/EXAM/2026/DATESHEET/001'
+      fileReference: 'ResearchSphere/EXAM/2026/DATESHEET/001'
     },
     {
       id: 15,
@@ -930,7 +928,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '30 Jan 2026',
       category: 'Examination',
       details: 'Admit cards for Mid Semester Examinations (February 2026) are now available for download on the student portal. Students must verify all details on their admit cards including examination center, roll number, and subjects. Any errors should be immediately reported to the Examination Section.',
-      fileReference: 'SGT/EXAM/2026/ADMIT/001'
+      fileReference: 'ResearchSphere/EXAM/2026/ADMIT/001'
     },
     {
       id: 16,
@@ -938,7 +936,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '29 Jan 2026',
       category: 'Examination',
       details: 'The last date for Supplementary Examination registration has been extended to February 10, 2026. Eligible students who have backlog in previous semesters can register through the student portal. Late fee will be applicable after February 5, 2026. Contact Examination Cell for any queries.',
-      fileReference: 'SGT/EXAM/2026/SUPP/002'
+      fileReference: 'ResearchSphere/EXAM/2026/SUPP/002'
     },
     {
       id: 17,
@@ -946,7 +944,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '27 Jan 2026',
       category: 'Examination',
       details: 'Students who wish to apply for re-evaluation or photocopy of answer scripts for December 2025 examinations can submit their applications from February 1-15, 2026. The prescribed fee must be paid online. Results of re-evaluation will be declared within 30 days of application.',
-      fileReference: 'SGT/EXAM/2026/REEVAL/001'
+      fileReference: 'ResearchSphere/EXAM/2026/REEVAL/001'
     }
   ],
   Placement: [
@@ -956,7 +954,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '31 Jan 2026',
       category: 'Placement',
       details: 'Leading IT companies TCS, Infosys, and Wipro will conduct campus recruitment drives from February 20-25, 2026. Eligible students: B.Tech/MCA with CGPA ≥ 7.0. The drive will include aptitude test, technical interview, and HR round. Students must register on the placement portal by February 8, 2026.',
-      fileReference: 'SGT/PLACEMENT/2026/DRIVE/001'
+      fileReference: 'ResearchSphere/PLACEMENT/2026/DRIVE/001'
     },
     {
       id: 19,
@@ -964,7 +962,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '30 Jan 2026',
       category: 'Placement',
       details: 'The Placement Cell has received internship offers from multiple Fortune 500 companies for Summer 2026. Positions available in Software Development, Data Science, Marketing, Finance, and Operations. Stipend range: ₹20,000-50,000 per month. Apply through the placement portal before February 12, 2026.',
-      fileReference: 'SGT/PLACEMENT/2026/INTERN/002'
+      fileReference: 'ResearchSphere/PLACEMENT/2026/INTERN/002'
     },
     {
       id: 20,
@@ -972,7 +970,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '29 Jan 2026',
       category: 'Placement',
       details: 'Deloitte and Amazon will conduct Pre-Placement Talks on February 15, 2026, in the University Auditorium. Representatives will discuss company culture, job roles, selection process, and career growth opportunities. Open for final year students of all branches. Registration mandatory through placement portal.',
-      fileReference: 'SGT/PLACEMENT/2026/PPT/003'
+      fileReference: 'ResearchSphere/PLACEMENT/2026/PPT/003'
     },
     {
       id: 21,
@@ -980,7 +978,7 @@ const announcementsData: Record<string, Announcement[]> = {
       date: '28 Jan 2026',
       category: 'Placement',
       details: 'A comprehensive 5-day Placement Preparation Workshop will be conducted from February 10-14, 2026. Sessions will cover Quantitative Aptitude, Logical Reasoning, Data Structures & Algorithms, System Design, HR Interview techniques, and Group Discussion. Industry mentors will conduct mock interviews. Free for all students.',
-      fileReference: 'SGT/PLACEMENT/2026/WORKSHOP/001'
+      fileReference: 'ResearchSphere/PLACEMENT/2026/WORKSHOP/001'
     }
   ]
 };
@@ -1187,7 +1185,7 @@ const academicCalendarEvents = [
 
   // June 2026 - Crucial dates
   { date: '2026-06-05', title: 'Summer Vacation Begins', type: 'crucial' as const, description: 'Semester break starts' },
-  { date: '2026-06-15', title: 'Annual Convocation 2026', type: 'crucial' as const, description: 'Graduation Ceremony - SGT University Event' },
+  { date: '2026-06-15', title: 'Annual Convocation 2026', type: 'crucial' as const, description: 'Graduation Ceremony - ResearchSphere Event' },
   { date: '2026-06-15', title: 'Result Declaration', type: 'crucial' as const, description: 'End-semester results published' },
   { date: '2026-06-17', title: 'Eid ul-Adha (Bakrid)', type: 'holiday' as const, description: 'Islamic festival of sacrifice - Gazetted Holiday' },
 
@@ -1236,7 +1234,7 @@ export default function StudentDashboard() {
   const [activeAuthorityIndex, setActiveAuthorityIndex] = useState(5); // Start with Vice-Chancellor in center
   const [activeAnnouncementTab, setActiveAnnouncementTab] = useState('Academic');
   const [expandedAnnouncement, setExpandedAnnouncement] = useState<number | null>(null);
-  const [activeSgtTimesTab, setActiveSgtTimesTab] = useState('All');
+  const [activeResearchSphereTimesTab, setActiveResearchSphereTimesTab] = useState('All');
   const [selectedMarksTerm, setSelectedMarksTerm] = useState(1);
   const [selectedGradesTerm, setSelectedGradesTerm] = useState(1);
 
@@ -1365,7 +1363,7 @@ export default function StudentDashboard() {
       id: 'recently-placed',
       target: 'recently-placed',
       title: 'Recently Placed Students',
-      description: 'View recent placement success stories from SGT University. See company names, job roles, and packages offered to successfully placed students.',
+      description: 'View recent placement success stories from ResearchSphere. See company names, job roles, and packages offered to successfully placed students.',
       position: 'top'
     },
     {
@@ -1400,7 +1398,7 @@ export default function StudentDashboard() {
       id: 'social-footprints',
       target: 'social-footprints',
       title: 'Social Media Connect',
-      description: 'Connect with SGT University on social media. Follow on Instagram, LinkedIn, YouTube, Facebook, and Twitter. Also access SGT Times for latest news.',
+      description: 'Connect with ResearchSphere on social media. Follow on Instagram, LinkedIn, YouTube, Facebook, and Twitter. Also access ResearchSphere Times for latest news.',
       position: 'top'
     }
   ];
@@ -1429,7 +1427,7 @@ export default function StudentDashboard() {
   // Auto-advance slideshow
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % sgtEventSlides.length);
+      setCurrentSlide((prev) => (prev + 1) % ResearchSphereEventSlides.length);
     }, 5000); // Change slide every 5 seconds
 
     return () => clearInterval(interval);
@@ -1710,57 +1708,14 @@ export default function StudentDashboard() {
     }
   };
 
-  // Fetch real events from the API (published & ongoing)
+  // Fetch real events stubbed
   const fetchRealEvents = async () => {
     try {
       setEventsLoading(true);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Fetch published/ongoing events AND my registrations in parallel
-      const [publishedResult, ongoingResult, myRegsResult] = await Promise.allSettled([
-        eventService.getEvents({ status: 'published' }, 1, 100),
-        eventService.getEvents({ status: 'ongoing' }, 1, 100),
-        eventService.getMyRegistrations(1, 200),
-      ]);
-
-      // Build set of event IDs the student is registered for
-      if (myRegsResult.status ===
-   'fulfilled') {
-        const registeredIds = new Set<string>(
-          (myRegsResult.value.registrations || [])
-            .filter((r: any) => r.status !== 'cancelled')
-            .map((r: any) => r.eventId as string)
-        );
-        setMyRegisteredEventIds(registeredIds);
-      }
-
-      const allEvents: any[] = [];
-      if (publishedResult.status ===
-   'fulfilled') {
-        allEvents.push(...(publishedResult.value.events || []));
-      }
-      if (ongoingResult.status ===
-   'fulfilled') {
-        allEvents.push(...(ongoingResult.value.events || []));
-      }
-
-      // Deduplicate by id, keep only upcoming (startDate >= today)
-      const seen = new Set<string>();
-      const upcoming = allEvents.filter((e: any) => {
-        if (seen.has(e.id)) return false;
-        seen.add(e.id);
-        const eventStart = e.startDate ? new Date(e.startDate) : null;
-        return eventStart && eventStart >= today;
-      });
-
-      // Sort by startDate ascending
-      upcoming.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-
-      setUpcomingRealEvents(upcoming);
+      setUpcomingRealEvents([]);
+      setMyRegisteredEventIds(new Set());
     } catch (error) {
       logger.error('Failed to fetch real events:', error);
-      setUpcomingRealEvents([]);
     } finally {
       setEventsLoading(false);
     }
@@ -2837,7 +2792,7 @@ export default function StudentDashboard() {
                   <p className="text-xl font-semibold text-gray-500 dark:text-gray-400">No Upcoming Events</p>
                   <p className="text-sm text-gray-400 dark:text-gray-500">There are no published events you are eligible for right now.</p>
                   <a
-                    href="https://sgt-event.vercel.app/student"
+                    href="https://ResearchSphere-event.vercel.app/student"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
@@ -2960,7 +2915,7 @@ export default function StudentDashboard() {
                                 </>
                               ) : (
                                 <a
-                                  href="https://sgt-event.vercel.app/student"
+                                  href="https://ResearchSphere-event.vercel.app/student"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="flex-1 min-w-[120px] bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors text-center flex items-center justify-center gap-2 text-sm"
@@ -3485,491 +3440,171 @@ export default function StudentDashboard() {
       <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
         {/* Welcome Section */}
         <FadeInUp delay={0.1}>
-          <div data-tour-id="welcome-section" className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-4 sm:p-6 lg:p-8 backdrop-blur-sm">
-            {/* Main Grid: Left Content + Right Slideshow */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-              {/* Left Side: Profile + Cards */}
-              <div className="lg:col-span-7 space-y-4 sm:space-y-6">
-                {/* Profile Section */}
-                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+          <Panel padding="sm" data-tour-id="welcome-section" className="[&>div]:!p-0">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-5 p-1">
                   {/* Profile Picture */}
                   <div data-tour-id="profile-picture" className="relative flex-shrink-0 group mx-auto sm:mx-0">
-                    <div className="relative">
-                      {/* Animated Ring */}
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-75 group-hover:opacity-100 blur-md group-hover:blur-lg transition-all duration-300 animate-pulse"></div>
-                      
-                      {/* Profile Image Container */}
-                      <div className="relative w-24 h-24 rounded-full overflow-hidden ring-4 ring-white dark:ring-gray-800 shadow-xl">
+                <div className="relative w-14 h-14 rounded-xl overflow-hidden ring-2 ring-white dark:ring-gray-700 shadow-sm">
                         <img 
                           src="/student-profile.jpeg"
                           alt={getUserName()}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
                             const parent = target.parentElement;
                             if (parent) {
-                              parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold">${getUserName().split(' ').map((n: string) => n[0]).join('').toUpperCase()}</div>`;
+                        parent.innerHTML = `<div class="w-full h-full bg-wine flex items-center justify-center text-white text-lg font-semibold">${getUserName().split(' ').map((n: string) => n[0]).join('').toUpperCase()}</div>`;
                             }
                           }}
                         />
                       </div>
-                      
-                      {/* Online Status Badge */}
-                      <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full border-4 border-white dark:border-gray-800 shadow-lg">
-                        <div className="w-full h-full rounded-full bg-green-400 animate-ping opacity-75"></div>
-                      </div>
-                    </div>
-                    
-                    {/* Verified Badge */}
-                    <div className="absolute -top-1 -right-1 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800">
-                      <CheckCircle className="w-4 h-4 text-white" />
-                    </div>
+                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-gray-800" />
                   </div>
 
                   {/* Greeting and Info */}
-                  <div className="flex-1 text-center sm:text-left">
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 flex items-center gap-2 justify-center sm:justify-start">
-                      <Clock className="w-4 h-4" />
+              <div className="flex-1 text-center sm:text-left min-w-0">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1.5 justify-center sm:justify-start">
+                  <Clock className="w-3.5 h-3.5" />
                       {getCurrentDate()}
                     </p>
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                      {getGreeting()},
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
+                  {getGreeting()}, {getUserName()}
                     </h1>
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2 sm:mb-3">
-                      {getUserName()}
-                    </h2>
-                    
-                    <div className="space-y-1 text-sm sm:text-base">
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
-                        <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm"><span className="font-semibold">Reg#:</span> {studentData?.uid} | <span className="font-semibold">Sec:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                  <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-300 bg-peach/40 dark:bg-gray-700/60 px-2.5 py-1 rounded-md border border-gray-100 dark:border-gray-600">
+                    <GraduationCap className="w-3.5 h-3.5 text-wine dark:text-amber-400 flex-shrink-0" />
+                    <span className="text-xs"><span className="font-semibold">Reg#:</span> {studentData?.uid} &middot; <span className="font-semibold">Sec:</span> {studentData?.section} &middot; <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
                       </div>
-                      <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
+                  <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/60 px-2.5 py-1 rounded-md border border-gray-100 dark:border-gray-600">
                         {studentData?.program}
                       </div>
                     </div>
-
-                    <p className="mt-2 sm:mt-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm leading-relaxed">
-                      Welcome to your Student dashboard. Track your progress, manage your work, and stay connected.
-                    </p>
                   </div>
                 </div>
+          </Panel>
+        </FadeInUp>
 
-                {/* 5 Stats Cards in a row - With Internal Animations */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
-                  {/* Happening Card - Warm Coral Theme */}
-                  <div 
-                    data-tour-id="happening-card"
-                    onClick={() => setActiveModal('happening')}
-                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                    style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #dc2626 100%)' }}
-                  >
-                    {/* Animated Background Elements */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      {/* Floating circles */}
-                      <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full" style={{ animationDuration: '3s' }}></div>
-                      <div className="absolute bottom-2 -left-3 w-10 h-10 bg-white/10 rounded-full" style={{ animationDuration: '4s', animationDelay: '1s' }}></div>
-                      {/* Moving wave */}
-                      <div className="absolute bottom-0 left-0 right-0 h-8 opacity-20">
-                        <svg className="w-full h-full" viewBox="0 0 100 20" preserveAspectRatio="none">
-                          <path d="M0,10 Q25,0 50,10 T100,10 V20 H0 Z" fill="white" style={{ animationDuration: '2s' }}/>
-                        </svg>
+        {/* Bento grid: stats, CGPA/attendance, calendar */}
+        <BentoGrid>
+          <BentoItem span={1} spanMobile={1}>
+            <div data-tour-id="happening-card" onClick={() => setActiveModal('happening')}>
+              <MetricCard label="Happening Now" value={studentData?.happening ?? 0} icon={FileText} />
                       </div>
-                      {/* Shimmer effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+          </BentoItem>
+          <BentoItem span={1} spanMobile={1}>
+            <div data-tour-id="messages-card" onClick={() => setActiveModal('messages')}>
+              <MetricCard label="Messages" value={studentData?.messages ?? 0} icon={MessageSquare} />
                     </div>
-                    {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-1">
-                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
-                        <div className="w-2 h-2 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+          </BentoItem>
+          <BentoItem span={1} spanMobile={1}>
+            <div data-tour-id="assignments-card" onClick={() => setActiveModal('assignments')}>
+              <MetricCard label="Assignments" value={studentData?.assignments ?? 0} icon={BookOpen} />
                       </div>
-                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.happening}</p>
-                      <p className="text-xs sm:text-sm font-medium opacity-90">Happening Now</p>
+          </BentoItem>
+          <BentoItem span={1} spanMobile={1}>
+            <div data-tour-id="events-card" onClick={() => setActiveModal('events')}>
+              <MetricCard label="Upcoming Events" value={eventsLoading ? '…' : upcomingRealEvents.length} icon={Calendar} />
                     </div>
+          </BentoItem>
+
+          <BentoItem span={2} spanMobile={2}>
+            <div data-tour-id="cgpa-card" onClick={() => setShowCGPAModal(true)}>
+              <MetricCard
+                label="Academic Performance (CGPA)"
+                value={studentData?.cgpa ?? '—'}
+                icon={GraduationCap}
+                footer={
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Current Sem</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">7.85</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Credits</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">120</p>
+                      </div>
+                    </div>
+                }
+              />
                   </div>
+          </BentoItem>
 
-                  {/* Messages Card - Royal Purple Theme */}
-                  <div 
-                    data-tour-id="messages-card"
-                    onClick={() => setActiveModal('messages')}
-                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                    style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)' }}
-                  >
-                    {/* Animated Background Elements */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      {/* Message bubbles floating */}
-                      <div className="absolute top-3 right-2 w-3 h-3 bg-white/15 rounded-full" style={{ animation: 'bounce 2s infinite' }}></div>
-                      <div className="absolute top-6 right-5 w-2 h-2 bg-white/10 rounded-full" style={{ animation: 'bounce 2.5s infinite', animationDelay: '0.5s' }}></div>
-                      <div className="absolute bottom-4 left-2 w-4 h-4 bg-white/10 rounded-full" style={{ animation: 'bounce 3s infinite', animationDelay: '1s' }}></div>
-                      {/* Gradient orb */}
-                      <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-gradient-to-br from-pink-400/20 to-transparent rounded-full" style={{ animationDuration: '4s' }}></div>
-                      {/* Shimmer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </div>
-                    {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-1">
-                        <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
-                        <span className="text-[8px] bg-white/25 px-1.5 py-0.5 rounded-full font-semibold">New</span>
-                      </div>
-                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.messages}</p>
-                      <p className="text-xs sm:text-sm font-medium opacity-90">Messages</p>
-                    </div>
-                  </div>
-
-                  {/* Assignments Card - Ocean Blue Theme */}
-                  <div 
-                    data-tour-id="assignments-card"
-                    onClick={() => setActiveModal('assignments')}
-                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                    style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%)' }}
-                  >
-                    {/* Animated Background Elements */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      {/* Rotating ring */}
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 border border-white/10 rounded-full" style={{ animation: 'spin 8s linear infinite' }}></div>
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border border-white/5 rounded-full" style={{ animation: 'spin 6s linear infinite reverse' }}></div>
-                      {/* Corner accent */}
-                      <div className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-br from-cyan-300/20 to-transparent rounded-full"></div>
-                      {/* Shimmer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </div>
-                    {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-1">
-                        <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
-                        <div className="flex gap-0.5">
-                          <div className="w-1.5 h-3 bg-white/40 rounded-full"></div>
-                          <div className="w-1.5 h-2 bg-white/30 rounded-full mt-1"></div>
-                          <div className="w-1.5 h-2.5 bg-white/35 rounded-full mt-0.5"></div>
-                        </div>
-                      </div>
-                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.assignments}</p>
-                      <p className="text-xs sm:text-sm font-medium opacity-90">Assignments</p>
-                    </div>
-                  </div>
-
-                  {/* Events Card - Teal Emerald Theme */}
-                  <div 
-                    data-tour-id="events-card"
-                    onClick={() => setActiveModal('events')}
-                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                    style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 50%, #0f766e 100%)' }}
-                  >
-                    {/* Animated Background Elements */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      {/* Calendar grid pattern */}
-                      <div className="absolute top-2 right-2 grid grid-cols-3 gap-0.5 opacity-15">
-                        {[...Array(9)].map((_, i) => (
-                          <div key={i} className="w-1.5 h-1.5 bg-white rounded-sm" style={{ animation: 'pulse 2s infinite', animationDelay: `${i * 0.2}s` }}></div>
-                        ))}
-                      </div>
-                      {/* Glowing orb */}
-                      <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-tr from-emerald-300/20 to-transparent rounded-full" style={{ animationDuration: '3s' }}></div>
-                      {/* Shimmer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </div>
-                    {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-1">
-                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
-                        <div className="w-5 h-5 rounded-full border-2 border-white/30 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '1.5s' }}></div>
-                        </div>
-                      </div>
-                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">
-                        {eventsLoading ? '...' : upcomingRealEvents.length}
-                      </p>
-                      <p className="text-xs sm:text-sm font-medium opacity-90">Upcoming Events</p>
-                    </div>
-                  </div>
-
-                  {/* Fees Card - Forest Green Theme */}
-                  <div 
-                    data-tour-id="fees-card"
-                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
-                    style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)' }}
-                  >
-                    {/* Animated Background Elements */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      {/* Coin-like circles */}
-                      <div className="absolute top-2 right-3 w-4 h-4 border-2 border-white/20 rounded-full" style={{ animation: 'pulse 2s infinite' }}></div>
-                      <div className="absolute bottom-3 right-2 w-3 h-3 border-2 border-white/15 rounded-full" style={{ animation: 'pulse 2.5s infinite', animationDelay: '0.5s' }}></div>
-                      <div className="absolute top-8 left-2 w-2 h-2 bg-white/15 rounded-full" style={{ animation: 'pulse 3s infinite', animationDelay: '1s' }}></div>
-                      {/* Checkmark sparkle */}
-                      <div className="absolute -top-2 -right-2 w-10 h-10 bg-gradient-to-br from-lime-300/20 to-transparent rounded-full"></div>
-                      {/* Shimmer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </div>
-                    {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-1">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div className="flex items-center gap-0.5">
-                          <svg className="w-3 h-3 text-white/70" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      </div>
-                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">₹0</p>
-                      <p className="text-xs sm:text-sm font-medium opacity-90">Fees Cleared</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CGPA and Attendance Cards - Side by Side - SGT Theme */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* CGPA Card - Academic Blue Theme */}
-                  <div 
-                    data-tour-id="cgpa-card"
-                    onClick={() => setShowCGPAModal(true)}
-                    className="relative overflow-hidden rounded-xl p-4 bg-white dark:bg-gray-800 shadow-lg cursor-pointer transition-all duration-500 group border border-gray-200 dark:border-gray-700"
-                    style={{
-                      transition: 'all 0.5s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)';
-                      e.currentTarget.style.color = 'white';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '';
-                      e.currentTarget.style.color = '';
-                      e.currentTarget.className = 'relative overflow-hidden rounded-xl p-4 bg-white dark:bg-gray-800 shadow-lg cursor-pointer transition-all duration-500 group border border-gray-200 dark:border-gray-700';
-                    }}
-                  >
-                    {/* Animated Background Elements */}
-                    <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                      {/* Floating academic elements */}
-                      <div className="absolute top-3 right-3 w-16 h-16 border border-white/10 rounded-full" style={{ animation: 'spin 10s linear infinite' }}></div>
-                      <div className="absolute top-5 right-5 w-12 h-12 border border-white/5 rounded-full" style={{ animation: 'spin 8s linear infinite reverse' }}></div>
-                      {/* Book pages effect */}
-                      <div className="absolute bottom-2 left-3 w-4 h-6 bg-white/5 rounded-sm" style={{ animation: 'pulse 2s infinite' }}></div>
-                      <div className="absolute bottom-2 left-8 w-4 h-6 bg-white/5 rounded-sm" style={{ animation: 'pulse 2.5s infinite', animationDelay: '0.5s' }}></div>
-                      <div className="absolute bottom-2 left-13 w-4 h-6 bg-white/5 rounded-sm" style={{ animation: 'pulse 3s infinite', animationDelay: '1s' }}></div>
-                      {/* Star sparkles */}
-                      <div className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-br from-blue-300/15 to-transparent rounded-full"></div>
-                      {/* Shimmer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </div>
-                    {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex-1">
-                          <p className="text-[11px] font-medium mb-1 text-gray-600 dark:text-gray-400 group-hover:text-white/90">Academic Performance</p>
-                          <p className="text-3xl font-bold drop-shadow-sm text-gray-900 dark:text-white group-hover:text-white">{studentData?.cgpa}</p>
-                        </div>
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-blue-500/10 group-hover:bg-white/10 rounded-full animate-ping" style={{ animationDuration: '3s' }}></div>
-                          <GraduationCap className="w-10 h-10 drop-shadow-sm relative text-blue-600 group-hover:text-white" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <div className="bg-gray-100 dark:bg-gray-700 group-hover:bg-white/15 backdrop-blur-sm rounded-lg p-2 border border-gray-200 dark:border-gray-600 group-hover:border-white/10 transition-all duration-500">
-                          <p className="text-[9px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-white/90">Current Sem</p>
-                          <p className="text-base font-bold drop-shadow-sm text-gray-900 dark:text-white group-hover:text-white">7.85</p>
-                        </div>
-                        <div className="bg-gray-100 dark:bg-gray-700 group-hover:bg-white/15 backdrop-blur-sm rounded-lg p-2 border border-gray-200 dark:border-gray-600 group-hover:border-white/10 transition-all duration-500">
-                          <p className="text-[9px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-white/90">Credits</p>
-                          <p className="text-base font-bold drop-shadow-sm text-gray-900 dark:text-white group-hover:text-white">120</p>
-                        </div>
-                      </div>
-                      <p className="text-[10px] font-medium flex items-center gap-1 text-gray-500 dark:text-gray-400 group-hover:text-white/80">
-                        <ExternalLink className="w-3 h-3" />
-                        Click for details
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Attendance Card - Professional Teal Theme */}
-                  <div 
-                    data-tour-id="attendance-card"
-                    onClick={() => setShowAttendanceModal(true)}
-                    className="relative overflow-hidden rounded-xl p-4 bg-white dark:bg-gray-800 shadow-lg cursor-pointer transition-all duration-500 group border border-gray-200 dark:border-gray-700"
-                    style={{
-                      transition: 'all 0.5s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, #0891b2 0%, #0e7490 50%, #155e75 100%)';
-                      e.currentTarget.style.color = 'white';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '';
-                      e.currentTarget.style.color = '';
-                      e.currentTarget.className = 'relative overflow-hidden rounded-xl p-4 bg-white dark:bg-gray-800 shadow-lg cursor-pointer transition-all duration-500 group border border-gray-200 dark:border-gray-700';
-                    }}
-                  >
-                    {/* Animated Background Elements */}
-                    <div className="absolute inset-0 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                      {/* Calendar grid animation */}
-                      <div className="absolute top-3 right-3 grid grid-cols-4 gap-1 opacity-10">
-                        {[...Array(12)].map((_, i) => (
-                          <div key={i} className="w-2 h-2 bg-white rounded-sm" style={{ animation: 'pulse 2s infinite', animationDelay: `${i * 0.15}s` }}></div>
-                        ))}
-                      </div>
-                      {/* Check marks floating */}
-                      <div className="absolute bottom-3 left-3 text-white/10 text-xl font-bold" style={{ animation: 'bounce 3s infinite' }}>✓</div>
-                      <div className="absolute bottom-8 left-8 text-white/10 text-sm font-bold" style={{ animation: 'bounce 2.5s infinite', animationDelay: '0.5s' }}>✓</div>
-                      {/* Progress arc */}
-                      <div className="absolute -bottom-6 -right-6 w-24 h-24 border-4 border-white/10 rounded-full"></div>
-                      <div className="absolute -bottom-6 -right-6 w-24 h-24 border-4 border-white/20 rounded-full" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 95%, 0 95%)' }}></div>
-                      {/* Shimmer */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </div>
-                    {/* Content */}
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex-1">
-                          <p className="text-[11px] font-medium mb-1 text-gray-600 dark:text-gray-400 group-hover:text-white/90">Attendance Tracker</p>
-                          <p className="text-3xl font-bold drop-shadow-sm text-gray-900 dark:text-white group-hover:text-white">{studentData?.attendance.overall}%</p>
-                        </div>
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-teal-500/10 group-hover:bg-white/10 rounded-full animate-ping" style={{ animationDuration: '3s' }}></div>
-                          <Calendar className="w-10 h-10 drop-shadow-sm relative text-teal-600 group-hover:text-white" />
-                        </div>
-                      </div>
-                      <div className="space-y-2 mb-3">
-                        <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 group-hover:bg-white/10 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-gray-200 dark:border-gray-600 group-hover:border-white/10 transition-all duration-500">
-                          <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-white/90">Today</p>
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold ${
-                            studentData?.attendance.today ===
-   'Present' ? 'bg-gray-200 dark:bg-gray-600 group-hover:bg-white/30 text-gray-700 dark:text-gray-200 group-hover:text-white' : 'bg-red-100 dark:bg-red-900 group-hover:bg-red-400/50 text-red-700 dark:text-red-200 group-hover:text-white'
-                          }`}>
+          <BentoItem span={2} spanMobile={2}>
+            <div data-tour-id="attendance-card" onClick={() => setShowAttendanceModal(true)}>
+              <MetricCard
+                label="Attendance Tracker"
+                value={`${studentData?.attendance.overall ?? 0}%`}
+                icon={Calendar}
+                sparkline={[
+                  studentData?.attendance.thisMonth ?? 0,
+                  studentData?.attendance.thisWeek ?? 0,
+                  studentData?.attendance.overall ?? 0,
+                ]}
+                footer={
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Today</p>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-semibold ${
+                        studentData?.attendance.today === 'Present'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}
+                    >
                             {studentData?.attendance.today}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 group-hover:bg-white/10 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-gray-200 dark:border-gray-600 group-hover:border-white/10 transition-all duration-500">
-                          <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-white/90">Week</p>
-                          <p className="text-sm font-bold drop-shadow-sm text-gray-900 dark:text-white group-hover:text-white">{studentData?.attendance.thisWeek}%</p>
+                }
+              />
                         </div>
-                        <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 group-hover:bg-white/10 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-gray-200 dark:border-gray-600 group-hover:border-white/10 transition-all duration-500">
-                          <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-white/90">Month</p>
-                          <p className="text-sm font-bold drop-shadow-sm text-gray-900 dark:text-white group-hover:text-white">{studentData?.attendance.thisMonth}%</p>
-                        </div>
-                      </div>
-                      <p className="text-[10px] font-medium flex items-center gap-1 text-gray-500 dark:text-gray-400 group-hover:text-white/80">
-                        <ExternalLink className="w-3 h-3" />
-                        Click for analytics
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          </BentoItem>
 
-              {/* Right Side: Glass Calendar UI - Modern Design */}
-              <div data-tour-id="academic-calendar" className="lg:col-span-5 flex flex-col p-4" style={{ perspective: '1000px' }}>
-                {/* Calendar Heading - Centered */}
-                <div className="mb-4 text-center">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-2">
-                    <Calendar className="w-6 h-6 text-blue-600" />
-                    Academic Activities Calendar
-                  </h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Stay updated with university events & schedules</p>
+          {/* Fees */}
+          <BentoItem span={1} spanMobile={1}>
+            <div data-tour-id="fees-card">
+              <MetricCard label="Fees Cleared" value="₹0" icon={DollarSign} />
                 </div>
-                <div className="relative w-full max-w-lg mx-auto flex-1" style={{ height: '540px' }}>
-                  {/* Large animated gradient blobs - SGT theme colors with enhanced floating animations */}
-                  <div 
-                    className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full opacity-30" 
-                    style={{ 
-                      animation: 'floatDiagonal 10s ease-in-out infinite, pulseGlow 6s ease-in-out infinite',
-                      animationDelay: '0s',
-                      filter: 'blur(50px)'
-                    }}
-                  ></div>
-                  <div 
-                    className="absolute bottom-0 left-0 w-56 h-56 bg-gradient-to-tr from-cyan-400 via-blue-400 to-purple-400 rounded-full opacity-30" 
-                    style={{ 
-                      animation: 'floatCircular 12s ease-in-out infinite, pulseGlow 7s ease-in-out infinite',
-                      animationDelay: '1s',
-                      filter: 'blur(45px)'
-                    }}
-                  ></div>
-                  <div 
-                    className="absolute top-1/3 left-1/4 w-48 h-48 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full opacity-20" 
-                    style={{ 
-                      animation: 'floatWave 14s ease-in-out infinite, rotate 25s linear infinite, pulseGlow 8s ease-in-out infinite',
-                      animationDelay: '2s',
-                      filter: 'blur(40px)'
-                    }}
-                  ></div>
-                  <div 
-                    className="absolute top-10 left-10 w-40 h-40 bg-gradient-to-br from-pink-400 to-rose-500 rounded-full opacity-25" 
-                    style={{ 
-                      animation: 'bounce 11s ease-in-out infinite, scale 8s ease-in-out infinite',
-                      animationDelay: '0.5s',
-                      filter: 'blur(42px)'
-                    }}
-                  ></div>
-                  <div 
-                    className="absolute bottom-20 right-20 w-52 h-52 bg-gradient-to-tr from-indigo-400 via-purple-500 to-pink-400 rounded-full opacity-25" 
-                    style={{ 
-                      animation: 'floatCircular 13s ease-in-out infinite reverse, rotate 30s linear infinite reverse',
-                      animationDelay: '1.5s',
-                      filter: 'blur(48px)'
-                    }}
-                  ></div>
-                  <div 
-                    className="absolute top-1/2 right-10 w-44 h-44 bg-gradient-to-br from-blue-400 via-cyan-400 to-teal-400 rounded-full opacity-20" 
-                    style={{ 
-                      animation: 'floatDiagonal 15s ease-in-out infinite reverse, pulseGlow 9s ease-in-out infinite',
-                      animationDelay: '3s',
-                      filter: 'blur(45px)'
-                    }}
-                  ></div>
-                  <div 
-                    className="absolute bottom-1/3 left-1/3 w-36 h-36 bg-gradient-to-tr from-violet-400 to-purple-500 rounded-full opacity-22" 
-                    style={{ 
-                      animation: 'floatWave 16s ease-in-out infinite reverse, scale 10s ease-in-out infinite',
-                      animationDelay: '2.5s',
-                      filter: 'blur(38px)'
-                    }}
-                  ></div>
-                  
-                  {/* Main Glass Calendar Card */}
-                  <div 
-                    className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col"
-                    style={{
-                      border: '2px solid rgba(15, 37, 115, 0.5)',
-                      animation: 'borderGlow 3s ease-in-out infinite'
-                    }}
-                  >
-                    {/* Header with month navigation */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-white/50 to-blue-50/50 dark:from-gray-800/50 dark:to-blue-900/20">
+          </BentoItem>
+
+          {/* Academic Calendar */}
+          <BentoItem span={3} spanMobile={2}>
+            <Panel
+              data-tour-id="academic-calendar"
+              title="Academic Activities Calendar"
+              subtitle="Stay updated with university events & schedules"
+              icon={<Calendar className="w-4 h-4" />}
+              className="h-full"
+            >
+              <div className="flex items-center justify-between px-1 py-2">
                       <button
                         onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1))}
-                        className="p-2 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 rounded-lg transition-all duration-200 hover:scale-110"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                       >
-                        <ChevronLeft className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <ChevronLeft className="w-4 h-4 text-wine dark:text-amber-400" />
                       </button>
-                      <div className="text-center flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                           {selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                         </h3>
-                      </div>
                       <button
                         onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1))}
-                        className="p-2 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 rounded-lg transition-all duration-200 hover:scale-110"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                       >
-                        <ChevronRight className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <ChevronRight className="w-4 h-4 text-wine dark:text-amber-400" />
                       </button>
                     </div>
 
-                    {/* Calendar Content - No Scrolling */}
-                    <div className="flex-1 px-5 py-4 flex flex-col">
                       {/* Day Headers */}
                       <div className="grid grid-cols-7 gap-1.5 mb-2">
                         {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, idx) => (
                           <div key={idx} className="text-center">
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">{day}</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">{day}</span>
                           </div>
                         ))}
                       </div>
 
                       {/* Calendar Days Grid */}
-                      <div className="grid grid-cols-7 gap-1.5 flex-1">
+              <div className="grid grid-cols-7 gap-1.5">
                         {(() => {
                           const year = selectedMonth.getFullYear();
                           const month = selectedMonth.getMonth();
@@ -3991,7 +3626,6 @@ export default function StudentDashboard() {
                           // Current month days
                           for (let day = 1; day <= daysInMonth; day++) {
                             const currentDate = new Date(year, month, day);
-                            // Use local date formatting to avoid timezone issues
                             const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                             const dayEvents = allCalendarEvents.filter(e => e.date ===
    dateString);
@@ -4004,36 +3638,20 @@ export default function StudentDashboard() {
                             const hasEvents = filteredEvents.length > 0;
                             const eventType = hasEvents ? filteredEvents[0].type : null;
                             
-                            let bgColor = '';
-                            let bgGradient = '';
-                            let ringColor = '';
-                            
-                            if (eventType ===
-   'holiday') {
-                              bgGradient = 'from-red-400 to-pink-500';
-                              ringColor = 'ring-red-400/50';
-                            } else if (eventType ===
-   'exam') {
-                              bgGradient = 'from-orange-400 to-amber-500';
-                              ringColor = 'ring-orange-400/50';
-                            } else if (eventType ===
-   'event') {
-                              bgGradient = 'from-purple-400 to-violet-500';
-                              ringColor = 'ring-purple-400/50';
-                            } else if (eventType ===
-   'crucial') {
-                              bgGradient = 'from-blue-400 to-cyan-500';
-                              ringColor = 'ring-blue-400/50';
-                            }
+                    let dotColor = 'bg-wine';
+                    if (eventType === 'holiday') dotColor = 'bg-red-500';
+                    else if (eventType === 'exam') dotColor = 'bg-amber-500';
+                    else if (eventType === 'event') dotColor = 'bg-wine';
+                    else if (eventType === 'crucial') dotColor = 'bg-charcoal';
 
                             days.push(
                               <button
                                 key={day}
                                 onClick={() => hasEvents ? setSelectedDate(currentDate) : null}
-                                className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold transition-all duration-300 mx-auto ${
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all mx-auto ${
                                   hasEvents
-                                    ? `bg-gradient-to-br ${bgGradient} text-white shadow-lg hover:shadow-xl hover:scale-110 cursor-pointer ring-2 ${ringColor}`
-                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:scale-105'
+                            ? `${dotColor} text-white hover:opacity-90 cursor-pointer`
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                 }`}
                               >
                                 {day}
@@ -4057,22 +3675,22 @@ export default function StudentDashboard() {
                       </div>
 
                       {/* Filter Pills */}
-                      <div className="flex gap-2 mt-3 flex-wrap justify-center">
-                        {[
-                          { key: 'all', label: 'All', color: 'from-gray-500 to-gray-600', bgColor: 'bg-gray-100 dark:bg-gray-700', textColor: 'text-gray-700 dark:text-gray-300' },
-                          { key: 'holiday', label: 'Holidays', color: 'from-red-400 to-pink-500', bgColor: 'bg-red-50 dark:bg-red-900/30', textColor: 'text-red-600 dark:text-red-400' },
-                          { key: 'exam', label: 'Exams', color: 'from-orange-400 to-amber-500', bgColor: 'bg-orange-50 dark:bg-orange-900/30', textColor: 'text-orange-600 dark:text-orange-400' },
-                          { key: 'event', label: 'Events', color: 'from-purple-400 to-violet-500', bgColor: 'bg-purple-50 dark:bg-purple-900/30', textColor: 'text-purple-600 dark:text-purple-400' },
-                          { key: 'crucial', label: 'Important', color: 'from-blue-400 to-cyan-500', bgColor: 'bg-blue-50 dark:bg-blue-900/30', textColor: 'text-blue-600 dark:text-blue-400' }
+              <div className="flex gap-1.5 mt-3 flex-wrap">
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'holiday', label: 'Holidays' },
+                  { key: 'exam', label: 'Exams' },
+                  { key: 'event', label: 'Events' },
+                  { key: 'crucial', label: 'Important' },
                         ].map((filter) => (
                           <button
                             key={filter.key}
                             onClick={() => setCalendarFilter(filter.key as any)}
-                            className={`px-3 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 ${
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
                               calendarFilter ===
    filter.key
-                                ? `bg-gradient-to-r ${filter.color} text-white shadow-lg scale-105 ring-2 ring-white/50`
-                                : `${filter.bgColor} ${filter.textColor} hover:scale-105 border border-current/20`
+                        ? 'bg-wine text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                           >
                             {filter.label}
@@ -4083,23 +3701,19 @@ export default function StudentDashboard() {
                       {/* View Timetable Button */}
                       {calendarFilter ===
    'exam' && (
-                        <div className="mt-2 text-center">
+                <div className="mt-3">
                           <button
                             onClick={() => setShowFullTimetable(true)}
-                            className="px-4 py-1.5 bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 text-white rounded-full text-xs font-semibold shadow-lg hover:shadow-xl transition-all duration-200 inline-flex items-center gap-2 hover:scale-105"
+                    className="px-3 py-1.5 bg-wine hover:bg-wine-dark text-white rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-2"
                           >
                             <CalendarDays className="w-3.5 h-3.5" />
                             View Exam Timetable
                           </button>
                         </div>
                       )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </FadeInUp>
+            </Panel>
+          </BentoItem>
+        </BentoGrid>
 
         {/* Event Details Modal */}
         {selectedDate && (() => {
@@ -4338,7 +3952,7 @@ export default function StudentDashboard() {
                             </div>
                           ) : (
                             <a
-                              href="https://sgt-event.vercel.app/student"
+                              href="https://ResearchSphere-event.vercel.app/student"
                               target="_blank"
                               rel="noopener noreferrer"
                               className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white py-3 rounded-xl font-semibold transition-all text-center flex items-center justify-center gap-2 text-sm"
@@ -4709,7 +4323,7 @@ export default function StudentDashboard() {
           </div>
         </FadeInUp>
 
-        {/* Know Your Authorities Section - Exact SGT University Style */}
+        {/* Know Your Authorities Section - Exact ResearchSphere Style */}
         <FadeInUp delay={0.6}>
           <div 
             data-tour-id="authorities-section"
@@ -4729,7 +4343,7 @@ export default function StudentDashboard() {
               </div>
             </div>
 
-            {/* Carousel Container - SGT Overlapping Style */}
+            {/* Carousel Container - ResearchSphere Overlapping Style */}
             <div className="relative h-[520px] flex items-center justify-center">
               {/* Navigation Arrow - Left */}
               <button
@@ -4772,7 +4386,7 @@ export default function StudentDashboard() {
                   const isAdjacent = Math.abs(position) ===
    1;
                   
-                  // Calculate overlapping positions like SGT website
+                  // Calculate overlapping positions like ResearchSphere website
                   const translateX = position * 180; // Cards overlap
                   const scale = isCenter ? 1 : isAdjacent ? 0.85 : 0.7;
                   const zIndex = isCenter ? 30 : isAdjacent ? 20 : 10;
@@ -4816,7 +4430,7 @@ export default function StudentDashboard() {
                           />
                         </div>
                         
-                        {/* Text Overlay at Bottom - SGT Style (for non-center cards) */}
+                        {/* Text Overlay at Bottom - ResearchSphere Style (for non-center cards) */}
                         {!isCenter && (
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-4 pt-12">
                             <h3 className="font-semibold text-base text-white text-center mb-1" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
@@ -4838,7 +4452,7 @@ export default function StudentDashboard() {
                               {authority.position}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-3">
-                              SGT University
+                              ResearchSphere
                             </p>
                             
                             {/* Contact Info */}
@@ -4886,8 +4500,8 @@ export default function StudentDashboard() {
           <div data-tour-id="guidelines-news" className="bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-2xl shadow-md p-6 border border-blue-100 dark:border-gray-700">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Guidelines & Policies </h2>
                 
-                {/* Guidelines Cards - Single Row with 6 Columns */}
-                <div className="grid grid-cols-6 gap-3 mb-6">
+                {/* Guidelines Cards - Responsive: 2 cols mobile, 3 tablet, 6 desktop */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
                   {guidelinesData.map((guideline) => {
                     const IconComponent = guideline.icon;
                     return (
@@ -4936,15 +4550,15 @@ export default function StudentDashboard() {
                   })}
                 </div>
 
-                {/* SGT Times Section with Categories */}
+                {/* ResearchSphere Times Section with Categories */}
                 <div className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/90 rounded-2xl p-6 border-2 border-blue-100 dark:border-gray-600 shadow-xl">
                   {/* Header */}
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <img 
-                          src="https://sgttimes.com/wp-content/uploads/2023/08/cropped-SGT-Times-Logo-1-192x192.png"
-                          alt="SGT Times"
+                          src="https://#/wp-content/uploads/2023/08/cropped-ResearchSphere-Times-Logo-1-192x192.png"
+                          alt="ResearchSphere Times"
                           className="w-12 h-12 rounded-xl object-contain shadow-md"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
@@ -4961,12 +4575,12 @@ export default function StudentDashboard() {
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></div>
                       </div>
                       <div>
-                        <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">SGT Times</h3>
+                        <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">ResearchSphere Times</h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Latest University News & Updates</p>
                       </div>
                     </div>
                     <a
-                      href="https://sgttimes.com"
+                      href="https://#"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
@@ -4978,13 +4592,13 @@ export default function StudentDashboard() {
 
                   {/* Category Tabs */}
                   <div className="flex flex-wrap gap-2 mb-5 pb-4 border-b border-gray-200 dark:border-gray-700">
-                    {sgtTimesCategories.map((category) => (
+                    {ResearchSphereTimesCategories.map((category) => (
                       <button
                         key={category.name}
-                        onClick={() => setActiveSgtTimesTab(category.name)}
+                        onClick={() => setActiveResearchSphereTimesTab(category.name)}
                         className={`
                           px-4 py-2 rounded-lg text-sm font-medium transition-all
-                          ${activeSgtTimesTab ===
+                          ${activeResearchSphereTimesTab ===
    category.name
                             ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 scale-105'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -4994,7 +4608,7 @@ export default function StudentDashboard() {
                         {category.name}
                         <span className={`
                           ml-2 px-2 py-0.5 rounded-full text-xs font-bold
-                          ${activeSgtTimesTab ===
+                          ${activeResearchSphereTimesTab ===
    category.name
                             ? 'bg-white/20 text-white'
                             : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
@@ -5011,7 +4625,7 @@ export default function StudentDashboard() {
                     scrollbarWidth: 'thin',
                     scrollbarColor: '#60a5fa #f1f5f9'
                   }}>
-                    {sgtTimesData[activeSgtTimesTab]?.map((article) => (
+                    {ResearchSphereTimesData[activeResearchSphereTimesTab]?.map((article) => (
                       <a
                         key={article.id}
                         href={article.url}
@@ -5068,12 +4682,7 @@ export default function StudentDashboard() {
               </div>
             </FadeInUp>
 
-            {/* Social Footprints Section */}
-            <FadeInUp delay={0.9}>
-              <div data-tour-id="social-footprints">
-                <SocialFootprints />
-              </div>
-            </FadeInUp>
+
           </div>
 
           {/* Virtual Tour Component */}

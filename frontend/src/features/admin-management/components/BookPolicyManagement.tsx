@@ -72,7 +72,7 @@ export default function BookPolicyManagement() {
     splitPolicy: string;
     scopusIndexedBonus: string;
     nonIndexedBonus: string;
-    sgtPublicationHouseBonus: string;
+    ResearchSpherePublicationHouseBonus: string;
     internationalBonus: string;
     effectiveFrom: string;
     effectiveTo: string;
@@ -86,7 +86,7 @@ export default function BookPolicyManagement() {
     splitPolicy: 'equal',
     scopusIndexedBonus: '10000',
     nonIndexedBonus: '0',
-    sgtPublicationHouseBonus: '2000',
+    ResearchSpherePublicationHouseBonus: '2000',
     internationalBonus: '5000',
     effectiveFrom: new Date().toISOString().split('T')[0],
     effectiveTo: '',
@@ -121,7 +121,7 @@ export default function BookPolicyManagement() {
         splitPolicy: policy.splitPolicy,
         scopusIndexedBonus: policy.indexingBonuses.scopus_indexed?.toString() || '0',
         nonIndexedBonus: policy.indexingBonuses.non_indexed?.toString() || '0',
-        sgtPublicationHouseBonus: policy.indexingBonuses.sgt_publication_house?.toString() || '0',
+        ResearchSpherePublicationHouseBonus: policy.indexingBonuses.sgt_publication_house?.toString() || '0',
         internationalBonus: policy.internationalBonus.toString(),
         effectiveFrom: policy.effectiveFrom ? new Date(policy.effectiveFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         effectiveTo: policy.effectiveTo ? new Date(policy.effectiveTo).toISOString().split('T')[0] : '',
@@ -138,7 +138,7 @@ export default function BookPolicyManagement() {
         splitPolicy: 'equal',
         scopusIndexedBonus: '10000',
         nonIndexedBonus: '0',
-        sgtPublicationHouseBonus: '2000',
+        ResearchSpherePublicationHouseBonus: '2000',
         internationalBonus: '5000',
         effectiveFrom: new Date().toISOString().split('T')[0],
         effectiveTo: '',
@@ -175,7 +175,7 @@ export default function BookPolicyManagement() {
         indexingBonuses: {
           scopus_indexed: parseFloat(formData.scopusIndexedBonus),
           non_indexed: parseFloat(formData.nonIndexedBonus),
-          sgt_publication_house: parseFloat(formData.sgtPublicationHouseBonus),
+          sgt_publication_house: parseFloat(formData.ResearchSpherePublicationHouseBonus),
         },
         internationalBonus: parseFloat(formData.internationalBonus),
         effectiveFrom: formData.effectiveFrom,
@@ -345,7 +345,7 @@ export default function BookPolicyManagement() {
                           <span className="font-medium">₹{policy.indexingBonuses.scopus_indexed.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">SGT Publication:</span>
+                          <span className="text-gray-600">ResearchSphere Publication:</span>
                           <span className="font-medium">₹{policy.indexingBonuses.sgt_publication_house.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
@@ -570,12 +570,12 @@ export default function BookPolicyManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      SGT Publication House (₹)
+                      ResearchSphere Publication House (₹)
                     </label>
                     <input
                       type="number"
-                      value={formData.sgtPublicationHouseBonus}
-                      onChange={(e) => setFormData({ ...formData, sgtPublicationHouseBonus: e.target.value })}
+                      value={formData.ResearchSpherePublicationHouseBonus}
+                      onChange={(e) => setFormData({ ...formData, ResearchSpherePublicationHouseBonus: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       min="0"
                       step="1000"

@@ -22,17 +22,17 @@ import logger from '@/shared/utils/logger';
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string }> = {
   draft: { label: 'Draft', icon: FileText, color: 'text-gray-600', bgColor: 'bg-gray-100' },
-  submitted: { label: 'Submitted', icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  submitted: { label: 'Submitted', icon: Clock, color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]' },
   under_review: { label: 'Under Review', icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
   changes_required: { label: 'Changes Required', icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  resubmitted: { label: 'Resubmitted', icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  resubmitted: { label: 'Resubmitted', icon: Clock, color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]' },
   approved: { label: 'Approved', icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100' },
   rejected: { label: 'Rejected', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-100' },
   completed: { label: 'Completed', icon: CheckCircle, color: 'text-indigo-600', bgColor: 'bg-indigo-100' },
 };
 
 const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; icon: React.ElementType; color: string }> = {
-  research_paper: { label: 'Research Paper', icon: FileText, color: 'bg-blue-500' },
+  research_paper: { label: 'Research Paper', icon: FileText, color: 'bg-[#7d1a34]' },
   book: { label: 'Book', icon: BookOpen, color: 'bg-green-500' },
   book_chapter: { label: 'Book Chapter', icon: BookOpen, color: 'bg-green-400' },
   conference_paper: { label: 'Conference Paper', icon: Presentation, color: 'bg-purple-500' },
@@ -124,8 +124,8 @@ export default function ContributedResearchPage() {
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
+              <Users className="w-6 h-6 text-[#7d1a34]" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Co-authored Research</h1>
@@ -141,7 +141,7 @@ export default function ContributedResearchPage() {
           <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <span className="text-gray-500 dark:text-gray-400 text-sm">Total Co-authored</span>
-              <Users className="w-5 h-5 text-blue-500" />
+              <Users className="w-5 h-5 text-[#7d1a34]" />
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
           </div>
@@ -177,7 +177,7 @@ export default function ContributedResearchPage() {
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7d1a34]"></div>
               </div>
             ) : contributions.length ===
    0 ? (
@@ -212,7 +212,7 @@ export default function ContributedResearchPage() {
                           <div className="flex items-center space-x-2">
                             <h3 className="font-medium text-gray-900 dark:text-white truncate">{contribution.title}</h3>
                             {userRole && (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex-shrink-0">
+                              <span className="px-2 py-0.5 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded-full flex-shrink-0">
                                 {userRole}
                               </span>
                             )}

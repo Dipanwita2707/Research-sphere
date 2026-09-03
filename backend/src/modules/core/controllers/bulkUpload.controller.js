@@ -523,6 +523,9 @@ exports.getEmployeeTemplate = async (req, res) => {
       'designation',
       'userType*',
       'password',
+      'scopusAuthorId',
+      'orcid',
+      'pubmedId',
     ];
 
     const sampleRows = [[
@@ -536,6 +539,9 @@ exports.getEmployeeTemplate = async (req, res) => {
       'Assistant Professor',
       'faculty',
       'Welcome@123',
+      '57205678901',           // scopusAuthorId (optional)
+      '0000-0002-1825-0097',   // orcid (optional)
+      '',                      // pubmedId (optional)
     ]];
 
     sendExcelTemplate(res, headers, sampleRows, 'employees_template.xlsx', 'Employees');
@@ -1347,6 +1353,8 @@ exports.bulkUploadEmployees = async (req, res) => {
               passwordHash: hashedPassword,
               role: role,
               status: 'active',
+              // Tenant binding — required by protect() for non-superadmin users
+              universityId: req.tenantId || req.user?.universityId || null,
             },
           });
 
@@ -1367,7 +1375,33 @@ exports.bulkUploadEmployees = async (req, res) => {
             },
           });
 
-          return { user, employee };
+          // Upsert researcher IDs if any are provided in the row
+          const scopusAuthorId = (row.scopusAuthorId || '').trim() || null;
+          const orcid = (row.orcid || '').trim() || null;
+          const pubmedId = (row.pubmedId || '').trim() || null;
+
+          if (scopusAuthorId || orcid || pubmedId) {
+            // Validate ORCID format if provided
+            if (orcid && !/^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(orcid)) {
+              throw Object.assign(
+                new Error(`Invalid ORCID format '${orcid}' — must be XXXX-XXXX-XXXX-XXXX`),
+                { statusCode: 400 }
+              );
+            }
+            await tx.researchProfileIdentity.upsert({
+              where: { userId: user.id },
+              create: {
+                userId: user.id,
+                scopusAuthorId,
+                orcid,
+                pubmedId,
+                syncFrequencyDays: 1,
+              },
+              update: { scopusAuthorId, orcid, pubmedId },
+            });
+          }
+
+          return { user, employee, scopusAuthorId, orcid, pubmedId };
         });
 
         results.success.push({
@@ -1377,6 +1411,9 @@ exports.bulkUploadEmployees = async (req, res) => {
             name: `${row.firstName} ${row.lastName || ''}`.trim(),
             email: row.email,
             userType: row.userType,
+            scopusAuthorId: result.scopusAuthorId || null,
+            orcid: result.orcid || null,
+            pubmedId: result.pubmedId || null,
           },
         });
       } catch (error) {
@@ -1542,6 +1579,8 @@ exports.bulkUploadStudents = async (req, res) => {
               passwordHash: hashedPassword,
               role: 'student',
               status: 'active',
+              // Tenant binding — required by protect() for non-superadmin users
+              universityId: req.tenantId || req.user?.universityId || null,
             },
           });
 

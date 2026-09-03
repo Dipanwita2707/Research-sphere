@@ -9,11 +9,17 @@ exports.getAllUsers = async (req, res) => {
   try {
     const { role, search } = req.query;
 
+    const tenantId = req.tenantId || null;
+
     const where = {
       role: {
         in: ['faculty', 'staff', 'admin']
       }
     };
+
+    if (tenantId) {
+      where.universityId = tenantId;
+    }
 
     if (role && role !== 'all') {
       where.role = role;
@@ -96,7 +102,6 @@ exports.getUserById = async (req, res) => {
       where: { id: userId },
       include: {
         employeeDetails: true,
-        userDepartmentPermissions: true
       }
     });
 
@@ -104,6 +109,14 @@ exports.getUserById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'User not found'
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && user.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: User does not belong to your university.'
       });
     }
 
@@ -155,6 +168,8 @@ exports.searchUsersByPartialUid = async (req, res) => {
           userLoginId: { not: null }, // Only students with login (can be volunteers)
           // Exclude current user if they are a student
           ...(currentUserId ? { userLoginId: { not: currentUserId } } : {}),
+          // Tenant isolation
+          ...(req.tenantId ? { userLogin: { universityId: req.tenantId } } : {}),
         },
         take: 10,
         include: {
@@ -193,6 +208,8 @@ exports.searchUsersByPartialUid = async (req, res) => {
       },
       // Exclude current user from results
       ...(currentUserId ? { id: { not: currentUserId } } : {}),
+      // Tenant isolation
+      ...(req.tenantId ? { universityId: req.tenantId } : {}),
     };
 
     // Filter by role if specified (for mentor search - only faculty)
@@ -264,9 +281,12 @@ exports.searchUserByUid = async (req, res) => {
       });
     }
 
+    const tenantId = req.tenantId || null;
+
     const user = await prisma.userLogin.findFirst({
       where: {
-        uid: uid
+        uid: uid,
+        ...(tenantId ? { universityId: tenantId } : {})
       },
       include: {
         employeeDetails: {
@@ -366,6 +386,7 @@ exports.getUserPermissions = async (req, res) => {
         id: true,
         uid: true,
         role: true,
+        universityId: true,
         centralDeptPermissions: {
           where: { isActive: true },
           select: {
@@ -387,6 +408,14 @@ exports.getUserPermissions = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'User not found'
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && user.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: User does not belong to your university.'
       });
     }
 
@@ -430,6 +459,7 @@ exports.getUserIprPermissions = async (req, res) => {
         id: true,
         uid: true,
         role: true,
+        universityId: true,
         centralDeptPermissions: {
           where: { isActive: true },
           select: {
@@ -451,6 +481,14 @@ exports.getUserIprPermissions = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'User not found'
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && user.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: User does not belong to your university.'
       });
     }
 
@@ -497,6 +535,32 @@ exports.updateUserIprPermissions = async (req, res) => {
       });
     }
 
+    const targetUser = await prisma.userLogin.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        universityId: true,
+        employeeDetails: { select: { displayName: true } }
+      }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && targetUser.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: User does not belong to your university.'
+      });
+    }
+
     // Find or create central department permission record
     let deptPermission = await prisma.centralDepartmentPermission.findFirst({
       where: {
@@ -521,7 +585,8 @@ exports.updateUserIprPermissions = async (req, res) => {
       });
     } else {
       // Need a central department to assign permissions
-      // Find DRD department flexibly
+      // Find DRD department flexibly, restricted to current tenant if present
+      const tenantId = req.tenantId || null;
       let drdDept = await prisma.centralDepartment.findFirst({
         where: {
           OR: [
@@ -532,6 +597,7 @@ exports.updateUserIprPermissions = async (req, res) => {
             { departmentName: { contains: 'Development', mode: 'insensitive' } },
             { departmentName: { contains: 'Research', mode: 'insensitive' } },
           ],
+          ...(tenantId ? { universityId: tenantId } : {})
         },
       });
 
@@ -555,14 +621,6 @@ exports.updateUserIprPermissions = async (req, res) => {
     }
 
     // === COMPREHENSIVE AUDIT LOGGING ===
-    const targetUser = await prisma.userLogin.findUnique({
-      where: { id: userId },
-      select: {
-        uid: true,
-        email: true,
-        employeeDetails: { select: { displayName: true } }
-      }
-    });
 
     await logPermissionChange(
       targetUser,

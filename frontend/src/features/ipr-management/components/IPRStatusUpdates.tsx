@@ -45,17 +45,17 @@ const UPDATE_TYPE_CONFIG = {
   general: {
     icon: Info,
     label: 'General Update',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-    textColor: 'text-blue-800',
-    iconColor: 'text-blue-600',
-    iconBg: 'bg-blue-100',
+    bgColor: 'bg-[#fdf5ec]',
+    borderColor: 'border-[#f0e2d2]',
+    textColor: 'text-[#7d1a34]',
+    iconColor: 'text-[#7d1a34]',
+    iconBg: 'bg-[#fbe2e8]',
   },
 };
 
 const PRIORITY_CONFIG = {
   low: { label: 'Low', className: 'bg-gray-100 text-gray-700 border border-gray-300' },
-  medium: { label: 'Medium', className: 'bg-blue-100 text-blue-700 border border-blue-300' },
+  medium: { label: 'Medium', className: 'bg-[#fbe2e8] text-[#7d1a34] border border-[#f0e2d2]' },
   high: { label: 'High', className: 'bg-orange-100 text-orange-700 border border-orange-300' },
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 border border-red-300' },
 };
@@ -182,7 +182,7 @@ export default function IPRStatusUpdates({ applicationId, isDRD = false, timelin
               <div key={update.id} className="relative">
                 {/* Timeline connector line */}
                 {index < updates.length - 1 && (
-                  <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-blue-200"></div>
+                  <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-[#fbe8d6]"></div>
                 )}
                 
                 <div className="flex gap-3">
@@ -328,7 +328,7 @@ export default function IPRStatusUpdates({ applicationId, isDRD = false, timelin
 
       {/* Updates Timeline */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-[#fdf5ec]">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2">
             <Bell className="w-5 h-5 text-purple-600" />
             Update History ({updates.length})

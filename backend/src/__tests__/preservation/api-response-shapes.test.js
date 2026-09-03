@@ -252,6 +252,7 @@ describe('Preservation: IPR API response shapes', () => {
   describe('getMyIprApplications', () => {
     test('success response has { success: true, data, grouped, stats } shape', async () => {
       prisma.iprApplication.findMany.mockResolvedValue([SAMPLE_IPR_APPLICATION]);
+      prisma.iprApplication.groupBy.mockResolvedValue([]);
 
       const req = makeReq({ query: {} });
       const res = makeRes();

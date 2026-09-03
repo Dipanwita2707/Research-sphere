@@ -180,7 +180,7 @@ export default function CollaborativeEditor({
           {hasAnySuggestions && (
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}
-              className="text-blue-600 hover:text-blue-800 text-xs"
+              className="text-[#7d1a34] hover:text-[#7d1a34] text-xs"
             >
               <Eye className="w-4 h-4" />
             </button>
@@ -192,7 +192,7 @@ export default function CollaborativeEditor({
           <div className="flex gap-2">
             <button
               onClick={() => setShowSuggestionForm(!showSuggestionForm)}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 text-sm"
+              className="inline-flex items-center gap-1 px-3 py-1 bg-[#fdf5ec] text-[#7d1a34] rounded-md hover:bg-[#fbe2e8] text-sm"
             >
               <Edit3 className="w-4 h-4" />
               Suggest Edit
@@ -212,7 +212,7 @@ export default function CollaborativeEditor({
               onChange?.(e.target.value);
             }}
             disabled={disabled}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] ${
               hasPendingSuggestions ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
             } ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}`}
           >
@@ -233,7 +233,7 @@ export default function CollaborativeEditor({
             placeholder={placeholder}
             disabled={disabled}
             rows={4}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical ${
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] resize-vertical ${
               hasPendingSuggestions ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
             } ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}`}
           />
@@ -247,7 +247,7 @@ export default function CollaborativeEditor({
             }}
             placeholder={placeholder}
             disabled={disabled}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] ${
               hasPendingSuggestions ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
             } ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}`}
           />
@@ -262,7 +262,7 @@ export default function CollaborativeEditor({
 
       {/* Suggestion Form (Reviewer) */}
       {showSuggestionForm && isReviewer && (
-        <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+        <div className="border border-[#f0e2d2] rounded-lg p-4 bg-[#fdf5ec]">
           <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
             <Edit3 className="w-4 h-4" />
             Suggest Edit for "{label}"
@@ -278,7 +278,7 @@ export default function CollaborativeEditor({
                 <select
                   value={suggestedValue}
                   onChange={(e) => setSuggestedValue(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] text-sm"
                 >
                   <option value="">Select suggested {label.toLowerCase()}</option>
                   {enumOptions.map(opt => (
@@ -293,7 +293,7 @@ export default function CollaborativeEditor({
                   onChange={(e) => setSuggestedValue(e.target.value)}
                   placeholder="Enter your suggested changes..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] text-sm"
                 />
               ) : (
                 <input
@@ -301,7 +301,7 @@ export default function CollaborativeEditor({
                   value={suggestedValue}
                   onChange={(e) => setSuggestedValue(e.target.value)}
                   placeholder="Enter your suggested changes..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] text-sm"
                 />
               )}
             </div>
@@ -315,7 +315,7 @@ export default function CollaborativeEditor({
                 onChange={(e) => setSuggestionNote(e.target.value)}
                 placeholder="Explain why you suggest this change..."
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] text-sm"
               />
             </div>
 
@@ -330,7 +330,7 @@ export default function CollaborativeEditor({
               <button
                 onClick={handleCreateSuggestion}
                 disabled={loading || !suggestedValue.trim()}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                className="px-3 py-1 text-sm bg-[#7d1a34] text-white rounded hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-1"
               >
                 {loading ? <Clock className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                 {loading ? 'Creating...' : 'Create Suggestion'}

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '@/shared/auth/authStore';
@@ -241,7 +241,7 @@ export default function DrdIprDashboard() {
     const colors: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-700 ring-gray-200',
       pending_mentor_approval: 'bg-orange-50 text-orange-700 ring-orange-200',
-      submitted: 'bg-sgt-50 text-sgt-700 ring-sgt-200',
+      submitted: 'bg-ResearchSphere-50 text-ResearchSphere-700 ring-ResearchSphere-200',
       under_drd_review: 'bg-amber-50 text-amber-700 ring-amber-200',
       changes_required: 'bg-orange-50 text-orange-700 ring-orange-200',
       resubmitted: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
@@ -252,7 +252,7 @@ export default function DrdIprDashboard() {
       dean_rejected: 'bg-red-50 text-red-700 ring-red-200',
       recommended_to_head: 'bg-teal-50 text-teal-700 ring-teal-200',
       drd_head_approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      submitted_to_govt: 'bg-blue-50 text-blue-700 ring-blue-200',
+      submitted_to_govt: 'bg-[#fdf5ec] text-[#7d1a34] ring-blue-200',
       govt_application_filed: 'bg-cyan-50 text-cyan-700 ring-cyan-200',
       published: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
       // Kept for backward compatibility
@@ -273,7 +273,7 @@ export default function DrdIprDashboard() {
   const getWorkflowStage = (status: string) => {
     const stages: Record<string, { stage: string; description: string; color: string }> = {
       draft: { stage: 'Draft', description: 'Application being prepared', color: 'text-gray-600' },
-      submitted: { stage: 'DRD Review Queue', description: 'Waiting for DRD team member review', color: 'text-blue-600' },
+      submitted: { stage: 'DRD Review Queue', description: 'Waiting for DRD team member review', color: 'text-[#7d1a34]' },
       under_drd_review: { stage: 'DRD Review', description: 'Under review by DRD team member', color: 'text-yellow-600' },
       changes_required: { stage: 'Changes Required', description: 'Applicant needs to make revisions', color: 'text-orange-600' },
       resubmitted: { stage: 'DRD Re-review', description: 'Revised application under review', color: 'text-indigo-600' },
@@ -282,7 +282,7 @@ export default function DrdIprDashboard() {
       under_dean_review: { stage: 'DRD Head Review', description: 'Under review by DRD Head', color: 'text-purple-600' },
       dean_approved: { stage: 'Govt Filing Queue', description: 'Approved by DRD Head, ready for government filing', color: 'text-emerald-600' },
       drd_head_approved: { stage: 'Govt Filing Queue', description: 'Approved by DRD Head, ready for government filing', color: 'text-emerald-600' },
-      submitted_to_govt: { stage: 'Submitted to Govt', description: 'Application submitted to government', color: 'text-blue-600' },
+      submitted_to_govt: { stage: 'Submitted to Govt', description: 'Application submitted to government', color: 'text-[#7d1a34]' },
       govt_application_filed: { stage: 'Govt Filed', description: 'Government application filed successfully', color: 'text-cyan-600' },
       published: { stage: 'Published', description: 'IPR published - Incentives credited automatically', color: 'text-indigo-600' },
       // Kept for backward compatibility
@@ -348,7 +348,7 @@ export default function DrdIprDashboard() {
           <p className="text-gray-500 max-w-sm mx-auto mb-6">
             You don&apos;t have permission to view IPR applications dashboard.
           </p>
-          <Link href="/drd" className="inline-flex items-center px-5 py-3 bg-sgt-gradient text-white rounded-xl font-semibold hover:shadow-sgt transition-all">
+          <Link href="/drd" className="inline-flex items-center px-5 py-3 bg-ResearchSphere-gradient text-white rounded-xl font-semibold hover:shadow-ResearchSphere transition-all">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to DRD Dashboard
           </Link>
@@ -360,7 +360,7 @@ export default function DrdIprDashboard() {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-sgt-gradient rounded-3xl p-8 text-white shadow-sgt-xl">
+      <div className="relative overflow-hidden bg-ResearchSphere-gradient rounded-3xl p-8 text-white shadow-ResearchSphere-xl">
         {/* Background decorations */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white rounded-full -translate-y-1/2 translate-x-1/2"></div>
@@ -368,8 +368,8 @@ export default function DrdIprDashboard() {
         </div>
         
         {/* Floating elements */}
-        <div className="absolute top-8 right-16 w-3 h-3 bg-sgt-50 rounded-full animate-float opacity-60"></div>
-        <div className="absolute bottom-16 right-32 w-2 h-2 bg-sgt-100 rounded-full animate-float opacity-40" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-8 right-16 w-3 h-3 bg-ResearchSphere-50 rounded-full animate-float opacity-60"></div>
+        <div className="absolute bottom-16 right-32 w-2 h-2 bg-ResearchSphere-100 rounded-full animate-float opacity-40" style={{animationDelay: '0.5s'}}></div>
         
         <div className="relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -379,7 +379,7 @@ export default function DrdIprDashboard() {
               </div>
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold">IPR Applications Management</h1>
-                <p className="text-sgt-100 text-lg mt-1">Manage and review intellectual property applications</p>
+                <p className="text-ResearchSphere-100 text-lg mt-1">Manage and review intellectual property applications</p>
               </div>
             </div>
             
@@ -387,7 +387,7 @@ export default function DrdIprDashboard() {
               {canFile && (
                 <Link
                   href="/ipr/apply"
-                  className="flex items-center gap-2 px-5 py-3 bg-white text-sgt-700 hover:bg-sgt-50 rounded-xl transition-all duration-200 font-semibold shadow-lg"
+                  className="flex items-center gap-2 px-5 py-3 bg-white text-ResearchSphere-700 hover:bg-ResearchSphere-50 rounded-xl transition-all duration-200 font-semibold shadow-lg"
                 >
                   <Plus className="w-5 h-5" />
                   <span>File New IPR</span>
@@ -411,14 +411,14 @@ export default function DrdIprDashboard() {
         {canFile && (
           <Link
             href="/ipr/apply"
-            className="group p-5 bg-gradient-to-br from-sgt-50 to-white rounded-2xl border border-sgt-100 hover:border-sgt-300 hover:shadow-sgt transition-all duration-300 card-hover"
+            className="group p-5 bg-gradient-to-br from-ResearchSphere-50 to-white rounded-2xl border border-ResearchSphere-100 hover:border-ResearchSphere-300 hover:shadow-ResearchSphere transition-all duration-300 card-hover"
           >
-            <div className="w-12 h-12 bg-sgt-gradient rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 bg-ResearchSphere-gradient rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <Plus className="w-6 h-6 text-white" />
             </div>
             <h3 className="font-bold text-gray-900 mb-1">File New IPR</h3>
             <p className="text-sm text-gray-500">Submit new applications</p>
-            <ChevronRight className="w-5 h-5 text-sgt-400 mt-3 group-hover:translate-x-1 transition-transform" />
+            <ChevronRight className="w-5 h-5 text-ResearchSphere-400 mt-3 group-hover:translate-x-1 transition-transform" />
           </Link>
         )}
 
@@ -594,9 +594,9 @@ export default function DrdIprDashboard() {
 
       {/* Advanced Workflow Controls */}
       {(canReview || canApprove || canSystemAdmin) && (
-        <div className="bg-gradient-to-br from-gray-50 to-sgt-50/30 rounded-2xl p-6 border border-gray-200">
+        <div className="bg-gradient-to-br from-gray-50 to-ResearchSphere-50/30 rounded-2xl p-6 border border-gray-200">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-            <Shield className="w-5 h-5 mr-2 text-sgt-600" />
+            <Shield className="w-5 h-5 mr-2 text-ResearchSphere-600" />
             Advanced Workflow Controls
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -643,13 +643,13 @@ export default function DrdIprDashboard() {
       )}
 
       {/* Tabs & Filters */}
-      <div className="bg-white rounded-2xl shadow-sgt border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-ResearchSphere border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
               {[
-                { key: 'all', label: 'All', count: applications.length, color: 'sgt' },
+                { key: 'all', label: 'All', count: applications.length, color: 'ResearchSphere' },
                 { key: 'pending_drd', label: 'DRD Queue', count: applications.filter(app => ['submitted', 'resubmitted'].includes(app.status)).length, color: 'amber' },
                 { key: 'changes_required', label: 'Changes', count: applications.filter(app => app.status ===
    'changes_required').length, color: 'orange' },
@@ -664,7 +664,7 @@ export default function DrdIprDashboard() {
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all duration-200 ${
                     activeTab ===
    tab.key
-                      ? 'bg-sgt-gradient text-white shadow-sgt'
+                      ? 'bg-ResearchSphere-gradient text-white shadow-ResearchSphere'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
@@ -690,11 +690,11 @@ export default function DrdIprDashboard() {
                 <input
                   type="text"
                   placeholder="Search applications..."
-                  className="pl-10 pr-4 py-2.5 w-64 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all text-sm"
+                  className="pl-10 pr-4 py-2.5 w-64 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400 transition-all text-sm"
                 />
               </div>
               
-              <select className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400">
+              <select className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400">
                 <option>All Types</option>
                 <option>Patent</option>
                 <option>Copyright</option>
@@ -709,9 +709,9 @@ export default function DrdIprDashboard() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-sgt-100 rounded-full animate-spin border-t-sgt-600"></div>
+                <div className="w-16 h-16 border-4 border-ResearchSphere-100 rounded-full animate-spin border-t-ResearchSphere-600"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-8 h-8 bg-sgt-gradient rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-ResearchSphere-gradient rounded-lg flex items-center justify-center">
                     <FileText className="w-4 h-4 text-white" />
                   </div>
                 </div>
@@ -736,7 +736,7 @@ export default function DrdIprDashboard() {
               <div key={app.id} className="p-6 hover:bg-gray-50/50 transition-all duration-200 group">
                 <div className="flex items-start gap-6">
                   {/* Icon */}
-                  <div className="w-14 h-14 bg-sgt-gradient rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sgt group-hover:scale-105 transition-transform">
+                  <div className="w-14 h-14 bg-ResearchSphere-gradient rounded-2xl flex items-center justify-center flex-shrink-0 shadow-ResearchSphere group-hover:scale-105 transition-transform">
                     <FileText className="w-7 h-7 text-white" />
                   </div>
                   
@@ -745,10 +745,10 @@ export default function DrdIprDashboard() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-3 flex-wrap mb-2">
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-sgt-600 transition-colors">
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-ResearchSphere-600 transition-colors">
                             {app.title}
                           </h3>
-                          <span className="px-2.5 py-1 bg-sgt-100 text-sgt-700 text-xs rounded-lg font-semibold uppercase">
+                          <span className="px-2.5 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 text-xs rounded-lg font-semibold uppercase">
                             {app.iprType}
                           </span>
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ring-1 ${getStatusColor(app.status)}`}>
@@ -805,7 +805,7 @@ export default function DrdIprDashboard() {
                     {/* View Details */}
                     <Link
                       href={`/ipr/applications/${app.id}`}
-                      className="p-2.5 bg-sgt-50 text-sgt-600 rounded-xl hover:bg-sgt-100 transition-colors"
+                      className="p-2.5 bg-ResearchSphere-50 text-ResearchSphere-600 rounded-xl hover:bg-ResearchSphere-100 transition-colors"
                       title="View Details"
                     >
                       <Eye className="w-4 h-4" />
@@ -876,7 +876,7 @@ export default function DrdIprDashboard() {
                       <>
                         <button
                           onClick={() => handleQuickAction(app, 'finance_approve')}
-                          className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                          className="p-2.5 bg-[#fdf5ec] text-[#7d1a34] rounded-xl hover:bg-[#fbe2e8] transition-colors"
                           title="Process Incentives"
                         >
                           <DollarSign className="w-4 h-4" />
@@ -932,9 +932,9 @@ export default function DrdIprDashboard() {
 
       {/* Action Modal */}
       {showActionModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp">
-            <div className="bg-sgt-gradient p-6 text-white">
+            <div className="bg-ResearchSphere-gradient p-6 text-white">
               <h3 className="text-xl font-bold">
                 {actionType ===
    'approve' ? 'DRD Approve & Send to Head' :
@@ -970,7 +970,7 @@ export default function DrdIprDashboard() {
                   value={actionComments}
                   onChange={(e) => setActionComments(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400 transition-all resize-none"
                   placeholder={`Enter your ${actionType} comments...`}
                 />
               </div>
@@ -996,7 +996,7 @@ export default function DrdIprDashboard() {
                     actionType ===
    'changes' ? 'bg-orange-600 hover:bg-orange-700' :
                     actionType ===
-   'finance_audit' ? 'bg-blue-600 hover:bg-blue-700' :
+   'finance_audit' ? 'bg-[#7d1a34] hover:bg-[#5e1024]' :
                     actionType ===
    'system_override' ? 'bg-gray-600 hover:bg-gray-700' :
                     'bg-amber-600 hover:bg-amber-700'

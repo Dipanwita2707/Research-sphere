@@ -11,12 +11,21 @@
 }
 
 :root {
-  /* SGT University Color Variables */
-  --sgt-lightest: #ADE1FB;
-  --sgt-light: #266CA9;
-  --sgt-primary: #0F2573;
-  --sgt-dark: #041D56;
-  --sgt-darkest: #01082D;
+  /* ResearchSphere Brand Color Variables */
+  --brand-charcoal: #232323;
+  --brand-wine: #841C43;
+  --brand-wine-dark: #6E1738;
+  --brand-wine-darker: #4A0F26;
+  --brand-amber: #E28B22;
+  --brand-amber-dark: #C9771B;
+  --brand-peach: #FDD7BF;
+  --brand-ivory: #FEF7F4;
+  /* Backward-compat aliases */
+  --ResearchSphere-lightest: #FEF7F4;
+  --ResearchSphere-light: #E28B22;
+  --ResearchSphere-primary: #841C43;
+  --ResearchSphere-dark: #4A0F26;
+  --ResearchSphere-darkest: #232323;
 }
 
 body {
@@ -25,7 +34,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #fdf5ec;
   min-height: 100vh;
 }
 
@@ -33,24 +42,24 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
-/* Custom scrollbar with SGT theme */
+/* Custom scrollbar with ResearchSphere theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #FEF7F4;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #266CA9 0%, #0F2573 100%);
+  background: linear-gradient(180deg, #E28B22 0%, #841C43 100%);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #0F2573 0%, #041D56 100%);
+  background: linear-gradient(180deg, #841C43 0%, #4A0F26 100%);
 }
 
 /* Animations */
@@ -87,10 +96,10 @@ code {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(15, 37, 115, 0.2);
+    box-shadow: 0 0 5px rgba(132, 28, 67, 0.2);
   }
   50% {
-    box-shadow: 0 0 20px rgba(15, 37, 115, 0.4);
+    box-shadow: 0 0 20px rgba(132, 28, 67, 0.4);
   }
 }
 
@@ -232,9 +241,21 @@ code {
   animation: float 3s ease-in-out infinite;
 }
 
-/* SGT Gradient Text */
-.text-sgt-gradient {
-  background: linear-gradient(135deg, #266CA9 0%, #0F2573 50%, #041D56 100%);
+/* ResearchSphere Gradient Text */
+.text-ResearchSphere-gradient {
+  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ResearchSphere Gradient Background */
+.bg-ResearchSphere-gradient {
+  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -247,7 +268,7 @@ code {
 
 .card-hover:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px -15px rgba(4, 29, 86, 0.2);
+  box-shadow: 0 20px 40px -15px rgba(132, 28, 67, 0.2);
 }
 
 /* Glass morphism effect */
@@ -259,10 +280,10 @@ code {
 }
 
 .glass-dark {
-  background: rgba(4, 29, 86, 0.8);
+  background: rgba(35, 35, 35, 0.8);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(38, 108, 169, 0.3);
+  border: 1px solid rgba(226, 139, 34, 0.3);
 }
 
 /* Shimmer loading effect */
@@ -285,9 +306,18 @@ code {
 }
 
 /* Badge styles */
-.badge-sgt {
-  background: linear-gradient(135deg, #0F2573 0%, #041D56 100%);
-  color: white;
+.badge-ResearchSphere {
+  background: linear-gradient(135deg, #841C43 0%, #4A0F26 100%);
+  color: #FEF7F4;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-brand {
+  background: linear-gradient(135deg, #841C43 0%, #4A0F26 100%);
+  color: #FEF7F4;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -959,5 +989,60 @@ code {
   .finance-theme .sticky,
   .finance-theme .sm\:sticky {
     position: static !important;
+  }
+}
+
+/* Sleek custom scrollbars for ResearchSphere elements */
+.rs-scrollbar::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+.rs-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.rs-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent !important;
+  border-radius: 9999px !important;
+  transition: background 0.2s ease !important;
+}
+.rs-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(132, 28, 67, 0.2) !important; /* Sleek translucent brand-wine on hover */
+}
+.rs-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(132, 28, 67, 0.4) !important;
+}
+.rs-scrollbar {
+  scrollbar-width: none !important; /* Hide on Firefox by default */
+  -ms-overflow-style: none !important; /* Hide on IE */
+}
+.rs-scrollbar:hover {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(132, 28, 67, 0.2) transparent !important;
+}
+
+/* Clean Print Layout styles */
+@media print {
+  header, 
+  nav, 
+  aside,
+  .fab-stack,
+  .no-print,
+  button,
+  a[href^="javascript:"],
+  .cn-tool-icon,
+  .cn-reset-btn,
+  .fixed,
+  .sidebar,
+  .navigation-tabs {
+    display: none !important;
+  }
+  
+  body, 
+  main, 
+  .min-h-screen {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 }

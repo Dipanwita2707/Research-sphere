@@ -346,7 +346,7 @@ export default function DrdAnalyticsOverviewPage() {
                     </div>
                     <div className="flex gap-3 text-[9px] font-semibold">
                       <span className="flex items-center gap-1 text-orange-400 bg-orange-500/15 px-2 py-1 rounded-full border border-orange-500/30">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />SGT Univ.
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />ResearchSphere Univ.
                       </span>
                       <span className="flex items-center gap-1 text-indigo-400 bg-indigo-500/15 px-2 py-1 rounded-full border border-indigo-500/30">
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />Partners

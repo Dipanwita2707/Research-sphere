@@ -36,7 +36,7 @@ const submitIprApplication = async (req, res) => {
 
 const getAllIprApplications = async (req, res) => {
   try {
-    const { applications, total, page, limit } = await iprService.getAllApplications(req.query);
+    const { applications, total, page, limit } = await iprService.getAllApplications(req.query, req.tenantId);
     res.json({
       success: true,
       data: applications,
@@ -128,7 +128,7 @@ const getMyIprApplicationById = async (req, res) => {
 
 const getIprStatistics = async (req, res) => {
   try {
-    const data = await iprService.getStatistics(req.query);
+    const data = await iprService.getStatistics(req.query, req.tenantId);
     res.json({ success: true, data });
   } catch (error) {
     console.error('Get IPR statistics error:', error);

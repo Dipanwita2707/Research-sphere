@@ -36,7 +36,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
     authorType: 'Faculty',
     authorCategory: 'Internal',
     authorRole: 'co_author',
-    affiliation: 'SGT University',
+    affiliation: 'ResearchSphere',
     email: '',
     uid: '',
     designation: '',
@@ -60,7 +60,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
     }
   }, [coAuthors]);
 
-  // Search for internal SGT users
+  // Search for internal ResearchSphere users
   const handleSearch = useCallback(async (query: string) => {
     setSearchTerm(query);
     setNewAuthor(prev => ({ ...prev, name: query }));
@@ -203,7 +203,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
       authorType: 'Faculty',
       authorCategory: 'Internal',
       authorRole: 'co_author',
-      affiliation: 'SGT University',
+      affiliation: 'ResearchSphere',
       email: '',
       uid: '',
       designation: '',
@@ -263,7 +263,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
         authorType: author.authorType || 'Faculty',
         authorCategory: author.authorCategory || 'Internal',
         email: author.email || '',
-        affiliation: author.affiliation || 'SGT University',
+        affiliation: author.affiliation || 'ResearchSphere',
         authorRole: author.authorRole || 'co_author',
         designation: author.designation || '',
       });
@@ -292,7 +292,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
             <span className="ml-2 font-medium text-gray-900">{totalAuthors}</span>
           </div>
           <div>
-            <span className="text-xs text-gray-600">SGT Authors:</span>
+            <span className="text-xs text-gray-600">ResearchSphere Authors:</span>
             <span className="ml-2 font-medium text-gray-900">{sgtAuthors}</span>
           </div>
         </div>
@@ -375,7 +375,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
 
             const parts = [];
             if (maxInternal > 0) {
-              parts.push(`${maxInternal} SGT author(s) [${internalAdded} added]`);
+              parts.push(`${maxInternal} ResearchSphere author(s) [${internalAdded} added]`);
             }
             if (maxExternal > 0) {
               parts.push(`${maxExternal} external author(s) [${externalAdded} added]`);
@@ -433,14 +433,14 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                                   ...newAuthor,
                                   authorCategory: 'Internal',
                                   authorType: 'Faculty',
-                                  affiliation: 'SGT University',
+                                  affiliation: 'ResearchSphere',
                                 });
                                 setSearchTerm('');
                               }}
                               disabled={internalSlotsFull}
                               className="w-3 h-3 text-purple-600"
                             />
-                            <span className="ml-1.5">Internal (SGT) {internalSlotsFull && <span className="text-red-600">(Full)</span>}</span>
+                            <span className="ml-1.5">Internal (ResearchSphere) {internalSlotsFull && <span className="text-red-600">(Full)</span>}</span>
                           </label>
                         )}
                         {!allInternal && maxExternal > 0 && (
@@ -511,7 +511,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full px-2 py-1.5 pr-8 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500"
                   placeholder={newAuthor.authorCategory ===
-   'Internal' ? 'Type to search SGT users...' : 'Enter full name'}
+   'Internal' ? 'Type to search ResearchSphere users...' : 'Enter full name'}
                 />
                 {newAuthor.authorCategory ===
    'Internal' && <Search className="absolute right-2 top-2 w-4 h-4 text-gray-400" />}
@@ -732,7 +732,7 @@ export default function ConferencePaperStatusForm({ status, data, onChange, conf
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Interdisciplinary (SGT) <span className="text-red-500">*</span>
+              Interdisciplinary (ResearchSphere) <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-4">
               {['yes', 'no'].map(v => (

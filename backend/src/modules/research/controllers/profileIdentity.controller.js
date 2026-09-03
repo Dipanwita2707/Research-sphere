@@ -1,6 +1,6 @@
 const { publicationSyncService } = require('../services');
 
-const isPrivileged = (user) => ['admin', 'super_admin'].includes(user?.role);
+const isPrivileged = (user) => ['admin', 'superadmin'].includes(user?.role);
 
 const ensureSelfOrPrivileged = (req, res) => {
   const targetUserId = req.params.userId;
@@ -52,6 +52,12 @@ exports.updateProfileIdentity = async (req, res) => {
   try {
     const targetUserId = ensureSelfOrPrivileged(req, res);
     if (!targetUserId) return;
+
+    // External researcher IDs are managed by admin (employee onboarding / bulk upload).
+    if (!isPrivileged(req.user)) {
+      const { autoSyncEnabled, filterSgtOnly, syncFrequencyDays } = req.body || {};
+      req.body = { autoSyncEnabled, filterSgtOnly, syncFrequencyDays };
+    }
 
     // 1. Fetch current identity to detect ORCID changes
     const currentIdentity = await publicationSyncService.getProfileIdentity(targetUserId);

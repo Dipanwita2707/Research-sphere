@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import AuthorManager from '../AuthorManager';
 
@@ -134,7 +134,7 @@ export default function ResearchPaperWritingForm({ data, onChange }: ResearchPap
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Interdisciplinary(SGT) <span className="text-red-500">*</span>
+              Interdisciplinary(ResearchSphere) <span className="text-red-500">*</span>
             </label>
             <select
               value={(data.isInterdisciplinary as boolean) ? 'yes' : 'no'}

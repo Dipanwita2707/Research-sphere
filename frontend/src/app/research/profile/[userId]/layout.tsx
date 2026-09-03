@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './critical.css';
 
 export const metadata: Metadata = {
-  title: 'Research Profile - SGT University',
+  title: 'Research Profile - ResearchSphere',
   description: 'Researcher profile with publications, citations, and collaboration network',
 };
 

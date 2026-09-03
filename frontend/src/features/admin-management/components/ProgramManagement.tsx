@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -1214,7 +1214,7 @@ export default function ProgramManagement() {
                     type="text"
                     value={formData.accreditationBody}
                     onChange={(e) => setFormData({ ...formData, accreditationBody: e.target.value })}
-                    placeholder="e.g., NBA, NAAC"
+                    placeholder="e.g., NBA, Accreditation"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>

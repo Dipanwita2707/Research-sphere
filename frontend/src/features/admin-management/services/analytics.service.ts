@@ -1,7 +1,23 @@
 import api from '@/shared/api/api';
 
+export interface CategoryCounts {
+  researchPapers: number;
+  books: number;
+  bookChapters: number;
+  conferencePapers: number;
+  grants: number;
+  ipr: {
+    total: number;
+    patent: number;
+    copyright: number;
+    trademark: number;
+    design: number;
+  };
+}
+
 export interface UniversityOverview {
   university: {
+    name?: string;
     schools: { total: number; active: number };
     departments: { total: number; active: number };
     programmes: { total: number };
@@ -14,7 +30,35 @@ export interface UniversityOverview {
     total: number;
     approved: number;
     pending: number;
+    byType?: {
+      patent: number;
+      copyright: number;
+      trademark: number;
+      design: number;
+    };
   };
+  research?: {
+    total: number;
+    approved: number;
+  };
+  grants?: {
+    total: number;
+    approved: number;
+    totalFunding: number;
+  };
+  collaborations?: {
+    total: number;
+  };
+  categories?: CategoryCounts;
+}
+
+export interface SchoolDeptCategoryCounts {
+  researchPapers: number;
+  books: number;
+  bookChapters: number;
+  conferencePapers: number;
+  grants: number;
+  ipr: number;
 }
 
 export interface SchoolStats {
@@ -30,6 +74,7 @@ export interface SchoolStats {
     byStatus: Record<string, number>;
     byType: Record<string, number>;
   };
+  categories?: SchoolDeptCategoryCounts;
 }
 
 export interface DepartmentStats {
@@ -49,6 +94,7 @@ export interface DepartmentStats {
     byStatus: Record<string, number>;
     byType: Record<string, number>;
   };
+  categories?: SchoolDeptCategoryCounts;
 }
 
 export interface IprAnalytics {
@@ -67,6 +113,40 @@ export interface IprAnalytics {
     department?: { departmentCode: string; departmentName: string };
     applicantDetails?: { applicantName: string; applicantType: string };
   }>;
+}
+
+export interface CategoryAnalytics {
+  total: number;
+  researchPapers: number;
+  books: number;
+  bookChapters: number;
+  conferencePapers: number;
+  byPublicationType: Record<string, number>;
+  byStatus: Record<string, number>;
+  recentContributions: Array<{
+    id: string;
+    applicationNumber: string;
+    title: string;
+    publicationType: string;
+    status: string;
+    createdAt: string;
+    school?: { facultyCode: string; facultyName: string };
+    department?: { departmentCode: string; departmentName: string };
+  }>;
+  grants: {
+    total: number;
+    byStatus: Record<string, number>;
+    recent: Array<{
+      id: string;
+      applicationNumber: string;
+      title: string;
+      status: string;
+      submittedAmount: number | null;
+      createdAt: string;
+      school?: { facultyCode: string; facultyName: string };
+      department?: { departmentCode: string; departmentName: string };
+    }>;
+  };
 }
 
 export interface TopPerformer {
@@ -88,6 +168,17 @@ export interface MonthlyTrend {
   pending: number;
 }
 
+export interface CategoryMonthlyTrend {
+  month: number;
+  monthName: string;
+  researchPapers: number;
+  books: number;
+  bookChapters: number;
+  conferencePapers: number;
+  grants: number;
+  ipr: number;
+}
+
 export interface AnalyticsFilters {
   schoolId?: string;
   departmentId?: string;
@@ -95,6 +186,7 @@ export interface AnalyticsFilters {
   dateFrom?: string;
   dateTo?: string;
   iprType?: string;
+  publicationType?: string;
   status?: string;
   year?: number;
   limit?: number;
@@ -138,6 +230,16 @@ class AnalyticsService {
     return response.data;
   }
 
+  async getCategoryAnalytics(
+    filters?: Pick<AnalyticsFilters, 'schoolId' | 'departmentId' | 'dateFrom' | 'dateTo' | 'publicationType' | 'status'>
+  ): Promise<{ success: boolean; data: CategoryAnalytics }> {
+    const response = await api.get<{ success: boolean; data: CategoryAnalytics }>(
+      `${this.baseUrl}/categories`,
+      { params: filters }
+    );
+    return response.data;
+  }
+
   async getTopPerformers(
     filters?: Pick<AnalyticsFilters, 'schoolId' | 'departmentId' | 'dateFrom' | 'dateTo' | 'limit'>
   ): Promise<{ success: boolean; data: TopPerformer[] }> {
@@ -150,8 +252,8 @@ class AnalyticsService {
 
   async getMonthlyTrend(
     filters?: Pick<AnalyticsFilters, 'schoolId' | 'departmentId' | 'year'>
-  ): Promise<{ success: boolean; data: MonthlyTrend[] }> {
-    const response = await api.get<{ success: boolean; data: MonthlyTrend[] }>(
+  ): Promise<{ success: boolean; data: MonthlyTrend[]; categoryTrend?: CategoryMonthlyTrend[] }> {
+    const response = await api.get<{ success: boolean; data: MonthlyTrend[]; categoryTrend?: CategoryMonthlyTrend[] }>(
       `${this.baseUrl}/monthly-trend`,
       { params: filters }
     );

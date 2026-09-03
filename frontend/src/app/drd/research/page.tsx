@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -183,7 +183,7 @@ export default function DrdResearchDashboard() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Hero Header with Gradient */}
-      <div className="relative overflow-hidden bg-sgt-gradient rounded-3xl p-8 text-white shadow-sgt-xl">
+      <div className="relative overflow-hidden bg-ResearchSphere-gradient rounded-3xl p-8 text-white shadow-ResearchSphere-xl">
         {/* Background decorations */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white rounded-full -translate-y-1/2 translate-x-1/2"></div>
@@ -191,8 +191,8 @@ export default function DrdResearchDashboard() {
         </div>
         
         {/* Floating elements */}
-        <div className="absolute top-8 right-16 w-3 h-3 bg-sgt-50 rounded-full animate-float opacity-60"></div>
-        <div className="absolute bottom-16 right-32 w-2 h-2 bg-sgt-100 rounded-full animate-float opacity-40" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-8 right-16 w-3 h-3 bg-ResearchSphere-50 rounded-full animate-float opacity-60"></div>
+        <div className="absolute bottom-16 right-32 w-2 h-2 bg-ResearchSphere-100 rounded-full animate-float opacity-40" style={{animationDelay: '0.5s'}}></div>
         
         <div className="relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -202,7 +202,7 @@ export default function DrdResearchDashboard() {
               </div>
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold">Research Review Dashboard</h1>
-                <p className="text-sgt-100 text-lg mt-1">Review and approve research contributions</p>
+                <p className="text-ResearchSphere-100 text-lg mt-1">Review and approve research contributions</p>
               </div>
             </div>
             
@@ -219,7 +219,7 @@ export default function DrdResearchDashboard() {
 
           {/* Workflow Progress */}
           <div className="mt-8 bg-white/10 backdrop-blur rounded-2xl p-5 border border-white/10">
-            <h3 className="text-sm font-semibold text-sgt-100 mb-4 uppercase tracking-wider">Research Review Pipeline</h3>
+            <h3 className="text-sm font-semibold text-ResearchSphere-100 mb-4 uppercase tracking-wider">Research Review Pipeline</h3>
             <div className="flex items-center justify-between overflow-x-auto">
               {[
                 { icon: <Send size={16} />, label: 'Submitted', count: stats?.submitted || 0 },
@@ -251,9 +251,9 @@ export default function DrdResearchDashboard() {
 
       {/* User Info Bar */}
       {user && (
-        <div className="bg-gradient-to-r from-sgt-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4 shadow-sm border border-sgt-100 dark:border-gray-700 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-ResearchSphere-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4 shadow-sm border border-ResearchSphere-100 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sgt-gradient rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-ResearchSphere-gradient rounded-xl flex items-center justify-center">
               <User className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -309,7 +309,7 @@ export default function DrdResearchDashboard() {
                 </span>
               )}
               {userPermissions?.canReview && (
-                <span className="px-3 py-1.5 bg-sgt-100 text-sgt-700 rounded-lg text-sm font-medium">
+                <span className="px-3 py-1.5 bg-ResearchSphere-100 text-ResearchSphere-700 rounded-lg text-sm font-medium">
                   <Shield className="w-4 h-4 inline mr-1" />
                   Can Review
                 </span>
@@ -323,7 +323,7 @@ export default function DrdResearchDashboard() {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-            <Filter className="w-5 h-5 mr-2 text-sgt-600" />
+            <Filter className="w-5 h-5 mr-2 text-ResearchSphere-600" />
             Filters & Search
           </h2>
           {/* My Reviews Toggle */}
@@ -333,7 +333,7 @@ export default function DrdResearchDashboard() {
                 type="checkbox"
                 checked={showOnlyMyReviews}
                 onChange={(e) => setShowOnlyMyReviews(e.target.checked)}
-                className="w-4 h-4 text-sgt-600 border-gray-300 rounded focus:ring-sgt-500"
+                className="w-4 h-4 text-ResearchSphere-600 border-gray-300 rounded focus:ring-ResearchSphere-500"
               />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show only my reviews</span>
             </label>
@@ -343,7 +343,7 @@ export default function DrdResearchDashboard() {
               <select
                 value={myReviewFilter}
                 onChange={(e) => setMyReviewFilter(e.target.value as 'all' | 'approved' | 'rejected' | 'recommended')}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500"
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-ResearchSphere-500 focus:border-ResearchSphere-500"
               >
                 <option value="all">All My Reviews</option>
                 <option value="approved">I Approved</option>
@@ -365,7 +365,7 @@ export default function DrdResearchDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by title, app number, applicant..."
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-ResearchSphere-500 focus:border-ResearchSphere-500 transition-all"
               />
             </div>
           </div>
@@ -376,7 +376,7 @@ export default function DrdResearchDashboard() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-ResearchSphere-500 focus:border-ResearchSphere-500 transition-all"
             >
               <option value="all">All Status</option>
               <option value="submitted">Submitted</option>
@@ -393,7 +393,7 @@ export default function DrdResearchDashboard() {
             <select
               value={publicationTypeFilter}
               onChange={(e) => setPublicationTypeFilter(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-ResearchSphere-500 focus:border-ResearchSphere-500 transition-all"
             >
               <option value="">All Types</option>
               {Object.entries(PUBLICATION_TYPE_CONFIG).map(([key, config]) => (
@@ -410,7 +410,7 @@ export default function DrdResearchDashboard() {
             <select
               value={schoolFilter}
               onChange={(e) => setSchoolFilter(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-ResearchSphere-500 focus:border-ResearchSphere-500 transition-all"
             >
               <option value="">All Schools</option>
               {schools.map(school => (
@@ -511,7 +511,7 @@ export default function DrdResearchDashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-sgt-600 dark:group-hover:text-sgt-400 transition-colors line-clamp-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-ResearchSphere-600 dark:group-hover:text-ResearchSphere-400 transition-colors line-clamp-2">
                               {contribution.title}
                             </h3>
                             <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-2">
@@ -650,7 +650,7 @@ export default function DrdResearchDashboard() {
                         </button>
                       )}
                       
-                      <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-sgt-600 dark:group-hover:text-sgt-400 transition-colors" />
+                      <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-ResearchSphere-600 dark:group-hover:text-ResearchSphere-400 transition-colors" />
                     </div>
                   </div>
                 </Link>

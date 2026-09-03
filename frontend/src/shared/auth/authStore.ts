@@ -107,6 +107,8 @@ export const useAuthStore = create<AuthState>()(
         logger.debug('AuthStore - logout');
         try {
           await authService.logout();
+        } catch (error) {
+          logger.warn('AuthStore - logout failed:', error);
         } finally {
           set({ ...clearedAuthState });
         }

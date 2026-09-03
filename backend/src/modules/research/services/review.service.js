@@ -460,7 +460,7 @@ class ReviewService {
   }
 
   async _buildIncentiveBreakdown(contribution, totalIncentiveAwarded, totalPointsAwarded) {
-    const activePolicy = await this._fetchActivePolicy();
+    const activePolicy = await this._fetchActivePolicy(contribution.applicantUser?.universityId);
     return {
       totalIncentiveAwarded,
       totalPointsAwarded,
@@ -547,7 +547,7 @@ class ReviewService {
   // ─── Private helpers ─────────────────────────────────────────────────────
 
   async _requireContribution(id) {
-    const contribution = await this.contributionRepo.findById(id);
+    const contribution = await this.contributionRepo.findById(id, { applicantUser: true });
     if (!contribution) throw this._notFound('Research contribution');
     return contribution;
   }
@@ -569,7 +569,7 @@ class ReviewService {
   }
 
   async _creditIncentivesToAuthors(contribution, contributionId, dbClient = this.prisma) {
-    const activePolicy = await this._fetchActivePolicy(dbClient);
+    const activePolicy = await this._fetchActivePolicy(contribution.applicantUser?.universityId, dbClient);
     if (!activePolicy) {
       const err = new Error('No active research policy found. Please configure policy in admin panel.');
       err.statusCode = 500;
@@ -740,9 +740,13 @@ class ReviewService {
     });
   }
 
-  async _fetchActivePolicy(dbClient = this.prisma) {
+  async _fetchActivePolicy(universityId = null, dbClient = this.prisma) {
+    const where = { publicationType: 'research_paper', isActive: true };
+    if (universityId) {
+      where.universityId = universityId;
+    }
     return dbClient.researchIncentivePolicy.findFirst({
-      where: { publicationType: 'research_paper', isActive: true },
+      where,
       select: { first_author_percentage: true, corresponding_author_percentage: true }
     });
   }
@@ -1038,7 +1042,7 @@ class ReviewService {
   /**
    * Get pending research contributions for review based on user DRD permissions.
    */
-  async getPendingReviews(userId, query, userCentralDeptPermissions = []) {
+  async getPendingReviews(userId, query, userCentralDeptPermissions = [], tenantId = null) {
     const { status, publicationType, schoolId } = query;
     const pagination = parsePaginationQuery(query);
 
@@ -1114,6 +1118,18 @@ class ReviewService {
 
     if (publicationType) { if (whereClause.AND) whereClause.AND.push({ publicationType }); else whereClause.publicationType = publicationType; }
     if (schoolId) { if (whereClause.AND) whereClause.AND.push({ schoolId }); else whereClause.schoolId = schoolId; }
+    if (tenantId) {
+      if (whereClause.AND) {
+        whereClause.AND.push({ applicantUser: { universityId: tenantId } });
+      } else {
+        whereClause = {
+          AND: [
+            whereClause,
+            { applicantUser: { universityId: tenantId } }
+          ]
+        };
+      }
+    }
 
     const [contributions, total, statusCounts] = await Promise.all([
       this.contributionRepo.findAll({
@@ -1167,7 +1183,7 @@ class ReviewService {
   /**
    * Get pending grant reviews based on user DRD permissions.
    */
-  async getPendingGrantReviews(userId, query) {
+  async getPendingGrantReviews(userId, query, tenantId = null) {
     const { status, schoolId } = query;
     const pagination = parsePaginationQuery(query);
     let userDrdPermission = null;
@@ -1196,6 +1212,18 @@ class ReviewService {
     else whereClause = buildWhereClause([...pendingStatuses, 'recommended', 'approved']);
 
     if (schoolId) { if (whereClause.AND) whereClause.AND.push({ schoolId }); else whereClause.schoolId = schoolId; }
+    if (tenantId) {
+      if (whereClause.AND) {
+        whereClause.AND.push({ applicantUser: { universityId: tenantId } });
+      } else {
+        whereClause = {
+          AND: [
+            whereClause,
+            { applicantUser: { universityId: tenantId } }
+          ]
+        };
+      }
+    }
 
     const [grants, total, statusCounts] = await Promise.all([
       this.prisma.grantApplication.findMany({

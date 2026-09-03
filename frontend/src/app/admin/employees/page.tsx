@@ -56,6 +56,15 @@ interface Employee {
     school?: { facultyName: string };
     department?: { departmentName: string };
   };
+  researchProfileIdentity?: {
+    id?: string;
+    scopusAuthorId?: string;
+    orcid?: string;
+    pubmedId?: string;
+    webOfScienceId?: string;
+    syncStatus?: string;
+    lastSyncedAt?: string;
+  };
 }
 
 export default function EmployeeManagement() {
@@ -104,6 +113,9 @@ export default function EmployeeManagement() {
     centralDepartmentId: '',
     currentAddress: '',
     permanentAddress: '',
+    scopusAuthorId: '',
+    orcid: '',
+    pubmedId: '',
   });
 
   const fetchEmployees = useCallback(async () => {
@@ -213,6 +225,9 @@ export default function EmployeeManagement() {
         centralDepartmentId: employee.employeeDetails.centralDepartmentId || '',
         currentAddress: employee.employeeDetails.currentAddress || '',
         permanentAddress: employee.employeeDetails.permanentAddress || '',
+        scopusAuthorId: employee.researchProfileIdentity?.scopusAuthorId || '',
+        orcid: employee.researchProfileIdentity?.orcid || '',
+        pubmedId: employee.researchProfileIdentity?.pubmedId || '',
       });
     } else {
       setEditingEmployee(null);
@@ -240,6 +255,9 @@ export default function EmployeeManagement() {
         centralDepartmentId: '',
         currentAddress: '',
         permanentAddress: '',
+        scopusAuthorId: '',
+        orcid: '',
+        pubmedId: '',
       });
     }
     setShowModal(true);
@@ -269,6 +287,9 @@ export default function EmployeeManagement() {
         personalEmail: formData.personalEmail || '',
         currentAddress: formData.currentAddress || '',
         permanentAddress: formData.permanentAddress || '',
+        scopusAuthorId: formData.scopusAuthorId || '',
+        orcid: formData.orcid || '',
+        pubmedId: formData.pubmedId || '',
       };
 
       // Validate using Zod schema
@@ -308,6 +329,9 @@ export default function EmployeeManagement() {
         personalEmail: validation.data.personalEmail || '',
         currentAddress: validation.data.currentAddress || '',
         permanentAddress: validation.data.permanentAddress || '',
+        scopusAuthorId: validation.data.scopusAuthorId || '',
+        orcid: validation.data.orcid || '',
+        pubmedId: validation.data.pubmedId || '',
       };
 
       // Remove centralDepartmentId from the payload since backend expects primaryCentralDeptId
@@ -690,7 +714,7 @@ export default function EmployeeManagement() {
               {/* Login Credentials */}
               <div>
                 <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Login Credentials</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       UID <span className="text-red-500">*</span>
@@ -800,7 +824,7 @@ export default function EmployeeManagement() {
               {/* Personal Details */}
               <div>
                 <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Personal Details</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Employee ID <span className="text-red-500">*</span>
@@ -932,7 +956,7 @@ export default function EmployeeManagement() {
                 </div>
 
                 {/* Additional Contact Details */}
-                <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t dark:border-gray-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-4 border-t dark:border-gray-700">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Alternate Number
@@ -999,7 +1023,7 @@ export default function EmployeeManagement() {
               {/* Professional Details */}
               <div>
                 <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Professional Details</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Designation <span className="text-red-500">*</span>
@@ -1118,7 +1142,7 @@ export default function EmployeeManagement() {
                         Choose either a School Department (for faculty/academic staff) or Central Department (for administrative staff like DRD, HR, Finance).
                       </p>
                       
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             School/Faculty
@@ -1200,11 +1224,78 @@ export default function EmployeeManagement() {
                   </div>
                 </div>
               </div>
+              
+              {/* Researcher Profiles */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Researcher Profiles</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Scopus Author ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.scopusAuthorId}
+                      onChange={(e) => setFormData({ ...formData, scopusAuthorId: e.target.value })}
+                      placeholder="e.g. 57205678901"
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white dark:bg-gray-700 dark:border-gray-600 ${
+                        formErrors.scopusAuthorId ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300'
+                      }`}
+                    />
+                    {formErrors.scopusAuthorId && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.scopusAuthorId}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ORCID ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.orcid}
+                      onChange={(e) => setFormData({ ...formData, orcid: e.target.value })}
+                      placeholder="e.g. 0000-0002-1825-0097"
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white dark:bg-gray-700 dark:border-gray-600 ${
+                        formErrors.orcid ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300'
+                      }`}
+                    />
+                    {formErrors.orcid && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.orcid}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      PubMed ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pubmedId}
+                      onChange={(e) => setFormData({ ...formData, pubmedId: e.target.value })}
+                      placeholder="e.g. 12345678"
+                      className={`w-full px-3 py-2 border rounded-md dark:text-white dark:bg-gray-700 dark:border-gray-600 ${
+                        formErrors.pubmedId ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-300'
+                      }`}
+                    />
+                    {formErrors.pubmedId && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.pubmedId}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {/* Address */}
               <div>
                 <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Address</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Current Address
@@ -1344,6 +1435,15 @@ export default function EmployeeManagement() {
                   <div><span className="text-gray-500 dark:text-gray-400">School:</span> <span className="font-medium">{selectedEmployee.employeeDetails.schoolName || selectedEmployee.employeeDetails.school?.facultyName || 'N/A'}</span></div>
                   <div><span className="text-gray-500">School Department:</span> <span className="font-medium">{selectedEmployee.employeeDetails.departmentName || selectedEmployee.employeeDetails.department?.departmentName || 'N/A'}</span></div>
                   <div className="col-span-2"><span className="text-gray-500">Central Department:</span> <span className="font-medium">{selectedEmployee.employeeDetails.centralDepartmentName || 'N/A'}</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Researcher Profiles</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm dark:text-gray-300">
+                  <div><span className="text-gray-500 dark:text-gray-400">Scopus Author ID:</span> <span className="font-medium">{selectedEmployee.researchProfileIdentity?.scopusAuthorId || 'N/A'}</span></div>
+                  <div><span className="text-gray-500 dark:text-gray-400">ORCID ID:</span> <span className="font-medium">{selectedEmployee.researchProfileIdentity?.orcid || 'N/A'}</span></div>
+                  <div className="col-span-2"><span className="text-gray-500 dark:text-gray-400">PubMed ID:</span> <span className="font-medium">{selectedEmployee.researchProfileIdentity?.pubmedId || 'N/A'}</span></div>
                 </div>
               </div>
 

@@ -393,7 +393,7 @@ export default function MyIprApplications() {
         description: 'Awaiting mentor approval'
       },
       submitted: { 
-        color: 'bg-blue-100 text-blue-700 ring-1 ring-blue-300', 
+        color: 'bg-[#fbe2e8] text-[#7d1a34] ring-1 ring-blue-300', 
         icon: Send, 
         label: 'Submitted',
         description: 'Awaiting review'
@@ -431,7 +431,7 @@ export default function MyIprApplications() {
         description: 'Proceeding to govt filing'
       },
       submitted_to_govt: { 
-        color: 'bg-blue-100 text-blue-700 ring-1 ring-blue-300', 
+        color: 'bg-[#fbe2e8] text-[#7d1a34] ring-1 ring-blue-300', 
         icon: Send, 
         label: 'Submitted to Govt',
         description: 'Filed with government'
@@ -564,11 +564,11 @@ export default function MyIprApplications() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-[#fdf5ec] dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <div className="relative">
-            <div className="w-20 h-20 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin border-t-blue-600 mx-auto"></div>
-            <FolderOpen className="w-8 h-8 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+            <div className="w-20 h-20 border-4 border-[#f0e2d2] dark:border-[#5e1024] rounded-full animate-spin border-t-blue-600 mx-auto"></div>
+            <FolderOpen className="w-8 h-8 text-[#7d1a34] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
           </div>
           <p className="mt-6 text-gray-600 dark:text-gray-400 font-medium">Loading your applications...</p>
         </div>
@@ -683,11 +683,11 @@ export default function MyIprApplications() {
                   
                   {/* My Applications Earnings */}
                   {(stats.ownIncentives > 0 || stats.ownPoints > 0) && (
-                    <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors">
+                    <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-[#fdf5ec] dark:hover:bg-[#5e1024]/10 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                            <FileText className="w-4 h-4 text-blue-600" />
+                          <div className="p-1.5 bg-[#fbe2e8] dark:bg-[#7d1a34]/20 rounded-lg">
+                            <FileText className="w-4 h-4 text-[#7d1a34]" />
                           </div>
                           <span className="font-medium text-gray-700 dark:text-gray-300">My Applications</span>
                         </div>
@@ -696,10 +696,10 @@ export default function MyIprApplications() {
                         <span className="font-semibold text-gray-700 dark:text-gray-300">{stats.ownPublishedCount || 0}</span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="font-semibold text-blue-600">₹{(stats.ownIncentives || 0).toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{(stats.ownIncentives || 0).toLocaleString()}</span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="font-semibold text-blue-600">{stats.ownPoints || 0}</span>
+                        <span className="font-semibold text-[#7d1a34]">{stats.ownPoints || 0}</span>
                       </td>
                     </tr>
                   )}
@@ -781,8 +781,8 @@ export default function MyIprApplications() {
             </div>
             
             {/* Info Note */}
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-start gap-2">
+            <div className="mt-4 p-3 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 rounded-lg border border-[#f0e2d2] dark:border-[#5e1024]">
+              <p className="text-xs text-[#7d1a34] dark:text-[#c8973f] flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>
                   Incentives and points are automatically credited when your IPR application receives a publication ID. 
@@ -952,8 +952,8 @@ export default function MyIprApplications() {
                           Respond Now
                         </span>
                       )}
-                      <div className={`p-2 rounded-full transition-all ${isExpanded ? 'bg-blue-100 dark:bg-blue-900/30 rotate-180' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                        <ChevronDown className={`w-5 h-5 ${isExpanded ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <div className={`p-2 rounded-full transition-all ${isExpanded ? 'bg-[#fbe2e8] dark:bg-[#7d1a34]/20 rotate-180' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                        <ChevronDown className={`w-5 h-5 ${isExpanded ? 'text-[#7d1a34]' : 'text-gray-400'}`} />
                       </div>
                     </div>
                   </div>
@@ -966,7 +966,7 @@ export default function MyIprApplications() {
    app.id ? (
                       <div className="flex items-center justify-center py-12">
                         <div className="text-center">
-                          <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
+                          <RefreshCw className="w-8 h-8 text-[#7d1a34] animate-spin mx-auto" />
                           <p className="text-gray-500 dark:text-gray-400 mt-3">Loading review details...</p>
                         </div>
                       </div>
@@ -1035,7 +1035,7 @@ export default function MyIprApplications() {
                             </p>
                             <Link
                               href={`/ipr/applications/${app.id}/edit`}
-                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
+                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#7d1a34] to-indigo-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all"
                             >
                               <Edit3 className="w-4 h-4" />
                               Continue Editing
@@ -1220,7 +1220,7 @@ export default function MyIprApplications() {
                                           value={responseNotes[suggestion.id] || ''}
                                           onChange={(e) => handleResponseNote(suggestion.id, e.target.value)}
                                           onClick={(e) => e.stopPropagation()}
-                                          className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none dark:bg-gray-700 dark:text-gray-100"
+                                          className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] resize-none dark:bg-gray-700 dark:text-gray-100"
                                           rows={2}
                                         />
 
@@ -1272,10 +1272,10 @@ export default function MyIprApplications() {
 
                             {/* Submit Button */}
                             {selectedCount > 0 && (
-                              <div className="mt-4 flex items-center justify-between p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                              <div className="mt-4 flex items-center justify-between p-5 bg-gradient-to-r from-[#fdf5ec] to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-[#f0e2d2] dark:border-[#5e1024]">
                                 <div>
                                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    <span className="text-blue-700 font-bold text-lg">{selectedCount}</span> of {pendingSuggestions.length} changes selected
+                                    <span className="text-[#7d1a34] font-bold text-lg">{selectedCount}</span> of {pendingSuggestions.length} changes selected
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Click submit to send your responses</p>
                                 </div>
@@ -1285,7 +1285,7 @@ export default function MyIprApplications() {
                                     handleSubmitBatchResponses(app.id);
                                   }}
                                   disabled={submittingBatch}
-                                  className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-xl disabled:opacity-50 transition-all"
+                                  className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#7d1a34] to-indigo-600 text-white rounded-xl font-bold hover:shadow-xl disabled:opacity-50 transition-all"
                                 >
                                   {submittingBatch ? (
                                     <>
@@ -1396,7 +1396,7 @@ export default function MyIprApplications() {
                         <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                           <Link
                             href={`/ipr/applications/${app.id}`}
-                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-semibold group"
+                            className="inline-flex items-center gap-2 text-[#7d1a34] hover:text-[#7d1a34] text-sm font-semibold group"
                           >
                             <Eye className="w-4 h-4" />
                             View Full Application Details
@@ -1417,7 +1417,7 @@ export default function MyIprApplications() {
       <div className="fixed bottom-6 right-6 md:hidden z-40">
         <Link
           href="/ipr/apply"
-          className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-xl hover:shadow-2xl transition-all"
+          className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-[#7d1a34] to-indigo-600 text-white rounded-full shadow-xl hover:shadow-2xl transition-all"
         >
           <Plus className="w-7 h-7" />
         </Link>

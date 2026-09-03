@@ -1,9 +1,10 @@
 {
-  "name": "sgt-ums-frontend",
+  "name": "researchsphere-frontend",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "node -e \"const fs=require('fs');const p='.next';if(fs.existsSync(p)){fs.rmSync(p,{recursive:true,force:true});console.log('Cleared .next cache');}\" && next dev",
     "dev:turbo": "next dev --turbo",
     "build": "next build",
     "start": "next start",
@@ -65,6 +66,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-simple-maps": "^3.0.6",
+    "@types/three": "^0.185.1",
     "autoprefixer": "^10.0.1",
     "baseline-browser-mapping": "^2.10.8",
     "eslint": "^8",

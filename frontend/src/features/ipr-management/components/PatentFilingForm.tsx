@@ -295,7 +295,7 @@ export default function PatentFilingForm() {
                 value={formData.projectType}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               >
                 <option value="">Select Type</option>
                 {PROJECT_TYPES.map((type) => (
@@ -315,7 +315,7 @@ export default function PatentFilingForm() {
                 value={formData.filingType}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               >
                 <option value="">Select Filing Type</option>
                 {FILING_TYPES.map((type) => (
@@ -335,7 +335,7 @@ export default function PatentFilingForm() {
                 value={formData.schoolId}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               >
                 <option value="">Select School</option>
                 {schools.map((school) => (
@@ -356,7 +356,7 @@ export default function PatentFilingForm() {
                 onChange={handleInputChange}
                 required
                 disabled={!formData.schoolId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34] disabled:bg-gray-100"
               >
                 <option value="">Select Department</option>
                 {departments.map((dept) => (
@@ -400,7 +400,7 @@ export default function PatentFilingForm() {
               value={formData.title}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               placeholder="Enter patent title"
             />
           </div>
@@ -415,7 +415,7 @@ export default function PatentFilingForm() {
               onChange={handleInputChange}
               required
               rows={6}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               placeholder="Provide detailed description of your invention"
             />
           </div>
@@ -427,7 +427,7 @@ export default function PatentFilingForm() {
               value={formData.remarks}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
               placeholder="Additional comments or notes"
             />
           </div>
@@ -504,7 +504,7 @@ export default function PatentFilingForm() {
               value={formData.applicantType}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
             >
               {APPLICANT_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>
@@ -525,7 +525,7 @@ export default function PatentFilingForm() {
                   value={formData.employeeCategory}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 >
                   <option value="">Select Category</option>
                   {EMPLOYEE_CATEGORIES.map((cat) => (
@@ -545,7 +545,7 @@ export default function PatentFilingForm() {
                   value={formData.employeeType}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 >
                   <option value="staff">Staff</option>
                   <option value="student">Student</option>
@@ -562,7 +562,7 @@ export default function PatentFilingForm() {
                   value={formData.uid}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
 
@@ -576,7 +576,7 @@ export default function PatentFilingForm() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
 
@@ -590,7 +590,7 @@ export default function PatentFilingForm() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
 
@@ -604,7 +604,7 @@ export default function PatentFilingForm() {
                   value={formData.universityDeptName}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
             </div>
@@ -620,7 +620,7 @@ export default function PatentFilingForm() {
                   value={formData.externalName}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
 
@@ -633,7 +633,7 @@ export default function PatentFilingForm() {
                   value={formData.externalOption}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 >
                   <option value="">Select Option</option>
                   <option value="national">National</option>
@@ -651,7 +651,7 @@ export default function PatentFilingForm() {
                   value={formData.instituteType}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 >
                   <option value="">Select Type</option>
                   {INSTITUTE_TYPES.map((type) => (
@@ -672,7 +672,7 @@ export default function PatentFilingForm() {
                   value={formData.companyUniversityName}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
 
@@ -686,7 +686,7 @@ export default function PatentFilingForm() {
                   value={formData.externalEmail}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
 
@@ -700,7 +700,7 @@ export default function PatentFilingForm() {
                   value={formData.externalPhone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
 
@@ -711,7 +711,7 @@ export default function PatentFilingForm() {
                   value={formData.externalAddress}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
             </div>
@@ -731,7 +731,7 @@ export default function PatentFilingForm() {
           <button
             type="submit"
             disabled={loading || uploading}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed font-medium"
+            className="flex-1 px-6 py-3 bg-[#7d1a34] text-white rounded-md hover:bg-[#5e1024] disabled:bg-blue-300 disabled:cursor-not-allowed font-medium"
           >
             {uploading ? 'Uploading Files...' : loading ? 'Submitting...' : 'Submit Application'}
           </button>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Application-wide constants
  * Centralized location for all magic strings, codes, and configuration values
  */
@@ -277,7 +277,7 @@ export const API_ENDPOINTS = {
 // External URLs - Centralized for easy management
 export const EXTERNAL_URLS = {
   // University social media
-  INSTAGRAM: 'https://instagram.com/sgtuniversity',
+  INSTAGRAM: 'https://instagram.com/researchsphere',
   
   // External dashboards
   STUDENT_ADMIN_DASHBOARD: process.env.NEXT_PUBLIC_STUDENT_ADMIN_URL || '/admin/dashboard',

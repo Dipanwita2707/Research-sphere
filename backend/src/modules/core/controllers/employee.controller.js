@@ -49,6 +49,11 @@ const createEmployee = async (req, res) => {
       
       // Other
       isActive = true,
+
+      // Researcher IDs (admin-managed)
+      scopusAuthorId,
+      orcid,
+      pubmedId,
     } = validation.data;
 
     // Debug logging
@@ -102,6 +107,8 @@ const createEmployee = async (req, res) => {
           passwordHash: hashedPassword,
           role: role || 'faculty',
           status: isActive ? 'active' : 'inactive',
+          // Tenant binding — required by protect() for non-superadmin users
+          universityId: req.tenantId || req.user?.universityId || null,
         },
       });
 
@@ -181,6 +188,26 @@ const createEmployee = async (req, res) => {
         // Permission assignment will be implemented once the permission models are created
       }
 
+      // Upsert researcher IDs into ResearchProfileIdentity if any are provided
+      const hasResearcherId = scopusAuthorId || orcid || pubmedId;
+      if (hasResearcherId) {
+        await tx.researchProfileIdentity.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            scopusAuthorId: scopusAuthorId || null,
+            orcid: orcid || null,
+            pubmedId: pubmedId || null,
+            syncFrequencyDays: 1,
+          },
+          update: {
+            scopusAuthorId: scopusAuthorId || null,
+            orcid: orcid || null,
+            pubmedId: pubmedId || null,
+          },
+        });
+      }
+
       return { user, employee };
     });
 
@@ -245,6 +272,11 @@ const getAllEmployees = async (req, res) => {
         in: ['faculty', 'staff'],
       },
     };
+
+    // Tenant isolation: scope employees to the requesting university
+    if (req.tenantId) {
+      where.universityId = req.tenantId;
+    }
 
     if (role && role !== 'all') {
       where.role = role;
@@ -313,6 +345,17 @@ const getAllEmployees = async (req, res) => {
                   departmentName: true,
                 },
               },
+            },
+          },
+          researchProfileIdentity: {
+            select: {
+              id: true,
+              scopusAuthorId: true,
+              orcid: true,
+              pubmedId: true,
+              webOfScienceId: true,
+              syncStatus: true,
+              lastSyncedAt: true,
             },
           },
         },
@@ -430,6 +473,18 @@ const getEmployeeById = async (req, res) => {
             primaryCentralDept: true,
           },
         },
+        researchProfileIdentity: {
+          select: {
+            id: true,
+            scopusAuthorId: true,
+            orcid: true,
+            pubmedId: true,
+            webOfScienceId: true,
+            syncStatus: true,
+            lastSyncedAt: true,
+            autoSyncEnabled: true,
+          },
+        },
       },
     });
 
@@ -437,6 +492,14 @@ const getEmployeeById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Employee not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university access
+    if (req.tenantId && employee.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This employee does not belong to your university.',
       });
     }
 
@@ -552,6 +615,24 @@ const updateEmployee = async (req, res) => {
         updatedEmployee = await tx.employeeDetails.updateMany({
           where: { userLoginId: id },
           data: employeeUpdates,
+        });
+      }
+
+      // Upsert researcher IDs if any are present in the request
+      const researchIdUpdates = {};
+      if (updates.scopusAuthorId !== undefined) researchIdUpdates.scopusAuthorId = updates.scopusAuthorId || null;
+      if (updates.orcid !== undefined)          researchIdUpdates.orcid          = updates.orcid          || null;
+      if (updates.pubmedId !== undefined)       researchIdUpdates.pubmedId       = updates.pubmedId       || null;
+
+      if (Object.keys(researchIdUpdates).length > 0) {
+        await tx.researchProfileIdentity.upsert({
+          where: { userId: id },
+          create: {
+            userId: id,
+            syncFrequencyDays: 1,
+            ...researchIdUpdates,
+          },
+          update: researchIdUpdates,
         });
       }
 
@@ -723,6 +804,13 @@ const deleteEmployee = async (req, res) => {
         message: 'Employee not found',
       });
     }
+    // Tenant isolation: prevent cross-university deletion
+    if (req.tenantId && user.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This employee does not belong to your university.',
+      });
+    }
     if (!['faculty', 'staff'].includes(user.role)) {
       return res.status(400).json({
         success: false,
@@ -730,6 +818,175 @@ const deleteEmployee = async (req, res) => {
       });
     }
     await prisma.$transaction(async (tx) => {
+      // 1. Nullify currentReviewerId in applications/contributions
+      await tx.researchContribution.updateMany({
+        where: { currentReviewerId: id },
+        data: { currentReviewerId: null },
+      });
+      await tx.iprApplication.updateMany({
+        where: { currentReviewerId: id },
+        data: { currentReviewerId: null },
+      });
+      await tx.grantApplication.updateMany({
+        where: {
+          OR: [
+            { currentReviewerId: id },
+            { approvedById: id },
+            { rejectedById: id }
+          ]
+        },
+        data: {
+          currentReviewerId: null,
+          approvedById: null,
+          rejectedById: null
+        },
+      });
+
+      // 2. Set mentorId and dataApprovedById to null in StudentDetails
+      await tx.studentDetails.updateMany({
+        where: { mentorId: id },
+        data: { mentorId: null },
+      });
+      await tx.studentDetails.updateMany({
+        where: { dataApprovedById: id },
+        data: { dataApprovedById: null },
+      });
+
+      // 3. Set assignedBy to null in permission tables
+      await tx.userDepartmentPermission.updateMany({
+        where: { assignedBy: id },
+        data: { assignedBy: null },
+      });
+      await tx.departmentPermission.updateMany({
+        where: { assignedBy: id },
+        data: { assignedBy: null },
+      });
+      await tx.centralDepartmentPermission.updateMany({
+        where: { assignedBy: id },
+        data: { assignedBy: null },
+      });
+
+      // 4. Delete user permissions explicitly
+      await tx.userDepartmentPermission.deleteMany({
+        where: { userId: id },
+      });
+      await tx.departmentPermission.deleteMany({
+        where: { userId: id },
+      });
+      await tx.centralDepartmentPermission.deleteMany({
+        where: { userId: id },
+      });
+
+      // 5. Delete all filed/submitted data where user is primary applicant
+      await tx.researchContribution.deleteMany({
+        where: { applicantUserId: id },
+      });
+      await tx.iprApplication.deleteMany({
+        where: { applicantUserId: id },
+      });
+      await tx.grantApplication.deleteMany({
+        where: { applicantUserId: id },
+      });
+
+      // 6. Delete co-author and contributor references by userId, uid, or email
+      const uidCondition = user.uid ? { uid: user.uid } : null;
+      const emailCondition = user.email ? { email: user.email } : null;
+      const authorOrConditions = [{ userId: id }, ...(uidCondition ? [uidCondition] : []), ...(emailCondition ? [emailCondition] : [])];
+
+      await tx.researchContributionAuthor.deleteMany({
+        where: { OR: authorOrConditions },
+      });
+
+      await tx.iprContributor.deleteMany({
+        where: { OR: authorOrConditions },
+      });
+
+      // 7. Delete research profile identity if exists
+      await tx.researchProfileIdentity.deleteMany({
+        where: { userId: id },
+      });
+
+      // 8. Set actorId to null in AuditLog
+      await tx.auditLog.updateMany({
+        where: { actorId: id },
+        data: { actorId: null },
+      });
+
+      // 9. Delete ChangeHistory records where user is changedById
+      await tx.changeHistory.deleteMany({
+        where: { changedById: id },
+      });
+
+      // 10. Set updatedById to null in Incentive Policies
+      await tx.incentivePolicy.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.researchIncentivePolicy.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.bookIncentivePolicy.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.bookChapterIncentivePolicy.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.conferenceIncentivePolicy.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.grantIncentivePolicy.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+
+      // 11. Set approvedById to null in IPR
+      await tx.iPR.updateMany({
+        where: { approvedById: id },
+        data: { approvedById: null },
+      });
+
+      // 12. Set userId to null in GrantInvestigator
+      await tx.grantInvestigator.updateMany({
+        where: { userId: id },
+        data: { userId: null },
+      });
+
+      // 13. Set issuedById to null in Card
+      await tx.card.updateMany({
+        where: { issuedById: id },
+        data: { issuedById: null },
+      });
+
+      // 14. Set requestedById and approvedById to null in ReissueRequest
+      await tx.reissueRequest.updateMany({
+        where: { requestedById: id },
+        data: { requestedById: null },
+      });
+      await tx.reissueRequest.updateMany({
+        where: { approvedById: id },
+        data: { approvedById: null },
+      });
+
+      // 15. Delete PasswordResetToken records
+      await tx.passwordResetToken.deleteMany({
+        where: { userId: id },
+      });
+
+      // 16. Delete notifications
+      await tx.notification.deleteMany({
+        where: { userId: id },
+      });
+
+      // 17. Delete userSettings
+      await tx.userSettings.deleteMany({
+        where: { userId: id },
+      });
+
+      // 18. Delete employee details and login
       if (user.employeeDetails?.id) {
         await tx.employeeDetails.delete({
           where: { id: user.employeeDetails.id },
@@ -738,6 +995,9 @@ const deleteEmployee = async (req, res) => {
       await tx.userLogin.delete({
         where: { id },
       });
+    }, {
+      maxWait: 30000,
+      timeout: 60000,
     });
     res.json({
       success: true,
@@ -759,6 +1019,89 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
+// Update employee researcher IDs (admin-only)
+// PATCH /api/employees/:id/research-ids
+const updateEmployeeResearchIds = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { scopusAuthorId, orcid, pubmedId } = req.body;
+
+    // Validate ORCID format if provided
+    if (orcid && !/^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(orcid)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ORCID must be in the format XXXX-XXXX-XXXX-XXXX (e.g., 0000-0002-1825-0097)',
+      });
+    }
+
+    // Ensure the user exists and belongs to this university
+    const user = await prisma.userLogin.findUnique({
+      where: { id },
+      select: { id: true, uid: true, role: true, universityId: true },
+    });
+
+    if (!user || !['faculty', 'staff', 'admin'].includes(user.role)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university researcher ID updates
+    if (req.tenantId && user.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This employee does not belong to your university.',
+      });
+    }
+
+    // Build update payload — only include fields that were sent
+    const updateData = {};
+    if (scopusAuthorId !== undefined) updateData.scopusAuthorId = scopusAuthorId || null;
+    if (orcid !== undefined)          updateData.orcid          = orcid          || null;
+    if (pubmedId !== undefined)       updateData.pubmedId       = pubmedId       || null;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one of scopusAuthorId, orcid, or pubmedId must be provided',
+      });
+    }
+
+    const identity = await prisma.researchProfileIdentity.upsert({
+      where: { userId: id },
+      create: {
+        userId: id,
+        syncFrequencyDays: 1,
+        ...updateData,
+      },
+      update: updateData,
+    });
+
+    console.log(`[Admin] Updated researcher IDs for user ${user.uid}:`, updateData);
+
+    return res.json({
+      success: true,
+      message: 'Researcher IDs updated successfully',
+      data: {
+        scopusAuthorId: identity.scopusAuthorId,
+        orcid: identity.orcid,
+        pubmedId: identity.pubmedId,
+        webOfScienceId: identity.webOfScienceId,
+        syncStatus: identity.syncStatus,
+        lastSyncedAt: identity.lastSyncedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Update researcher IDs error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update researcher IDs',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createEmployee,
   getAllEmployees,
@@ -768,4 +1111,5 @@ module.exports = {
   toggleEmployeeStatus,
   getDesignations,
   deleteEmployee,
+  updateEmployeeResearchIds,
 };

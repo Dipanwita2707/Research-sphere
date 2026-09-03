@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/shared/ui-components/Toast';
@@ -1016,7 +1016,7 @@ export default function AuditLogsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-16 transition-colors duration-200">
       {/* Header */}
-      <div className="bg-sgt-gradient dark:bg-gradient-to-r dark:from-blue-900 dark:via-blue-800 dark:to-blue-900 text-white shadow-lg">
+      <div className="bg-ResearchSphere-gradient dark:bg-gradient-to-r dark:from-blue-900 dark:via-blue-800 dark:to-blue-900 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

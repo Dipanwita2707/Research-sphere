@@ -7,7 +7,7 @@ import {
   PermissionDefinitions,
   Permission,
 } from '@/features/admin-management/services/permissionManagement.service';
-import { fetchSeminarHallBlocks } from '@/features/resource-management/seminar-hall-booking/services/seminarHall.api';
+
 import {
   roleManagementService,
   Role,
@@ -279,7 +279,7 @@ export default function UserRoleManagement() {
         departmentService.getAllDepartments({ isActive: true }),
         roleManagementService.getPermissionDefinitions(),
       ]);
-      const seminarHallBlocksRes = await fetchSeminarHallBlocks();
+      const seminarHallBlocksRes: any[] = [];
 
       setUsers(usersRes.data);
       setRoles(rolesRes.data);
@@ -1169,7 +1169,7 @@ export default function UserRoleManagement() {
           </div>
 
           {/* User List */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>

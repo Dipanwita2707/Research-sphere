@@ -141,9 +141,16 @@ function mapProgramType(value) {
  */
 exports.getAllPrograms = async (req, res) => {
   try {
-    const { isActive, departmentId, schoolId, programType } = req.query;
+    const tenantId = req.tenantId || null;
 
     const where = {};
+    if (tenantId) {
+      where.department = {
+        faculty: {
+          universityId: tenantId,
+        },
+      };
+    }
     if (isActive !== undefined) {
       where.isActive = isActive === 'true';
     }
@@ -151,7 +158,9 @@ exports.getAllPrograms = async (req, res) => {
       where.departmentId = departmentId;
     }
     if (schoolId) {
+      // Merge schoolId filter with the department filter
       where.department = {
+        ...where.department,
         facultyId: schoolId,
       };
     }
@@ -226,6 +235,21 @@ exports.getAllPrograms = async (req, res) => {
 exports.getProgramsByDepartment = async (req, res) => {
   try {
     const { departmentId } = req.params;
+    const tenantId = req.tenantId || null;
+
+    // Validate department belongs to current tenant
+    if (tenantId) {
+      const department = await prisma.department.findUnique({
+        where: { id: departmentId },
+        include: { faculty: { select: { universityId: true } } },
+      });
+      if (!department || department.faculty?.universityId !== tenantId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Department does not belong to your university.',
+        });
+      }
+    }
 
     const programs = await prisma.program.findMany({
       where: {
@@ -332,6 +356,14 @@ exports.getProgramById = async (req, res) => {
       });
     }
 
+    const tenantId = req.tenantId || null;
+    if (tenantId && program.department?.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This program does not belong to your university.',
+      });
+    }
+
     res.json({
       success: true,
       data: program,
@@ -386,15 +418,24 @@ exports.createProgram = async (req, res) => {
       });
     }
 
-    // Check if department exists
+    // Check if department exists and load faculty for tenant verification
     const department = await prisma.department.findUnique({
       where: { id: departmentId },
+      include: { faculty: { select: { universityId: true } } },
     });
 
     if (!department) {
       return res.status(404).json({
         success: false,
         message: 'Department not found',
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && department.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Department does not belong to your university.',
       });
     }
 
@@ -534,15 +575,24 @@ exports.updateProgram = async (req, res) => {
       specializations,
     } = req.body;
 
-    // Check if program exists
+    // Check if program exists and fetch department faculty to verify tenant ownership
     const existingProgram = await prisma.program.findUnique({
       where: { id },
+      include: { department: { include: { faculty: { select: { universityId: true } } } } },
     });
 
     if (!existingProgram) {
       return res.status(404).json({
         success: false,
         message: 'Program not found',
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && existingProgram.department?.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This program does not belong to your university.',
       });
     }
 
@@ -567,12 +617,20 @@ exports.updateProgram = async (req, res) => {
     if (departmentId && departmentId !== existingProgram.departmentId) {
       const department = await prisma.department.findUnique({
         where: { id: departmentId },
+        include: { faculty: { select: { universityId: true } } },
       });
 
       if (!department) {
         return res.status(404).json({
           success: false,
           message: 'Department not found',
+        });
+      }
+
+      if (tenantId && department.faculty?.universityId !== tenantId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: The target department does not belong to your university.',
         });
       }
     }
@@ -720,6 +778,7 @@ exports.deleteProgram = async (req, res) => {
     const program = await prisma.program.findUnique({
       where: { id },
       include: {
+        department: { include: { faculty: { select: { universityId: true } } } },
         _count: {
           select: {
             students: true,
@@ -733,6 +792,14 @@ exports.deleteProgram = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Program not found',
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && program.department?.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This program does not belong to your university.',
       });
     }
 
@@ -781,12 +848,21 @@ exports.toggleProgramStatus = async (req, res) => {
 
     const program = await prisma.program.findUnique({
       where: { id },
+      include: { department: { include: { faculty: { select: { universityId: true } } } } },
     });
 
     if (!program) {
       return res.status(404).json({
         success: false,
         message: 'Program not found',
+      });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && program.department?.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This program does not belong to your university.',
       });
     }
 
@@ -848,6 +924,17 @@ exports.getProgramTypes = async (req, res) => {
 exports.getSpecializations = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || null;
+
+    if (tenantId) {
+      const program = await prisma.program.findUnique({
+        where: { id },
+        include: { department: { include: { faculty: { select: { universityId: true } } } } },
+      });
+      if (!program || program.department?.faculty?.universityId !== tenantId) {
+        return res.status(403).json({ success: false, message: 'Access denied: Program does not belong to your university.' });
+      }
+    }
 
     const specializations = await prisma.programSpecialization.findMany({
       where: { programId: id },
@@ -873,9 +960,17 @@ exports.addSpecialization = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Specialization name is required' });
     }
 
-    const program = await prisma.program.findUnique({ where: { id } });
+    const program = await prisma.program.findUnique({
+      where: { id },
+      include: { department: { include: { faculty: { select: { universityId: true } } } } },
+    });
     if (!program) {
       return res.status(404).json({ success: false, message: 'Program not found' });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && program.department?.faculty?.universityId !== tenantId) {
+      return res.status(403).json({ success: false, message: 'Access denied: Program does not belong to your university.' });
     }
 
     // Count existing specializations to generate next sequence number
@@ -908,9 +1003,17 @@ exports.updateSpecialization = async (req, res) => {
     const { specId } = req.params;
     const { specializationName, isActive } = req.body;
 
-    const spec = await prisma.programSpecialization.findUnique({ where: { id: specId } });
+    const spec = await prisma.programSpecialization.findUnique({
+      where: { id: specId },
+      include: { program: { include: { department: { include: { faculty: { select: { universityId: true } } } } } } },
+    });
     if (!spec) {
       return res.status(404).json({ success: false, message: 'Specialization not found' });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && spec.program?.department?.faculty?.universityId !== tenantId) {
+      return res.status(403).json({ success: false, message: 'Access denied: Specialization does not belong to your university.' });
     }
 
     const updated = await prisma.programSpecialization.update({
@@ -937,9 +1040,17 @@ exports.deleteSpecialization = async (req, res) => {
   try {
     const { specId } = req.params;
 
-    const spec = await prisma.programSpecialization.findUnique({ where: { id: specId } });
+    const spec = await prisma.programSpecialization.findUnique({
+      where: { id: specId },
+      include: { program: { include: { department: { include: { faculty: { select: { universityId: true } } } } } } },
+    });
     if (!spec) {
       return res.status(404).json({ success: false, message: 'Specialization not found' });
+    }
+
+    const tenantId = req.tenantId || null;
+    if (tenantId && spec.program?.department?.faculty?.universityId !== tenantId) {
+      return res.status(403).json({ success: false, message: 'Access denied: Specialization does not belong to your university.' });
     }
 
     await prisma.programSpecialization.delete({ where: { id: specId } });
@@ -980,9 +1091,17 @@ exports.bulkCreate = async (req, res) => {
         results.skipped.push({ row: rowNum, programCode: code, reason: 'Programme code already exists' });
         continue;
       }
-      const deptExists = await prisma.department.findUnique({ where: { id: row.departmentId } });
+      const deptExists = await prisma.department.findUnique({
+        where: { id: row.departmentId },
+        include: { faculty: { select: { universityId: true } } }
+      });
       if (!deptExists) {
         results.errors.push({ row: rowNum, programCode: code, errors: [`Department with id ${row.departmentId} not found`] });
+        continue;
+      }
+      const tenantId = req.tenantId || null;
+      if (tenantId && deptExists.faculty?.universityId !== tenantId) {
+        results.errors.push({ row: rowNum, programCode: code, errors: ['Department does not belong to your university'] });
         continue;
       }
       const mappedProgramType = mapProgramType(row.programType);

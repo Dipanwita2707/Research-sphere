@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { researchService, ResearchPublicationType, ResearchContributionAuthor } from '@/features/research-management/services/research.service';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { useAffiliation } from '@/shared/hooks/useAffiliation';
 import api from '@/shared/api/api';
 import { logger } from '@/shared/utils/logger';
 import { extractErrorMessage } from '@/shared/types/api.types';
@@ -110,8 +111,8 @@ const INDEXING_CATEGORIES = [
   },
   { 
     value: 'sgtu_in_house', 
-    label: 'SGTU In-House Journal',
-    description: 'SGT University in-house publications',
+    label: 'ResearchSphere In-House Journal',
+    description: 'ResearchSphere in-house publications',
     requiredFields: [] as string[]
   },
   { 
@@ -174,6 +175,7 @@ interface Author {
 
 export default function ResearchContributionForm({ publicationType, contributionId, trackerId, onSuccess }: Props) {
   const { user } = useAuthStore();
+  const { canonicalName: universityName } = useAffiliation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -249,7 +251,7 @@ export default function ResearchContributionForm({ publicationType, contribution
     editors: '',         // For book_chapter: editors of the book
     nationalInternational: 'national' as 'national' | 'international',
     bookPublicationType: 'authored' as 'authored' | 'edited',  // Authored Book, Edited Book
-    bookIndexingType: 'scopus_indexed' as 'scopus_indexed' | 'non_indexed' | 'sgt_publication_house',  // Scopus-indexed, Non-indexed, or SGT Publication House
+    bookIndexingType: 'scopus_indexed' as 'scopus_indexed' | 'non_indexed' | 'sgt_publication_house',  // Scopus-indexed, Non-indexed, or ResearchSphere Publication House
     bookLetter: 'yes' as 'yes' | 'no',  // Letter - Yes by default (for non-indexed)
     communicatedWithOfficialId: 'yes' as 'yes' | 'no',   // Have you communicated with official ID
     personalEmail: '',   // Personal email if not communicated with official ID
@@ -915,11 +917,11 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     if (distributionMethod ===
    'author_position_based') {
-      // POSITION-BASED DISTRIBUTION (SGT authors in first 5 positions only)
+      // POSITION-BASED DISTRIBUTION (ResearchSphere authors in first 5 positions only)
       // Rules:
-      // 1. Single SGT author in first 5 → 100%
-      // 2. Two SGT authors in first 5 → First/First&Corresponding: 60%, Second: 40% (or 50-50 if second is corresponding)
-      // 3. More than two SGT authors in first 5 → First&Corresponding same: 80%, Rest: 20% divided | First&Corresponding different: 40% each, Rest: 20% divided
+      // 1. Single ResearchSphere author in first 5 → 100%
+      // 2. Two ResearchSphere authors in first 5 → First/First&Corresponding: 60%, Second: 40% (or 50-50 if second is corresponding)
+      // 3. More than two ResearchSphere authors in first 5 → First&Corresponding same: 80%, Rest: 20% divided | First&Corresponding different: 40% each, Rest: 20% divided
       
       const position = authorRole.startsWith('position_') 
         ? (authorRole ===
@@ -934,7 +936,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         return { incentive: 0, points: 0 }; // 6+ gets nothing
       }
       
-      // Count SGT authors in first 5 positions (including this author)
+      // Count ResearchSphere authors in first 5 positions (including this author)
       const sgtAuthorsInFirst5 = 1 + coAuthors.filter(a => 
         a.name && 
         a.authorCategory ===
@@ -943,7 +945,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         a.authorRole !== 'position_6_plus'
       ).length;
       
-      logger.debug('[calculateResearchPaperIncentive] SGT authors in first 5:', sgtAuthorsInFirst5);
+      logger.debug('[calculateResearchPaperIncentive] ResearchSphere authors in first 5:', sgtAuthorsInFirst5);
       
       // Determine role from userAuthorType
       const isFirstAuthor = position ===
@@ -956,12 +958,12 @@ export default function ResearchContributionForm({ publicationType, contribution
       
       if (sgtAuthorsInFirst5 ===
    1) {
-        // Rule 1: Single SGT author gets 100%
+        // Rule 1: Single ResearchSphere author gets 100%
         rolePercentage = 100;
-        logger.debug('[calculateResearchPaperIncentive] Single SGT author: 100%');
+        logger.debug('[calculateResearchPaperIncentive] Single ResearchSphere author: 100%');
       } else if (sgtAuthorsInFirst5 ===
    2) {
-        // Rule 2: Two SGT authors
+        // Rule 2: Two ResearchSphere authors
         // Check if second author is corresponding
         const secondAuthor = coAuthors.find(a => a.authorRole ===
    'position_2' && a.authorCategory ===
@@ -973,15 +975,15 @@ export default function ResearchContributionForm({ publicationType, contribution
         if (secondIsCorresponding || isCorrespondingAuthor) {
           // Equal distribution 50-50
           rolePercentage = 50;
-          logger.debug('[calculateResearchPaperIncentive] Two SGT authors, second is corresponding: 50-50');
+          logger.debug('[calculateResearchPaperIncentive] Two ResearchSphere authors, second is corresponding: 50-50');
         } else {
           // First: 60%, Second: 40%
           rolePercentage = position ===
    1 ? 60 : 40;
-          logger.debug('[calculateResearchPaperIncentive] Two SGT authors: First 60%, Second 40%');
+          logger.debug('[calculateResearchPaperIncentive] Two ResearchSphere authors: First 60%, Second 40%');
         }
       } else {
-        // Rule 3: More than two SGT authors
+        // Rule 3: More than two ResearchSphere authors
         // Check if first and corresponding are the same person
         const firstAuthorIsCorresponding = coAuthors.some(a => 
           a.authorRole ===
@@ -1001,8 +1003,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             logger.debug('[calculateResearchPaperIncentive] First & Corresponding same: 80%');
           } else {
             // Other authors split 20%
-            const otherSgtAuthors = sgtAuthorsInFirst5 - 1;
-            rolePercentage = 20 / otherSgtAuthors;
+            const othersgtAuthors = sgtAuthorsInFirst5 - 1;
+            rolePercentage = 20 / othersgtAuthors;
             logger.debug('[calculateResearchPaperIncentive] Other author share of 20%:', rolePercentage);
           }
         } else {
@@ -1026,8 +1028,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             logger.debug('[calculateResearchPaperIncentive] Corresponding author (different from first): 40%');
           } else {
             // Other authors split 20%
-            const otherSgtAuthors = sgtAuthorsInFirst5 - 2; // Minus first and corresponding
-            rolePercentage = 20 / otherSgtAuthors;
+            const othersgtAuthors = sgtAuthorsInFirst5 - 2; // Minus first and corresponding
+            rolePercentage = 20 / othersgtAuthors;
             logger.debug('[calculateResearchPaperIncentive] Other author share of 20%:', rolePercentage);
           }
         }
@@ -1085,7 +1087,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       const paperPosition = allAuthors.findIndex(a => a.displayOrder ===
    currentAuthorDisplayOrder) + 1;
       
-      // Count INTERNAL authors in first 5 positions (SGTU affiliated authors)
+      // Count INTERNAL authors in first 5 positions (ResearchSphere affiliated authors)
       const internalAuthorsInFirst5 = allAuthors.slice(0, 5).filter(a => a.category ===
    'Internal');
       const numInternalInFirst5 = internalAuthorsInFirst5.length;
@@ -1135,13 +1137,13 @@ export default function ResearchContributionForm({ publicationType, contribution
       // APPLY POLICY RULES
       if (numInternalInFirst5 ===
    1) {
-        // RULE 1: Single author with SGTU affiliation → 100% amount
+        // RULE 1: Single author with ResearchSphere affiliation → 100% amount
         rolePercentage = 100;
-        logger.debug('[calculateResearchPaperIncentive] RULE 1: Single SGTU author gets 100%');
+        logger.debug('[calculateResearchPaperIncentive] RULE 1: Single ResearchSphere author gets 100%');
       } 
       else if (numInternalInFirst5 ===
    2 && !hasDistinctFirstAndCorresponding) {
-        // RULE 2: Two SGTU authors AND no distinct First+Corresponding roles exist
+        // RULE 2: Two ResearchSphere authors AND no distinct First+Corresponding roles exist
         const hasFirstAuthor = internalAuthorsInFirst5.some(a => 
           a.role ===
    'first_author' || a.role ===
@@ -1165,19 +1167,19 @@ export default function ResearchContributionForm({ publicationType, contribution
         // If one is First+Corresponding (same person), or if second is corresponding, split equally
         if (firstAndCorrespondingSame || (hasFirstAuthor && hasCorrespondingAuthor)) {
           rolePercentage = 50; // Equal split
-          logger.debug('[calculateResearchPaperIncentive] RULE 2: Two SGTU authors - equal split 50-50');
+          logger.debug('[calculateResearchPaperIncentive] RULE 2: Two ResearchSphere authors - equal split 50-50');
         } else {
           // First author 60%, Second author 40%
           const isFirstAuthor = authorRole ===
    'first_author' || authorRole ===
    'first';
           rolePercentage = isFirstAuthor ? 60 : 40;
-          logger.debug('[calculateResearchPaperIncentive] RULE 2: Two SGTU authors - First 60%, Second 40%');
+          logger.debug('[calculateResearchPaperIncentive] RULE 2: Two ResearchSphere authors - First 60%, Second 40%');
         }
       }
       else if (numInternalInFirst5 > 2 || (numInternalInFirst5 ===
    2 && hasDistinctFirstAndCorresponding)) {
-        // RULE 3: More than 2 SGTU authors OR 2 SGTU authors with distinct First+Corresponding roles (40-40-20)
+        // RULE 3: More than 2 ResearchSphere authors OR 2 ResearchSphere authors with distinct First+Corresponding roles (40-40-20)
         const firstAndCorrespondingSame = allAuthorsInFirst5.some(a => 
           a.role ===
    'first_and_corresponding' || a.role ===
@@ -1336,7 +1338,7 @@ export default function ResearchContributionForm({ publicationType, contribution
     authorType: 'Faculty',
     authorCategory: 'Internal',
     email: '',
-    affiliation: 'SGT University',
+    affiliation: universityName,
     authorRole: 'co_author',
     designation: '',
   });
@@ -1369,7 +1371,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         ...prev,
         authorCategory: 'Internal',
         authorType: 'Faculty',
-        affiliation: 'SGT University',
+        affiliation: universityName,
         uid: '',
         authorRole: defaultRole
       }));
@@ -1382,7 +1384,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         ...prev,
         authorCategory: 'Internal',
         authorType: 'Faculty',
-        affiliation: 'SGT University',
+        affiliation: universityName,
         uid: '',
         authorRole: defaultRole
       }));
@@ -1393,7 +1395,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorRole: defaultRole
       }));
     }
-  }, [totalInternalAuthors, totalInternalCoAuthors, userAuthorType, policyData?.distributionMethod]);
+  }, [totalInternalAuthors, totalInternalCoAuthors, userAuthorType, policyData?.distributionMethod, universityName]);
   
   // Ensure authorCategory is set to Internal when all authors are internal
   useEffect(() => {
@@ -1403,10 +1405,10 @@ export default function ResearchContributionForm({ publicationType, contribution
         ...prev,
         authorCategory: 'Internal',
         authorType: 'Faculty',
-        affiliation: 'SGT University'
+        affiliation: universityName
       }));
     }
-  }, [totalAuthors, totalInternalAuthors]);
+  }, [totalAuthors, totalInternalAuthors, universityName]);
   
   // Fetch my contributions for the "Already in Process" tab
   useEffect(() => {
@@ -1491,7 +1493,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       return ['first', 'corresponding'];
     }
     
-    // Rule 3.5: 1 SGT author, 0 co-authors, and only 1 total author - must be First & Corresponding
+    // Rule 3.5: 1 ResearchSphere author, 0 co-authors, and only 1 total author - must be First & Corresponding
     // For multiple authors: allow First, Corresponding, or both
     if (totalInternalAuthors ===
    1 && totalInternalCoAuthors ===
@@ -1504,8 +1506,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       return ['first_and_corresponding', 'first', 'corresponding'];
     }
     
-    // Rule 3.6: Only 2 total authors AND both from SGT - one must be First & Corresponding, one must be Co-Author
-    // This enforces proper role distribution for 2-author papers with both authors from SGT
+    // Rule 3.6: Only 2 total authors AND both from ResearchSphere - one must be First & Corresponding, one must be Co-Author
+    // This enforces proper role distribution for 2-author papers with both authors from ResearchSphere
     if (totalAuthors ===
    2 && totalInternalAuthors ===
    2) {
@@ -2079,7 +2081,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               authorType: authorType,
               authorCategory: isInternal ? 'Internal' : 'External',
               email: a.email || '',
-              affiliation: a.affiliation || (isInternal ? 'SGT University' : ''),
+              affiliation: a.affiliation || (isInternal ? universityName : ''),
               authorRole: a.authorType || 'co_author', // authorType from backend is the role enum
             };
           });
@@ -2232,7 +2234,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             authorType: author.authorType || 'Faculty',
             authorCategory: author.authorCategory || 'Internal',
             email: author.email || '',
-            affiliation: author.affiliation || 'SGT University',
+            affiliation: author.affiliation || universityName,
             designation: author.designation || '',
             authorRole: author.authorRole || 'co_author',
           }));
@@ -2397,7 +2399,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorType: newAuthor.authorType,
         authorCategory: 'Internal',
         email: '',
-        affiliation: 'SGT University',
+        affiliation: universityName,
         authorRole: newAuthor.authorRole,
         designation: '',
       });
@@ -2458,7 +2460,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorType: authorType,
         authorCategory: 'Internal',
         email: userEmail,
-        affiliation: 'SGT University',
+        affiliation: universityName,
         authorRole: newAuthor.authorRole,
         designation: userData.designation || '',
       });
@@ -2471,7 +2473,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorType: authorType,
         authorCategory: 'Internal',
         email: userData.email || '', // Try to use email from search if available
-        affiliation: 'SGT University',
+        affiliation: universityName,
         authorRole: newAuthor.authorRole,
         designation: '',
       });
@@ -2494,7 +2496,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorType: newAuthor.authorType,
         authorCategory: 'Internal',
         email: '',
-        affiliation: 'SGT University',
+        affiliation: universityName,
         authorRole: newAuthor.authorRole,
         designation: '',
       });
@@ -2529,7 +2531,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           authorType: authorType,
           authorCategory: 'Internal',
           email: userEmail,
-          affiliation: 'SGT University',
+          affiliation: universityName,
           authorRole: newAuthor.authorRole,
           designation: '',
         });
@@ -2546,7 +2548,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorType: newAuthor.authorType,
         authorCategory: 'Internal',
         email: '',
-        affiliation: 'SGT University',
+        affiliation: universityName,
         authorRole: newAuthor.authorRole,
         designation: '',
       });
@@ -2656,7 +2658,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           const maxInternalAuthors = totalInternalAuthors - 1; // Minus applicant
           
           if (totalInternalAdded >= maxInternalAuthors) {
-            setError(`You can only add ${maxInternalAuthors} SGT author(s) total (based on SGT Authors = ${totalInternalAuthors}). You've already added ${totalInternalAdded}.`);
+            setError(`You can only add ${maxInternalAuthors} ResearchSphere author(s) total (based on ResearchSphere Authors = ${totalInternalAuthors}). You've already added ${totalInternalAdded}.`);
             logger.debug('[addOrUpdateAuthor] Total internal author limit reached:', { maxInternalAuthors, totalInternalAdded });
             return;
           }
@@ -2676,15 +2678,15 @@ export default function ResearchContributionForm({ publicationType, contribution
               return;
             }
           }
-          // For other internal roles (First, Corresponding), just check total SGT authors
+          // For other internal roles (First, Corresponding), just check total ResearchSphere authors
           else {
             const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
    'Internal').length;
-            // SGT Authors = total internal authors including applicant
+            // ResearchSphere Authors = total internal authors including applicant
             const maxInternalAuthors = totalInternalAuthors - 1; // Minus applicant
             
             if (totalInternalAdded >= maxInternalAuthors) {
-              setError(`You can only add ${maxInternalAuthors} internal author(s) total (based on SGT Authors = ${totalInternalAuthors}). You've already added ${totalInternalAdded}.`);
+              setError(`You can only add ${maxInternalAuthors} internal author(s) total (based on ResearchSphere Authors = ${totalInternalAuthors}). You've already added ${totalInternalAdded}.`);
               logger.debug('[addOrUpdateAuthor] Total internal author limit reached:', { maxInternalAuthors, totalInternalAdded });
               return;
             }
@@ -2770,7 +2772,7 @@ export default function ResearchContributionForm({ publicationType, contribution
     const defaultType = defaultCategory ===
    'External' ? 'Academic' : 'Faculty';
     const defaultAffiliation = defaultCategory ===
-   'External' ? '' : 'SGT University';
+   'External' ? '' : universityName;
     
     setNewAuthor({
       uid: '',
@@ -2794,7 +2796,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       authorType: author.authorType,
       authorCategory: author.authorCategory,
       email: author.email || '',
-      affiliation: author.affiliation || 'SGT University',
+      affiliation: author.affiliation || universityName,
       authorRole: author.authorRole || 'co_author',
       designation: author.designation || '',
     });
@@ -2810,7 +2812,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorType: 'Faculty',
         authorCategory: 'Internal',
         email: '',
-        affiliation: 'SGT University',
+        affiliation: universityName,
         authorRole: 'co_author',
         designation: '',
       };
@@ -2924,7 +2926,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
   // Update co-authors list when counts change
   useEffect(() => {
-    // Special case: SGT=1 & Internal Co-Authors=1 -> need exactly 1 slot for internal author
+    // Special case: ResearchSphere=1 & Internal Co-Authors=1 -> need exactly 1 slot for internal author
     const newCount = (totalInternalAuthors ===
    1 && totalInternalCoAuthors ===
    1) 
@@ -2948,7 +2950,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             authorType: 'Faculty',
             authorCategory: 'Internal',
             email: '',
-            affiliation: 'SGT University',
+            affiliation: universityName,
             authorRole: defaultRole,
             designation: '',
             displayOrder: prev.length + idx + 2, // Initialize display order
@@ -3001,7 +3003,7 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
   }, [totalAuthors, totalInternalAuthors, totalInternalCoAuthors]);
   
-  // Auto-set newAuthor category to Internal when in SGT=1 & Co-Authors=1 scenario
+  // Auto-set newAuthor category to Internal when in ResearchSphere=1 & Co-Authors=1 scenario
   useEffect(() => {
     if (totalInternalAuthors ===
    1 && totalInternalCoAuthors ===
@@ -3009,7 +3011,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       setNewAuthor(prev => ({
         ...prev,
         authorCategory: 'Internal',
-        affiliation: 'SGT University',
+        affiliation: universityName,
         authorRole: 'first_and_corresponding'
       }));
     }
@@ -3108,7 +3110,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           registrationNumber: coAuthor.uid || null,
           email: coAuthor.email || null,
           affiliation: coAuthor.affiliation || (coAuthor.authorCategory ===
-   'Internal' ? 'SGT University' : null),
+   'Internal' ? universityName : null),
           isCorresponding: false,
           orderNumber: index + 2,
           designation: coAuthor.designation || null,
@@ -3442,7 +3444,7 @@ export default function ResearchContributionForm({ publicationType, contribution
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#7d1a34]" />
       </div>
     );
   }
@@ -3463,8 +3465,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           <button
             className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
    'entry'
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                ? 'bg-[#fdf5ec] dark:bg-[#7d1a34]/10 text-[#7d1a34] border-b-2 border-[#7d1a34]'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white dark:hover:bg-gray-700'
             }`}
             onClick={() => setActiveTab('entry')}
           >
@@ -3473,8 +3475,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           <button
             className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
    'process'
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                ? 'bg-[#fdf5ec] dark:bg-[#7d1a34]/10 text-[#7d1a34] border-b-2 border-[#7d1a34]'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white dark:hover:bg-gray-700'
             }`}
             onClick={() => setActiveTab('process')}
           >
@@ -3506,7 +3508,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         <>
           {/* Publication Form - Professional */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+            <div className="bg-gradient-to-r from-[#7d1a34] to-[#5e1024] px-6 py-4">
               <h2 className="text-lg font-semibold text-white">Publication Details</h2>
             </div>
             <div className="p-6 space-y-5">
@@ -3524,7 +3526,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   value={formData.title}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                  className="w-full px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 hover:bg-white dark:hover:bg-gray-600 transition-colors"
                   placeholder={publicationType ===
    'book' ? 'Enter the complete title of your book' : 
                                publicationType ===
@@ -3538,7 +3540,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'research_paper' && (
           <>
           {/* Research Details - All in One Box */}
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800/50 dark:to-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec] dark:from-slate-800/50 dark:to-[#7d1a34]/10 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
             {/* Indexing Categories - Multi-Select */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -3549,8 +3551,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {INDEXING_CATEGORIES.map(cat => (
                   <label key={cat.value} className={`inline-flex items-center text-sm cursor-pointer p-2 rounded-lg border transition-colors ${
                     formData.indexingCategories.includes(cat.value) 
-                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700' 
-                      : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-700'
+                      ? 'bg-[#fdf5ec] dark:bg-[#7d1a34]/20 border-[#f0e2d2] dark:border-[#7d1a34]' 
+                      : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-[#f0e2d2] dark:hover:border-[#7d1a34]'
                   }`}>
                     <input 
                       type="checkbox" 
@@ -3570,7 +3572,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           }));
                         }
                       }}
-                      className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                      className="w-4 h-4 text-[#7d1a34] rounded border-[#f0e2d2]"
                     />
                     <span className="ml-2 text-gray-700 dark:text-gray-300">{cat.label}</span>
                   </label>
@@ -3586,7 +3588,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Interdisciplinary(SGT) <span className="text-red-500">*</span>
+                  Interdisciplinary(ResearchSphere) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-4">
                   {['yes','no'].map(v => (
@@ -3595,7 +3597,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         checked={formData.isInterdisciplinary ===
    v}
                         onChange={handleInputChange}
-                        className="w-4 h-4 text-blue-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -3612,15 +3614,15 @@ export default function ResearchContributionForm({ publicationType, contribution
               formData.indexingCategories.includes('subsidiary_if_above_20') ||
               formData.indexingCategories.includes('nature_science_lancet_cell_nejm') ||
               formData.indexingCategories.includes('abdc_scopus_wos')) && (
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
-                <h4 className="text-sm font-semibold text-indigo-700 mb-3 flex items-center">
-                  <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+              <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700">
+                <h4 className="text-sm font-semibold text-[#7d1a34] mb-3 flex items-center">
+                  <span className="w-2 h-2 bg-[#7d1a34] rounded-full mr-2"></span>
                   Journal Metrics
                   <span className="text-red-500 ml-1">*</span>
                 </h4>
                 
                 {/* Show which categories require these fields */}
-                <div className="mb-3 text-xs text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                <div className="mb-3 text-xs text-gray-600 dark:text-gray-400 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 p-2 rounded">
                   Required for: {[
                     formData.indexingCategories.includes('scopus') && 'SCOPUS',
                     formData.indexingCategories.includes('scie_wos') && 'SCIE/SCI (WOS)',
@@ -3636,7 +3638,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Quartile <span className="text-red-500">*</span>
-                        <span className="text-xs text-blue-600 ml-1">
+                        <span className="text-xs text-[#7d1a34] ml-1">
                           ({[
                             formData.indexingCategories.includes('scopus') && 'SCOPUS',
                             formData.indexingCategories.includes('abdc_scopus_wos') && 'ABDC'
@@ -3657,7 +3659,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                               checked={formData.quartile ===
    q.value}
                               onChange={handleInputChange}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-[#7d1a34]"
                             />
                             <span className="ml-1 text-gray-700 dark:text-gray-300">{q.label}</span>
                           </label>
@@ -3678,7 +3680,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Impact Factor <span className="text-red-500">*</span>
                         {formData.indexingCategories.includes('subsidiary_if_above_20') && (
-                          <span className="text-xs text-purple-600 ml-1">(must be &gt;20 for Subsidiary)</span>
+                          <span className="text-xs text-[#7d1a34] ml-1">(must be &gt;20 for Subsidiary)</span>
                         )}
                       </label>
                       <input 
@@ -3687,11 +3689,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                         name="impactFactor" 
                         value={formData.impactFactor} 
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 ${
+                        className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 ${
                           formData.indexingCategories.includes('subsidiary_if_above_20') && 
                           formData.impactFactor && 
                           parseFloat(formData.impactFactor) <= 20 
-                            ? 'border-red-500' : 'border-gray-300'
+                            ? 'border-red-500' : 'border-[#f0e2d2]'
                         }`}
                         placeholder={formData.indexingCategories.includes('subsidiary_if_above_20') ? "e.g. 25.5 (>20)" : "e.g. 2.5"}
                         min={formData.indexingCategories.includes('subsidiary_if_above_20') ? "20.01" : undefined}
@@ -3712,7 +3714,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         SJR (Scimago Journal Rank) <span className="text-red-500">*</span>
-                        <span className="text-xs text-green-600 ml-1">
+                        <span className="text-xs text-[#7d1a34] ml-1">
                           ({[
                             formData.indexingCategories.includes('scopus') && 'SCOPUS',
                             formData.indexingCategories.includes('abdc_scopus_wos') && 'ABDC'
@@ -3725,7 +3727,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         name="sjr" 
                         value={formData.sjr} 
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                        className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                         placeholder="e.g. 0.5"
                       />
                       {!formData.sjr && (
@@ -3739,8 +3741,8 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* NAAS (Rating ≥ 6) - Separate section as it's independent */}
             {formData.indexingCategories.includes('naas_rating_6_plus') && (
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
-                <h4 className="text-sm font-semibold text-orange-700 mb-3 flex items-center">
+              <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700">
+                <h4 className="text-sm font-semibold text-[#7d1a34] mb-3 flex items-center">
                   <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
                   NAAS Details <span className="text-red-500 ml-1">*</span>
                 </h4>
@@ -3750,9 +3752,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                       NAAS Rating (must be ≥ 6) <span className="text-red-500">*</span>
                     </label>
                     <input type="number" step="0.01" name="naasRating" value={formData.naasRating} onChange={handleInputChange}
-                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100 ${
+                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 ${
                         formData.naasRating && parseFloat(formData.naasRating) < 6 
-                          ? 'border-red-500' : 'border-gray-300'
+                          ? 'border-red-500' : 'border-[#f0e2d2]'
                       }`}
                       placeholder="e.g. 6.5"
                       min="6"
@@ -3781,7 +3783,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               value={formData.journalName}
               onChange={handleInputChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-600 transition-colors"
+              className="w-full px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-600 transition-colors"
               placeholder="Enter the journal name"
             />
           </div>
@@ -3797,9 +3799,9 @@ export default function ResearchContributionForm({ publicationType, contribution
           {(publicationType ===
    'book' && bookPolicy) || (publicationType ===
    'book_chapter' && bookChapterPolicy) ? (
-            <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 space-y-4">
+            <div className="p-5 bg-gradient-to-r from-[#fdf5ec] to-[#fdf5ec]/30 dark:from-[#7d1a34]/10 dark:to-[#7d1a34]/5 rounded-xl border border-[#f0e2d2] dark:border-[#5e1024] space-y-4">
               <div className="flex items-center gap-2 mb-3">
-                <BookOpen className="w-5 h-5 text-blue-600" />
+                <BookOpen className="w-5 h-5 text-[#7d1a34]" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Current {publicationType ===
    'book' ? 'Book' : 'Book Chapter'} Policy
@@ -3814,11 +3816,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-green-600">₹{bookPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-purple-600">{bookPolicy.authoredPoints}</span>
+                        <span className="font-semibold text-[#7d1a34]">{bookPolicy.authoredPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3827,11 +3829,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-green-600">₹{bookPolicy.editedIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.editedIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-purple-600">{bookPolicy.editedPoints}</span>
+                        <span className="font-semibold text-[#7d1a34]">{bookPolicy.editedPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3840,15 +3842,15 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">Scopus Indexed</span>
-                        <span className="font-semibold text-blue-600">₹{bookPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
-                        <span className="block text-gray-600 dark:text-gray-400 mb-1">SGT Publication</span>
-                        <span className="font-semibold text-blue-600">₹{bookPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">ResearchSphere Publication</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">International</span>
-                        <span className="font-semibold text-blue-600">₹{bookPolicy.internationalBonus?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.internationalBonus?.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -3863,11 +3865,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-green-600">₹{bookChapterPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-purple-600">{bookChapterPolicy.authoredPoints}</span>
+                        <span className="font-semibold text-[#7d1a34]">{bookChapterPolicy.authoredPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3876,11 +3878,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-green-600">₹{bookChapterPolicy.editedIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.editedIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-purple-600">{bookChapterPolicy.editedPoints}</span>
+                        <span className="font-semibold text-[#7d1a34]">{bookChapterPolicy.editedPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3889,15 +3891,15 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">Scopus Indexed</span>
-                        <span className="font-semibold text-blue-600">₹{bookChapterPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
-                        <span className="block text-gray-600 dark:text-gray-400 mb-1">SGT Publication</span>
-                        <span className="font-semibold text-blue-600">₹{bookChapterPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">ResearchSphere Publication</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">International</span>
-                        <span className="font-semibold text-blue-600">₹{bookChapterPolicy.internationalBonus?.toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.internationalBonus?.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -3909,8 +3911,8 @@ export default function ResearchContributionForm({ publicationType, contribution
               </p>
             </div>
           ) : policyLoading ? (
-            <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+            <div className="p-5 bg-white dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
+              <Loader2 className="w-6 h-6 animate-spin text-[#7d1a34] mx-auto mb-2" />
               <p className="text-sm text-gray-600 dark:text-gray-400">Loading policy information...</p>
             </div>
           ) : (
@@ -3929,8 +3931,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           )}
           
           {/* Book Details - All in One Box */}
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-green-50 dark:from-slate-800/50 dark:to-green-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
-            {/* Row 1: Publication Type (Scopus/Non-indexed/SGT Publication House) */}
+          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-green-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
+            {/* Row 1: Publication Type (Scopus/Non-indexed/ResearchSphere Publication House) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -3940,12 +3942,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                   name="bookIndexingType"
                   value={formData.bookIndexingType}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="scopus_indexed">Scopus Indexed</option>
                   <option value="non_indexed">Non-Indexed</option>
-                  <option value="sgt_publication_house">SGT Publication House</option>
+                  <option value="sgt_publication_house">ResearchSphere Publication House</option>
                 </select>
               </div>
 
@@ -3962,7 +3964,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       checked={formData.bookLetter ===
    'yes'}
                       onChange={handleInputChange}
-                      className="w-4 h-4 text-green-600"
+                      className="w-4 h-4 text-[#7d1a34]"
                       readOnly
                     />
                     <span className="ml-1.5 text-gray-700 dark:text-gray-300">Yes</span>
@@ -3989,7 +3991,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   name="bookPublicationType"
                   value={formData.bookPublicationType}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="authored">Authored</option>
@@ -4003,7 +4005,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Interdisciplinary(SGT) <span className="text-red-500">*</span>
+                  Interdisciplinary(ResearchSphere) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-4">
                   {['yes','no'].map(v => (
@@ -4012,7 +4014,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         checked={formData.isInterdisciplinary ===
    v}
                         onChange={handleInputChange}
-                        className="w-4 h-4 text-green-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4031,7 +4033,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         checked={formData.communicatedWithOfficialId ===
    v}
                         onChange={handleInputChange}
-                        className="w-4 h-4 text-green-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4048,7 +4050,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Your Personal Email ID <span className="text-red-500">*</span>
                 </label>
                 <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter your personal email address"
                   required
                 />
@@ -4059,13 +4061,13 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Book Chapter Specific: Book Title and Chapter Details */}
             {publicationType ===
    'book_chapter' && (
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-4">
+              <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Book Title <span className="text-red-500">*</span>
                   </label>
                   <input type="text" name="bookTitle" value={formData.bookTitle} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter the title of the book containing your chapter"
                     required
                   />
@@ -4074,14 +4076,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Chapter Number</label>
                     <input type="text" name="chapterNumber" value={formData.chapterNumber} onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g. Chapter 5"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Page Numbers</label>
                     <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g. 100-125"
                     />
                   </div>
@@ -4089,7 +4091,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Editors</label>
                   <input type="text" name="editors" value={formData.editors} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter editor names (comma separated)"
                   />
                 </div>
@@ -4097,14 +4099,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
 
             {/* Publisher Details & National/International */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-4">
+            <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Publisher <span className="text-red-500">*</span>
                   </label>
                   <input type="text" name="publisherName" value={formData.publisherName} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter publisher name"
                     required
                   />
@@ -4117,7 +4119,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     name="nationalInternational"
                     value={formData.nationalInternational}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                     required
                   >
                     <option value="">-- Select --</option>
@@ -4135,7 +4137,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   ISBN <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="isbn" value={formData.isbn} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="978-xxx-xxx-xxxx-x"
                   required
                 />
@@ -4145,7 +4147,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Publication Date <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
@@ -4160,7 +4162,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 value={formData.facultyRemarks} 
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100 resize-none"
+                className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 resize-none"
                 placeholder="Any additional remarks or comments about the publication..."
               />
             </div>
@@ -4173,7 +4175,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'conference_paper' && (
           <>
           {/* Conference Type Selection */}
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Please Select Conference Type <span className="text-red-500">*</span>
@@ -4182,14 +4184,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                 name="conferenceSubType"
                 value={formData.conferenceSubType}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                className="w-full px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                 required
               >
                 <option value="">-- Please Select --</option>
                 <option value="paper_not_indexed">Papers in Conferences (not Indexed) / Seminars / Workshops</option>
                 <option value="paper_indexed_scopus">Paper in conference proceeding indexed in Scopus</option>
-                <option value="keynote_speaker_invited_talks">Keynote Speaker / Session chair / Invited Talks (Outside SGT)</option>
-                <option value="organizer_coordinator_member">Organizer / Coordinator / Member of conference held at SGT</option>
+                <option value="keynote_speaker_invited_talks">Keynote Speaker / Session chair / Invited Talks (Outside ResearchSphere)</option>
+                <option value="organizer_coordinator_member">Organizer / Coordinator / Member of conference held at ResearchSphere</option>
               </select>
             </div>
             
@@ -4197,7 +4199,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {formData.conferenceSubType && conferencePolicy && (
               <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-800">
                 <div className="flex items-center gap-2 mb-3">
-                  <Award className="w-5 h-5 text-purple-600" />
+                  <Award className="w-5 h-5 text-[#7d1a34]" />
                   <h4 className="font-semibold text-gray-900 dark:text-white">Current Incentive Policy</h4>
                 </div>
                 
@@ -4208,7 +4210,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                       {conferencePolicy.quartileIncentives.map((qi: any) => (
                         <div key={qi.quartile} className="text-center p-2 bg-purple-50 rounded-lg">
-                          <div className="text-xs font-medium text-purple-600">{qi.quartile}</div>
+                          <div className="text-xs font-medium text-[#7d1a34]">{qi.quartile}</div>
                           <div className="text-sm font-semibold text-gray-900 dark:text-white">₹{Number(qi.incentiveAmount).toLocaleString()}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{qi.points} pts</div>
                         </div>
@@ -4218,13 +4220,13 @@ export default function ResearchContributionForm({ publicationType, contribution
                       {conferencePolicy.internationalBonus && (
                         <span className="text-gray-600 dark:text-gray-400">
                           <Globe className="w-4 h-4 inline mr-1 text-purple-500" />
-                          International Bonus: <span className="font-medium text-green-600">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
+                          International Bonus: <span className="font-medium text-[#7d1a34]">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
                         </span>
                       )}
                       {conferencePolicy.bestPaperAwardBonus && (
                         <span className="text-gray-600 dark:text-gray-400">
                           <Trophy className="w-4 h-4 inline mr-1 text-amber-500" />
-                          Best Paper Award: <span className="font-medium text-green-600">₹{Number(conferencePolicy.bestPaperAwardBonus).toLocaleString()}</span>
+                          Best Paper Award: <span className="font-medium text-[#7d1a34]">₹{Number(conferencePolicy.bestPaperAwardBonus).toLocaleString()}</span>
                         </span>
                       )}
                     </div>
@@ -4233,21 +4235,21 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <div className="space-y-2">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <Coins className="w-4 h-4 text-green-600" />
+                        <Coins className="w-4 h-4 text-[#7d1a34]" />
                         <span className="text-gray-600 dark:text-gray-400">Incentive Amount:</span>
-                        <span className="font-semibold text-green-600">₹{Number(conferencePolicy.flatIncentiveAmount || 0).toLocaleString()}</span>
+                        <span className="font-semibold text-[#7d1a34]">₹{Number(conferencePolicy.flatIncentiveAmount || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Award className="w-4 h-4 text-purple-600" />
+                        <Award className="w-4 h-4 text-[#7d1a34]" />
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-purple-600">{conferencePolicy.flatPoints || 0}</span>
+                        <span className="font-semibold text-[#7d1a34]">{conferencePolicy.flatPoints || 0}</span>
                       </div>
                     </div>
                     <div className="flex gap-4 mt-2 text-sm">
                       {conferencePolicy.internationalBonus && (
                         <span className="text-gray-600">
                           <Globe className="w-4 h-4 inline mr-1 text-purple-500" />
-                          International Bonus: <span className="font-medium text-green-600">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
+                          International Bonus: <span className="font-medium text-[#7d1a34]">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
                         </span>
                       )}
                     </div>
@@ -4270,7 +4272,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           {(formData.conferenceSubType ===
    'paper_not_indexed' || formData.conferenceSubType ===
    'paper_indexed_scopus') && (
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
             {/* Title of Paper - Already covered by main title field */}
             
             {/* Conference Name & Proceedings Title */}
@@ -4280,7 +4282,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
@@ -4290,7 +4292,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Title of the Proceedings of Conference
                 </label>
                 <input type="text" name="proceedingsTitle" value={formData.proceedingsTitle} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter proceedings title"
                 />
               </div>
@@ -4301,7 +4303,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority Areas of Funding</label>
                 <input type="text" name="priorityFundingArea" value={formData.priorityFundingArea} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter priority funding area"
                 />
               </div>
@@ -4312,7 +4314,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Please Mention the Proceedings Quartile <span className="text-red-500">*</span>
                 </label>
                 <select name="proceedingsQuartile" value={formData.proceedingsQuartile} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="na">NA</option>
@@ -4350,14 +4352,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }}
                   min="1" 
                   max="2"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Whether you are a Presenter?
                   {formData.totalPresenters ===
-   1 && <span className="text-xs text-green-600 ml-1">(Auto-set to Yes)</span>}
+   1 && <span className="text-xs text-[#7d1a34] ml-1">(Auto-set to Yes)</span>}
                 </label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
@@ -4372,7 +4374,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         onChange={handleInputChange}
                         disabled={formData.totalPresenters ===
    1}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4400,7 +4402,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {formData.conferenceSubType ===
    'paper_not_indexed' && formData.isPresenter ===
    'yes' && (
-                  <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="mt-3 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 border border-[#f0e2d2] dark:border-[#5e1024] rounded-lg p-4">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Upload Presenter Certificate <span className="text-red-500">*</span>
                     </label>
@@ -4413,10 +4415,10 @@ export default function ResearchContributionForm({ publicationType, contribution
                           setPresenterCertificate(e.target.files[0]);
                         }
                       }}
-                      className="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-900/60"
+                      className="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#fbe2e8] dark:file:bg-[#5e1024]/40 file:text-[#7d1a34] dark:file:text-[#c8973f] hover:file:bg-[#fbe8d6] dark:hover:file:bg-[#5e1024]/60"
                     />
                     {presenterCertificate && (
-                      <div className="mt-2 text-sm text-green-600 flex items-center gap-2">
+                      <div className="mt-2 text-sm text-[#7d1a34] flex items-center gap-2">
                         <CheckCircle className="w-4 h-4" />
                         <span>{presenterCertificate.name}</span>
                         <button
@@ -4439,7 +4441,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="virtualConference" value={v}
                         checked={formData.virtualConference ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4457,7 +4459,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <input type="radio" name="fullPaper" value="yes"
                       checked={formData.fullPaper ===
    'yes'} onChange={handleInputChange}
-                      className="w-4 h-4 text-purple-600"
+                      className="w-4 h-4 text-[#7d1a34]"
                     />
                     <span className="ml-1.5 text-gray-700 dark:text-gray-300">Full Paper</span>
                   </label>
@@ -4471,7 +4473,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="conferenceType" value={v}
                         checked={formData.conferenceType ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4483,14 +4485,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Conference Location & Award */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Whether conference held at SGT?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Whether conference held at ResearchSphere?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="conferenceHeldAtSgt" value={v}
                         checked={formData.conferenceHeldAtSgt ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4505,7 +4507,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="conferenceBestPaperAward" value={v}
                         checked={formData.conferenceBestPaperAward ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4517,14 +4519,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Interdisciplinary, Students, Industry */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interdisciplinary (from SGT)?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interdisciplinary (from ResearchSphere)?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="isInterdisciplinary" value={v}
                         checked={formData.isInterdisciplinary ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4539,7 +4541,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="industryCollaboration" value={v}
                         checked={formData.industryCollaboration ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4562,7 +4564,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="communicatedWithOfficialId" value={v}
                         checked={formData.communicatedWithOfficialId ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4570,14 +4572,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Have you used the facility of Central Instrumentation Facility of SGT?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Have you used the facility of Central Instrumentation Facility of ResearchSphere?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="centralFacilityUsed" value={v}
                         checked={formData.centralFacilityUsed ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-purple-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4594,7 +4596,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Your Personal Email ID <span className="text-red-500">*</span>
                 </label>
                 <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter your personal email address"
                   required
                 />
@@ -4607,7 +4609,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Conference Date</label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 />
               </div>
               <div>
@@ -4615,7 +4617,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Publication Date <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   required
                 />
               
@@ -4627,14 +4629,14 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ISSN/ISBN/Issue No</label>
                 <input type="text" name="issnIsbnIssueNo" value={formData.issnIsbnIssueNo} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter ISSN/ISBN/Issue No"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Page No</label>
                 <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="e.g. 100-125"
                 />
               </div>
@@ -4645,14 +4647,14 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">DOIs of Paper</label>
                 <input type="text" name="paperDoi" value={formData.paperDoi} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter DOI"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">WebLink</label>
                 <input type="url" name="weblink" value={formData.weblink} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="https://..."
                 />
               </div>
@@ -4662,7 +4664,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Paper WebLink</label>
               <input type="url" name="paperweblink" value={formData.paperweblink} onChange={handleInputChange}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 placeholder="https://..."
               />
             </div>
@@ -4671,7 +4673,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Faculty Remarks</label>
               <textarea name="facultyRemarks" value={formData.facultyRemarks} onChange={handleInputChange}
-                rows={3} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                rows={3} className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 placeholder="Please mention the date and venue of conference..."
               />
             </div>
@@ -4681,7 +4683,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Type 3: Keynote Speaker / Session Chair / Invited Talks */}
           {formData.conferenceSubType ===
    'keynote_speaker_invited_talks' && (
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-orange-50 dark:from-slate-800/50 dark:to-orange-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-orange-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
             {/* Role Selection */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -4759,7 +4761,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
@@ -4769,7 +4771,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="venue" value={formData.venue} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter venue"
                   required
                 />
@@ -4783,7 +4785,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Date of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
@@ -4793,7 +4795,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Topic <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="topic" value={formData.topic} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter topic"
                   required
                 />
@@ -4819,10 +4821,10 @@ export default function ResearchContributionForm({ publicationType, contribution
           </div>
           )}
 
-          {/* Type 4: Organizer/Coordinator/Member of Conference held at SGT */}
+          {/* Type 4: Organizer/Coordinator/Member of Conference held at ResearchSphere */}
           {formData.conferenceSubType ===
    'organizer_coordinator_member' && (
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-cyan-50 dark:from-slate-800/50 dark:to-cyan-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-cyan-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
             {/* Category Selection */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -4921,7 +4923,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
@@ -4931,7 +4933,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="venue" value={formData.venue} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter venue"
                   required
                 />
@@ -4945,7 +4947,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Date of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
@@ -4955,7 +4957,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Topic
                 </label>
                 <input type="text" name="topic" value={formData.topic} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter topic"
                 />
               </div>
@@ -4988,7 +4990,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               UN Sustainable Development Goals (SDGs)
             </label>
             <details className="group">
-              <summary className="cursor-pointer px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 hover:bg-white dark:hover:bg-gray-600 flex justify-between items-center transition-colors">
+              <summary className="cursor-pointer px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 hover:bg-white dark:hover:bg-gray-600 flex justify-between items-center transition-colors">
                 <span className="text-gray-600 dark:text-gray-300">
                   {formData.sdgGoals.length > 0 
                     ? `${formData.sdgGoals.length} SDG${formData.sdgGoals.length !== 1 ? 's' : ''} selected`
@@ -5001,7 +5003,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div className="mt-2 p-4 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 shadow-lg max-h-64 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {SDG_GOALS.map((sdg) => (
-                    <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg cursor-pointer transition-colors">
+                    <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/10 rounded-lg cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={formData.sdgGoals.includes(sdg.value)}
@@ -5014,7 +5016,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                               : prev.sdgGoals.filter(g => g !== sdg.value)
                           }));
                         }}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        className="w-4 h-4 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34]"
                       />
                       <span className="text-sm dark:text-gray-300">{sdg.label}</span>
                     </label>
@@ -5028,7 +5030,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   const sdg = SDG_GOALS.find(s => s.value ===
    sdgValue);
                   return sdg ? (
-                    <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                    <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#fbe2e8] text-[#7d1a34] rounded-full text-sm font-medium">
                       {sdg.label.replace('SDG ', '')}
                       <button
                         type="button"
@@ -5036,7 +5038,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           ...prev,
                           sdgGoals: prev.sdgGoals.filter(g => g !== sdgValue)
                         }))}
-                        className="hover:text-blue-900 hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                        className="hover:text-[#7d1a34] hover:bg-[#fbe8d6] rounded-full p-0.5 transition-colors"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -5050,43 +5052,43 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Publication Details Grid - Only for Research Papers */}
           {publicationType ===
    'research_paper' && (
-          <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+          <div className="p-5 bg-[#fdf5ec]/40 dark:bg-slate-800/50 rounded-xl border border-[#f0e2d2] dark:border-slate-700">
             <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Publication Information</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Volume <span className="text-red-500">*</span></label>
                 <input type="text" name="volume" value={formData.volume} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="Vol"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="Vol"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Issue <span className="text-red-500">*</span></label>
                 <input type="text" name="issue" value={formData.issue} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="Iss"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="Iss"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Pages <span className="text-red-500">*</span></label>
                 <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="1-10"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="1-10"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">DOI</label>
                 <input type="text" name="doi" value={formData.doi} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="10.xxx"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="10.xxx"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">ISSN</label>
                 <input type="text" name="issn" value={formData.issn} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="1234-5678"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="1234-5678"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Pub. Date</label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]"
                 />
               </div>
             </div>
@@ -5101,7 +5103,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }
                 }}
                 pattern="https://.*"
-                className={`w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 ${formData.publisherName && !formData.publisherName.startsWith('https://') ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'}`} 
+                className={`w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34] ${formData.publisherName && !formData.publisherName.startsWith('https://') ? 'border-red-300' : 'border-[#f0e2d2] dark:border-gray-600'}`} 
                 placeholder="https://doi.org/10.xxxx/xxxxx"
               />
               {formData.publisherName && !formData.publisherName.startsWith('https://') && (
@@ -5143,17 +5145,17 @@ export default function ResearchContributionForm({ publicationType, contribution
                 onChange={handleMentorUidChange}
                 onFocus={() => formData.mentorUid.length >= 3 && setShowMentorSuggestions(true)}
                 placeholder="Enter Mentor's UID"
-                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+                className="w-full px-2 py-1.5 border border-[#f0e2d2] dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
               />
               
               {/* Autocomplete Suggestions Dropdown */}
               {showMentorSuggestions && mentorSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
                   {mentorSuggestions.map((suggestion, index) => (
                     <div
                       key={index}
                       onClick={() => selectMentorSuggestion(suggestion)}
-                      className="px-2 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                      className="px-2 py-1.5 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/10 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                     >
                       <div className="font-medium text-gray-900 dark:text-white text-sm">{suggestion.uid}</div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">{suggestion.name}</div>
@@ -5172,7 +5174,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 value={formData.mentorName}
                 readOnly
                 placeholder="Auto-filled"
-                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-300 text-sm text-gray-700"
+                className="w-full px-2 py-1.5 border border-[#f0e2d2] dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-gray-300 text-sm text-gray-700"
               />
             </div>
           </div>
@@ -5191,7 +5193,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         
         {/* Author Counts and Additional Info - All in One Box */}
         <div className={`p-4 bg-gradient-to-r ${formData.publicationType ===
-   'conference_paper' ? 'from-gray-50 dark:from-gray-700/50 to-purple-50 dark:to-purple-900/20' : (formData.publicationType ===
+   'conference_paper' ? 'from-gray-50 dark:from-gray-700/50 to-[#fdf5ec]/30 dark:to-purple-900/20' : (formData.publicationType ===
    'book' || formData.publicationType ===
    'book_chapter') ? 'from-gray-50 dark:from-gray-700/50 to-teal-50 dark:to-teal-900/20' : 'from-gray-50 dark:from-gray-700/50 to-emerald-50 dark:to-emerald-900/20'} rounded-xl border border-gray-100 dark:border-gray-700 space-y-4`}>
           {/* Row 1: Basic Author Counts */}
@@ -5214,13 +5216,13 @@ export default function ResearchContributionForm({ publicationType, contribution
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">SGT Authors <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">ResearchSphere Authors <span className="text-red-500">*</span></label>
               <input type="number" min="1" max={totalAuthors} value={totalInternalAuthors}
                 onChange={(e) => {
                   if (hasAuthorsAdded) return;
                   const value = Number(e.target.value);
-                  if (value < 1) { setError('SGT affiliated authors must be at least 1 (you)'); return; }
-                  if (value > totalAuthors) { setError('SGT affiliated authors cannot exceed total authors'); return; }
+                  if (value < 1) { setError('ResearchSphere affiliated authors must be at least 1 (you)'); return; }
+                  if (value > totalAuthors) { setError('ResearchSphere affiliated authors cannot exceed total authors'); return; }
                   setTotalInternalAuthors(value);
                   const maxCoAuthors = totalAuthors ===
    value ? value - 1 : value;
@@ -5267,7 +5269,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 }}
                 disabled={hasAuthorsAdded}
                 className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
-   'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'} dark:border-gray-600 dark:text-gray-100`} placeholder="0"
+   'conference_paper' ? 'focus:ring-[#7d1a34] focus:border-[#7d1a34]' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'} dark:border-gray-600 dark:text-gray-100`} placeholder="0"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
@@ -5332,7 +5334,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }
                 }}
                   className={`px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 ${publicationType ===
-   'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'}`}
+   'conference_paper' ? 'focus:ring-[#7d1a34] focus:border-[#7d1a34]' : 'focus:ring-emerald-500'}`}
                 >
                   {(publicationType ===
    'research_paper' && policyData?.distributionMethod ===
@@ -5365,7 +5367,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'book_chapter') && (
               <div className="flex items-center text-xs text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/20 px-3 py-2 rounded-lg border border-teal-200 dark:border-teal-800">
                 <Coins className="w-4 h-4 mr-2" />
-                Incentive will be distributed equally among all SGT authors
+                Incentive will be distributed equally among all ResearchSphere authors
               </div>
             )}
             
@@ -5386,7 +5388,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           
           {/* Row 2: Additional Author Information */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {/* International Author - Only show when there are external authors (Total > SGT) */}
+            {/* International Author - Only show when there are external authors (Total > ResearchSphere) */}
             {totalAuthors > totalInternalAuthors && (
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-2">
@@ -5417,7 +5419,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-2">
-                Student(s) from SGT <span className="text-red-500">*</span>
+                Student(s) from ResearchSphere <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-4">
                 {['yes','no'].map(v => (
@@ -5468,7 +5470,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }}
                   min="0"
                   max={totalAuthors - totalInternalAuthors}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="0"
                 />
               </div>
@@ -5484,7 +5486,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'book' || publicationType ===
    'book_chapter' ? 'border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20' : 'border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20'} rounded p-3 mb-4`}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Add Other Authors {editingAuthorIndex !== null && <span className="text-xs text-blue-600">(Editing)</span>}
+              Add Other Authors {editingAuthorIndex !== null && <span className="text-xs text-[#7d1a34]">(Editing)</span>}
             </h3>
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
               {(() => {
@@ -5496,14 +5498,14 @@ export default function ResearchContributionForm({ publicationType, contribution
    'External').length;
                 
                 // Calculate how many internal authors to add (excluding yourself)
-                // Total SGT people = totalInternalAuthors (user) + totalInternalCoAuthors (additional SGT co-authors)
-                const totalSGTPeople = totalInternalAuthors + totalInternalCoAuthors;
-                const maxInternalToAdd = totalSGTPeople - 1;  // Exclude user
-                const maxExternalToAdd = totalAuthors - totalSGTPeople;
+                // Total ResearchSphere people = totalInternalAuthors (user) + totalInternalCoAuthors (additional ResearchSphere co-authors)
+                const totalResearchSpherePeople = totalInternalAuthors + totalInternalCoAuthors;
+                const maxInternalToAdd = totalResearchSpherePeople - 1;  // Exclude user
+                const maxExternalToAdd = totalAuthors - totalResearchSpherePeople;
                 
                 const parts = [];
                 if (maxInternalToAdd > 0) {
-                  parts.push(`${maxInternalToAdd} SGT author(s) [${internalAdded} added]`);
+                  parts.push(`${maxInternalToAdd} ResearchSphere author(s) [${internalAdded} added]`);
                 }
                 if (maxExternalToAdd > 0) {
                   parts.push(`${maxExternalToAdd} external author(s) [${externalAdded} added]`);
@@ -5531,10 +5533,10 @@ export default function ResearchContributionForm({ publicationType, contribution
                   // Check if internal slots are full
                   const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
    'Internal').length;
-                  // Total SGT people = totalInternalAuthors (user) + totalInternalCoAuthors (additional SGT co-authors)
-                  const totalSGTPeople = totalInternalAuthors + totalInternalCoAuthors;
-                  // Max internal to add = total SGT people - 1 (excluding the user)
-                  const maxInternalToAdd = totalSGTPeople - 1;
+                  // Total ResearchSphere people = totalInternalAuthors (user) + totalInternalCoAuthors (additional ResearchSphere co-authors)
+                  const totalResearchSpherePeople = totalInternalAuthors + totalInternalCoAuthors;
+                  // Max internal to add = total ResearchSphere people - 1 (excluding the user)
+                  const maxInternalToAdd = totalResearchSpherePeople - 1;
                   const internalSlotsFull = totalInternalAdded >= maxInternalToAdd;
                   
                   // For books, simplified logic - just show Internal/External based on counts
@@ -5558,7 +5560,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                 ...prev, 
                                 authorCategory: e.target.value,
                                 authorType: isBook ? 'Author' : 'Faculty',
-                                affiliation: 'SGT University',
+                                affiliation: universityName,
                                 uid: '',
                                 name: '',
                                 email: '',
@@ -5567,17 +5569,17 @@ export default function ResearchContributionForm({ publicationType, contribution
                               setSearchSuggestions([]);
                               setShowSuggestions(false);
                             }}
-                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-blue-600'}`}
+                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-[#7d1a34]'}`}
                             disabled={internalSlotsFull}
                           />
                           <span className="ml-2">
-                            {isBook ? 'SGT University' : 'Internal'}
+                            {isBook ? universityName : 'Internal'}
                             {internalSlotsFull && <span className="text-red-600 text-xs ml-1">(Limit reached: {totalInternalAdded}/{maxInternalToAdd})</span>}
                           </span>
                         </label>
                       )}
-                      {/* Show External option when there are external authors (totalAuthors > totalSGTPeople) */}
-                      {totalAuthors > totalSGTPeople && (
+                      {/* Show External option when there are external authors (totalAuthors > totalResearchSpherePeople) */}
+                      {totalAuthors > totalResearchSpherePeople && (
                         <label className="inline-flex items-center">
                           <input
                             type="radio"
@@ -5599,11 +5601,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                               setSearchSuggestions([]);
                               setShowSuggestions(false);
                             }}
-                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-blue-600'}`}
+                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-[#7d1a34]'}`}
                           />
                           <span className="ml-2">
                             External
-                            {internalSlotsFull && <span className="text-green-600 text-xs ml-1">(Auto-selected)</span>}
+                            {internalSlotsFull && <span className="text-[#7d1a34] text-xs ml-1">(Auto-selected)</span>}
                           </span>
                         </label>
                       )}
@@ -5613,8 +5615,8 @@ export default function ResearchContributionForm({ publicationType, contribution
               </div>
               {totalAuthors ===
    (totalInternalAuthors + totalInternalCoAuthors) && totalAuthors > 1 && (
-                <p className="text-xs text-blue-600 mt-1">
-                  All authors are from SGT. External option is hidden.
+                <p className="text-xs text-[#7d1a34] mt-1">
+                  All authors are from ResearchSphere. External option is hidden.
                 </p>
               )}
             </div>
@@ -5650,7 +5652,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         setShowSuggestions(false);
                       }}
                       className={`w-4 h-4 ${formData.publicationType ===
-   'conference_paper' ? 'text-purple-600' : 'text-blue-600'}`}
+   'conference_paper' ? 'text-[#7d1a34]' : 'text-[#7d1a34]'}`}
                     />
                     <span className="ml-2">Teacher</span>
                   </label>
@@ -5675,7 +5677,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           setShowSuggestions(false);
                         }}
                         className={`w-4 h-4 ${formData.publicationType ===
-   'conference_paper' ? 'text-purple-600' : 'text-blue-600'}`}
+   'conference_paper' ? 'text-[#7d1a34]' : 'text-[#7d1a34]'}`}
                       />
                       <span className="ml-2">Student</span>
                     </label>
@@ -5695,7 +5697,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           authorType: e.target.value
                         }));
                       }}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4 text-[#7d1a34]"
                     />
                     <span className="ml-2">Academic</span>
                   </label>
@@ -5711,7 +5713,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           authorType: e.target.value
                         }));
                       }}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4 text-[#7d1a34]"
                     />
                     <span className="ml-2">Industry</span>
                   </label>
@@ -5729,7 +5731,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                             authorType: e.target.value
                           }));
                         }}
-                        className="w-4 h-4 text-blue-600"
+                        className="w-4 h-4 text-[#7d1a34]"
                       />
                       <span className="ml-2">International Author</span>
                     </label>
@@ -5752,7 +5754,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <select
                 value={newAuthor.authorRole}
                 onChange={(e) => setNewAuthor(prev => ({ ...prev, authorRole: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                className="w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
               >
                 {getAvailableOtherAuthorRoles().map(role => (
                   <option key={role.value} value={role.value}>{role.label}</option>
@@ -5798,7 +5800,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       authorType: newAuthor.authorType,
                       authorCategory: 'Internal',
                       email: '',
-                      affiliation: 'SGT University',
+                      affiliation: universityName,
                       authorRole: newAuthor.authorRole || currentRole,
                       designation: '',
                     });
@@ -5826,12 +5828,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                   placeholder={newAuthor.authorType ===
    'Student' ? 'e.g., 12345678' : (newAuthor.authorType ===
    'Author' ? 'e.g., STF12345 or 12345678' : 'e.g., STF12345')}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 />
                 
                 {/* Search Suggestions Dropdown */}
                 {showSuggestions && searchSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {searchSuggestions.map((suggestion, idx) => {
                       // Handle different field names from backend
                       const displayName = suggestion.name || suggestion.displayName || `${suggestion.firstName || ''} ${suggestion.lastName || ''}`.trim();
@@ -5842,7 +5844,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         <div
                           key={idx}
                           onClick={() => selectAuthorFromSuggestion(suggestion)}
-                          className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                          className="px-4 py-3 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/10 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
                         >
                           <div className="font-medium text-gray-900 dark:text-white">
                             {suggestion.uid} - {displayName}
@@ -5872,8 +5874,8 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? 'Auto-filled after entering UID' : 'Enter full name'}
                 readOnly={newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-gray-100 ${newAuthor.authorCategory ===
-   'Internal' && !!newAuthor.uid ? 'bg-gray-50 dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
+                className={`w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:text-gray-100 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-white dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
               />
             </div>
             
@@ -5890,8 +5892,8 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? 'Auto-filled after entering UID' : 'email@example.com'}
                 readOnly={newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-gray-100 ${newAuthor.authorCategory ===
-   'Internal' && !!newAuthor.uid ? 'bg-gray-50 dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
+                className={`w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:text-gray-100 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-white dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
               />
             </div>
             
@@ -5906,10 +5908,10 @@ export default function ResearchContributionForm({ publicationType, contribution
                 value={newAuthor.affiliation}
                 onChange={(e) => setNewAuthor(prev => ({ ...prev, affiliation: e.target.value }))}
                 placeholder={newAuthor.authorCategory ===
-   'Internal' ? 'SGT University' : 'Enter organization/institute name'}
+   'Internal' ? universityName : 'Enter organization/institute name'}
                 readOnly={newAuthor.authorCategory ===
    'Internal'}
-                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-gray-100 ${newAuthor.authorCategory ===
+                className={`w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:text-gray-100 ${newAuthor.authorCategory ===
    'Internal' ? 'bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed' : 'dark:bg-gray-700'}`}
               />
             </div>
@@ -5926,7 +5928,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   value={newAuthor.designation}
                   onChange={(e) => setNewAuthor(prev => ({ ...prev, designation: e.target.value }))}
                   placeholder="e.g. Professor, Researcher, etc."
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
             )}
@@ -5940,8 +5942,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 onClick={() => {
                   setEditingAuthorIndex(null);
                   // Reset to appropriate defaults based on what authors can be added
-                  const totalSGTPeople = totalInternalAuthors + totalInternalCoAuthors;
-                  const maxInternalToAdd = totalSGTPeople - 1;
+                  const totalResearchSpherePeople = totalInternalAuthors + totalInternalCoAuthors;
+                  const maxInternalToAdd = totalResearchSpherePeople - 1;
                   const internalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
    'Internal').length;
                   const hasInternalSlots = internalAdded < maxInternalToAdd;
@@ -5949,7 +5951,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   const defaultType = defaultCategory ===
    'External' ? 'Academic' : 'Faculty';
                   const defaultAffiliation = defaultCategory ===
-   'External' ? '' : 'SGT University';
+   'External' ? '' : universityName;
                   const availableRoles = getAvailableOtherAuthorRoles();
                   setNewAuthor({
                     uid: '',
@@ -5962,7 +5964,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     designation: '',
                   });
                 }}
-                className="inline-flex items-center px-6 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors"
+                className="inline-flex items-center px-6 py-2 bg-gray-400 text-white rounded-lg hover:bg-white0 transition-colors"
               >
                 <X className="w-5 h-5 mr-2" />
                 Cancel
@@ -5971,7 +5973,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <button
               type="button"
               onClick={addOrUpdateAuthor}
-              className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
             >
               <Plus className="w-5 h-5 mr-2" />
               {editingAuthorIndex !== null ? 'Update Author' : 'Add Other Details'}
@@ -5994,11 +5996,11 @@ export default function ResearchContributionForm({ publicationType, contribution
             <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Award className={`w-5 h-5 ${
                 formData.publicationType ===
-   'conference_paper' ? 'text-purple-600' : 
+   'conference_paper' ? 'text-[#7d1a34]' : 
                 formData.publicationType ===
    'book' || formData.publicationType ===
    'book_chapter' ? 'text-teal-600' :
-                'text-blue-600'
+                'text-[#7d1a34]'
               }`} />
               Incentive & Points Preview
             </h3>
@@ -6016,15 +6018,15 @@ export default function ResearchContributionForm({ publicationType, contribution
             {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-              <div className="mb-4 bg-gradient-to-r from-blue-50 dark:from-blue-900/20 to-indigo-50 dark:to-indigo-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm">
+              <div className="mb-4 bg-gradient-to-r from-[#fdf5ec] dark:from-[#7d1a34]/10 to-[#fdf5ec]/30 dark:to-[#7d1a34]/5 border-l-4 border-[#7d1a34] p-4 rounded-r-lg shadow-sm">
                 <div className="flex items-start gap-3">
-                  <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-[#7d1a34] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-1">💡 Drag to Reorder Authors in Paper</h4>
-                    <p className="text-sm text-blue-800 dark:text-blue-300">
-                      Click and drag the <span className="inline-flex items-center bg-white px-2 py-0.5 rounded border border-blue-200 shadow-sm font-mono text-xs">⋮⋮</span> handle to set author order in the paper. 
+                    <h4 className="text-sm font-semibold text-[#7d1a34] dark:text-blue-200 mb-1">💡 Drag to Reorder Authors in Paper</h4>
+                    <p className="text-sm text-[#7d1a34] dark:text-[#c8973f]">
+                      Click and drag the <span className="inline-flex items-center bg-white px-2 py-0.5 rounded border border-[#f0e2d2] shadow-sm font-mono text-xs">⋮⋮</span> handle to set author order in the paper. 
                       <span className="font-semibold">Only internal authors in positions 1-5</span> receive incentives and points. 
                       Internal authors beyond position #5 (6th, 7th, etc.) are highlighted in <span className="text-red-600 font-semibold">red</span> and get <strong>₹0</strong>.
                     </p>
@@ -6034,8 +6036,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             
             <div className="w-full overflow-x-auto">
-              <table className="min-w-full border border-gray-300 dark:border-gray-600" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-                <thead className="bg-gray-50 dark:bg-gray-700">
+              <table className="min-w-full border border-[#f0e2d2] dark:border-gray-600" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+                <thead className="bg-white dark:bg-gray-700">
                   <tr>
                     {/* Up Arrow Column - only for role-based */}
                     {publicationType ===
@@ -6073,13 +6075,13 @@ export default function ResearchContributionForm({ publicationType, contribution
                     </th>
                     <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-20">
                       <div className="flex items-center gap-1">
-                        <Coins className="w-3.5 h-3.5 text-green-600" />
+                        <Coins className="w-3.5 h-3.5 text-[#7d1a34]" />
                         Incentive
                       </div>
                     </th>
                     <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-16">
                       <div className="flex items-center gap-1">
-                        <Award className="w-3.5 h-3.5 text-blue-600" />
+                        <Award className="w-3.5 h-3.5 text-[#7d1a34]" />
                         Points
                       </div>
                     </th>
@@ -6137,7 +6139,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         authorCategory: 'Internal',
                         authorRole: userAuthorType,
                         email: user?.employeeDetails?.email || user?.email || '-',
-                        affiliation: 'SGT University',
+                        affiliation: universityName,
                         actualIndex: -1 // User doesn't have an index in coAuthors
                       },
                       ...coAuthors.filter(a => a.name).map((a, idx) => ({
@@ -6283,11 +6285,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                           }}
                           className={`
                             rounded-lg border-2
-                            ${author.isUser ? 'bg-gradient-to-r from-blue-50 dark:from-blue-900/30 via-blue-100/70 dark:via-blue-800/30 to-blue-50 dark:to-blue-900/30 border-blue-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}
-                            ${isDragging ? 'opacity-90 bg-gradient-to-r from-blue-200 to-blue-300 border-blue-600 relative z-50 scale-105' : ''} 
-                            ${isDragOver ? 'border-blue-600 bg-gradient-to-b from-blue-100 to-blue-50 scale-[1.02]' : ''} 
+                            ${author.isUser ? 'bg-gradient-to-r from-[#fdf5ec] dark:from-blue-900/30 via-blue-100/70 dark:via-blue-800/30 to-[#fdf5ec] dark:to-blue-900/30 border-blue-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}
+                            ${isDragging ? 'opacity-90 bg-gradient-to-r from-blue-200 to-blue-300 border-[#7d1a34] relative z-50 scale-105' : ''} 
+                            ${isDragOver ? 'border-[#7d1a34] bg-gradient-to-b from-blue-100 to-[#fdf5ec] scale-[1.02]' : ''} 
                             ${isBeyondFifth && !isDragging && !author.isUser ? 'bg-gradient-to-r from-red-50 via-red-100/70 to-red-50 border-red-400' : ''} 
-                            ${isLockedPosition ? 'opacity-80 bg-gradient-to-r from-gray-50 to-gray-100 border-gray-300' : ''}
+                            ${isLockedPosition ? 'opacity-80 bg-gradient-to-r from-gray-50 to-gray-100 border-[#f0e2d2]' : ''}
                             ${(publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && !isLockedPosition) ? 'hover:bg-gradient-to-r hover:from-blue-100 hover:via-blue-50 hover:to-blue-100 hover:scale-[1.02] hover:shadow-2xl hover:border-blue-400 cursor-move' : 'cursor-default'}
@@ -6298,7 +6300,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-                            <td className="px-2 py-3 text-center border-r bg-gray-50/50">
+                            <td className="px-2 py-3 text-center border-r bg-white/50">
                               {isLockedPosition ? (
                                 <div className="text-gray-300 cursor-not-allowed" title="First Author is locked at position #1">
                                   <svg className="w-5 h-5 mx-auto" fill="currentColor" viewBox="0 0 20 20">
@@ -6350,7 +6352,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                     tableIndex ===
    0 
                                       ? 'text-gray-300 cursor-not-allowed bg-gray-100' 
-                                      : 'text-blue-600 hover:text-white hover:bg-blue-600 hover:scale-110 active:scale-95 bg-blue-50'
+                                      : 'text-[#7d1a34] hover:text-white hover:bg-[#7d1a34] hover:scale-110 active:scale-95 bg-[#fdf5ec]'
                                   }`}
                                   title="Move up"
                                 >
@@ -6373,7 +6375,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                     </svg>
                                   </div>
                                 ) : (
-                                  <div className="cursor-grab active:cursor-grabbing hover:scale-110 transition-all duration-150 hover:text-blue-600">
+                                  <div className="cursor-grab active:cursor-grabbing hover:scale-110 transition-all duration-150 hover:text-[#7d1a34]">
                                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                                       <circle cx="9" cy="5" r="1.5"/>
                                       <circle cx="9" cy="12" r="1.5"/>
@@ -6389,7 +6391,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                   text-xs font-bold px-2.5 py-1 rounded-full shadow-md
                                   ${paperPosition <= 5 
                                     ? author.isUser 
-                                      ? 'text-blue-800 bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-400 shadow-blue-200'
+                                      ? 'text-[#7d1a34] bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-400 shadow-blue-200'
                                       : 'text-green-800 bg-gradient-to-br from-green-100 to-green-200 border-2 border-green-400 shadow-green-200'
                                     : 'text-red-800 bg-gradient-to-br from-red-100 to-red-200 border-2 border-red-400 shadow-red-200'
                                   }
@@ -6411,7 +6413,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <td className="px-1 py-2 text-xs font-medium text-gray-900 dark:text-gray-200 border-r dark:border-gray-600">
                             {author.authorType}
                           </td>
-                          <td className={`px-1 py-2 text-xs font-medium ${author.isUser ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300'} border-r dark:border-gray-600`}>
+                          <td className={`px-1 py-2 text-xs font-medium ${author.isUser ? 'text-[#7d1a34]' : 'text-gray-700 dark:text-gray-300'} border-r dark:border-gray-600`}>
                             {roleLabel}
                           </td>
                           <td className="px-1 py-2 text-xs font-medium text-gray-900 dark:text-gray-200 border-r dark:border-gray-600 break-words">
@@ -6426,7 +6428,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <td className="px-1 py-2 text-xs border-r text-center">
                             {author.authorCategory ===
    'Internal' ? (
-                              <span className="text-green-600 font-medium">₹{incentive.toLocaleString()}</span>
+                              <span className="text-[#7d1a34] font-medium">₹{incentive.toLocaleString()}</span>
                             ) : (
                               <span className="text-gray-400">₹0</span>
                             )}
@@ -6434,7 +6436,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <td className="px-1 py-2 text-xs border-r text-center">
                             {author.authorCategory ===
    'Internal' && author.authorType !== 'Student' ? (
-                              <span className="text-blue-600 font-medium">{points}</span>
+                              <span className="text-[#7d1a34] font-medium">{points}</span>
                             ) : author.authorCategory ===
    'Internal' && author.authorType ===
    'Student' ? (
@@ -6451,7 +6453,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                 <button
                                   type="button"
                                   onClick={() => editAuthor(author.actualIndex)}
-                                  className="inline-flex items-center px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+                                  className="inline-flex items-center px-2 py-1 bg-[#7d1a34] text-white text-xs rounded hover:bg-[#7d1a34] transition-colors"
                                 >
                                   Edit
                                 </button>
@@ -6470,7 +6472,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-                            <td className="px-2 py-3 text-center bg-gray-50/50">
+                            <td className="px-2 py-3 text-center bg-white/50">
                               {isLockedPosition ? (
                                 <div className="text-gray-300 cursor-not-allowed" title="First Author is locked at position #1">
                                   <svg className="w-5 h-5 mx-auto" fill="currentColor" viewBox="0 0 20 20">
@@ -6522,7 +6524,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                     tableIndex ===
    allAuthorsForTable.length - 1
                                       ? 'text-gray-300 cursor-not-allowed bg-gray-100' 
-                                      : 'text-blue-600 hover:text-white hover:bg-blue-600 hover:scale-110 active:scale-95 bg-blue-50'
+                                      : 'text-[#7d1a34] hover:text-white hover:bg-[#7d1a34] hover:scale-110 active:scale-95 bg-[#fdf5ec]'
                                   }`}
                                   title="Move down"
                                 >
@@ -6567,7 +6569,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <span className="text-green-700 font-bold">₹{totalIncentive.toLocaleString()}</span>
                         </td>
                         <td className="px-4 py-3 text-sm border-r">
-                          <span className="text-blue-700 font-bold">{totalPoints}</span>
+                          <span className="text-[#7d1a34] font-bold">{totalPoints}</span>
                         </td>
                         <td className="px-4 py-3"></td>
                       </tr>
@@ -6611,7 +6613,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
       {/* Document Upload Section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="p-5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+        <div className="p-5 bg-gradient-to-r from-amber-50 to-[#fdf5ec]/30 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
               <FileText className="w-5 h-5 text-amber-600" />
@@ -6636,7 +6638,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.takeholderContents ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, takeholderContents: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">i. Takeholder Contents</label>
                 </div>
@@ -6647,7 +6649,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.frontPageWithAuthorAffiliation ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, frontPageWithAuthorAffiliation: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">ii. Front page of the paper with author affiliation to be included</label>
                 </div>
@@ -6658,7 +6660,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.nameContainsSpecialCharacters ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, nameContainsSpecialCharacters: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">iii. Please ensure the name contains no special characters (accents, unicode, etc.)</label>
                 </div>
@@ -6669,7 +6671,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.confDatesVenue ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, confDatesVenue: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">iv. Please mention the date and venue of conference</label>
                 </div>
@@ -6716,12 +6718,12 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 {autoSaving ? (
-              <span className="flex items-center text-blue-600">
+              <span className="flex items-center text-[#7d1a34]">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Auto-saving...
               </span>
             ) : lastAutoSave ? (
-              <span className="flex items-center text-green-600">
+              <span className="flex items-center text-[#7d1a34]">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Auto-saved at {lastAutoSave.toLocaleTimeString()}
               </span>
@@ -6736,7 +6738,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               type="button"
               onClick={handleSaveDraft}
               disabled={saving || submitting || autoSaving}
-              className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center px-6 py-3 border border-[#f0e2d2] dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -6749,7 +6751,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               type="button"
               onClick={handleSubmit}
               disabled={saving || submitting || autoSaving}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors disabled:opacity-50"
             >
               {submitting ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -6771,7 +6773,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           <h2 className="text-xl font-semibold dark:text-white mb-4">My Research Contributions</h2>
           {loadingContributions ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-[#7d1a34]" />
             </div>
           ) : myContributions.length ===
    0 ? (
@@ -6781,8 +6783,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full border border-gray-300 dark:border-gray-600">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+              <table className="min-w-full border border-[#f0e2d2] dark:border-gray-600">
+                <thead className="bg-white dark:bg-gray-700">
                   <tr>
                     <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">#</th>
                     <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">App Number</th>
@@ -6799,7 +6801,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     const isApplicant = contrib.applicantUserId ===
    user?.id;
                     return (
-                      <tr key={contrib.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={contrib.id} className="hover:bg-white dark:hover:bg-gray-700">
                         <td className="px-4 py-2 border dark:border-gray-600 text-sm dark:text-gray-300 text-center">{index + 1}</td>
                         <td className="px-4 py-2 border dark:border-gray-600 text-sm font-mono dark:text-gray-300">
                           {contrib.applicationNumber || contrib.id.slice(-8)}
@@ -6811,7 +6813,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           )}
                         </td>
                         <td className="px-4 py-2 border dark:border-gray-600 text-sm">
-                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded uppercase font-medium">
+                          <span className="inline-flex items-center px-2 py-1 bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f] text-xs rounded uppercase font-medium">
                             {contrib.publicationType.replace('_', ' ')}
                           </span>
                         </td>
@@ -6820,7 +6822,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                             contrib.status ===
    'draft' ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' :
                             contrib.status ===
-   'submitted' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+   'submitted' ? 'bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f]' :
                             contrib.status ===
    'under_review' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
                             contrib.status ===
@@ -6834,7 +6836,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         </td>
                         <td className="px-4 py-2 border dark:border-gray-600 text-sm text-center">
                           {isApplicant ? (
-                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full font-medium">
+                            <span className="inline-flex items-center px-2 py-1 bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f] text-xs rounded-full font-medium">
                               Applicant
                             </span>
                           ) : (
@@ -6866,7 +6868,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         <td className="px-4 py-2 border text-sm">
                           <a
                             href={`/research/contribution/${contrib.id}`}
-                            className="text-blue-600 hover:text-blue-800 underline"
+                            className="text-[#7d1a34] hover:text-[#7d1a34] underline"
                           >
                             View Details
                           </a>

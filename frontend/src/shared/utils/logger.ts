@@ -26,7 +26,7 @@ const isDevelopment = process.env.NODE_ENV ===
 
 const defaultConfig: LoggerConfig = {
   level: isDevelopment ? 'debug' : 'warn',
-  prefix: '[SGT-UMS]',
+  prefix: '[ResearchSphere]',
   enabled: true,
 };
 

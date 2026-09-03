@@ -307,6 +307,7 @@ const auditMiddleware = (options = {}) => {
         // Build audit log data - ALWAYS use req.user if available
         const auditData = {
           actorId: req.user?.id || null, // This should ALWAYS be set if user is authenticated
+          universityId: req.tenantId || null,
           performedByName: actorName,
           performedByRole: actorRole,
           action: generateActionDescription(req, res, routeContext),
@@ -403,6 +404,7 @@ const auditAction = (action, actionType, module, category) => {
         
         await auditService.log({
           actorId: req.user?.id || null,
+          universityId: req.tenantId || null,
           action: req.auditContext.action,
           actionType: req.auditContext.actionType,
           module: req.auditContext.module,

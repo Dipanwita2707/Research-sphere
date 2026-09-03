@@ -85,7 +85,7 @@ const AUTHOR_NAMES = [
 ];
 
 const AFFILIATIONS = [
-  'SGT University',
+  'ResearchSphere',
   'Indian Institute of Technology Delhi',
   'Indian Institute of Science Bangalore',
   'Jawaharlal Nehru University',
@@ -222,7 +222,7 @@ export function generatePublicationAuthors(count: number, includeMainAuthor: boo
   if (includeMainAuthor) {
     authors.push({
       name: randomChoice(AUTHOR_NAMES),
-      affiliation: 'SGT University',
+      affiliation: 'ResearchSphere',
       email: null,
       isCorresponding: true,
       authorOrder: 1,
@@ -350,7 +350,7 @@ export function generateCoAuthorNetwork(mainAuthorName: string, coAuthors: CoAut
     {
       id: mainNodeId,
       name: mainAuthorName,
-      affiliation: 'SGT University',
+      affiliation: 'ResearchSphere',
       collaborationCount: coAuthors.reduce((sum, ca) => sum + ca.collaborationCount, 0),
       isMainAuthor: true,
     },
@@ -432,6 +432,7 @@ export function generateResearchProfile(userId: string, publicationCount: number
     syncStatus: 'success',
     syncError: null,
     autoSyncEnabled: true,
+    filterSgtOnly: false,
     syncFrequencyDays: 7,
     profileCompleteness: randomInt(70, 100),
     isVerified: Math.random() > 0.3,
@@ -455,7 +456,7 @@ export function generateProfileData(userId?: string, publicationCount: number = 
     user: {
       uid,
       name,
-      email: `${name.toLowerCase().replace(/\s+/g, '.')}@sgtuniversity.edu.in`,
+      email: `${name.toLowerCase().replace(/\s+/g, '.')}@researchsphere.app`,
       photo: null,
       designation: randomChoice(['Professor', 'Associate Professor', 'Assistant Professor', 'Senior Lecturer']),
       department: randomChoice(DEPARTMENTS),

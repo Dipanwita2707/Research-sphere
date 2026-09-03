@@ -28,7 +28,7 @@ import { iprService, IprApplication } from '@/features/ipr-management/services/i
 import MentorCollaborativeReviewModal from '@/features/ipr-management/components/MentorCollaborativeReviewModal';
 
 const IPR_TYPE_CONFIG = {
-  patent: { label: 'Patent', icon: Lightbulb, color: 'bg-blue-500' },
+  patent: { label: 'Patent', icon: Lightbulb, color: 'bg-[#7d1a34]' },
   copyright: { label: 'Copyright', icon: FileText, color: 'bg-purple-500' },
   trademark: { label: 'Trademark', icon: Building, color: 'bg-green-500' },
   design: { label: 'Design', icon: FileText, color: 'bg-orange-500' },
@@ -37,7 +37,7 @@ const IPR_TYPE_CONFIG = {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   pending_mentor_approval: { label: 'Pending Your Approval', color: 'text-orange-700', bgColor: 'bg-orange-100' },
   changes_required: { label: 'Changes Requested', color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
-  submitted: { label: 'Submitted to DRD', color: 'text-blue-700', bgColor: 'bg-blue-100' },
+  submitted: { label: 'Submitted to DRD', color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]' },
   under_drd_review: { label: 'Under DRD Review', color: 'text-indigo-700', bgColor: 'bg-indigo-100' },
   recommended_to_head: { label: 'Recommended to Head', color: 'text-purple-700', bgColor: 'bg-purple-100' },
   drd_head_approved: { label: 'DRD Head Approved', color: 'text-teal-700', bgColor: 'bg-teal-100' },
@@ -198,7 +198,7 @@ export default function MentorApprovalsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34]"></div>
       </div>
     );
   }
@@ -223,8 +223,8 @@ export default function MentorApprovalsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-[#fbe2e8] dark:bg-[#7d1a34]/20 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-[#7d1a34]" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{historyData.stats.total}</p>
@@ -276,7 +276,7 @@ export default function MentorApprovalsPage() {
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab ===
    'pending'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-[#7d1a34] text-[#7d1a34]'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -293,7 +293,7 @@ export default function MentorApprovalsPage() {
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab ===
    'history'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-[#7d1a34] text-[#7d1a34]'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >

@@ -23,6 +23,9 @@ router.get('/', protect, async (req, res) => {
     }
     
     let whereClause = {};
+    if (req.tenantId) {
+      whereClause.universityId = req.tenantId;
+    }
     
     // If user can only view their own IPR, filter by creator
     if (!hasViewAll && hasViewOwn) {
@@ -94,9 +97,9 @@ router.get('/', protect, async (req, res) => {
 
     // Batch all counts into 3 groupBy queries instead of 8 sequential count() calls
     const [statusGroups, typeGroups, priorityGroups] = await Promise.all([
-      prisma.iPR.groupBy({ by: ['status'], _count: { id: true } }),
-      prisma.iPR.groupBy({ by: ['type'], _count: { id: true } }),
-      prisma.iPR.groupBy({ by: ['priority'], _count: { id: true } }),
+      prisma.iPR.groupBy({ by: ['status'], where: whereClause, _count: { id: true } }),
+      prisma.iPR.groupBy({ by: ['type'], where: whereClause, _count: { id: true } }),
+      prisma.iPR.groupBy({ by: ['priority'], where: whereClause, _count: { id: true } }),
     ]);
     const cbs = Object.fromEntries(statusGroups.map(g => [g.status, g._count.id]));
     const cbt = Object.fromEntries(typeGroups.map(g => [g.type, g._count.id]));
@@ -178,6 +181,13 @@ router.get('/:id', protect, async (req, res) => {
       });
     }
 
+    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This IPR item does not belong to your university.'
+      });
+    }
+
     res.json({
       success: true,
       data: iprItem
@@ -243,6 +253,7 @@ router.post('/', protect, async (req, res) => {
     const count = await prisma.iPR.count({
       where: {
         type,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         createdAt: {
           gte: new Date(`${currentYear}-01-01`),
           lt: new Date(`${currentYear + 1}-01-01`)
@@ -270,7 +281,8 @@ router.post('/', protect, async (req, res) => {
         applicationNumber,
         status: 'draft',
         submissionDate: new Date(),
-        createdById: req.user.id
+        createdById: req.user.id,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       },
       include: {
         createdBy: {
@@ -321,6 +333,13 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'IPR item not found'
+      });
+    }
+
+    if (req.tenantId && existingItem.universityId && existingItem.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This IPR item does not belong to your university.'
       });
     }
 
@@ -403,6 +422,13 @@ router.post('/:id/submit', protect, async (req, res) => {
       });
     }
 
+    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This IPR item does not belong to your university.'
+      });
+    }
+
     if (iprItem.status !== 'draft') {
       return res.status(400).json({
         success: false,
@@ -458,6 +484,13 @@ router.post('/:id/review', protect, async (req, res) => {
       });
     }
 
+    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This IPR item does not belong to your university.'
+      });
+    }
+
     if (!['submitted', 'under_review'].includes(iprItem.status)) {
       return res.status(400).json({
         success: false,
@@ -503,6 +536,7 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
   try {
     const currentYear = new Date().getFullYear();
     const lastYear = currentYear - 1;
+    const tenantWhere = req.tenantId ? { universityId: req.tenantId } : {};
 
     // Current year statistics
     const currentYearStats = await prisma.iPR.groupBy({
@@ -511,6 +545,7 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
         id: true
       },
       where: {
+        ...tenantWhere,
         createdAt: {
           gte: new Date(`${currentYear}-01-01`),
           lt: new Date(`${currentYear + 1}-01-01`)
@@ -525,6 +560,7 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
         id: true
       },
       where: {
+        ...tenantWhere,
         createdAt: {
           gte: new Date(`${lastYear}-01-01`),
           lt: new Date(`${currentYear}-01-01`)
@@ -535,6 +571,7 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
     // Monthly submissions for current year
     const monthlyStats = await prisma.iPR.findMany({
       where: {
+        ...tenantWhere,
         createdAt: {
           gte: new Date(`${currentYear}-01-01`),
           lt: new Date(`${currentYear + 1}-01-01`)
@@ -556,6 +593,7 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
       _sum: {
         estimatedValue: true
       },
+      where: tenantWhere,
       orderBy: {
         _count: {
           id: 'desc'
@@ -569,6 +607,7 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
       _count: {
         id: true
       },
+      where: tenantWhere,
       orderBy: {
         _count: {
           id: 'desc'
@@ -615,6 +654,13 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'IPR item not found'
+      });
+    }
+
+    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This IPR item does not belong to your university.'
       });
     }
 

@@ -1,308 +1,273 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, Users, Award, BookOpen } from 'lucide-react';
-import ProfileSearch from '@/features/research-profile/components/ProfileSearch';
-import type { ProfileSearchResult } from '@/shared/types/research-profile.types';
-import { mockResearchProfileAPI } from '@/mocks/research-profile-api';
-import logger from '@/shared/utils/logger';
+import { Search, Layers, BookOpen, Award, TrendingUp, ExternalLink, Filter } from 'lucide-react';
+import { researchService } from '@/features/research-management/services/research.service';
 
 export default function ResearchSearchPage() {
-  const [trendingResearchers, setTrendingResearchers] = useState<ProfileSearchResult[]>([]);
+  const [publications, setPublications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
 
   useEffect(() => {
-    loadTrendingResearchers();
+    async function load() {
+      try {
+        setLoading(true);
+        const res = await researchService.getPublicRepository();
+        if (res && res.success) {
+          setPublications(res.data || []);
+        }
+      } catch (e) {
+        console.error('Failed to load public repository publications:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
-  const loadTrendingResearchers = async () => {
-    try {
-      setLoading(true);
-      const trending = await mockResearchProfileAPI.getTrendingResearchers(8);
-      setTrendingResearchers(trending);
-    } catch (error) {
-      logger.error('Failed to load trending researchers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Compute unique departments dynamically
+  const uniqueDepartments = Array.from(new Set(
+    publications
+      .map(p => p.department?.departmentName)
+      .filter(Boolean)
+  )) as string[];
 
-  const handleProfileSelect = (profile: ProfileSearchResult) => {
-    // Navigate to the selected profile
-    window.location.href = `/research/profile/${profile.userId}`;
-  };
+  // Filter publications based on search, category, and department
+  const filteredPublications = publications.filter(pub => {
+    const titleMatch = pub.title?.toLowerCase().includes(searchQuery.toLowerCase());
+    const doiMatch = pub.doi?.toLowerCase().includes(searchQuery.toLowerCase());
+    const authorMatch = pub.authors?.some((a: any) => a.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const venueMatch = (
+      pub.journalName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pub.publisherName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pub.conferenceName?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    const matchesSearch = !searchQuery || titleMatch || doiMatch || authorMatch || venueMatch;
+    
+    // Category match
+    const matchesCategory = selectedCategory === 'all' || pub.publicationType === selectedCategory;
+    
+    // Department match
+    const deptName = pub.department?.departmentName || pub.departmentId || '';
+    const matchesDept = selectedDepartment === 'all' || deptName.toLowerCase() === selectedDepartment.toLowerCase();
+    
+    return matchesSearch && matchesCategory && matchesDept;
+  });
+
+  // Calculate dynamic stats
+  const totalPublications = publications.length;
+  const totalCitations = publications.reduce((sum, pub) => {
+    return sum + (Number(pub.indexingDetails?.citationCount) || 0);
+  }, 0);
+  const grantsCount = publications.filter(p => p.publicationType === 'grant_proposal').length;
+  const activeDepartments = uniqueDepartments.length;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Research Profile Discovery
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Discover researchers, explore their work, and find collaboration opportunities across SGT University
-            </p>
+    <div className="min-h-screen bg-[#fdf5ec] dark:bg-slate-950">
+      {/* ── Page Header ─────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 border-b border-[#f0e2d2] dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-6 py-5">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium tracking-wide uppercase">
+            <Layers className="w-3.5 h-3.5 text-[#7d1a34] dark:text-[#c8973f]" />
+            Research Repository
           </div>
-
-          {/* Search Component */}
-          <div className="flex justify-center">
-            <ProfileSearch 
-              onProfileSelect={handleProfileSelect}
-              placeholder="Search researchers by name, department, research interests..."
-              showFilters={true}
-            />
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight font-serif">University Research Repository</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Explore approved publications, books, conference papers, and grants across the institution
+          </p>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="ml-4">
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {trendingResearchers.length > 0 ? '150+' : '—'}
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        {/* ── Stats Bar ──────────────────────────────────────────── */}
+        <div className="bg-white dark:bg-slate-900 border border-[#f0e2d2] dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-200 dark:divide-slate-800">
+            {[
+              { icon: BookOpen,  label: 'Approved Publications', value: totalPublications, accent: 'text-[#7d1a34] dark:text-[#c8973f]', bg: 'bg-[#fdf5ec] dark:bg-slate-950/50' },
+              { icon: Award,     label: 'Total Citations',     value: totalCitations,     accent: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/50' },
+              { icon: TrendingUp,label: 'Grants & Funding',    value: grantsCount,        accent: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/50' },
+              { icon: Layers,    label: 'Departments',         value: activeDepartments,   accent: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/50' },
+            ].map(stat => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="p-5 flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-5 h-5 ${stat.accent}`} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{stat.value}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">{stat.label}</p>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Active Researchers</div>
-              </div>
-            </div>
+              );
+            })}
           </div>
+        </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BookOpen className="h-8 w-8 text-green-600 dark:text-green-400" />
-              </div>
-              <div className="ml-4">
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {trendingResearchers.length > 0 ? '2,500+' : '—'}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Publications</div>
-              </div>
+        {/* ── Search & Filter Controls ───────────────────────────── */}
+        <div className="bg-white dark:bg-slate-900 border border-[#f0e2d2] dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search publications by title, author name, DOI, journal..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-[#7d1a34] dark:focus:border-[#c8973f] text-slate-900 dark:text-white placeholder-slate-400 transition-colors"
+              />
             </div>
-          </div>
+            <div className="flex gap-4 flex-wrap md:flex-nowrap">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                <select
+                  value={selectedCategory}
+                  onChange={e => setSelectedCategory(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#7d1a34] dark:focus:border-[#c8973f] transition-colors"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="research_paper">Research Papers</option>
+                  <option value="book">Books</option>
+                  <option value="book_chapter">Book Chapters</option>
+                  <option value="conference_paper">Conference Papers</option>
+                  <option value="grant_proposal">Grants & Funding</option>
+                </select>
+              </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Award className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div className="ml-4">
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {trendingResearchers.length > 0 ? '15,000+' : '—'}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Total Citations</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TrendingUp className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div className="ml-4">
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {trendingResearchers.length > 0 ? '25' : '—'}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Departments</div>
-              </div>
+              <select
+                value={selectedDepartment}
+                onChange={e => setSelectedDepartment(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#7d1a34] dark:focus:border-[#c8973f] transition-colors max-w-[200px]"
+              >
+                <option value="all">All Departments</option>
+                {uniqueDepartments.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
 
-        {/* Trending Researchers */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Trending Researchers
-            </h2>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Based on recent publications and citations
+        {/* ── Repository Results List ────────────────────────────── */}
+        <div className="bg-white dark:bg-slate-900 border border-[#f0e2d2] dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white font-serif">Approved Research Repository Items</h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Showing {filteredPublications.length} of {publications.length} records</p>
             </div>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="bg-gray-200 dark:bg-gray-700 rounded-lg h-48"></div>
+            <div className="space-y-4 p-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-28 bg-slate-50 dark:bg-slate-800 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : filteredPublications.length > 0 ? (
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 p-6 space-y-4">
+              {filteredPublications.map(pub => (
+                <div key={pub.id} className="bg-slate-50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800 rounded-xl p-5 hover:shadow-md hover:border-[#f0e2d2] dark:hover:border-[#5e1024] transition-all duration-200">
+                  <div className="flex flex-wrap gap-2 items-center mb-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase ${
+                      pub.publicationType === 'research_paper' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                      pub.publicationType === 'book' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+                      pub.publicationType === 'book_chapter' ? 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300' :
+                      pub.publicationType === 'conference_paper' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+                      'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}>
+                      {pub.publicationType === 'research_paper' ? 'Research Paper' :
+                       pub.publicationType === 'book' ? 'Book Publication' :
+                       pub.publicationType === 'book_chapter' ? 'Book Chapter' :
+                       pub.publicationType === 'conference_paper' ? 'Conference Paper' : 'Grant Proposal'}
+                    </span>
+                    {pub.applicationNumber && (
+                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 font-mono">
+                        {pub.applicationNumber}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-2 leading-snug font-serif">
+                    {pub.title}
+                  </h3>
+
+                  <div className="text-xs text-slate-600 dark:text-slate-300 mb-3">
+                    <span className="font-semibold">Authors: </span>
+                    {pub.authors && pub.authors.length > 0 ? (
+                      pub.authors.map((author: any, idx: number) => (
+                        <span key={author.id}>
+                          <span className={author.affiliation?.toLowerCase().includes('sgt') || author.affiliation?.toLowerCase().includes('researchsphere') ? 'text-[#7d1a34] dark:text-[#c8973f] font-semibold' : ''}>
+                            {author.name}
+                          </span>
+                          {idx < pub.authors.length - 1 ? ', ' : ''}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-slate-400">Not specified</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <div>
+                      {pub.publicationType === 'research_paper' && pub.journalName && (
+                        <span>Published in: <span className="font-medium text-slate-700 dark:text-slate-300 italic">{pub.journalName}</span></span>
+                      )}
+                      {pub.publicationType === 'conference_paper' && pub.conferenceName && (
+                        <span>Presented at: <span className="font-medium text-slate-700 dark:text-slate-300 italic">{pub.conferenceName}</span></span>
+                      )}
+                      {(pub.publicationType === 'book' || pub.publicationType === 'book_chapter') && pub.publisherName && (
+                        <span>Publisher: <span className="font-medium text-slate-700 dark:text-slate-300 italic">{pub.publisherName}</span></span>
+                      )}
+                      {pub.publicationType === 'grant_proposal' && (
+                        <span>Funding Agency: <span className="font-medium text-slate-700 dark:text-slate-300 italic">{pub.journalName || 'Approved Grant'}</span></span>
+                      )}
+                    </div>
+                    <div className="md:text-right">
+                      {pub.department?.departmentName && (
+                        <span>Department: <span className="font-medium text-slate-700 dark:text-slate-300">{pub.department.departmentName}</span></span>
+                      )}
+                    </div>
+                  </div>
+
+                  {(pub.doi || pub.publicationDate) && (
+                    <div className="flex justify-between items-center mt-3 text-[11px] text-slate-400 dark:text-slate-500">
+                      <div>
+                        {pub.publicationDate && (
+                          <span>Date: {new Date(pub.publicationDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</span>
+                        )}
+                      </div>
+                      <div>
+                        {pub.doi && (
+                          <a
+                            href={pub.doi.startsWith('http') ? pub.doi : `https://doi.org/${pub.doi}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[#7d1a34] dark:text-[#c8973f] hover:underline"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            DOI / Reference
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          ) : trendingResearchers.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {trendingResearchers.map((researcher) => (
-                <ResearcherCard
-                  key={researcher.userId}
-                  researcher={researcher}
-                  onClick={() => handleProfileSelect(researcher)}
-                />
-              ))}
-            </div>
           ) : (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                No trending researchers found
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Check back later for trending researcher profiles.
-              </p>
+            <div className="py-14 text-center">
+              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
+                <BookOpen className="w-6 h-6 text-slate-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">No publications found</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Try adjusting your filters or search keywords.</p>
             </div>
           )}
         </div>
-
-        {/* Quick Search Categories */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <QuickSearchCard
-            title="By Department"
-            description="Browse researchers by their academic department"
-            icon={<BookOpen className="w-6 h-6" />}
-            categories={[
-              'Computer Science',
-              'Mechanical Engineering',
-              'Electronics',
-              'Business Administration',
-              'Physics',
-              'Chemistry'
-            ]}
-          />
-
-          <QuickSearchCard
-            title="By Research Area"
-            description="Find experts in specific research domains"
-            icon={<Search className="w-6 h-6" />}
-            categories={[
-              'Machine Learning',
-              'Renewable Energy',
-              'Biotechnology',
-              'Data Science',
-              'Robotics',
-              'Nanotechnology'
-            ]}
-          />
-
-          <QuickSearchCard
-            title="By Impact"
-            description="Discover highly cited and influential researchers"
-            icon={<TrendingUp className="w-6 h-6" />}
-            categories={[
-              'High h-index (>20)',
-              'Recent Publications',
-              'International Collaborations',
-              'Patent Holders',
-              'Grant Recipients',
-              'Award Winners'
-            ]}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResearcherCard({ 
-  researcher, 
-  onClick 
-}: { 
-  researcher: ProfileSearchResult; 
-  onClick: () => void; 
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"
-    >
-      <div className="flex items-center mb-3">
-        {researcher.photo ? (
-          <img
-            src={researcher.photo}
-            alt={researcher.name}
-            className="w-12 h-12 rounded-full object-cover"
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-            <span className="text-lg font-semibold text-white">
-              {researcher.name.charAt(0)}
-            </span>
-          </div>
-        )}
-        <div className="ml-3 min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-            {researcher.name}
-          </h3>
-          <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-            {researcher.designation}
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
-          {researcher.department}
-        </div>
-        
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-500 dark:text-gray-500">h-index: {researcher.hIndex}</span>
-          <span className="text-gray-500 dark:text-gray-500">{researcher.totalCitations} citations</span>
-        </div>
-        
-        <div className="text-xs text-blue-600 dark:text-blue-400">
-          {researcher.recentPublications} recent publications
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function QuickSearchCard({ 
-  title, 
-  description, 
-  icon, 
-  categories 
-}: { 
-  title: string; 
-  description: string; 
-  icon: React.ReactNode; 
-  categories: string[]; 
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-      <div className="flex items-center mb-4">
-        <div className="flex-shrink-0 text-blue-600 dark:text-blue-400">
-          {icon}
-        </div>
-        <div className="ml-3">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {title}
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {description}
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {categories.map((category, index) => (
-          <button
-            key={index}
-            className="block w-full text-left text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            onClick={() => {
-              // Could implement category-specific search
-              console.log('Search by category:', category);
-            }}
-          >
-            {category}
-          </button>
-        ))}
       </div>
     </div>
   );

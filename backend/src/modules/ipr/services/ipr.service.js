@@ -594,7 +594,7 @@ class IprService {
    * @param {object} query - { status, iprType, schoolId, departmentId, applicantUserId, page, limit }
    * @returns {{ applications, total, page, limit }}
    */
-  async getAllApplications(query) {
+  async getAllApplications(query, tenantId = null) {
     const { status, iprType, schoolId, departmentId, applicantUserId, page = 1, limit = 10 } = query;
 
     const where = {};
@@ -603,6 +603,9 @@ class IprService {
     if (schoolId) where.schoolId = schoolId;
     if (departmentId) where.departmentId = departmentId;
     if (applicantUserId) where.applicantUserId = applicantUserId;
+    if (tenantId) {
+      where.applicantUser = { universityId: tenantId };
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -926,12 +929,15 @@ class IprService {
    * @param {object} query - { schoolId, departmentId, userId }
    * @returns {object}
    */
-  async getStatistics(query) {
+  async getStatistics(query, tenantId = null) {
     const { schoolId, departmentId, userId } = query;
     const where = {};
     if (schoolId) where.schoolId = schoolId;
     if (departmentId) where.departmentId = departmentId;
     if (userId) where.applicantUserId = userId;
+    if (tenantId) {
+      where.applicantUser = { universityId: tenantId };
+    }
 
     // Single groupBy replaces 6 separate status count() calls
     const [statusGroups, byType, byStatus] = await Promise.all([

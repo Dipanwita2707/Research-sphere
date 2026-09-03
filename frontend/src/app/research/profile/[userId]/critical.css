@@ -1,65 +1,130 @@
 /* Critical CSS for Research Profile Page - Above the fold styles */
 .research-profile-hero {
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #eff6ff 100%);
-  min-height: 400px;
+  background: #ffffff;
+  position: relative;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dark .research-profile-hero {
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
 }
 
 .profile-photo-container {
   position: relative;
   flex-shrink: 0;
+  border-radius: 50%;
+  padding: 3px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s ease;
+}
+
+.dark .profile-photo-container {
+  background: #1e293b;
+  border-color: #334155;
 }
 
 .profile-photo {
-  width: 8rem;
-  height: 8rem;
+  width: 7rem;
+  height: 7rem;
   border-radius: 50%;
   object-fit: cover;
-  border: 4px solid white;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 2px solid white;
+}
+
+.dark .profile-photo {
+  border-color: #0f172a;
 }
 
 @media (min-width: 1024px) {
   .profile-photo {
-    width: 10rem;
-    height: 10rem;
+    width: 8rem;
+    height: 8rem;
   }
 }
 
 .profile-title {
-  font-size: 2.25rem;
+  font-size: 1.625rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #1f2937 0%, #1e40af 50%, #7c3aed 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #0f172a;
   line-height: 1.2;
+}
+
+.dark .profile-title {
+  color: #f8fafc;
 }
 
 @media (min-width: 1024px) {
   .profile-title {
-    font-size: 3rem;
+    font-size: 2rem;
   }
 }
 
-.stats-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  border: 1px solid rgba(229, 231, 235, 0.5);
-  transition: box-shadow 0.3s ease;
+/* Stats strip - sits at the bottom of the hero as a border-top rule */
+.stats-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 1.5rem;
+  padding-top: 0;
 }
 
-.stats-card:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+.dark .stats-container {
+  border-top-color: #1e293b;
+}
+
+.stats-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 2rem 0.5rem 0;
+  min-width: 110px;
+}
+
+.stats-item:not(:last-child) {
+  border-right: 1px solid #f1f5f9;
+  margin-right: 2rem;
+}
+
+.dark .stats-item:not(:last-child) {
+  border-right-color: #1e293b;
+}
+
+.stats-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dark .stats-number {
+  color: #f8fafc;
+}
+
+.stats-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-top: 0.35rem;
 }
 
 .navigation-tabs {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e2e8f0;
 }
 
+.dark .navigation-tabs {
+  background: rgba(15, 23, 42, 0.96);
+  border-bottom: 1px solid #1e293b;
+}

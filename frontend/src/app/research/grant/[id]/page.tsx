@@ -46,7 +46,7 @@ interface EditSuggestion {
 
 const STATUS_CONFIG = {
   draft: { label: 'Draft', icon: FileText, color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' },
-  submitted: { label: 'Submitted', icon: Send, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+  submitted: { label: 'Submitted', icon: Send, color: 'text-[#7d1a34]', bgColor: 'bg-[#fdf5ec]', borderColor: 'border-[#f0e2d2]' },
   under_review: { label: 'Under Review', icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
   changes_required: { label: 'Changes Required', icon: AlertCircle, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
   resubmitted: { label: 'Resubmitted', icon: RefreshCw, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' },
@@ -255,7 +255,7 @@ export default function GrantDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-10 h-10 animate-spin text-[#7d1a34] mx-auto mb-4" />
           <p className="text-gray-500 dark:text-gray-400">Loading grant application...</p>
         </div>
       </div>
@@ -301,7 +301,7 @@ export default function GrantDetailPage() {
    'changes_required') && (
           <Link
             href={`/research/apply-grant?edit=${grant.id}`}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-[#7d1a34] hover:bg-[#5e1024] text-white rounded-lg transition-colors"
           >
             <Edit className="w-4 h-4 mr-2" />
             {grant.status ===
@@ -418,7 +418,7 @@ export default function GrantDetailPage() {
       {/* Main Card */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Header Section */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-[#fdf5ec] to-indigo-50 dark:from-gray-800 dark:to-gray-800">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
@@ -483,9 +483,9 @@ export default function GrantDetailPage() {
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">For all internal investigators</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-blue-200">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-[#f0e2d2]">
                   <label className="text-sm text-gray-600 dark:text-gray-400 block mb-2">Total Points</label>
-                  <p className="text-2xl font-bold text-blue-600 flex items-center">
+                  <p className="text-2xl font-bold text-[#7d1a34] flex items-center">
                     <Award className="w-6 h-6 mr-2" />
                     {(() => {
                       const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
@@ -631,7 +631,7 @@ export default function GrantDetailPage() {
               </h3>
               <div className="space-y-3">
                 {/* Applicant (You) */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-200">
+                <div className="bg-gradient-to-r from-[#fdf5ec] to-indigo-50 rounded-lg p-4 border-2 border-[#f0e2d2]">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
                       <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Name</label>
@@ -642,7 +642,7 @@ export default function GrantDetailPage() {
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
                         grant.myRole ===
    'pi' 
-                          ? 'bg-blue-100 text-blue-800' 
+                          ? 'bg-[#fbe2e8] text-[#7d1a34]' 
                           : 'bg-purple-100 text-purple-800'
                       }`}>
                         {ROLE_LABELS[grant.myRole] || grant.myRole}
@@ -667,7 +667,7 @@ export default function GrantDetailPage() {
                         </div>
                         <div>
                           <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Est. Points</label>
-                          <p className="font-semibold text-blue-600 flex items-center">
+                          <p className="font-semibold text-[#7d1a34] flex items-center">
                             <Award className="w-4 h-4 mr-1" />
                             {(() => {
                               const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
@@ -708,7 +708,7 @@ export default function GrantDetailPage() {
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
                               inv.roleType ===
    'pi' 
-                                ? 'bg-blue-100 text-blue-800' 
+                                ? 'bg-[#fbe2e8] text-[#7d1a34]' 
                                 : 'bg-purple-100 text-purple-800'
                             }`}>
                               {ROLE_LABELS[inv.roleType] || inv.roleType}
@@ -734,7 +734,7 @@ export default function GrantDetailPage() {
                             <div>
                               <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Est. Points</label>
                               <p className={`font-semibold flex items-center ${
-                                calc.points > 0 ? 'text-blue-600' : 'text-gray-400'
+                                calc.points > 0 ? 'text-[#7d1a34]' : 'text-gray-400'
                               }`}>
                                 <Award className="w-4 h-4 mr-1" />
                                 {calc.points} pts
@@ -760,8 +760,8 @@ export default function GrantDetailPage() {
               <div className="space-y-3">
                 {grant.statusHistory.map((history: any, index: number) => (
                   <div key={index} className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-5 h-5 text-blue-600" />
+                    <div className="w-10 h-10 bg-[#fbe2e8] rounded-full flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-5 h-5 text-[#7d1a34]" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">

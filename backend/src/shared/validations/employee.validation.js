@@ -178,6 +178,33 @@ const createEmployeeSchema = z.object({
     .boolean()
     .optional()
     .default(true),
+
+  // Researcher IDs (admin-managed, seeded at creation)
+  scopusAuthorId: z
+    .string()
+    .max(64, 'Scopus Author ID must not exceed 64 characters')
+    .regex(/^[A-Za-z0-9\-]*$/, 'Scopus Author ID can only contain letters, digits, and hyphens')
+    .optional()
+    .or(z.literal(''))
+    .or(z.literal(null)),
+
+  orcid: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .or(z.literal(null))
+    .refine(
+      (val) => !val || /^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(val),
+      'ORCID must be in the format XXXX-XXXX-XXXX-XXXX (e.g., 0000-0002-1825-0097)'
+    ),
+
+  pubmedId: z
+    .string()
+    .max(64, 'PubMed ID must not exceed 64 characters')
+    .regex(/^[A-Za-z0-9\-]*$/, 'PubMed ID can only contain letters, digits, and hyphens')
+    .optional()
+    .or(z.literal(''))
+    .or(z.literal(null)),
 });
 
 /**
@@ -336,6 +363,33 @@ const updateEmployeeSchema = z.object({
   isActive: z
     .boolean()
     .optional(),
+
+  // Researcher IDs (admin-managed only — not editable by user)
+  scopusAuthorId: z
+    .string()
+    .max(64, 'Scopus Author ID must not exceed 64 characters')
+    .regex(/^[A-Za-z0-9\-]*$/, 'Scopus Author ID can only contain letters, digits, and hyphens')
+    .optional()
+    .or(z.literal(''))
+    .or(z.literal(null)),
+
+  orcid: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .or(z.literal(null))
+    .refine(
+      (val) => !val || /^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(val),
+      'ORCID must be in the format XXXX-XXXX-XXXX-XXXX (e.g., 0000-0002-1825-0097)'
+    ),
+
+  pubmedId: z
+    .string()
+    .max(64, 'PubMed ID must not exceed 64 characters')
+    .regex(/^[A-Za-z0-9\-]*$/, 'PubMed ID can only contain letters, digits, and hyphens')
+    .optional()
+    .or(z.literal(''))
+    .or(z.literal(null)),
 }).strip(); // Strip unknown fields silently
 
 /**

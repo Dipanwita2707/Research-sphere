@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { deanApprovalService } from '@/features/ipr-management/services/ipr.service';
@@ -88,8 +88,8 @@ export default function DeanApprovalDashboard() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-16 h-16 border-4 border-sgt-200 rounded-full animate-spin border-t-sgt-600 mx-auto"></div>
-            <Shield className="w-6 h-6 text-sgt-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+            <div className="w-16 h-16 border-4 border-ResearchSphere-200 rounded-full animate-spin border-t-ResearchSphere-600 mx-auto"></div>
+            <Shield className="w-6 h-6 text-ResearchSphere-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
           </div>
           <p className="mt-4 text-gray-600 font-medium">Loading pending approvals...</p>
         </div>
@@ -100,7 +100,7 @@ export default function DeanApprovalDashboard() {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Hero Header */}
-      <div className="bg-sgt-gradient rounded-3xl p-8 text-white relative overflow-hidden">
+      <div className="bg-ResearchSphere-gradient rounded-3xl p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
         
@@ -130,11 +130,11 @@ export default function DeanApprovalDashboard() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sgt card-hover border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere card-hover border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Pending Approvals</p>
-              <p className="text-3xl font-bold text-sgt-700 mt-1">{applications.length}</p>
+              <p className="text-3xl font-bold text-ResearchSphere-700 mt-1">{applications.length}</p>
               <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 Awaiting your review
@@ -146,7 +146,7 @@ export default function DeanApprovalDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sgt card-hover border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere card-hover border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Approved Today</p>
@@ -162,7 +162,7 @@ export default function DeanApprovalDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sgt card-hover border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere card-hover border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Rejected Today</p>
@@ -180,7 +180,7 @@ export default function DeanApprovalDashboard() {
       </div>
 
       {/* Applications List */}
-      <div className="bg-white rounded-2xl shadow-sgt border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-ResearchSphere border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-lg font-semibold text-gray-900">Applications Awaiting Dean Approval</h2>
         </div>
@@ -201,10 +201,10 @@ export default function DeanApprovalDashboard() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 flex-wrap mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-sgt-700 transition-colors">
+                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-ResearchSphere-700 transition-colors">
                         {app.title}
                       </h3>
-                      <span className="px-3 py-1 bg-sgt-100 text-sgt-700 text-xs rounded-full font-semibold uppercase tracking-wide">
+                      <span className="px-3 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 text-xs rounded-full font-semibold uppercase tracking-wide">
                         {app.iprType}
                       </span>
                       <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full font-medium flex items-center gap-1">
@@ -233,7 +233,7 @@ export default function DeanApprovalDashboard() {
                   
                   <button
                     onClick={() => handleReviewClick(app)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-sgt-gradient text-white rounded-xl hover:shadow-lg hover:shadow-sgt-500/25 transition-all duration-200 font-medium group/btn"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-ResearchSphere-gradient text-white rounded-xl hover:shadow-lg hover:shadow-ResearchSphere-500/25 transition-all duration-200 font-medium group/btn"
                   >
                     Review
                     <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
@@ -247,10 +247,10 @@ export default function DeanApprovalDashboard() {
 
       {/* Decision Modal */}
       {showModal && selectedApp && (
-        <div className="fixed inset-0 bg-sgt-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-ResearchSphere-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-slideUp">
             {/* Modal Header */}
-            <div className="bg-sgt-gradient p-6 text-white sticky top-0 z-10">
+            <div className="bg-ResearchSphere-gradient p-6 text-white sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-xl">
@@ -285,7 +285,7 @@ export default function DeanApprovalDashboard() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Type</p>
-                      <span className="inline-flex px-3 py-1 bg-sgt-100 text-sgt-700 rounded-full text-sm font-medium">
+                      <span className="inline-flex px-3 py-1 bg-ResearchSphere-100 text-ResearchSphere-700 rounded-full text-sm font-medium">
                         {selectedApp.iprType.toUpperCase()}
                       </span>
                     </div>
@@ -310,11 +310,11 @@ export default function DeanApprovalDashboard() {
                     <Award className="w-4 h-4" />
                     DRD Review Summary
                   </h3>
-                  <div className="bg-sgt-50 border border-sgt-200 p-5 rounded-2xl space-y-3">
+                  <div className="bg-ResearchSphere-50 border border-ResearchSphere-200 p-5 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-sgt-200 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-sgt-700" />
+                        <div className="w-10 h-10 bg-ResearchSphere-200 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-ResearchSphere-700" />
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">
@@ -327,7 +327,7 @@ export default function DeanApprovalDashboard() {
                         {selectedApp.reviews[0].decision.toUpperCase()}
                       </span>
                     </div>
-                    <div className="pt-3 border-t border-sgt-200">
+                    <div className="pt-3 border-t border-ResearchSphere-200">
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Comments</p>
                       <p className="text-gray-700">{selectedApp.reviews[0].comments}</p>
                     </div>
@@ -349,7 +349,7 @@ export default function DeanApprovalDashboard() {
                     <select
                       value={decision}
                       onChange={(e) => setDecision(e.target.value as any)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all bg-white"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400 transition-all bg-white"
                     >
                       <option value="approve">✓ Approve Application</option>
                       <option value="reject">✗ Reject Application</option>
@@ -367,7 +367,7 @@ export default function DeanApprovalDashboard() {
                       rows={4}
                       required={decision ===
    'reject'}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sgt-400 focus:border-sgt-400 transition-all resize-none"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ResearchSphere-400 focus:border-ResearchSphere-400 transition-all resize-none"
                       placeholder="Provide your decision comments..."
                     />
                   </div>

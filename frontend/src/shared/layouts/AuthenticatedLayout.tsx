@@ -4,21 +4,33 @@ import ProtectedRoute from '@/shared/providers/ProtectedRoute';
 import NavigationHeader from '@/shared/layouts/NavigationHeader';
 import { BugReportWidget } from '@/features/bug-reports/components/BugReportWidget';
 
+import { usePathname } from 'next/navigation';
+
 interface AuthenticatedLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
+  const pathname = usePathname();
+  const isFullWidthPage = pathname ? (pathname === '/dashboard' || pathname === '/my-work' || pathname.includes('/research/profile') || pathname === '/research/my-contributions') : false;
+  const mainBgClass = 'bg-blush dark:bg-gray-950';
+
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 flex flex-col overflow-x-hidden">
+      <div className="min-h-screen bg-blush dark:bg-gray-950 transition-colors duration-200 flex flex-col overflow-x-hidden">
         <NavigationHeader />
-        <main className="pt-14 sm:pt-16 flex-1">
-          <div className="px-4 sm:px-6 pt-4 sm:pt-8 pb-0 max-w-[1920px] mx-auto">
+        {isFullWidthPage ? (
+          <main className={`pt-20 sm:pt-[5.5rem] flex-1 ${mainBgClass}`}>
             {children}
-          </div>
-        </main>
-        {/* Bug Report Widget - Fixed position in bottom-right corner */}
+          </main>
+        ) : (
+          <main className={`pt-20 sm:pt-[5.5rem] flex-1 ${mainBgClass}`}>
+            <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-[1600px] mx-auto">
+              {children}
+            </div>
+          </main>
+        )}
+        {/* Bug Report Widget */}
         <BugReportWidget />
       </div>
     </ProtectedRoute>

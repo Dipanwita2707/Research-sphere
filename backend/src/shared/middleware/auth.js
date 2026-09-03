@@ -63,6 +63,7 @@ const protect = async (req, res, next) => {
               email: true,
               role: true,
               status: true,
+              universityId: true,
               assignedRoleIds: true,
               employeeDetails: {
                 select: {
@@ -218,6 +219,23 @@ const protect = async (req, res, next) => {
 
       // Attach user to request
       req.user = user;
+
+      // Resolve Tenant context
+      if (user.role === 'superadmin') {
+        const headerUniversityId = req.headers['x-university-id'];
+        req.tenantId = headerUniversityId || null;
+        req.isSuperadmin = true;
+      } else {
+        if (!user.universityId) {
+          return res.status(403).json({
+            success: false,
+            message: 'User is not associated with any university/tenant.'
+          });
+        }
+        req.tenantId = user.universityId;
+        req.isSuperadmin = false;
+      }
+
       next();
     } catch (error) {
       return res.status(401).json({
@@ -244,7 +262,7 @@ const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       // Log authentication failure for admin endpoints
-      if (roles.includes('admin') || roles.includes('super_admin')) {
+      if (roles.includes('admin') || roles.includes('superadmin')) {
         logAuthenticationFailure({
           endpoint: req.originalUrl || req.url,
           method: req.method,
@@ -885,6 +903,70 @@ const checkGateEntryAccess = (requireVerifyAccess = false) => {
   };
 };
 
+/**
+ * Middleware to check if the requested IPR application belongs to the same university as the logged-in user.
+ */
+const checkIprTenantAccess = async (req, res, next) => {
+  try {
+    const { id, updateId } = req.params;
+    const tenantId = req.tenantId;
+
+    // If no tenant context is resolved or user is superadmin (impersonating is resolved to tenantId), skip checks
+    if (!tenantId) {
+      return next();
+    }
+
+    let targetIprId = id;
+    if (updateId) {
+      const updateRecord = await prisma.iprStatusUpdate.findUnique({
+        where: { id: updateId },
+        select: { iprApplicationId: true }
+      });
+      if (updateRecord) {
+        targetIprId = updateRecord.iprApplicationId;
+      }
+    }
+
+    if (!targetIprId) {
+      return next();
+    }
+
+    // Find the IPR application and get the applicant user's universityId
+    const application = await prisma.iprApplication.findUnique({
+      where: { id: targetIprId },
+      select: {
+        applicantUser: {
+          select: {
+            universityId: true
+          }
+        }
+      }
+    });
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'IPR application not found'
+      });
+    }
+
+    if (application.applicantUser?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This IPR application does not belong to your university.'
+      });
+    }
+
+    next();
+  } catch (error) {
+    log.error('IPR tenant access check error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to verify tenant access'
+    });
+  }
+};
+
 module.exports = {
   protect,
   restrictTo,
@@ -894,6 +976,7 @@ module.exports = {
   checkIprFilePermission,
   checkResearchFilePermission,
   checkGateEntryAccess,
+  checkIprTenantAccess,
   // New centralized permission middleware
   checkPermission,
   checkAnyPermission,

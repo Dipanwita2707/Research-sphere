@@ -6,13 +6,12 @@ import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle, Menu, X
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@/shared/providers/ThemeProvider';
  import Link from 'next/link';
-import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
-import { useMyClubs } from '@/features/dsw/hooks';
 import {
   useHasVolunteerAssignments,
   useStaffDashboardSummary,
   useUnreadNotificationCount,
 } from '@/shared/hooks/useUserContextQueries';
+import Wordmark from '@/shared/components/brand/Wordmark';
 
 interface DepartmentPermission {
   category: string;
@@ -89,6 +88,7 @@ export default function NavigationHeader() {
   const [activeSubmenu2, setActiveSubmenu2] = useState<string | null>(null); // Third level submenu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileExpandedMenu, setMobileExpandedMenu] = useState<string | null>(null);
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [mobileExpandedSubmenu, setMobileExpandedSubmenu] = useState<string | null>(null);
   const [activeSubmenu3, setActiveSubmenu3] = useState<string | null>(null); // Fourth level submenu
   const [showSearch, setShowSearch] = useState(false);
@@ -106,50 +106,14 @@ export default function NavigationHeader() {
    'faculty';
   const isStaff = roleName ===
    'staff';
-  const isAdmin = roleName ===
-   'admin' || roleName ===
-   'superadmin';
+  const isAdmin = roleName === 'admin' || roleName === 'superadmin';
+  const isSuperadmin = roleName === 'superadmin';
 
-  // PERF FIX: Use TanStack Query hook instead of raw api.get('/noting/my-permissions').
-  // This shares the same query cache as page-level useNotingPermissions() calls,
-  // so navigating between pages no longer fires a duplicate permissions request.
-  const { data: notingPermsData } = useNotingPermissions({ enabled: !!user });
-  const { data: myClubsData } = useMyClubs({ enabled: isStudent });
+  // PERF FIX: Use TanStack Query hook
   const { data: unreadCount = 0 } = useUnreadNotificationCount({ enabled: !!user });
   const { data: staffDashboardData, isLoading: isNavLoading } = useStaffDashboardSummary({ enabled: !!user });
   const { data: hasVolunteerAssignments = false } = useHasVolunteerAssignments({ enabled: !!user });
   const userPermissions = staffDashboardData?.permissions || [];
-  const hasNotingAccess = isAdmin || !!(
-    notingPermsData?.noting_create ||
-    notingPermsData?.noting_view_own ||
-    notingPermsData?.noting_view_department ||
-    notingPermsData?.noting_view_all ||
-    notingPermsData?.noting_approve ||
-    notingPermsData?.noting_forward ||
-    notingPermsData?.noting_return ||
-    notingPermsData?.noting_add_comment ||
-    notingPermsData?.noting_reject ||
-    notingPermsData?.noting_not_recommend
-  );
-  const canViewNotingAdminDashboard = isAdmin;
-  const isClubChairpersonFromNoting = !!(notingPermsData?.isClubChairperson);
-  const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
-    club => club.chairpersonId ===
-   user.id && club.status ===
-   'active'
-  ));
-  const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
-  const canBrowseEvents = true;
-  const canViewEventDashboard =
-    isAdmin ||
-    hasPermission(userPermissions, 'event_view_reports') ||
-    hasPermission(userPermissions, 'event_manage_all');
-
-  // Gate Entry Access Control based on designation
-  const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
-  const isGuard = userDesignation.includes('guard') || userDesignation.includes('security');
-  const hasFullGateEntryAccess = isAdmin || isGuard || isStaff;
-  const showGateEntryModule = true; // All users including students can now create passes
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
@@ -214,6 +178,14 @@ export default function NavigationHeader() {
     return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
 
+  // Close mobile nav on route change so the drawer cannot linger over page content
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setMobileExpandedMenu(null);
+    setMobileExpandedSubmenu(null);
+    setExpandedMobileSection(null);
+  }, [pathname]);
+
   // Search through all menu items
   const searchMenuItems = (query: string) => {
     if (!query.trim()) {
@@ -258,8 +230,11 @@ export default function NavigationHeader() {
   }, [searchQuery]);
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/login');
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
+    }
   };
 
   const getUserInitials = () => {
@@ -335,25 +310,25 @@ export default function NavigationHeader() {
     canApproveConference || canReviewGrant || canApproveGrant;
   
   if (hasAnyReviewPermission && hasDrdAccess) {
-    reviewApprovalChildren.push({ name: '📊 DRD Dashboard', href: '/drd', description: 'Research & Development overview' });
+    reviewApprovalChildren.push({ name: 'DRD Dashboard', href: '/drd', description: 'Research & Development overview' });
   }
   if (canReviewIpr || canApproveIpr) {
-    reviewApprovalChildren.push({ name: '💡 Review Patents/IPR', href: '/drd/review', description: 'Pending patent applications' });
+    reviewApprovalChildren.push({ name: 'Review Patents/IPR', href: '/drd/review', description: 'Pending patent applications' });
   }
   if (canReviewResearch || canApproveResearch) {
-    reviewApprovalChildren.push({ name: '📝 Review Research Papers', href: '/drd/research?type=research', description: 'Pending research papers' });
+    reviewApprovalChildren.push({ name: 'Review Research Papers', href: '/drd/research?type=research', description: 'Pending research papers' });
   }
   if (canReviewBook || canApproveBook) {
-    reviewApprovalChildren.push({ name: '📚 Review Books/Chapters', href: '/drd/research?type=book', description: 'Pending book submissions' });
+    reviewApprovalChildren.push({ name: 'Review Books/Chapters', href: '/drd/research?type=book', description: 'Pending book submissions' });
   }
   if (canReviewConference || canApproveConference) {
-    reviewApprovalChildren.push({ name: '🎤 Review Conference Papers', href: '/drd/research?type=conference', description: 'Pending conference papers' });
+    reviewApprovalChildren.push({ name: 'Review Conference Papers', href: '/drd/research?type=conference', description: 'Pending conference papers' });
   }
   if (canReviewGrant || canApproveGrant) {
-    reviewApprovalChildren.push({ name: '💰 Review Grant Proposals', href: '/drd/research?type=grant_proposal', description: 'Pending grant applications' });
+    reviewApprovalChildren.push({ name: 'Review Grant Proposals', href: '/drd/research?type=grant_proposal', description: 'Pending grant applications' });
   }
   if (hasFinanceAccess) {
-    reviewApprovalChildren.push({ name: '🏦 Finance & Payments', href: '/finance/dashboard', description: 'Manage incentive payments' });
+    reviewApprovalChildren.push({ name: 'Finance & Payments', href: '/finance/processing', description: 'Manage incentive payments' });
   }
   
   const hasReviewAccess = reviewApprovalChildren.length > 0;
@@ -399,10 +374,10 @@ export default function NavigationHeader() {
     });
   }
 
-  // Analytics section — gated by analytics-specific permissions
-  if (hasAnalyticsAccess) {
+  // Analytics section — show for admins, users with analytics perms, or DRD reviewers
+  if (hasAnalyticsAccess || hasDrdAccess) {
     rndSubItems.push({
-      name: '📈 Analytics',
+      name: 'Analytics',
       description: 'Research & IPR analytics dashboards',
       children: [
         { name: 'Overview', href: '/drd/analytics/overview', description: 'High-level KPIs & trends' },
@@ -415,27 +390,27 @@ export default function NavigationHeader() {
   // Admin Only - R&D Configuration and Incentive Policies
   if (isAdmin) {
     rndSubItems.push({
-      name: '⚙️ R&D Configuration',
+      name: 'R&D Configuration',
       description: 'School assignments & routing',
       children: [
-        { name: '💡 IPR Routing', href: '/admin/drd-school-assignment', description: 'Route IPR to schools' },
-        { name: '📝 Research Routing', href: '/admin/research-school-assignment', description: 'Route research to schools' },
-        { name: '📚 Book Routing', href: '/admin/book-school-assignment', description: 'Route books to schools' },
-        { name: '🎤 Conference Routing', href: '/admin/conference-school-assignment', description: 'Route conferences' },
-        { name: '💰 Grant Routing', href: '/admin/grant-school-assignment', description: 'Route grants' },
+        { name: 'IPR Routing', href: '/admin/drd-school-assignment', description: 'Route IPR to schools' },
+        { name: 'Research Routing', href: '/admin/research-school-assignment', description: 'Route research to schools' },
+        { name: 'Book Routing', href: '/admin/book-school-assignment', description: 'Route books to schools' },
+        { name: 'Conference Routing', href: '/admin/conference-school-assignment', description: 'Route conferences' },
+        { name: 'Grant Routing', href: '/admin/grant-school-assignment', description: 'Route grants' },
       ],
     });
 
     rndSubItems.push({
-      name: '📜 Incentive Policies',
+      name: 'Incentive Policies',
       description: 'Configure payment policies',
       children: [
-        { name: '💡 Patent/IPR Incentives', href: '/admin/incentive-policies', description: 'IPR payment rules' },
-        { name: '📝 Research Incentives', href: '/admin/research-policies', description: 'Research payment rules' },
-        { name: '📚 Book Incentives', href: '/admin/book-policies', description: 'Book payment rules' },
-        { name: '📖 Chapter Incentives', href: '/admin/book-chapter-policies', description: 'Chapter payment rules' },
-        { name: '🎤 Conference Incentives', href: '/admin/conference-policies', description: 'Conference payment rules' },
-        { name: '💰 Grant Incentives', href: '/admin/grant-policies', description: 'Grant payment rules' },
+        { name: 'Patent/IPR Incentives', href: '/admin/incentive-policies', description: 'IPR payment rules' },
+        { name: 'Research Incentives', href: '/admin/research-policies', description: 'Research payment rules' },
+        { name: 'Book Incentives', href: '/admin/book-policies', description: 'Book payment rules' },
+        { name: 'Chapter Incentives', href: '/admin/book-chapter-policies', description: 'Chapter payment rules' },
+        { name: 'Conference Incentives', href: '/admin/conference-policies', description: 'Conference payment rules' },
+        { name: 'Grant Incentives', href: '/admin/grant-policies', description: 'Grant payment rules' },
       ],
     });
   }
@@ -445,262 +420,59 @@ export default function NavigationHeader() {
   // Level 1: Academics, Research and Development
   // Level 2 (under R&D): Submit & Track, Review & Approve
   // =====================================
-    const navigationSubItems: SubMenuItem[] = [
-    // Academics
-    {
-      name: '📚 Academics',
-      description: 'Academic resources and tools',
-      children: [
-        { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
-
-        { name: '�Courses', href: '#', description: 'Course management (Coming Soon)' },
-        { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
-        { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
-        { name: 'Results', href: '#', description: 'Academic results (Coming Soon)' },
-        { name: 'Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
-      ],
-    },
-  ];
+    const navigationSubItems: SubMenuItem[] = [];
 
   // Add Research and Development if there are sub-items
   if (rndSubItems.length > 0) {
     navigationSubItems.push({
-      name: '🔬 Research & Development',
+      name: 'Research & Development',
       description: 'Research, Patents & Reviews',
       children: rndSubItems,
     });
   }
 
-  // Add Admissions
-  navigationSubItems.push({
-    name: '📝 Admissions',
-    href: 'http://localhost:3000/',
-    description: 'Student admissions portal',
-  });
-
-  // Add Resource Management
-  navigationSubItems.push({
-    name: '🏢 Resource Management',
-    description: 'Manage campus facilities and transport bookings',
-    children: [
-      { name: '🏛️ Seminar Hall Booking', href: '/resource-management/seminar-hall-booking', description: 'Book and manage seminar halls' },
-      { name: '🚕 Cab Booking', href: '/resource-management/cab-booking', description: 'Book and manage cab requests' },
-    ],
-  });
-
-  // Add Noting approval - For Faculty, Staff, Admin only (blocked for all students)
-  if (!isStudent && hasNotingAccess) {
-    const notingChildren: SubMenuItem[] = [
-      { name: '📝 Noting Workspace', href: '/noting', description: 'Create and track approval notes', prefetch: false },
-      ...(canViewNotingAdminDashboard ? [{ name: '📊 Noting Dashboard', href: '/noting/admin', description: 'Analytics, activity, and moderation overview', prefetch: false }] : []),
-    ];
-
-    navigationSubItems.push(
-      notingChildren.length ===
-   1
-        ? {
-            name: '📋 Noting & Approval',
-            href: '/noting',
-            description: 'Create and track approval notes',
-            prefetch: false,
-          }
-        : {
-            name: '📋 Noting & Approval',
-            description: 'Create, monitor, and moderate approval notes',
-            children: notingChildren,
-          },
-    );
-  }
-
-  // Add Finance section - per-permission sub-items
-  if (hasFinanceAccess) {
-    const financeChildren: SubMenuItem[] = [];
-    if (isAdmin || hasPermission(userPermissions, 'configure_fee_structure')) {
-      financeChildren.push({ name: '⚙️ Fee Structure', href: '/finance/fees', description: 'Configure transport, hostel & academic fees' });
-    }
-    if (isAdmin || hasPermission(userPermissions, 'print_loan_letter')) {
-      financeChildren.push({ name: '📄 Loan Letters', href: '/finance/loan-letter', description: 'Generate and manage student loan letters' });
-    }
-    if (isAdmin || hasPermission(userPermissions, 'finance_analytics')) {
-      financeChildren.push({ name: '📊 Finance Analytics', href: '/finance/analytics', description: 'Fee structure and loan letter statistics' });
-    }
-    navigationSubItems.push({
-      name: '💰 Finance',
-      description: 'Fee structures, loan letters & analytics',
-      children: [
-        { name: '🏠 Finance Dashboard', href: '/finance/dashboard', description: 'Finance overview' },
-        ...financeChildren,
-      ],
-    });
-  }
-
-  // Add Event Management
-  const canCreateEvent = isFaculty || isClubChairperson;
-  const eventChildren: SubMenuItem[] = [
-    ...(canBrowseEvents ? [{ name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' }] : []),
-    { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
-    { name: '� My Certificates', href: '/events/my-certificates', description: 'View and download your event certificates' },
-    { name: '�🏪 Stall Application', href: '/events/stall-opportunities', description: 'Apply for stalls at events with stall opportunities' },
-    { name: '📱 Event Feedback Scanner', href: '/event-feedback-scanner', description: 'Scan QR to open event feedback form' },
-  ];
-  if (canCreateEvent) {
-    eventChildren.splice(1, 0, { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' });
-  }
-  if (canViewEventDashboard) {
-    eventChildren.splice(Math.min(eventChildren.length, 2), 0, {
-      name: '📊 Event Dashboard',
-      href: '/events/admin',
-      description: 'Analytics, approval stages, and admin controls',
-    });
-  }
-  if (hasVolunteerAssignments) {
-    eventChildren.push({ name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' });
-  }
-  navigationSubItems.push({
-    name: '📅 Event Management',
-    description: 'Discover, organize, and attend university events',
-    children: eventChildren,
-  });
-
-  // Add RFID
-  navigationSubItems.push({
-    name: '🔐 RFID',
-    href: 'https://192.168.7.20:3000',
-    description: 'RFID access system',
-  });
-
-  // TMS navigation
-  {
-    const tmsChildren: SubMenuItem[] = [];
-    if (isStudent) {
-      tmsChildren.push(
-        { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
-        { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
-      );
-    }
-    if (isFaculty || isStaff || isAdmin) {
-      tmsChildren.push(
-        { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
-        { name: '📜 Request History', href: '/tms/history', description: 'Track your past actions on tickets' },
-      );
-    }
-    if (isAdmin) {
-      tmsChildren.push(
-        { name: '📊 TMS Dashboard', href: '/tms/admin', description: 'Analytics & overview' },
-        { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
-      );
-    }
-    // TEMP HIDE: Ticket Management should not appear in UMS Navigation for now.
-    // Keep this block commented so it can be restored quickly later.
-    // if (tmsChildren.length > 0) {
-    //   navigationSubItems.push({
-    //     name: '🎫 Ticket Management',
-    //     description: 'Grievances, Assistance & Enquiries',
-    //     children: tmsChildren,
-    //   });
-    // }
-  }
-
-  // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
-  if (isStudent || isFaculty || isAdmin) {
-    navigationSubItems.push({
-      name: '🎓 Division of Student Welfare',
-      description: 'Student Clubs & Activities',
-      children: [
-        { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
-        { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
-        { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am involved in' },
-        ...((isStudent || isFaculty) ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
-        ...(isAdmin ? [
-          { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
-          { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
-        ] : []),
-      ],
-    });
-  }
-
-  // UMS Navigation - show it whenever there are actual items available for the user.
+  // Workspace navigation - show it whenever there are actual items available for the user.
   if (navigationSubItems.length > 0) {
     menuItems.push({
-      name: 'UMS Navigation',
+      name: 'Workspace',
       subItems: navigationSubItems,
     });
   }
 
   // =====================================
-    // ADMINISTRATION - Gate Entry module always inside Administration
-  // Admin & Guard: Full access (Create, All Passes, Verify Pass)
-  // Others (Faculty/Staff/Students): Limited access (Create & All Passes only - shows only their own passes)
+  // ADMINISTRATION
   // =====================================
-    if (showGateEntryModule) {
-    const gateEntryChildren: SubMenuItem[] = [];
-    
-    // Everyone gets Create Pass
-    gateEntryChildren.push(
-      { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' }
-    );
-    
-    // Everyone gets All Passes view (backend filters to show only own passes for non-admin/guard)
-    gateEntryChildren.push(
-      { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' }
-    );
+  if (isAdmin) {
+    const administrationSubItems: SubMenuItem[] = [
+      { name: 'Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
+      { name: 'Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
+      { name: 'Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
 
-    // Admin and Guard get Verify Pass feature
-    if (hasFullGateEntryAccess) {
-      gateEntryChildren.push(
-        { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' }
-      );
-    }
+      // Organization Management
+      {
+        name: 'Organization Structure',
+        description: 'Schools, Departments & Programs',
+        children: [
+          { name: 'Schools', href: '/admin/schools', description: 'Manage university schools' },
+          { name: 'Departments', href: '/admin/departments', description: 'Manage departments' },
+          { name: 'Programs', href: '/admin/programs', description: 'Manage academic programs' },
+          { name: 'Central Departments', href: '/admin/central-departments', description: 'Admin & support departments' },
+        ],
+      },
 
-    // Only Admin gets Analytics Dashboard
-    if (isAdmin) {
-      gateEntryChildren.push(
-        { name: '📊 Analytics', href: '/admin/gate-entry/analytics', description: 'Comprehensive analytics & insights' }
-      );
-    }
-
-    const administrationSubItems: SubMenuItem[] = [];
-
-    // Only Admin gets other Administration features
-    if (isAdmin) {
-      administrationSubItems.push(
-        { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
-        { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
-        { name: '🐛 Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
-
-        // Organization Management
-        {
-          name: '🏛️ Organization Structure',
-          description: 'Schools, Departments & Programs',
-          children: [
-            { name: '🏫 Schools', href: '/admin/schools', description: 'Manage university schools' },
-            { name: '🏢 Departments', href: '/admin/departments', description: 'Manage departments' },
-            { name: '📚 Programs', href: '/admin/programs', description: 'Manage academic programs' },
-            { name: '🏛️ Central Departments', href: '/admin/central-departments', description: 'Admin & support departments' },
-          ],
-        },
-
-        // User Management
-        {
-          name: '👥 User Management',
-          description: 'Employees, Students & Permissions',
-          children: [
-            { name: '👨‍🏫 Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
-            { name: '👨‍🎓 Students', href: '/admin/students', description: 'Manage student records' },
-            { name: '🛡️ User & Role Management', href: '/admin/roles', description: 'Assign permissions & create role templates' },
-            { name: '� Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
-            { name: '�📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
-          ],
-        }
-      );
-    }
-
-    // Gate Entry - Always present for everyone (Admin, Guard, Others)
-    administrationSubItems.push({
-      name: '🚪 Gate Entry',
-      description: 'Manage campus gate entries',
-      children: gateEntryChildren,
-    });
+      // User Management
+      {
+        name: 'User Management',
+        description: 'Employees, Students & Permissions',
+        children: [
+          { name: 'Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
+          { name: 'Students', href: '/admin/students', description: 'Manage student records' },
+          { name: 'User & Role Management', href: '/admin/roles', description: 'Assign permissions & create role templates' },
+          { name: ' Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
+          { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+        ],
+      }
+    ];
 
     menuItems.push({
       name: 'Administration',
@@ -709,14 +481,14 @@ export default function NavigationHeader() {
   }
 
   // =====================================
-    // MY ACCOUNT - For students only
+  // MY ACCOUNT - For students only
   // =====================================
-    if (isStudent) {
+  if (isStudent) {
     menuItems.push({
       name: 'My Account',
       subItems: [
-        { name: '⚙️ Settings', href: '/settings', description: 'Account preferences' },
-        { name: '🔔 Notifications', href: '/notifications', description: 'View all notifications' },
+        { name: 'Settings', href: '/settings', description: 'Account preferences' },
+        { name: 'Notifications', href: '/notifications', description: 'View all notifications' },
       ],
     });
   }
@@ -743,67 +515,115 @@ export default function NavigationHeader() {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50"
+      className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-[#f0e2d2] dark:border-gray-800"
       style={{
-        background: 'linear-gradient(135deg, #005b96 0%, #004a80 50%, #003d6b 100%)',
-        boxShadow: '0 4px 20px rgba(0,91,150,0.15)'
+        boxShadow: '0 1px 0 rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)'
       }}
     >
+      {/* Clean header — no accent bar */}
       {/* Single Line Header */}
-      <div className="h-14 sm:h-16 px-2 sm:px-6 flex items-center justify-between gap-1 sm:gap-4 min-w-0">
-        {/* Mobile Menu Button */}
+      <div className="h-20 sm:h-[5.5rem] px-2 sm:px-6 flex items-center justify-between gap-1 sm:gap-4 min-w-0">
+        {/* Mobile Menu Button — hide once desktop nav is available (md+) */}
         <button
           onClick={() => { setMobileMenuOpen(!mobileMenuOpen); if (mobileMenuOpen) setExpandedMobileSection(null); }}
-          className="lg:hidden p-2 text-white/90 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
+          className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-wine hover:bg-peach/40 dark:hover:bg-gray-800 rounded-lg transition-colors"
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
 
-        {/* Logo Section */}
-        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
-          <img
-            src="/images/new-header-logo.png"
-            alt="SGT University"
-            className="h-8 sm:h-12 object-contain brightness-0 invert"
-            fetchPriority="high"
-            loading="eager"
-          />
-          <div className="hidden sm:block">
-            <div className="text-white font-bold text-xs sm:text-sm leading-tight">UNIVERSITY</div>
-            <div className="text-white/70 text-[10px] sm:text-xs leading-tight">MANAGEMENT SYSTEM</div>
-          </div>
+        {/* Wordmark */}
+        <Link href={isSuperadmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
+          <Wordmark heightClassName="h-[4.25rem] sm:h-[5rem]" className="drop-shadow-sm" />
         </Link>
 
-        {/* Navigation Section - Center (Desktop only) (Hidden on Mobile) */}
-        <nav className="hidden lg:flex items-center gap-2 flex-1 justify-center">
-          {/* Dashboard Link */}
-          <Link
-            href="/dashboard"
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${pathname ===
-   '/dashboard'
-              ? 'bg-white/20 text-white shadow-lg'
-              : 'text-white/90 hover:bg-white/15 hover:text-white'
-              }`}
-          >
-            Dashboard
-          </Link>
+        {/* Navigation Section — show from md so Dashboard / Profile / Workspace are not lost on typical laptop half-screens */}
+        <nav className="hidden md:flex items-center gap-0.5 xl:gap-1 flex-1 justify-center min-w-0 overflow-visible">
+          {/* Superadmin Nav Links */}
+          {isSuperadmin && (
+            <>
+              <Link
+                href="/superadmin/dashboard"
+                className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  pathname === '/superadmin/dashboard'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                }`}
+              >
+                SaaS Dashboard
+              </Link>
+              <Link
+                href="/superadmin/universities"
+                className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  pathname?.startsWith('/superadmin/universities')
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                }`}
+              >
+                Universities
+              </Link>
+              <Link
+                href="/superadmin/billing"
+                className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  pathname?.startsWith('/superadmin/billing')
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                }`}
+              >
+                Billing & Tiers
+              </Link>
+              <Link
+                href="/superadmin/api-monitor"
+                className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  pathname?.startsWith('/superadmin/api-monitor')
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                }`}
+              >
+                API Monitor
+              </Link>
+            </>
+          )}
+
+          {/* Regular user Dashboard and Profile Links */}
+          {!isSuperadmin && (
+            <Link
+              href="/dashboard"
+              className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${pathname === '/dashboard'
+                ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                }`}
+            >
+              Dashboard
+            </Link>
+          )}
+          {!isSuperadmin && !isStudent && (
+            <Link
+              href="/research/my-profile"
+              className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${pathname?.startsWith('/research/profile/') || pathname === '/research/my-profile'
+                ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                }`}
+            >
+              Profile
+            </Link>
+          )}
 
           {/* Skeleton shimmer while menu data loads */}
-          {isNavLoading && !!user && (
+          {!isSuperadmin && isNavLoading && !!user && (
             <>
               {[80, 96, 72, 88, 80].map((w, i) => (
                 <div
                   key={i}
-                  className="h-8 rounded-lg animate-pulse bg-white/20"
+                  className="h-8 rounded-lg animate-pulse bg-gray-100 dark:bg-gray-800"
                   style={{ width: `${w}px` }}
                 />
               ))}
             </>
           )}
 
-          {/* Dynamic Menu Items */}
-          {!isNavLoading && menuItems.map((item) => (
+          {/* Dynamic Menu Items - hidden for superadmin */}
+          {!isSuperadmin && !isNavLoading && menuItems.map((item) => (
             <div
               key={item.name}
               className="relative"
@@ -827,10 +647,10 @@ export default function NavigationHeader() {
                   setActiveSubmenu(null);
                   setActiveSubmenu2(null);
                 }}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${activeDropdown ===
+                className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${activeDropdown ===
    item.name
-                  ? 'bg-white/20 text-white shadow-lg'
-                  : 'text-white/90 hover:bg-white/15 hover:text-white'
+                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
                   }`}
               >
                 {item.name}
@@ -838,385 +658,195 @@ export default function NavigationHeader() {
    item.name ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Dropdown - Blue Glassmorphism Effect Full Width */}
+              {/* Dropdown Menu - Split-pane Absolute Flyout */}
               {activeDropdown ===
-   item.name && item.subItems && (
+    item.name && item.subItems && (
                 <div
-                  className="fixed left-0 right-0 mt-2 shadow-2xl border-t border-gray-200 z-50 max-h-[80vh] overflow-y-auto"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    boxShadow: '0 8px 32px 0 rgba(0, 69, 120, 0.15)',
-                  }}
+                  className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 shadow-2xl border border-gray-100 dark:border-gray-800 rounded-xl z-50 overflow-hidden flex w-[90vw] max-w-[620px] h-[380px]"
                   onMouseLeave={() => {
                     setActiveDropdown(null);
-                    setActiveSubmenu(null);
-                    setActiveSubmenu2(null);
+                    setHoveredCategory(null);
                   }}
                 >
-                  <div className="max-w-7xl mx-auto px-6 py-4 relative">
-                    {/* Main Menu */}
-                    <div className={`grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden transition-all duration-300 ${
-                      activeSubmenu ? 'invisible pointer-events-none' : 'visible'
-                    }`}>
-                      {item.subItems.map((subItem) => {
-                        const active = isItemActive(subItem);
-                        const itemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${
-                          active
-                            ? 'bg-[#005b96]/10'
-                            : 'hover:bg-[#005b96]/6'
+                  {/* Left Pane (Categories) */}
+                  <div className="w-[230px] bg-gray-50/50 dark:bg-gray-800/10 border-r border-gray-100 dark:border-gray-800 p-2 overflow-y-auto rs-scrollbar flex flex-col gap-1 select-none">
+                    {(() => {
+                      const categories = item.name === 'Workspace'
+                        ? (item.subItems.find(si => si.name.includes('Research & Development'))?.children || [])
+                        : item.subItems;
+
+                      const currentCategoryName = hoveredCategory || (categories[0] ? categories[0].name : null);
+
+                      return categories.map((cat) => {
+                        const isSelected = currentCategoryName === cat.name;
+                        const isLeaf = !!cat.href;
+                        
+                        const handleMouseEnter = () => {
+                          setHoveredCategory(cat.name);
+                        };
+
+                        const btnCls = `w-full flex flex-col text-left py-2 px-3 rounded-lg transition-all duration-150 ${
+                          isSelected
+                            ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400 font-semibold'
+                            : 'text-gray-700 dark:bg-gray-200 hover:bg-gray-100/70 dark:hover:bg-gray-800/60'
                         }`;
-                        const textCls = `text-sm font-semibold transition-colors truncate ${active ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
-                        const descCls = `text-xs mt-0.5 truncate ${active ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
-                        const iconCls = `w-4 h-4 transition-all ${active ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
-                        return subItem.href ? (
+
+                        return isLeaf ? (
                           <Link
-                            key={subItem.href}
-                            href={subItem.href}
-                            prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
-                            onClick={() => { setActiveDropdown(null); setActiveSubmenu(null); }}
-                            className={itemCls}
+                            key={cat.name}
+                            href={cat.href!}
+                            onMouseEnter={handleMouseEnter}
+                            onClick={() => {
+                              setActiveDropdown(null);
+                              setHoveredCategory(null);
+                            }}
+                            className={btnCls}
                           >
-                            <div className="flex-1 min-w-0">
-                              <div className={textCls}>{subItem.name}</div>
-                              {subItem.description && <div className={descCls}>{subItem.description}</div>}
-                            </div>
-                            <div className="ml-3 flex-shrink-0">
-                              <svg className={iconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </div>
+                            <span className="text-xs font-semibold flex items-center gap-1">
+                              {cat.name}
+                            </span>
+                            {cat.description && (
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[200px]">
+                                {cat.description}
+                              </span>
+                            )}
                           </Link>
-                        ) : subItem.children ? (
+                        ) : (
                           <button
-                            key={subItem.name}
-                            onClick={() => setActiveSubmenu(subItem.name)}
-                            className={`${itemCls} text-left w-full`}
+                            key={cat.name}
+                            onMouseEnter={handleMouseEnter}
+                            className={btnCls}
                           >
-                            <div className="flex-1 min-w-0">
-                              <div className={textCls}>{subItem.name}</div>
-                              {subItem.description && <div className={descCls}>{subItem.description}</div>}
-                            </div>
-                            <div className="ml-3 flex-shrink-0">
-                              <svg className={iconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </div>
+                            <span className="text-xs font-semibold flex items-center justify-between">
+                              {cat.name}
+                              <ChevronRight className={`w-3 h-3 transition-transform ${isSelected ? 'translate-x-0.5' : ''}`} />
+                            </span>
+                            {cat.description && (
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[200px]">
+                                {cat.description}
+                              </span>
+                            )}
                           </button>
-                        ) : null;
-                      })}
-                    </div>
+                        );
+                      });
+                    })()}
+                  </div>
 
-                    {/* Nested Submenu Slide - Level 2 */}
-                    {activeSubmenu && !activeSubmenu2 && (
-                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/97" style={{ backdropFilter: 'blur(12px)' }}>
-                        {/* Back + Section header */}
-                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#005b96]/10">
-                          <button
-                            onClick={() => setActiveSubmenu(null)}
-                            className="flex items-center gap-1.5 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm shrink-0"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Back
-                          </button>
-                          <span className="text-[#005b96]/30 text-sm">/</span>
-                          <span className="text-sm font-semibold text-[#003d66] truncate">{activeSubmenu}</span>
-                        </div>
+                  {/* Right Pane (Nested Items & Leaves) */}
+                  <div className="flex-1 p-4 bg-white dark:bg-gray-900 overflow-y-auto rs-scrollbar">
+                    {(() => {
+                      const categories = item.name === 'Workspace'
+                        ? (item.subItems.find(si => si.name.includes('Research & Development'))?.children || [])
+                        : item.subItems;
 
-                        <div className="grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden">
-                          {item.subItems.find(si => si.name ===
-   activeSubmenu)?.children?.map((child) => {
-                            const isComingSoon = child.href ===
-   '#' || child.description?.includes('Coming Soon');
-                            const hasNestedChildren = child.children && child.children.length > 0;
-                            const childActive = isItemActive(child);
-                            const childItemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${
-                              childActive
-                                ? 'bg-[#005b96]/10'
-                                : 'hover:bg-[#005b96]/6'
-                            }`;
-                            const childTextCls = `text-sm font-semibold transition-colors truncate ${childActive ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
-                            const childDescCls = `text-xs mt-0.5 truncate ${childActive ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
-                            const childIconCls = `w-4 h-4 transition-all ${childActive ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
+                      const currentCategoryName = hoveredCategory || (categories[0] ? categories[0].name : null);
+                      const activeCat = categories.find(cat => cat.name === currentCategoryName);
 
-                            // Coming Soon items
-                            if (isComingSoon && !hasNestedChildren) {
-                              return (
-                                <div
-                                  key={child.name}
-                                  className="group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 bg-slate-50 cursor-not-allowed opacity-60"
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-semibold text-gray-400 truncate flex items-center gap-2">
-                                      {child.name}
-                                      <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
-                                        Coming Soon
+                      if (!activeCat) {
+                        return (
+                          <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+                            Hover over a section to view pages
+                          </div>
+                        );
+                      }
+
+                      if (activeCat.href) {
+                        return (
+                          <div className="h-full flex flex-col justify-center items-center text-center p-4">
+                            <span className="text-3xl mb-2">🔗</span>
+                            <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 mb-1">
+                              {activeCat.name}
+                            </h4>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 max-w-[220px] mb-3 leading-relaxed">
+                              {activeCat.description || 'Open page directly'}
+                            </p>
+                            <Link
+                              href={activeCat.href}
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setHoveredCategory(null);
+                              }}
+                              className="px-3.5 py-1.5 bg-wine text-white dark:bg-amber-500 dark:text-gray-950 text-xs font-bold rounded-lg hover:bg-wine-700 dark:hover:bg-amber-400 transition-colors"
+                            >
+                              Go to Page
+                            </Link>
+                          </div>
+                        );
+                      }
+
+                      if (activeCat.children) {
+                        return (
+                          <div className="flex flex-col gap-3">
+                            <div className="border-b border-gray-100 dark:border-gray-800 pb-1.5">
+                              <h4 className="text-[10px] font-bold uppercase tracking-wider text-wine dark:text-amber-400">
+                                {activeCat.name}
+                              </h4>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                              {activeCat.children.map((child) => {
+                                const hasNested = child.children && child.children.length > 0;
+
+                                if (hasNested) {
+                                  return (
+                                    <div key={child.name} className="flex flex-col gap-1 border-b border-gray-50 dark:border-gray-800/40 pb-2 mb-1">
+                                      <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1">
+                                        {child.name}
                                       </span>
+                                      <div className="grid grid-cols-1 gap-0.5">
+                                        {child.children!.map((nestedChild) => (
+                                          <Link
+                                            key={nestedChild.name}
+                                            href={nestedChild.href!}
+                                            onClick={() => {
+                                              setActiveDropdown(null);
+                                              setHoveredCategory(null);
+                                            }}
+                                            className="group flex flex-col p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors text-left"
+                                          >
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-wine dark:group-hover:text-amber-400">
+                                              {nestedChild.name}
+                                            </span>
+                                            {nestedChild.description && (
+                                              <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-normal">
+                                                {nestedChild.description}
+                                              </span>
+                                            )}
+                                          </Link>
+                                        ))}
+                                      </div>
                                     </div>
+                                  );
+                                }
+
+                                return (
+                                  <Link
+                                    key={child.name}
+                                    href={child.href!}
+                                    onClick={() => {
+                                      setActiveDropdown(null);
+                                      setHoveredCategory(null);
+                                    }}
+                                    className="group flex flex-col p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors text-left border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
+                                  >
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 group-hover:text-wine dark:group-hover:text-amber-400">
+                                      {child.name}
+                                    </span>
                                     {child.description && (
-                                      <div className="text-xs text-gray-400 mt-0.5 truncate">{child.description}</div>
+                                      <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                        {child.description}
+                                      </span>
                                     )}
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            // Items with nested children (like Research & IPR, Review & Approval)
-                            if (hasNestedChildren) {
-                              return (
-                                <button
-                                  key={child.name}
-                                  onClick={() => setActiveSubmenu2(child.name)}
-                                  className={`${childItemCls} text-left w-full`}
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className={childTextCls}>{child.name}</div>
-                                    {child.description && <div className={childDescCls}>{child.description}</div>}
-                                  </div>
-                                  <div className="ml-3 flex-shrink-0">
-                                    <svg className={childIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                  </div>
-                                </button>
-                              );
-                            }
-
-                            // Regular link items
-                            return (
-                              <Link
-                                key={child.href || child.name}
-                                href={child.href!}
-                                prefetch={getLinkPrefetch(child.href, child.prefetch)}
-                                onClick={() => { setActiveSubmenu(null); setActiveDropdown(null); }}
-                                className={childItemCls}
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className={childTextCls}>{child.name}</div>
-                                  {child.description && <div className={childDescCls}>{child.description}</div>}
-                                </div>
-                                <div className="ml-3 flex-shrink-0">
-                                  <svg className={childIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                  </svg>
-                                </div>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Nested Submenu Slide - Level 3 (Third level) */}
-                    {activeSubmenu && activeSubmenu2 && !activeSubmenu3 && (
-                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/97" style={{ backdropFilter: 'blur(12px)' }}>
-                        {/* Breadcrumb back */}
-                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#005b96]/10">
-                          <button
-                            onClick={() => setActiveSubmenu2(null)}
-                            className="flex items-center gap-1.5 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm shrink-0"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Back
-                          </button>
-                          <span className="text-[#005b96]/30 text-sm">/</span>
-                          <span className="text-[11px] text-[#005b96]/60 truncate">{activeSubmenu}</span>
-                          <span className="text-[#005b96]/30 text-sm">/</span>
-                          <span className="text-sm font-semibold text-[#003d66] truncate">{activeSubmenu2}</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden">
-                          {item.subItems
-                            .find(si => si.name ===
-   activeSubmenu)?.children
-                            ?.find(c => c.name ===
-   activeSubmenu2)?.children
-                            ?.map((grandChild) => {
-                              const isComingSoon = grandChild.href ===
-   '#' || grandChild.description?.includes('Coming Soon');
-                              const hasNestedChildren = grandChild.children && grandChild.children.length > 0;
-                              const gcActive = isItemActive(grandChild);
-                              const gcItemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${gcActive ? 'bg-[#005b96]/10' : 'hover:bg-[#005b96]/6'}`;
-                              const gcTextCls = `text-sm font-semibold transition-colors truncate ${gcActive ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
-                              const gcDescCls = `text-xs mt-0.5 truncate ${gcActive ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
-                              const gcIconCls = `w-4 h-4 transition-all ${gcActive ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
-
-                              if (isComingSoon && !hasNestedChildren) {
-                                return (
-                                  <div
-                                    key={grandChild.name}
-                                    className="group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 bg-slate-50 cursor-not-allowed opacity-60"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-semibold text-gray-400 truncate flex items-center gap-2">
-                                        {grandChild.name}
-                                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
-                                          Coming Soon
-                                        </span>
-                                      </div>
-                                      {grandChild.description && (
-                                        <div className="text-xs text-gray-400 mt-0.5 truncate">{grandChild.description}</div>
-                                      )}
-                                    </div>
-                                  </div>
+                                  </Link>
                                 );
-                              }
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }
 
-                              // Items with nested children - go to Level 4
-                              if (hasNestedChildren) {
-                                return (
-                                  <button
-                                    key={grandChild.name}
-                                    onClick={() => setActiveSubmenu3(grandChild.name)}
-                                    className={`${gcItemCls} text-left w-full`}
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <div className={gcTextCls}>{grandChild.name}</div>
-                                      {grandChild.description && (
-                                        <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{grandChild.description}</div>
-                                      )}
-                                    </div>
-                                    <div className="ml-3 flex-shrink-0">
-                                      <svg
-                                        className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                      </svg>
-                                    </div>
-                                  </button>
-                                );
-                              }
-
-                              // Regular link items
-                              if (!grandChild.href) return null;
-
-                              return (
-                                <Link
-                                  key={grandChild.href || grandChild.name}
-                                  href={grandChild.href}
-                                  prefetch={getLinkPrefetch(grandChild.href, grandChild.prefetch)}
-                                  onClick={() => {
-                                    setActiveSubmenu2(null);
-                                    setActiveSubmenu(null);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className={gcItemCls}
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className={gcTextCls}>{grandChild.name}</div>
-                                    {grandChild.description && <div className={gcDescCls}>{grandChild.description}</div>}
-                                  </div>
-                                  <div className="ml-3 flex-shrink-0">
-                                    <svg className={gcIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                  </div>
-                                </Link>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Nested Submenu Slide - Level 4 (Fourth level) */}
-                    {activeSubmenu && activeSubmenu2 && activeSubmenu3 && (
-                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/97" style={{ backdropFilter: 'blur(12px)' }}>
-                        {/* Breadcrumb back */}
-                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#005b96]/10">
-                          <button
-                            onClick={() => setActiveSubmenu3(null)}
-                            className="flex items-center gap-1.5 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm shrink-0"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Back
-                          </button>
-                          <span className="text-[#005b96]/30 text-sm">/</span>
-                          <span className="text-[11px] text-[#005b96]/60 truncate">{activeSubmenu}</span>
-                          <span className="text-[#005b96]/30 text-sm">/</span>
-                          <span className="text-[11px] text-[#005b96]/60 truncate">{activeSubmenu2}</span>
-                          <span className="text-[#005b96]/30 text-sm">/</span>
-                          <span className="text-sm font-semibold text-[#003d66] truncate">{activeSubmenu3}</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden">
-                          {item.subItems
-                            .find(si => si.name ===
-   activeSubmenu)?.children
-                            ?.find(c => c.name ===
-   activeSubmenu2)?.children
-                            ?.find(gc => gc.name ===
-   activeSubmenu3)?.children
-                            ?.map((greatGrandChild) => {
-                              const isComingSoon = greatGrandChild.href ===
-   '#' || greatGrandChild.description?.includes('Coming Soon');
-
-                              if (isComingSoon) {
-                                return (
-                                  <div
-                                    key={greatGrandChild.name}
-                                    className="group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 bg-slate-50 cursor-not-allowed opacity-60"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-semibold text-gray-400 truncate flex items-center gap-2">
-                                        {greatGrandChild.name}
-                                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
-                                          Coming Soon
-                                        </span>
-                                      </div>
-                                      {greatGrandChild.description && (
-                                        <div className="text-xs text-gray-400 mt-0.5 truncate">{greatGrandChild.description}</div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              if (!greatGrandChild.href) return null;
-
-                              const ggActive = isItemActive(greatGrandChild);
-                              const ggItemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${ggActive ? 'bg-[#005b96]/10' : 'hover:bg-[#005b96]/6'}`;
-                              const ggTextCls = `text-sm font-semibold transition-colors truncate ${ggActive ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
-                              const ggDescCls = `text-xs mt-0.5 truncate ${ggActive ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
-                              const ggIconCls = `w-4 h-4 transition-all ${ggActive ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
-
-                              return (
-                                <Link
-                                  key={greatGrandChild.href || greatGrandChild.name}
-                                  href={greatGrandChild.href}
-                                  prefetch={getLinkPrefetch(greatGrandChild.href, greatGrandChild.prefetch)}
-                                  onClick={() => {
-                                    setActiveSubmenu3(null);
-                                    setActiveSubmenu2(null);
-                                    setActiveSubmenu(null);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className={ggItemCls}
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className={ggTextCls}>{greatGrandChild.name}</div>
-                                    {greatGrandChild.description && <div className={ggDescCls}>{greatGrandChild.description}</div>}
-                                  </div>
-                                  <div className="ml-3 flex-shrink-0">
-                                    <svg className={ggIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                  </div>
-                                </Link>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
+                      return null;
+                    })()}
                   </div>
                 </div>
               )}
@@ -1230,7 +860,7 @@ export default function NavigationHeader() {
           <div className="relative" ref={searchRef}>
             <button
               onClick={() => setShowSearch(!showSearch)}
-              className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+              className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
             >
               <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -1314,107 +944,16 @@ export default function NavigationHeader() {
             )}
           </div>
 
-          {/* Quick Links Dropdown - hidden on mobile to prevent header overflow */}
-          <div className="relative hidden sm:block">
-            <button
-              onClick={() => setActiveDropdown(activeDropdown ===
-   'quicklinks' ? null : 'quicklinks')}
-              onMouseEnter={() => setActiveDropdown('quicklinks')}
-              className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 group"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              <span className="text-sm font-medium hidden lg:block">Quick Links</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeDropdown ===
-   'quicklinks' ? 'rotate-180' : ''}`} />
-            </button>
 
-            {/* Quick Links Dropdown Menu */}
-            {activeDropdown ===
-   'quicklinks' && (
-              <div
-                className="absolute top-full right-0 mt-2 w-64 shadow-2xl border-t border-gray-200 z-50 rounded-lg overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  boxShadow: '0 8px 32px 0 rgba(0, 69, 120, 0.15)',
-                }}
-                onMouseLeave={() => setActiveDropdown(null)}
-              >
-                <div className="py-2">
-                  <a
-                    href="http://13.235.188.79"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#005b96]/10 transition-colors"
-                  >
-                    <span className="text-sm font-semibold text-[#005b96]">🎓 LMS</span>
-                  </a>
-                  <Link
-                    href="/research/apply"
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#005b96]/10 transition-colors"
-                    onClick={() => setActiveDropdown(null)}
-                  >
-                    <span className="text-sm font-semibold text-[#005b96]">📝 File Research</span>
-                  </Link>
-                  <Link
-                    href="/ipr/apply"
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#005b96]/10 transition-colors"
-                    onClick={() => setActiveDropdown(null)}
-                  >
-                    <span className="text-sm font-semibold text-[#005b96]">💡 File IPR</span>
-                  </Link>
-                  <Link
-                    href="/my-work"
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#005b96]/10 transition-colors"
-                    onClick={() => setActiveDropdown(null)}
-                  >
-                    <span className="text-sm font-semibold text-[#005b96]">📊 My Submissions</span>
-                  </Link>
-                  <Link
-                    href="https://sgtuniversity.ac.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#005b96]/10 transition-colors"
-                  >
-                    <span className="text-sm font-semibold text-[#005b96]">🌐 University Website</span>
-                  </Link>
-                  <Link
-                    href="https://sgttimes.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#005b96]/10 transition-colors"
-                  >
-                    <span className="text-sm font-semibold text-[#005b96]">📰 SGT Times</span>
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
-            ) : (
-              <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
-            )}
-          </button>
 
           {/* Notifications */}
           <button
             onClick={() => router.push('/notifications')}
-            className="relative p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+            className="relative p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
           >
             <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-lg">
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-wine rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -1425,25 +964,25 @@ export default function NavigationHeader() {
             {!user ? (
               /* Skeleton shimmer for user avatar while auth loads */
               <div className="flex items-center gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 animate-pulse" />
-                <div className="hidden lg:block h-4 w-20 bg-white/20 rounded animate-pulse" />
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                <div className="hidden lg:block h-4 w-20 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
               </div>
             ) : (
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3 hover:bg-white/15 rounded-lg transition-all duration-200"
+              className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
             >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xs sm:text-sm font-semibold shadow-lg border-2 border-white/30">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-wine flex items-center justify-center text-white text-xs sm:text-sm font-semibold">
                 {getUserInitials()}
               </div>
-              <span className="text-white text-sm font-medium hidden lg:block">{getUserDisplayName()}</span>
-              <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/80 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+              <span className="text-gray-700 dark:text-gray-200 text-sm font-medium hidden lg:block">{getUserDisplayName()}</span>
+              <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>
             )}
 
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-700 dark:to-gray-800">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-amber-50 to-peach dark:from-gray-700 dark:to-gray-800">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{getUserDisplayName()}</p>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{user?.email}</p>
                 </div>
@@ -1471,41 +1010,90 @@ export default function NavigationHeader() {
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-40 top-14"
+          className="md:hidden fixed inset-x-0 bottom-0 bg-black/50 z-40 top-20 sm:top-[5.5rem]"
           onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      {/* Mobile Menu Drawer */}
+      {/* Mobile Menu Drawer — top aligned with fixed header (h-20 / 5.5rem), fully off-screen when closed */}
       <div 
-        className={`lg:hidden fixed left-0 top-14 bottom-0 w-[280px] z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`md:hidden fixed left-0 top-20 sm:top-[5.5rem] bottom-0 w-[min(280px,85vw)] z-40 transform transition-transform duration-300 ease-in-out overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 shadow-xl ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
-        style={{ 
-          background: 'linear-gradient(180deg, #005b96 0%, #003d6b 100%)',
-        }}
+        aria-hidden={!mobileMenuOpen}
       >
-        {/* Dashboard Link */}
-        <Link
-          href="/dashboard"
-          onClick={() => setMobileMenuOpen(false)}
-          className={`flex items-center gap-3 px-4 py-3 mx-2 mt-2 rounded-lg transition-all ${
-            pathname ===
-   '/dashboard'
-              ? 'bg-white/20 text-white'
-              : 'text-white/90 hover:bg-white/10'
-          }`}
-        >
-          <span className="font-medium">Dashboard</span>
-        </Link>
+        {/* Primary links — always expose Dashboard + Profile for non-superadmin */}
+        {isSuperadmin ? (
+          <div className="px-2 mt-2 space-y-1">
+            {[
+              { label: 'SaaS Dashboard', href: '/superadmin/dashboard' },
+              { label: 'Universities', href: '/superadmin/universities' },
+              { label: 'Billing & Tiers', href: '/superadmin/billing' },
+              { label: 'API Monitor', href: '/superadmin/api-monitor' },
+            ].map(({ label, href }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  pathname?.startsWith(href)
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <span className="font-medium">{label}</span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="px-2 mt-2 space-y-1">
+            <Link
+              href="/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                pathname === '/dashboard'
+                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span className="font-medium">Dashboard</span>
+            </Link>
+            {!isStudent && (
+              <Link
+                href="/research/my-profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  pathname?.startsWith('/research/profile/') || pathname === '/research/my-profile'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <span className="font-medium">Profile</span>
+              </Link>
+            )}
+            <Link
+              href="/my-work"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                pathname === '/my-work'
+                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span className="font-medium">My Work</span>
+            </Link>
+          </div>
+        )}
 
         {/* Mobile Menu Items */}
-        {menuItems.map((item) => (
-          <div key={item.name} className="border-t border-white/10">
+        {!isSuperadmin && menuItems.map((item) => (
+
+          <div key={item.name} className="border-t border-gray-100 dark:border-gray-800">
             <button
               onClick={() => setMobileExpandedMenu(mobileExpandedMenu ===
    item.name ? null : item.name)}
-              className="w-full flex items-center justify-between px-4 py-3 text-white/90 hover:bg-white/10 transition-all"
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
             >
               <span className="font-medium text-sm">{item.name}</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${mobileExpandedMenu ===
@@ -1514,7 +1102,7 @@ export default function NavigationHeader() {
 
             {mobileExpandedMenu ===
    item.name && item.subItems && (
-              <div className="bg-black/10 pb-2">
+              <div className="bg-gray-50 dark:bg-gray-800/60 pb-2">
                 {item.subItems.map((subItem) => (
                   <div key={subItem.name}>
                     {subItem.href ? (
@@ -1522,7 +1110,7 @@ export default function NavigationHeader() {
                         href={subItem.href}
                         prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-2 px-6 py-2.5 text-white/80 hover:text-white hover:bg-white/10 text-sm transition-all"
+                        className="flex items-center gap-2 px-6 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-all"
                       >
                         {subItem.name}
                       </Link>
@@ -1531,7 +1119,7 @@ export default function NavigationHeader() {
                         <button
                           onClick={() => setMobileExpandedSubmenu(mobileExpandedSubmenu ===
    subItem.name ? null : subItem.name)}
-                          className="w-full flex items-center justify-between px-6 py-2.5 text-white/80 hover:text-white hover:bg-white/10 text-sm transition-all"
+                          className="w-full flex items-center justify-between px-6 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-all"
                         >
                           <span>{subItem.name}</span>
                           <ChevronRight className={`w-4 h-4 transition-transform ${mobileExpandedSubmenu ===
@@ -1539,7 +1127,7 @@ export default function NavigationHeader() {
                         </button>
                         {mobileExpandedSubmenu ===
    subItem.name && (
-                          <div className="bg-black/10">
+                          <div className="bg-gray-100 dark:bg-gray-800">
                             {subItem.children.map((child) => (
                               child.href ? (
                                 <Link
@@ -1547,13 +1135,13 @@ export default function NavigationHeader() {
                                   href={child.href}
                                   prefetch={getLinkPrefetch(child.href, child.prefetch)}
                                   onClick={() => setMobileMenuOpen(false)}
-                                  className="flex items-center gap-2 px-8 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
+                                  className="flex items-center gap-2 px-8 py-2 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-200/60 dark:hover:bg-gray-700 text-xs transition-all"
                                 >
                                   {child.name}
                                 </Link>
                               ) : child.children ? (
                                 <div key={child.name}>
-                                  <div className="px-8 py-2 text-white/60 text-xs font-medium">{child.name}</div>
+                                  <div className="px-8 py-2 text-gray-400 dark:text-gray-500 text-xs font-medium">{child.name}</div>
                                   {child.children.map((grandChild) => (
                                     grandChild.href && (
                                       <Link
@@ -1561,7 +1149,7 @@ export default function NavigationHeader() {
                                         href={grandChild.href}
                                         prefetch={getLinkPrefetch(grandChild.href, grandChild.prefetch)}
                                         onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center gap-2 px-10 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
+                                        className="flex items-center gap-2 px-10 py-2 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-200/60 dark:hover:bg-gray-700 text-xs transition-all"
                                       >
                                         {grandChild.name}
                                       </Link>
@@ -1582,29 +1170,29 @@ export default function NavigationHeader() {
         ))}
 
         {/* Mobile Quick Actions */}
-        <div className="border-t border-white/10 mt-4 pt-4 px-4 space-y-2">
+        <div className="border-t border-gray-100 dark:border-gray-800 mt-4 pt-4 px-4 space-y-2">
           <Link
             href="/notifications"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+            className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
           >
             <Bell className="w-4 h-4" />
             <span>Notifications</span>
             {unreadCount > 0 && (
-              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
+              <span className="ml-auto bg-wine text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
             )}
           </Link>
           <Link
             href="/settings"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+            className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
           >
             <User className="w-4 h-4" />
             <span>Profile Settings</span>
           </Link>
           <button
             onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-red-300 hover:text-red-200 hover:bg-red-500/20 rounded-lg text-sm transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm transition-all"
           >
             <LogOut className="w-4 h-4" />
             <span>Logout</span>

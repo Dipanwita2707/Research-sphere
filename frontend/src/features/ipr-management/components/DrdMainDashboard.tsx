@@ -231,7 +231,7 @@ export default function DrdMainDashboard() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34] mx-auto"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading DRD Dashboard...</p>
         </div>
       </div>
@@ -243,7 +243,7 @@ export default function DrdMainDashboard() {
       {/* Page Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-[#005b96] dark:bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[#005b96] dark:bg-[#7d1a34] flex items-center justify-center">
             <Beaker className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -290,8 +290,8 @@ export default function DrdMainDashboard() {
               <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">{stats.activeProjects}</p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">In pipeline</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-[#e6f2fa] dark:bg-blue-900/30 flex items-center justify-center">
-              <Beaker className="w-6 h-6 text-[#005b96] dark:text-blue-400" />
+            <div className="w-12 h-12 rounded-xl bg-[#e6f2fa] dark:bg-[#7d1a34]/20 flex items-center justify-center">
+              <Beaker className="w-6 h-6 text-[#005b96] dark:text-[#c8973f]" />
             </div>
           </div>
         </div>
@@ -316,7 +316,7 @@ export default function DrdMainDashboard() {
    'student') && (
         <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-[#005b96] dark:text-blue-400" />
+            <Plus className="w-5 h-5 text-[#005b96] dark:text-[#c8973f]" />
             Quick Actions
           </h2>
           <div className="flex flex-wrap gap-3">
@@ -325,7 +325,7 @@ export default function DrdMainDashboard() {
    'student') && (
               <Link
                 href="/ipr/apply"
-                className="flex items-center gap-2 px-5 py-3 bg-[#005b96] dark:bg-blue-600 text-white rounded-xl hover:bg-[#03396c] dark:hover:bg-blue-700 hover:shadow-lg transition-all font-medium"
+                className="flex items-center gap-2 px-5 py-3 bg-[#005b96] dark:bg-[#7d1a34] text-white rounded-xl hover:bg-[#03396c] dark:hover:bg-[#5e1024] hover:shadow-lg transition-all font-medium"
               >
                 <Plus className="w-4 h-4" />
                 File New IPR Application
@@ -336,7 +336,7 @@ export default function DrdMainDashboard() {
    'student') && (
               <Link
                 href="/ipr/my-applications"
-                className="flex items-center gap-2 px-5 py-3 bg-[#e6f2fa] dark:bg-blue-900/30 text-[#005b96] dark:text-blue-400 border border-[#b3d4fc] dark:border-blue-800 rounded-xl hover:bg-[#d4e9f7] dark:hover:bg-blue-900/50 transition-all font-medium"
+                className="flex items-center gap-2 px-5 py-3 bg-[#e6f2fa] dark:bg-[#7d1a34]/20 text-[#005b96] dark:text-[#c8973f] border border-[#b3d4fc] dark:border-[#5e1024] rounded-xl hover:bg-[#d4e9f7] dark:hover:bg-[#5e1024]/50 transition-all font-medium"
               >
                 <FolderOpen className="w-4 h-4" />
                 My Applications
@@ -345,7 +345,7 @@ export default function DrdMainDashboard() {
             {userPermissions.ipr_review && (
               <Link
                 href="/drd/review"
-                className="flex items-center gap-2 px-5 py-3 bg-[#e6f2fa] dark:bg-blue-900/30 text-[#005b96] dark:text-blue-400 border border-[#b3d4fc] dark:border-blue-800 rounded-xl hover:bg-[#d4e9f7] dark:hover:bg-blue-900/50 transition-all font-medium"
+                className="flex items-center gap-2 px-5 py-3 bg-[#e6f2fa] dark:bg-[#7d1a34]/20 text-[#005b96] dark:text-[#c8973f] border border-[#b3d4fc] dark:border-[#5e1024] rounded-xl hover:bg-[#d4e9f7] dark:hover:bg-[#5e1024]/50 transition-all font-medium"
               >
                 <FileText className="w-4 h-4" />
                 Review Applications
@@ -354,7 +354,7 @@ export default function DrdMainDashboard() {
             {userPermissions.ipr_assign_school && (
               <Link
                 href="/admin/drd-school-assignment"
-                className="flex items-center gap-2 px-5 py-3 bg-[#e6f2fa] dark:bg-blue-900/30 text-[#005b96] dark:text-blue-400 border border-[#b3d4fc] dark:border-blue-800 rounded-xl hover:bg-[#d4e9f7] dark:hover:bg-blue-900/50 transition-all font-medium"
+                className="flex items-center gap-2 px-5 py-3 bg-[#e6f2fa] dark:bg-[#7d1a34]/20 text-[#005b96] dark:text-[#c8973f] border border-[#b3d4fc] dark:border-[#5e1024] rounded-xl hover:bg-[#d4e9f7] dark:hover:bg-[#5e1024]/50 transition-all font-medium"
               >
                 <Users className="w-4 h-4" />
                 Assign Schools
@@ -467,7 +467,7 @@ export default function DrdMainDashboard() {
         <div className={`mb-8 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border ${pendingMentorApprovals.length > 0 ? 'border-orange-200 dark:border-orange-800' : 'border-gray-100 dark:border-gray-700'}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-              <UserCheck className={`w-5 h-5 ${pendingMentorApprovals.length > 0 ? 'text-orange-500' : 'text-blue-500'}`} />
+              <UserCheck className={`w-5 h-5 ${pendingMentorApprovals.length > 0 ? 'text-orange-500' : 'text-[#7d1a34]'}`} />
               Mentor Approvals
               {pendingMentorApprovals.length > 0 && (
                 <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full ml-2">
@@ -477,7 +477,7 @@ export default function DrdMainDashboard() {
             </h2>
             <Link
               href="/ipr/mentor-approvals"
-              className={`${pendingMentorApprovals.length > 0 ? 'text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300' : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'} text-sm font-medium flex items-center gap-1`}
+              className={`${pendingMentorApprovals.length > 0 ? 'text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300' : 'text-[#7d1a34] dark:text-[#c8973f] hover:text-[#7d1a34] dark:hover:text-[#c8973f]'} text-sm font-medium flex items-center gap-1`}
             >
               View All <ChevronRight className="w-4 h-4" />
             </Link>
@@ -624,8 +624,8 @@ export default function DrdMainDashboard() {
       {/* No DRD Permissions Message - Show when user only has filing permission or no permissions */}
       {!userPermissions.ipr_review && !userPermissions.research_review && !userPermissions.ipr_approve && !userPermissions.research_approve && !userPermissions.ipr_assign_school && !userPermissions.research_assign_school && (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="w-16 h-16 rounded-full bg-[#e6f2fa] dark:bg-blue-900/30 mx-auto flex items-center justify-center">
-            <Shield className="h-8 w-8 text-[#005b96] dark:text-blue-400" />
+          <div className="w-16 h-16 rounded-full bg-[#e6f2fa] dark:bg-[#7d1a34]/20 mx-auto flex items-center justify-center">
+            <Shield className="h-8 w-8 text-[#005b96] dark:text-[#c8973f]" />
           </div>
           <h3 className="mt-4 text-base font-semibold text-gray-800 dark:text-white">No DRD Review Permissions</h3>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
@@ -638,7 +638,7 @@ export default function DrdMainDashboard() {
             {userPermissions.ipr_file_new && (
               <Link
                 href="/ipr"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005b96] dark:bg-blue-600 text-white rounded-xl hover:bg-[#03396c] dark:hover:bg-blue-700 transition-all font-medium"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005b96] dark:bg-[#7d1a34] text-white rounded-xl hover:bg-[#03396c] dark:hover:bg-[#5e1024] transition-all font-medium"
               >
                 <FileText className="w-4 h-4" />
                 Go to IPR Dashboard

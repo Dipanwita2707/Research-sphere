@@ -1,16 +1,11 @@
 const ANALYTICS_SCOPE_FIELD_TO_COLUMN = {
-  assignedIprAnalyticsSchoolIds: 'assigned_ipr_analytics_school_ids',
-  assignedResearchAnalyticsSchoolIds: 'assigned_research_analytics_school_ids',
-  assignedBookAnalyticsSchoolIds: 'assigned_book_analytics_school_ids',
-  assignedConferenceAnalyticsSchoolIds: 'assigned_conference_analytics_school_ids',
-  assignedGrantAnalyticsSchoolIds: 'assigned_grant_analytics_school_ids',
-  assignedIprAnalyticsDepartmentIds: 'assigned_ipr_analytics_department_ids',
-  assignedResearchAnalyticsDepartmentIds: 'assigned_research_analytics_department_ids',
-  assignedBookAnalyticsDepartmentIds: 'assigned_book_analytics_department_ids',
-  assignedConferenceAnalyticsDepartmentIds: 'assigned_conference_analytics_department_ids',
-  assignedGrantAnalyticsDepartmentIds: 'assigned_grant_analytics_department_ids',
-  assignedDrdMemberAnalyticsSchoolIds: 'assigned_drd_member_analytics_school_ids',
-  assignedDrdMemberAnalyticsDepartmentIds: 'assigned_drd_member_analytics_department_ids',
+  assignedSchoolIds: 'assigned_school_ids',
+  assignedResearchSchoolIds: 'assigned_research_school_ids',
+  assignedBookSchoolIds: 'assigned_book_school_ids',
+  assignedConferenceSchoolIds: 'assigned_conference_school_ids',
+  assignedGrantSchoolIds: 'assigned_grant_school_ids',
+  assignedMonthlyReportSchoolIds: 'assigned_monthly_report_school_ids',
+  assignedMonthlyReportDepartmentIds: 'assigned_monthly_report_department_ids',
 };
 
 let cachedSupport = null;
@@ -37,18 +32,13 @@ async function getSupportedCentralDeptAnalyticsScopeFields(prisma) {
     WHERE table_schema = 'public'
       AND table_name = 'central_department_permission'
       AND column_name IN (
-        'assigned_ipr_analytics_school_ids',
-        'assigned_research_analytics_school_ids',
-        'assigned_book_analytics_school_ids',
-        'assigned_conference_analytics_school_ids',
-        'assigned_grant_analytics_school_ids',
-        'assigned_ipr_analytics_department_ids',
-        'assigned_research_analytics_department_ids',
-        'assigned_book_analytics_department_ids',
-        'assigned_conference_analytics_department_ids',
-        'assigned_grant_analytics_department_ids',
-        'assigned_drd_member_analytics_school_ids',
-        'assigned_drd_member_analytics_department_ids'
+        'assigned_school_ids',
+        'assigned_research_school_ids',
+        'assigned_book_school_ids',
+        'assigned_conference_school_ids',
+        'assigned_grant_school_ids',
+        'assigned_monthly_report_school_ids',
+        'assigned_monthly_report_department_ids'
       )
   `);
 

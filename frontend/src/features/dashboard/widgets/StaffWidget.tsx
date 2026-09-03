@@ -1,10 +1,10 @@
-'use client';
+﻿'use client';
 
 import { Briefcase, UserPlus, Users, Shield, UserCheck, ChevronRight } from 'lucide-react';
 
 export default function StaffWidget() {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sgt border border-gray-100 card-hover">
+    <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere border border-gray-100 card-hover">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">

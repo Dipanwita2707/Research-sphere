@@ -14,8 +14,8 @@ const { getClientIp } = require('../../../shared/middleware/audit.middleware');
 const log = require('../../../shared/utils/logger');
 const jwt = require('jsonwebtoken');
 
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, config.jwt.secret, {
+const generateToken = (userId, universityId, role) => {
+  return jwt.sign({ id: userId, universityId, role }, config.jwt.secret, {
     expiresIn: config.jwt.expire
   });
 };
@@ -38,6 +38,7 @@ exports.login = async (req, res) => {
         passwordHash: true,
         role: true,
         status: true,
+        universityId: true,
         profileImage: true,
         lastLoginAt: true,
         employeeDetails: {
@@ -227,7 +228,7 @@ exports.login = async (req, res) => {
     }
 
     // Generate token
-    const token = generateToken(user.id);
+    const token = generateToken(user.id, user.universityId, user.role);
 
     // Set cookie with appropriate sameSite setting for cross-origin
     // sameSite: 'none' REQUIRES secure: true for cross-origin cookies

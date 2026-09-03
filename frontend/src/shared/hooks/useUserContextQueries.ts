@@ -30,9 +30,8 @@ export function useStaffDashboardSummary(options: { enabled?: boolean } = {}) {
       return response.data.data as StaffDashboardSummary;
     },
     enabled: enabled && !!userId,
-    staleTime: 10 * 60 * 1000, // 10 minutes — permissions change rarely
+    staleTime: 30 * 1000, // 30 seconds to allow quick updates of navigation/permissions
     gcTime: 15 * 60 * 1000,
-    refetchOnMount: false,
   });
 }
 
@@ -57,13 +56,26 @@ export function useHasVolunteerAssignments(options: { enabled?: boolean } = {}) 
   return useQuery({
     queryKey: USER_CONTEXT_QUERY_KEYS.volunteerAssignments(userId),
     queryFn: async () => {
-      const response = await api.get('/events/volunteers/my');
-      const assignments = response.data?.data;
-      return Array.isArray(assignments) && assignments.length > 0;
+      try {
+        const response = await api.get('/events/volunteers/my');
+        const assignments = response.data?.data;
+        return Array.isArray(assignments) && assignments.length > 0;
+      } catch (error: unknown) {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 404) {
+          return false;
+        }
+        throw error;
+      }
     },
     enabled: enabled && !!userId,
     staleTime: 10 * 60 * 1000, // 10 minutes — volunteer status rarely changes mid-session
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    retry: (failureCount, error: unknown) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) return false;
+      return failureCount < 1;
+    },
   });
 }

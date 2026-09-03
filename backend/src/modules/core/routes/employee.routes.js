@@ -27,6 +27,9 @@ router.patch('/:id/reset-password', employeeController.resetEmployeePassword);
 // Toggle employee status (active/inactive)
 router.patch('/:id/toggle-status', employeeController.toggleEmployeeStatus);
 
+// Update researcher IDs (Scopus Author ID, ORCID, PubMed ID) — admin only
+router.patch('/:id/research-ids', employeeController.updateEmployeeResearchIds);
+
 // Delete employee
 router.delete('/:id', employeeController.deleteEmployee);
 

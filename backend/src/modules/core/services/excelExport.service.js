@@ -15,7 +15,7 @@ class ExcelExportService {
     const { logs, period, statistics } = data;
     const workbook = new ExcelJS.Workbook();
 
-    workbook.creator = 'SGT Research Portal';
+    workbook.creator = 'ResearchSphere';
     workbook.created = new Date();
     workbook.modified = new Date();
 

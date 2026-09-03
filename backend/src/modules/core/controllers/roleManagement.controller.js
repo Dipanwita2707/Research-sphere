@@ -72,9 +72,11 @@ exports.createRole = async (req, res) => {
       });
     }
 
-    // Check if role code already exists
-    const existingRoleByCode = await prisma.role.findUnique({
-      where: { roleCode },
+    const tenantId = req.tenantId || null;
+
+    // Check if role code already exists within this tenant
+    const existingRoleByCode = await prisma.role.findFirst({
+      where: { roleCode, universityId: tenantId },
     });
 
     if (existingRoleByCode) {
@@ -84,9 +86,9 @@ exports.createRole = async (req, res) => {
       });
     }
 
-    // Check if role name already exists
-    const existingRole = await prisma.role.findUnique({
-      where: { name },
+    // Check if role name already exists within this tenant
+    const existingRole = await prisma.role.findFirst({
+      where: { name, universityId: tenantId },
     });
 
     if (existingRole) {
@@ -173,6 +175,7 @@ exports.createRole = async (req, res) => {
         requiresDepartmentAssignment: requiresDepartmentAssignment !== false,
         createdBy: req.user?.id || null,
         isActive: true,
+        universityId: tenantId,
       },
     });
 
@@ -214,6 +217,8 @@ exports.getAllRoles = async (req, res) => {
   try {
     const { isActive, departmentType } = req.query;
 
+    const tenantId = req.tenantId || null;
+
     const where = {};
     if (isActive !== undefined) {
       where.isActive = isActive === 'true';
@@ -221,6 +226,12 @@ exports.getAllRoles = async (req, res) => {
     if (departmentType) {
       where.departmentType = departmentType;
     }
+
+    // Scope roles to current tenant or global roles
+    where.OR = [
+      { universityId: tenantId },
+      { universityId: null }
+    ];
 
     const roles = await prisma.role.findMany({
       where,
@@ -247,6 +258,8 @@ exports.getRoleById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const tenantId = req.tenantId || null;
+
     const role = await prisma.role.findUnique({
       where: { id },
     });
@@ -255,6 +268,14 @@ exports.getRoleById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Role not found',
+      });
+    }
+
+    // Tenant isolation: verify access to this role (must be owned or global)
+    if (tenantId && role.universityId !== tenantId && role.universityId !== null) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You do not have access to this role.',
       });
     }
 
@@ -279,6 +300,8 @@ exports.updateRole = async (req, res) => {
     const { id } = req.params;
     const { name, description, departmentType, permissions, requiresDepartmentAssignment, isActive } = req.body;
 
+    const tenantId = req.tenantId || null;
+
     // Check if role exists
     const existingRole = await prisma.role.findUnique({
       where: { id },
@@ -291,10 +314,18 @@ exports.updateRole = async (req, res) => {
       });
     }
 
-    // Check if new name conflicts with existing role (if name is being changed)
+    // Tenant isolation: restrict editing to university-specific roles
+    if (tenantId && existingRole.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You cannot modify this role.',
+      });
+    }
+
+    // Check if new name conflicts with existing role (if name is being changed) within tenant scope
     if (name && name !== existingRole.name) {
-      const nameConflict = await prisma.role.findUnique({
-        where: { name },
+      const nameConflict = await prisma.role.findFirst({
+        where: { name, universityId: tenantId },
       });
       if (nameConflict) {
         return res.status(400).json({
@@ -386,6 +417,8 @@ exports.deleteRole = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const tenantId = req.tenantId || null;
+
     const role = await prisma.role.findUnique({
       where: { id },
     });
@@ -394,6 +427,14 @@ exports.deleteRole = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Role not found',
+      });
+    }
+
+    // Tenant isolation: restrict deleting to university-specific roles
+    if (tenantId && role.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You cannot delete this role.',
       });
     }
 
@@ -693,9 +734,11 @@ exports.duplicateRole = async (req, res) => {
       });
     }
 
-    // Check if new name already exists
-    const existingRole = await prisma.role.findUnique({
-      where: { name: newName },
+    const tenantId = req.tenantId || null;
+
+    // Check if new name already exists in tenant scope
+    const existingRole = await prisma.role.findFirst({
+      where: { name: newName, universityId: tenantId },
     });
 
     if (existingRole) {
@@ -715,6 +758,7 @@ exports.duplicateRole = async (req, res) => {
         requiresDepartmentAssignment: sourceRole.requiresDepartmentAssignment,
         createdBy: req.user?.id,
         isActive: true,
+        universityId: tenantId,
       },
     });
 

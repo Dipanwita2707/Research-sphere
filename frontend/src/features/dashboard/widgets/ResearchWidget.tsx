@@ -1,11 +1,11 @@
-'use client';
+﻿'use client';
 
 import { Microscope, FileText, Award, TrendingUp, ChevronRight, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ResearchWidget() {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sgt border border-gray-100 card-hover">
+    <div className="bg-white rounded-2xl p-6 shadow-ResearchSphere border border-gray-100 card-hover">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/25">

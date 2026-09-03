@@ -1,36 +1,68 @@
 'use client';
 
-/**
- * Full-page loading indicator with multi-ring animation.
- * Use for page-level loading states (e.g. auth check, initial data load).
- */
+import Wordmark from '@/shared/components/brand/Wordmark';
+
 export default function PageLoader({ fullScreen = true }: { fullScreen?: boolean }) {
   const containerClasses = fullScreen
-    ? 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm'
-    : 'relative flex flex-col items-center justify-center p-12';
+    ? 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#FDF5EC] dark:bg-gray-950 transition-colors duration-200'
+    : 'relative flex flex-col items-center justify-center p-12 bg-[#FDF5EC] dark:bg-gray-950/20 rounded-2xl';
 
   return (
     <div className={containerClasses}>
-      <div className="relative flex items-center justify-center">
-        {/* Outer Ring - Slow Orbit */}
-        <div className="absolute h-20 w-20 rounded-full border-t-2 border-l-2 border-primary-500/30 animate-[spin_3s_linear_infinite]"></div>
+      <style jsx global>{`
+        @keyframes orbit-1 {
+          0% { transform: rotate3d(1, 1, 1, 0deg); }
+          100% { transform: rotate3d(1, 1, 1, 360deg); }
+        }
+        @keyframes orbit-2 {
+          0% { transform: rotate3d(1, -1, 1, 0deg); }
+          100% { transform: rotate3d(1, -1, 1, 360deg); }
+        }
+        @keyframes orbit-3 {
+          0% { transform: rotate3d(-1, 1, 1, 0deg); }
+          100% { transform: rotate3d(-1, 1, 1, 360deg); }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 12px rgba(132, 28, 67, 0.4); }
+          50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 24px rgba(226, 139, 34, 0.6); }
+        }
+        .orbit-ring-1 {
+          animation: orbit-1 3s linear infinite;
+        }
+        .orbit-ring-2 {
+          animation: orbit-2 2.5s linear infinite;
+        }
+        .orbit-ring-3 {
+          animation: orbit-3 2s linear infinite;
+        }
+        .pulse-core {
+          animation: pulse-glow 2s ease-in-out infinite;
+        }
+      `}</style>
 
-        {/* Middle Ring - Reverse Pulse */}
-        <div className="absolute h-14 w-14 rounded-full border-b-2 border-r-2 border-primary-400/50 animate-[spin_2s_linear_infinite_reverse]"></div>
+      <div className="relative flex items-center justify-center w-32 h-32">
+        {/* Decorative outer glow ring */}
+        <div className="absolute inset-0 rounded-full border border-peach/30 scale-110 pointer-events-none" />
 
-        {/* Inner Core - Breathing Glow */}
-        <div className="h-6 w-6 rounded-full bg-primary-600 shadow-[0_0_15px_rgba(var(--primary-600-rgb),0.5)] animate-pulse"></div>
+        {/* Orbit Ring 1 - Wine */}
+        <div className="absolute w-24 h-24 rounded-full border-2 border-dashed border-wine/40 orbit-ring-1" />
 
-        {/* Subtle Decorative Dots */}
-        <div className="absolute h-24 w-24 rounded-full border border-dashed border-gray-200 animate-[spin_10s_linear_infinite]"></div>
+        {/* Orbit Ring 2 - Amber */}
+        <div className="absolute w-20 h-20 rounded-full border-2 border-dotted border-amber/50 orbit-ring-2" />
+
+        {/* Orbit Ring 3 - Peach */}
+        <div className="absolute w-16 h-16 rounded-full border border-wine/30 orbit-ring-3" />
+
+        {/* Center Nucleus / Core */}
+        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-wine to-amber pulse-core" />
       </div>
 
-      {/* Elegant Typography */}
-      <div className="mt-8 flex flex-col items-center">
-        <span className="text-sm font-medium tracking-[0.2em] uppercase text-gray-500 animate-pulse">
-          Loading
+      {/* Elegant Typography & Brand Identity */}
+      <div className="mt-8 flex flex-col items-center select-none">
+        <Wordmark heightClassName="h-10 opacity-80" />
+        <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-wine dark:text-amber mt-4 animate-pulse">
+          Initializing Workspace
         </span>
-        <div className="mt-1 h-[1px] w-12 bg-gradient-to-r from-transparent via-primary-500 to-transparent"></div>
       </div>
     </div>
   );

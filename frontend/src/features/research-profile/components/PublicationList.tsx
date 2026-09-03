@@ -111,9 +111,29 @@ function PublicationItem({ publication }: { publication: Publication }) {
         )}
       </h4>
 
-      {/* Authors - Google Scholar Style */}
-      <div className="text-[13px] text-gray-700 dark:text-gray-300 mb-1">
-        {hasMoreAuthors ? `${firstThreeAuthors}, ...` : authorNames}
+      {/* Authors - Google Scholar Style with Hoverable Affiliations */}
+      <div className="text-[13px] text-gray-700 dark:text-gray-300 mb-1 flex flex-wrap gap-x-1 items-center">
+        {publication.authors.slice(0, 3).map((author, index) => {
+          const isLastInSlice = index === Math.min(publication.authors.length, 3) - 1;
+          const showComma = !isLastInSlice || publication.authors.length > 3;
+          return (
+            <span
+              key={index}
+              className="hover:text-blue-600 dark:hover:text-blue-400 cursor-help transition-colors"
+              title={author.affiliation || 'No affiliation data'}
+            >
+              {author.name}{showComma && ','}
+            </span>
+          );
+        })}
+        {publication.authors.length > 3 && (
+          <span
+            className="cursor-help text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 font-semibold"
+            title={publication.authors.slice(3).map(a => `${a.name} (${a.affiliation || 'No affiliation'})`).join('\n')}
+          >
+            ...
+          </span>
+        )}
       </div>
 
       {/* Venue and Year - Google Scholar Style */}

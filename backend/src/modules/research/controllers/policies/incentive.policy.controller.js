@@ -23,7 +23,10 @@ exports.getAllPolicies = async (req, res) => {
     const whereClause = includeInactive === 'true' ? {} : { isActive: true };
     
     const policies = await prisma.incentivePolicy.findMany({
-      where: whereClause,
+      where: {
+        ...whereClause,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
+      },
       include: {
         createdBy: {
           select: {
@@ -72,7 +75,8 @@ exports.getPolicyByType = async (req, res) => {
     const policy = await prisma.incentivePolicy.findFirst({
       where: {
         iprType: iprType.toLowerCase(),
-        isActive: true
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 
@@ -140,7 +144,8 @@ exports.createPolicy = async (req, res) => {
       await prisma.incentivePolicy.updateMany({
         where: {
           iprType: iprType.toLowerCase(),
-          isActive: true
+          isActive: true,
+          ...(req.tenantId ? { universityId: req.tenantId } : {})
         },
         data: {
           isActive: false,
@@ -161,7 +166,8 @@ exports.createPolicy = async (req, res) => {
         projectTypeBonus,
         isActive: isActive !== false,
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
-        createdById: req.user.id
+        createdById: req.user.id,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       },
       include: {
         createdBy: {
@@ -224,13 +230,21 @@ exports.updatePolicy = async (req, res) => {
       });
     }
 
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
+      });
+    }
+
     // If activating this policy, deactivate other active policies for same type
     if (isActive === true && !existingPolicy.isActive) {
       await prisma.incentivePolicy.updateMany({
         where: {
           iprType: existingPolicy.iprType,
           isActive: true,
-          id: { not: id }
+          id: { not: id },
+          ...(req.tenantId ? { universityId: req.tenantId } : {})
         },
         data: {
           isActive: false,
@@ -311,6 +325,13 @@ exports.deletePolicy = async (req, res) => {
       });
     }
 
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
+      });
+    }
+
     await prisma.incentivePolicy.delete({
       where: { id }
     });
@@ -353,7 +374,8 @@ exports.calculateIncentive = async (req, res) => {
     let policy = await prisma.incentivePolicy.findFirst({
       where: {
         iprType: iprType.toLowerCase(),
-        isActive: true
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 

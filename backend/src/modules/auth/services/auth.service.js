@@ -622,7 +622,8 @@ const updateSettings = async (userId, fields) => {
     theme,
     language,
     compactView,
-    showTips
+    showTips,
+    affiliationOverride,
   } = fields;
 
   let settings = await prisma.userSettings.findUnique({
@@ -640,6 +641,13 @@ const updateSettings = async (userId, fields) => {
   if (language !== undefined) updateData.language = language;
   if (compactView !== undefined) updateData.compactView = compactView;
   if (showTips !== undefined) updateData.showTips = showTips;
+  // Empty string clears the override so the UI falls back to the
+  // affiliation engine's auto-suggested name.
+  if (affiliationOverride !== undefined) {
+    updateData.affiliationOverride = affiliationOverride === null || affiliationOverride === ''
+      ? null
+      : String(affiliationOverride).slice(0, 256);
+  }
 
   if (settings) {
     settings = await prisma.userSettings.update({

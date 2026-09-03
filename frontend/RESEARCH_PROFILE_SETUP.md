@@ -36,7 +36,7 @@ The Research Profile System has been successfully implemented with a Google Scho
 
 **Features:**
 - Prominent button to navigate to research profile
-- Styled with SGT UMS theme colors
+- Styled with ResearchSphere UMS theme colors
 - Links directly to `/research/profile/[personId]`
 
 ## 📁 File Structure
@@ -115,7 +115,7 @@ Sgt-Ums/frontend/src/
 - **Compact sidebar** with 300px width
 - **Citation chart** at 192px height (48px per bar)
 
-### SGT UMS Theme Integration
+### ResearchSphere UMS Theme Integration
 - **Primary colors:** #005b96, #6497b1, #03396c, #b3cde0, #011f4b
 - **Consistent styling** with existing analytics
 - **Dark mode support** throughout
@@ -192,7 +192,7 @@ npm test -- research-profile
 - UI matches Google Scholar design exactly
 - Fully responsive and accessible
 - Dark mode supported throughout
-- Backward compatible with existing SGT UMS
+- Backward compatible with existing ResearchSphere UMS
 
 ## 🎯 Completed Tasks
 

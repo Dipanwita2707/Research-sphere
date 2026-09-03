@@ -10,7 +10,8 @@ exports.getAllBookPolicies = async (req, res) => {
   try {
     const policies = await prisma.bookIncentivePolicy.findMany({
       where: {
-        isActive: true
+        isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       },
       include: {
         createdBy: {
@@ -66,6 +67,7 @@ exports.getActivePolicyByType = async (req, res) => {
     const policy = await prisma[modelName].findFirst({
       where: {
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         effectiveFrom: {
           lte: new Date()
         },
@@ -142,6 +144,7 @@ exports.createBookPolicy = async (req, res) => {
     const existingPolicies = await prisma[modelName].findMany({
       where: {
         isActive: true,
+        ...(req.tenantId ? { universityId: req.tenantId } : {}),
         OR: [
           {
             AND: [
@@ -182,7 +185,8 @@ exports.createBookPolicy = async (req, res) => {
         internationalBonus: internationalBonus ? parseFloat(internationalBonus) : 5000,
         effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
         effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
-        createdById: req.user.id
+        createdById: req.user.id,
+        ...(req.tenantId ? { universityId: req.tenantId } : {})
       }
     });
 
@@ -237,6 +241,13 @@ exports.updateBookPolicy = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Policy not found'
+      });
+    }
+
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 
@@ -304,6 +315,13 @@ exports.deleteBookPolicy = async (req, res) => {
       });
     }
 
+    if (req.tenantId && existingPolicy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
+      });
+    }
+
     // Delete the policy
     await prisma.bookIncentivePolicy.delete({
       where: { id }
@@ -359,6 +377,13 @@ exports.getBookPolicyById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Policy not found'
+      });
+    }
+
+    if (req.tenantId && policy.universityId !== req.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This policy does not belong to your university.'
       });
     }
 

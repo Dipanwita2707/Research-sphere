@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Instagram, ExternalLink, Calendar } from 'lucide-react';
@@ -23,10 +23,10 @@ const samplePosts: SocialPost[] = [
   {
     id: '1',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 14, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_1,
-    caption: '#PlacementDay2026 at SGT was a moment of destiny in motion! Across our campus, cheers, hugs and happy tears marked the journey from classrooms to careers.',
+    caption: '#PlacementDay2026 at ResearchSphere was a moment of destiny in motion! Across our campus, cheers, hugs and happy tears marked the journey from classrooms to careers.',
     likes: 443,
     comments: 2,
     postUrl: EXTERNAL_URLS.INSTAGRAM,
@@ -34,10 +34,10 @@ const samplePosts: SocialPost[] = [
   {
     id: '2',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 13, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_2,
-    caption: 'Our #SGTCampus came alive with the warmth of celebrations as our #SGTFamily came together to celebrate the spirit of unity and togetherness!',
+    caption: 'Our #ResearchSphereCampus came alive with the warmth of celebrations as our #ResearchSphereFamily came together to celebrate the spirit of unity and togetherness!',
     likes: 2500,
     comments: 5,
     postUrl: EXTERNAL_URLS.INSTAGRAM,
@@ -45,10 +45,10 @@ const samplePosts: SocialPost[] = [
   {
     id: '3',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 13, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_3,
-    caption: 'Crackling bonfires, flying revris, beats of dhol and smiles that refuse to fade — celebrations at the #SGTCampus was pure magic this year!',
+    caption: 'Crackling bonfires, flying revris, beats of dhol and smiles that refuse to fade — celebrations at the #ResearchSphereCampus was pure magic this year!',
     likes: 4200,
     comments: 49,
     postUrl: EXTERNAL_URLS.INSTAGRAM,
@@ -56,10 +56,10 @@ const samplePosts: SocialPost[] = [
   {
     id: '4',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 12, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_4,
-    caption: 'Degrees in hand. Parents in the front row. Friends on speed dial for photos! At #SGT12thConvocation, pride spoke louder than words as our graduates stepped into the future.',
+    caption: 'Degrees in hand. Parents in the front row. Friends on speed dial for photos! At #ResearchSphere12thConvocation, pride spoke louder than words as our graduates stepped into the future.',
     likes: 2000,
     comments: 17,
     postUrl: EXTERNAL_URLS.INSTAGRAM,
@@ -67,10 +67,10 @@ const samplePosts: SocialPost[] = [
   {
     id: '5',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 12, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_5,
-    caption: '#MustWatch: In a powerful address at #SGT12thConvocation, Hon\'ble Vice President of India, Shri C. P. Radhakrishnan congratulated the graduating students.',
+    caption: '#MustWatch: In a powerful address at #ResearchSphere12thConvocation, Hon\'ble Vice President of India, Shri C. P. Radhakrishnan congratulated the graduating students.',
     likes: 1700,
     comments: 12,
     postUrl: EXTERNAL_URLS.INSTAGRAM,
@@ -78,7 +78,7 @@ const samplePosts: SocialPost[] = [
   {
     id: '6',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 11, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_6,
     caption: 'Innovation meets excellence! Our students showcasing groundbreaking projects at the Annual Tech Fest. The future is here! 🚀',
@@ -89,7 +89,7 @@ const samplePosts: SocialPost[] = [
   {
     id: '7',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 10, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_7,
     caption: 'Sports Day 2026! Our champions showing incredible team spirit and determination. Pride in every stride! 🏆',
@@ -100,7 +100,7 @@ const samplePosts: SocialPost[] = [
   {
     id: '8',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 9, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_8,
     caption: 'Guest lecture by industry leaders sharing insights on the future of technology and innovation. Learning never stops! 📚',
@@ -111,7 +111,7 @@ const samplePosts: SocialPost[] = [
   {
     id: '9',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 8, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_9,
     caption: 'Cultural fest highlights! Our talented students bringing colors, music, and joy to campus life. What a spectacular performance! 🎭',
@@ -122,7 +122,7 @@ const samplePosts: SocialPost[] = [
   {
     id: '10',
     platform: 'instagram',
-    username: 'sgtuniversity',
+    username: 'researchsphere',
     date: 'Jan 7, 2026',
     image: EXTERNAL_URLS.PLACEHOLDER_IMAGES.SOCIAL_10,
     caption: 'Research excellence recognized! Our faculty and students awarded for their outstanding contributions to science and innovation. 🔬',

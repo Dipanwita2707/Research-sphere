@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Redis Cache Configuration
  * High-performance caching layer for fast data retrieval
  */
@@ -354,7 +354,7 @@ const invalidateUser = async (userId) => {
   await del(`${CACHE_KEYS.USER}auth:${userId}`);       // user:auth:<userId>
   await del(`noting:perms:${userId}`);                   // noting:perms:<userId>
   // Pattern deletes for variable-suffix keys
-  await delPattern(`${CACHE_KEYS.DASHBOARD}${userId}*`); // dashboard:<userId>*
+  await delPattern(`${CACHE_KEYS.DASHBOARD}*${userId}*`); // dashboard:*<userId>*
   await delPattern(`${CACHE_KEYS.PERMISSION}${userId}*`);// perm:<userId>*
   // Wildcard fallback — catch any other user-prefixed keys
   await delPattern(`${CACHE_KEYS.USER}*${userId}*`);     // user:*<userId>*

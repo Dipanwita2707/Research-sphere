@@ -30,7 +30,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     authorType: 'Faculty',
     authorCategory: 'Internal',
     authorRole: 'co_author',
-    affiliation: 'SGT University',
+    affiliation: 'ResearchSphere',
     email: '',
     uid: '',
     designation: '',
@@ -72,7 +72,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
 
   const indexingCategories = getIndexingCategories();
 
-  // Search for internal SGT users
+  // Search for internal ResearchSphere users
   const handleSearch = useCallback(async (query: string) => {
     setSearchTerm(query);
     setNewAuthor(prev => ({ ...prev, name: query }));
@@ -208,7 +208,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
       authorType: 'Faculty',
       authorCategory: 'Internal',
       authorRole: 'co_author',
-      affiliation: 'SGT University',
+      affiliation: 'ResearchSphere',
       email: '',
       uid: '',
       designation: '',
@@ -394,7 +394,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
 
             const parts = [];
             if (maxInternal > 0) {
-              parts.push(`${maxInternal} SGT author(s) [${internalAdded} added]`);
+              parts.push(`${maxInternal} ResearchSphere author(s) [${internalAdded} added]`);
             }
             if (maxExternal > 0) {
               parts.push(`${maxExternal} external author(s) [${externalAdded} added]`);
@@ -452,14 +452,14 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                                   ...newAuthor,
                                   authorCategory: 'Internal',
                                   authorType: 'Faculty',
-                                  affiliation: 'SGT University',
+                                  affiliation: 'ResearchSphere',
                                 });
                                 setSearchTerm('');
                               }}
                               disabled={internalSlotsFull}
                               className="w-3 h-3 text-emerald-600"
                             />
-                            <span className="ml-1.5">Internal (SGT) {internalSlotsFull && <span className="text-red-600">(Full)</span>}</span>
+                            <span className="ml-1.5">Internal (ResearchSphere) {internalSlotsFull && <span className="text-red-600">(Full)</span>}</span>
                           </label>
                         )}
                         {!allInternal && maxExternal > 0 && (
@@ -530,7 +530,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full px-2 py-1.5 pr-8 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-emerald-500"
                   placeholder={newAuthor.authorCategory ===
-   'Internal' ? 'Type to search SGT users...' : 'Enter full name'}
+   'Internal' ? 'Type to search ResearchSphere users...' : 'Enter full name'}
                 />
                 {newAuthor.authorCategory ===
    'Internal' && <Search className="absolute right-2 top-2 w-4 h-4 text-gray-400" />}
@@ -617,7 +617,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
    'Internal') {
                     if (sgtAuthors ===
    internalCoAuthors + 1) {
-                      return <p className="text-xs text-blue-600 mt-1">Rule: All other SGT authors must be Co-Authors</p>;
+                      return <p className="text-xs text-blue-600 mt-1">Rule: All other ResearchSphere authors must be Co-Authors</p>;
                     }
                     if (internalCoAuthors ===
    0 && sgtAuthors > 1) {
@@ -778,8 +778,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       if (value < 1) return;
                       handleChange('totalAuthors', value);
                       // Adjust sgtAuthors if it exceeds new totalAuthors
-                      const currentSgt = (data.sgtAuthors as number) || 1;
-                      if (currentSgt > value) {
+                      const currentResearchSphere = (data.sgtAuthors as number) || 1;
+                      if (currentResearchSphere > value) {
                         handleChange('sgtAuthors', value);
                       }
                     }}
@@ -789,7 +789,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    SGT Authors <span className="text-red-500">*</span>
+                    ResearchSphere Authors <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -883,7 +883,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   )}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-2">
-                      Student(s) from SGT <span className="text-red-500">*</span>
+                      Student(s) from ResearchSphere <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-4">
                       {['yes', 'no'].map((v) => (
@@ -1046,8 +1046,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       if (value < 1) return;
                       handleChange('totalAuthors', value);
                       // Adjust sgtAuthors if it exceeds new totalAuthors
-                      const currentSgt = (data.sgtAuthors as number) || 1;
-                      if (currentSgt > value) {
+                      const currentResearchSphere = (data.sgtAuthors as number) || 1;
+                      if (currentResearchSphere > value) {
                         handleChange('sgtAuthors', value);
                       }
                     }}
@@ -1057,7 +1057,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    SGT Authors <span className="text-red-500">*</span>
+                    ResearchSphere Authors <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -1151,7 +1151,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   )}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-2">
-                      Student(s) from SGT <span className="text-red-500">*</span>
+                      Student(s) from ResearchSphere <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-4">
                       {['yes', 'no'].map((v) => (
@@ -1265,8 +1265,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       if (value < 1) return;
                       handleChange('totalAuthors', value);
                       // Adjust sgtAuthors if it exceeds new totalAuthors
-                      const currentSgt = (data.sgtAuthors as number) || 1;
-                      if (currentSgt > value) {
+                      const currentResearchSphere = (data.sgtAuthors as number) || 1;
+                      if (currentResearchSphere > value) {
                         handleChange('sgtAuthors', value);
                       }
                     }}
@@ -1276,7 +1276,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    SGT Authors <span className="text-red-500">*</span>
+                    ResearchSphere Authors <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -1370,7 +1370,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   )}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-2">
-                      Student(s) from SGT <span className="text-red-500">*</span>
+                      Student(s) from ResearchSphere <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-4">
                       {['yes', 'no'].map((v) => (
@@ -1539,8 +1539,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       if (value < 1) return;
                       handleChange('totalAuthors', value);
                       // Adjust sgtAuthors if it exceeds new totalAuthors
-                      const currentSgt = (data.sgtAuthors as number) || 1;
-                      if (currentSgt > value) {
+                      const currentResearchSphere = (data.sgtAuthors as number) || 1;
+                      if (currentResearchSphere > value) {
                         handleChange('sgtAuthors', value);
                       }
                     }}
@@ -1550,7 +1550,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    SGT Authors <span className="text-red-500">*</span>
+                    ResearchSphere Authors <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -1645,7 +1645,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   )}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-2">
-                      Student(s) from SGT <span className="text-red-500">*</span>
+                      Student(s) from ResearchSphere <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-4">
                       {['yes', 'no'].map((v) => (

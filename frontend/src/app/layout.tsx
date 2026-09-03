@@ -17,8 +17,14 @@ const NavigationProgress = dynamic(
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'SGT University Management System',
-  description: 'University Management System for SGT University',
+  title: 'ResearchSphere',
+  description: 'Research Management Platform',
+};
+
+export const viewport = {
+  themeColor: '#841C43',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -28,15 +34,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Preload critical images for LCP optimization */}
-        <link 
-          rel="preload" 
-          as="image" 
-          href="/images/new-header-logo.png" 
-          fetchPriority="high"
-        />
-      </head>
       <body className={`${inter.className} text-gray-900 dark:text-gray-100 transition-colors duration-200`}>
         <ErrorBoundary>
           <ThemeProvider>

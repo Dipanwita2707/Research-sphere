@@ -73,7 +73,7 @@ export function useRndMenuItems(perms: NavPermissions): SubMenuItem[] {
   }
 
   // Analytics section — gated by analytics-specific permissions (not review permissions)
-  if (hasAnalyticsAccess || isAdmin) {
+  if (hasAnalyticsAccess || isAdmin || hasDrdAccess) {
     rndSubItems.push({
       name: '📈 Analytics',
       description: 'Research & IPR analytics dashboards',

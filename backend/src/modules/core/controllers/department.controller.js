@@ -8,14 +8,20 @@ const auditLogger = require('../../../shared/utils/auditLogger');
 exports.getAllDepartments = async (req, res) => {
   try {
     const { isActive, schoolId } = req.query;
+    const tenantId = req.tenantId || null;
     
-    // Create cache key based on filters
-    const cacheKey = `${cache.CACHE_KEYS.DEPARTMENT}list:${isActive || 'all'}:${schoolId || 'all'}`;
+    // Include tenantId in cache key to prevent cross-university cache leakage
+    const cacheKey = `${cache.CACHE_KEYS.DEPARTMENT}list:${tenantId || 'global'}:${isActive || 'all'}:${schoolId || 'all'}`;
     
     const { data: departments, fromCache } = await cache.getOrSet(
       cacheKey,
       async () => {
         const where = {};
+        // Tenant isolation: scope departments via their parent school's universityId
+        // (Department has no direct universityId — it links through FacultySchoolList)
+        if (tenantId) {
+          where.faculty = { universityId: tenantId };
+        }
         if (isActive !== undefined) {
           where.isActive = isActive === 'true';
         }
@@ -88,7 +94,8 @@ exports.getAllDepartments = async (req, res) => {
 exports.getDepartmentsBySchool = async (req, res) => {
   try {
     const { schoolId } = req.params;
-    const cacheKey = `${cache.CACHE_KEYS.DEPARTMENT}bySchool:${schoolId}`;
+    const tenantId = req.tenantId || null;
+    const cacheKey = `${cache.CACHE_KEYS.DEPARTMENT}bySchool:${tenantId || 'global'}:${schoolId}`;
 
     const { data: departments, fromCache } = await cache.getOrSet(
       cacheKey,
@@ -147,6 +154,7 @@ exports.getDepartmentsBySchool = async (req, res) => {
 exports.getDepartmentById = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || null;
 
     const department = await prisma.department.findUnique({
       where: { id },
@@ -156,6 +164,7 @@ exports.getDepartmentById = async (req, res) => {
             id: true,
             facultyCode: true,
             facultyName: true,
+            universityId: true,
           },
         },
         headOfDepartment: {
@@ -196,6 +205,14 @@ exports.getDepartmentById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Department not found',
+      });
+    }
+
+    // Tenant isolation: non-superadmin cannot fetch another university's department
+    if (tenantId && department.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This department does not belong to your university.',
       });
     }
 
@@ -244,9 +261,28 @@ exports.createDepartment = async (req, res) => {
       });
     }
 
-    // Check if department code already exists
-    const existing = await prisma.department.findUnique({
-      where: { departmentCode },
+    const tenantId = req.tenantId || null;
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'University context is required to create a department.',
+      });
+    }
+
+    // Tenant isolation: ensure the target school belongs to this university
+    if (school.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: The target school does not belong to your university.',
+      });
+    }
+
+    // Check if department code already exists within the same university's schools
+    const existing = await prisma.department.findFirst({
+      where: {
+        departmentCode,
+        faculty: { universityId: tenantId },
+      },
     });
 
     if (existing) {
@@ -271,6 +307,8 @@ exports.createDepartment = async (req, res) => {
         budgetAllocation,
         metadata: metadata || {},
         isActive: true,
+        // Note: Department inherits university scope through its school (FacultySchoolList.universityId).
+        // The school ownership check above ensures tenancy is enforced at creation time.
       },
       include: {
         faculty: {
@@ -337,15 +375,26 @@ exports.updateDepartment = async (req, res) => {
       metadata,
     } = req.body;
 
-    // Check if department exists
+    const tenantId = req.tenantId || null;
+
+    // Check if department exists and load faculty for tenant check
     const existing = await prisma.department.findUnique({
       where: { id },
+      include: { faculty: { select: { universityId: true } } },
     });
 
     if (!existing) {
       return res.status(404).json({
         success: false,
         message: 'Department not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university modification
+    if (tenantId && existing.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This department does not belong to your university.',
       });
     }
 
@@ -430,10 +479,13 @@ exports.deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if department has programmes or employees
+    const tenantId = req.tenantId || null;
+
+    // Check if department has programmes or employees, and fetch faculty for tenant check
     const department = await prisma.department.findUnique({
       where: { id },
       include: {
+        faculty: { select: { universityId: true } },
         _count: {
           select: {
             primaryEmployees: true,
@@ -447,6 +499,14 @@ exports.deleteDepartment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Department not found',
+      });
+    }
+
+    // Tenant isolation: prevent cross-university deletion
+    if (tenantId && department.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This department does not belong to your university.',
       });
     }
 
@@ -484,14 +544,25 @@ exports.toggleDepartmentStatus = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const tenantId = req.tenantId || null;
+
     const department = await prisma.department.findUnique({
       where: { id },
+      include: { faculty: { select: { universityId: true } } },
     });
 
     if (!department) {
       return res.status(404).json({
         success: false,
         message: 'Department not found',
+      });
+    }
+
+    // Tenant isolation
+    if (tenantId && department.faculty?.universityId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: This department does not belong to your university.',
       });
     }
 
@@ -561,6 +632,7 @@ exports.bulkCreate = async (req, res) => {
             description: row.description || null,
             facultyId: row.facultyId,
             isActive: true,
+            // Tenant scope inherited from the school's universityId
           },
         });
         results.created.push({ row: rowNum, departmentCode: code, id: created.id });

@@ -13,6 +13,7 @@ import {
   Github,
   ChevronRight,
 } from 'lucide-react';
+import { BRAND } from '@/shared/config/brand';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -49,30 +50,30 @@ const Footer = () => {
   ];
 
   const socialLinks = [
-    { icon: Facebook, href: 'https://www.facebook.com/sgtuniversity', label: 'Facebook' },
-    { icon: Twitter, href: 'https://twitter.com/sgtuniversity', label: 'Twitter' },
-    { icon: Linkedin, href: 'https://www.linkedin.com/school/sgt-university', label: 'LinkedIn' },
-    { icon: Github, href: 'https://github.com/sgtuniversity', label: 'GitHub' },
+    { icon: Facebook, href: BRAND.social.facebook, label: 'Facebook' },
+    { icon: Twitter, href: BRAND.social.twitter, label: 'Twitter' },
+    { icon: Linkedin, href: BRAND.social.linkedin, label: 'LinkedIn' },
+    { icon: Github, href: BRAND.social.github, label: 'GitHub' },
   ];
 
   const contactInfo = [
     {
       icon: Mail,
       label: 'Email',
-      value: 'info@sgtuniversity.ac.in',
-      href: 'mailto:info@sgtuniversity.ac.in',
+      value: BRAND.supportEmail,
+      href: `mailto:${BRAND.supportEmail}`,
     },
     {
       icon: Phone,
       label: 'Phone',
-      value: '+91 1275 281112',
-      href: 'tel:+911275281112',
+      value: '+1 (000) 000-0000',
+      href: 'tel:+10000000000',
     },
     {
       icon: MapPin,
       label: 'Address',
-      value: 'Gurugram-Badli Road, Chandu, Budhera, Gurugram, Haryana - 122505',
-      href: 'https://goo.gl/maps/sgtuniversity',
+      value: 'ResearchSphere HQ',
+      href: '#',
     },
   ];
 
@@ -97,7 +98,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="relative bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 dark:from-gray-950 dark:via-blue-950 dark:to-gray-950 text-gray-300 pt-4 pb-2 mt-8 w-screen -ml-6 -mr-6">
+    <footer className="relative bg-gradient-to-br from-charcoal via-brand-800 to-charcoal dark:from-charcoal dark:via-brand-800 dark:to-charcoal text-gray-300 pt-4 pb-2 mt-8 w-screen -ml-6 -mr-6">
       {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
@@ -120,16 +121,16 @@ const Footer = () => {
               <div className="space-y-1">
                 <motion.h2
                   variants={itemVariants}
-                  className="text-lg font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent"
+                  className="text-lg font-bold bg-gradient-to-r from-amber-500 to-brand-600 bg-clip-text text-transparent"
                 >
-                  SGT University
+                  {BRAND.name}
                 </motion.h2>
                 <motion.p
                   variants={itemVariants}
                   className="text-gray-400 max-w-sm text-xs"
                 >
-                  Transforming academic excellence through innovative research
-                  management and intellectual property protection.
+                  A modern platform to track research contributions, protect
+                  intellectual property, and measure scholarly impact.
                 </motion.p>
               </div>
 
@@ -249,7 +250,7 @@ const Footer = () => {
             className="flex flex-col md:flex-row items-center justify-between gap-3 pt-2"
           >
             <p className="text-gray-500 text-[11px]">
-              © {currentYear} SGT University. All rights reserved.
+              © {currentYear} {BRAND.name}. All rights reserved.
             </p>
             <div className="flex items-center gap-3 text-[11px] text-gray-500">
               <a href="#" className="hover:text-gray-300 transition-colors">

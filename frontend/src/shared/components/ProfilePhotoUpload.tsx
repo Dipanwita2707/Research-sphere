@@ -7,8 +7,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Camera, Trash2, Upload, Loader2, X, AlertCircle, Check, ZoomIn, ZoomOut } from 'lucide-react';
-import { profileService } from '@/shared/services/profile.service';
-import * as chatService from '@/features/chat/services/chat.service';
+import { profileService, getProfilePhotoPermissions } from '@/shared/services/profile.service';
 import logger from '@/shared/utils/logger';
 
 interface ProfilePhotoUploadProps {
@@ -54,7 +53,7 @@ export function ProfilePhotoUpload({
     try {
       setIsCheckingPermission(true);
       // Get user's global chat permissions
-      const access = await chatService.getMyPermissions();
+      const access = await getProfilePhotoPermissions();
       
       // If access is denied completely, no upload
       if (access.hasAccess ===

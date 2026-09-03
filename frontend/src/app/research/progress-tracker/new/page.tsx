@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -69,8 +69,8 @@ const INDEXING_CATEGORIES = [
   },
   { 
     value: 'sgtu_in_house', 
-    label: 'SGTU In-House Journal',
-    description: 'SGT University in-house publications',
+    label: 'ResearchSphere In-House Journal',
+    description: 'ResearchSphere in-house publications',
     requiredFields: [] as string[]
   },
   { 
@@ -588,17 +588,17 @@ export default function NewTrackerPage() {
             if (!prefillTracker) return null;
             const rejData = getRejectionData(prefillTracker);
             return (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-                <RefreshCw className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="bg-[#fdf5ec] border border-[#f0e2d2] rounded-lg p-4 flex items-start gap-3">
+                <RefreshCw className="w-5 h-5 text-[#7d1a34] flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h4 className="font-medium text-blue-900">Resubmitting: {prefillTracker.title}</h4>
-                  <p className="text-sm text-blue-700 mt-1">
+                  <h4 className="font-medium text-[#7d1a34]">Resubmitting: {prefillTracker.title}</h4>
+                  <p className="text-sm text-[#7d1a34] mt-1">
                     <span className="font-medium">Original Tracking #:</span> {prefillTracker.trackingNumber}
                     {rejData?.rejectionReason && (
                       <> • <span className="font-medium">Rejection Reason:</span> {rejData.rejectionReason}</>
                     )}
                   </p>
-                  <p className="text-xs text-blue-600 mt-2">
+                  <p className="text-xs text-[#7d1a34] mt-2">
                     💡 Form has been pre-filled. Review and update the details as needed. A new tracking number will be assigned.
                   </p>
                 </div>
@@ -610,7 +610,7 @@ export default function NewTrackerPage() {
                     setStatusData({});
                     setStep(1);
                   }}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  className="text-xs text-[#7d1a34] hover:text-[#7d1a34] underline"
                 >
                   Clear & Start Fresh
                 </button>
@@ -631,7 +631,7 @@ export default function NewTrackerPage() {
             <button
               type="button"
               onClick={() => toggleSection('basic')}
-              className="w-full px-6 py-4 flex items-center justify-between text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-t-lg"
+              className="w-full px-6 py-4 flex items-center justify-between text-left bg-gradient-to-r from-[#fdf5ec] to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-t-lg"
             >
               <div className="flex items-center gap-3">
                 <FileText className="w-5 h-5 text-indigo-600" />
@@ -749,7 +749,7 @@ export default function NewTrackerPage() {
                 {/* Interdisciplinary */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Interdisciplinary (SGT) <span className="text-red-500">*</span>
+                    Interdisciplinary (ResearchSphere) <span className="text-red-500">*</span>
                   </label>
                   <div className="flex gap-4">
                     {['yes', 'no'].map((v) => (
@@ -893,7 +893,7 @@ export default function NewTrackerPage() {
 
                   return (
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                      <div className="flex items-center gap-2 mb-3"><Info className="w-4 h-4 text-blue-500" />
+                      <div className="flex items-center gap-2 mb-3"><Info className="w-4 h-4 text-[#7d1a34]" />
                         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Additional Required Fields</h4>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1111,12 +1111,12 @@ export default function NewTrackerPage() {
           </div>
 
           {/* Info Banner */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="bg-[#fdf5ec] dark:bg-[#7d1a34]/10 border border-[#f0e2d2] dark:border-[#5e1024] rounded-lg p-4">
             <div className="flex gap-3">
-              <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-[#7d1a34] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <div className="text-sm text-blue-800 dark:text-blue-300 space-y-2">
+              <div className="text-sm text-[#7d1a34] dark:text-[#c8973f] space-y-2">
                 <div>
                   <p className="font-medium">📊 Progress Tracking & Updates</p>
                   <p>After creating this tracker, you can update your progress anytime. All changes will be recorded in the history timeline.</p>
