@@ -67,7 +67,7 @@ async function main() {
   console.log('══════════════════════════════════════════════════════════════\n');
   console.log('   Add these lines to the recipient\'s .env file:\n');
   console.log(`   LICENSE_KEY=${license.licenseKey}`);
-  console.log(`   LICENSE_SERVER_URL=https://sgt-ums-2.onrender.com/api/v1/license/verify`);
+  console.log(`   LICENSE_SERVER_URL=https://researchsphere.tech/api/v1/license/verify`);
   console.log('   # LICENSE_SALT is set by the developer — do NOT share this value\n');
   console.log('══════════════════════════════════════════════════════════════');
   console.log('   Status: PENDING (will bind to hardware on first startup)');
