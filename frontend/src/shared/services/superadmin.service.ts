@@ -231,6 +231,11 @@ class SuperadminService {
     return response.data;
   }
 
+  async reactivateLicense(id: string): Promise<any> {
+    const response = await api.post<{ success: boolean; message: string }>(`/superadmin/license/reactivate/${id}`);
+    return response.data;
+  }
+
   async resetHardware(id: string): Promise<any> {
     const response = await api.post<{ success: boolean; message: string }>(`/superadmin/license/reset-hardware/${id}`);
     return response.data;

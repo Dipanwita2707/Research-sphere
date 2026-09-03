@@ -42,6 +42,7 @@ router.post('/license/approve-hardware/:id', licenseController.approveHardware);
 router.post('/license/authorize/:id', licenseController.authorizeHardware);
 router.post('/license/authorize-hardware/:id', licenseController.authorizeHardware);
 router.post('/license/revoke/:id', licenseController.revokeLicense);
+router.post('/license/reactivate/:id', licenseController.reactivateLicense);
 router.post('/license/reset-hardware/:id', licenseController.resetHardware);
 router.delete('/license/:id', licenseController.deleteLicense);
 

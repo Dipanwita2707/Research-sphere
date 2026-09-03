@@ -395,6 +395,36 @@ exports.revokeLicense = async (req, res) => {
 };
 
 /**
+ * POST /api/v1/superadmin/license/reactivate/:id
+ * Reactivates a revoked license.
+ */
+exports.reactivateLicense = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const license = await prisma.license.findUnique({ where: { id } });
+    if (!license) {
+      return res.status(404).json({ success: false, message: 'License not found.' });
+    }
+
+    await prisma.license.update({
+      where: { id },
+      data: { isActive: true, revokedAt: null },
+    });
+
+    log.info(`🟢 License REACTIVATED for "${license.assignedTo}"`);
+
+    return res.status(200).json({
+      success: true,
+      message: `License for "${license.assignedTo}" has been reactivated successfully.`,
+    });
+  } catch (err) {
+    log.error('Reactivate license error:', err.message);
+    return res.status(500).json({ success: false, message: 'Failed to reactivate license.' });
+  }
+};
+
+/**
  * POST /api/v1/superadmin/license/reset-hardware/:id
  * Unbinds the hardware ID so the license can be activated on a new machine.
  */
