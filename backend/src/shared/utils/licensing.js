@@ -138,16 +138,19 @@ function post(urlStr, body, timeoutMs = 10000) {
  */
 async function verifyLicense() {
   const isDev = process.env.NODE_ENV !== 'production';
-  const whitelistLocal = process.env.LICENSE_WHITELIST_LOCAL !== 'false';
   const licenseKey = process.env.LICENSE_KEY;
-  const serverUrl = process.env.LICENSE_SERVER_URL;
+  const serverUrl = process.env.LICENSE_SERVER_URL || 'https://researchsphere.tech/api/v1/license/verify';
   const timeoutMs = parseInt(process.env.LICENSE_TIMEOUT_MS || '10000', 10);
 
   const hardwareId = getHardwareId();
   const licenseState = require('./licenseState');
 
-  // ── Auto-whitelist current device for development / local runs ──────────
-  if (whitelistLocal || isDev || !licenseKey || licenseKey === 'LOCAL_DEV_WHITELISTED') {
+  // ── Auto-whitelist ONLY if explicitly requested and key is LOCAL_DEV_WHITELISTED / empty ──
+  const isExplicitLocalBypass =
+    process.env.LICENSE_WHITELIST_LOCAL === 'true' &&
+    (!licenseKey || licenseKey === 'LOCAL_DEV_WHITELISTED');
+
+  if (isExplicitLocalBypass) {
     const devSecret = 'AUTH_TOKEN_DEFAULT_SECURE_PAYLOAD_LOCAL_DEV';
     licenseState.setAuthorizedState(
       devSecret,
@@ -155,7 +158,7 @@ async function verifyLicense() {
       'Local Developer (Auto-Whitelisted Device)'
     );
     console.log(
-      `\n✅ [DRM] Current device automatically whitelisted.\n` +
+      `\n✅ [DRM] Local development bypass enabled.\n` +
       `   Hardware ID: ${hardwareId.substring(0, 16)}...\n` +
       `   Environment: ${process.env.NODE_ENV || 'development'}\n`
     );
@@ -163,44 +166,27 @@ async function verifyLicense() {
   }
 
   // ── Validate env vars exist for remote check ──────────────────────────────
-  if (!licenseKey || !serverUrl) {
-    if (isDev) {
-      licenseState.setAuthorizedState(
-        'AUTH_TOKEN_DEFAULT_SECURE_PAYLOAD_LOCAL_DEV',
-        hardwareId,
-        'Local Developer (Fallback)'
-      );
-      console.log(`⚠️ [DRM] License config incomplete; bypassed for local development.`);
-      return;
-    }
+  if (!licenseKey) {
     console.error(
       '\n❌ ══════════════════════════════════════════════════════════════\n' +
-        '   LICENSE_KEY or LICENSE_SERVER_URL is missing from .env.\n' +
+        '   LICENSE_KEY is missing from .env.\n' +
         '   Contact the developer to obtain a license key.\n' +
         '══════════════════════════════════════════════════════════════\n'
     );
     process.exit(1);
   }
 
-  console.log('🔐 Verifying license against remote server...');
+  console.log(`🔐 Verifying license key against remote license server (${serverUrl})...`);
 
   // ── Call license server ────────────────────────────────────────────────────
   let response;
   try {
     response = await post(serverUrl, { licenseKey, hardwareId }, timeoutMs);
   } catch (err) {
-    if (isDev) {
-      licenseState.setAuthorizedState(
-        'AUTH_TOKEN_DEFAULT_SECURE_PAYLOAD_LOCAL_DEV',
-        hardwareId,
-        'Local Developer (Offline Fallback)'
-      );
-      console.warn(`⚠️ [DRM] License server unreachable (${err.message}). Auto-whitelisting current device for local run.`);
-      return;
-    }
     console.error(
       '\n❌ ══════════════════════════════════════════════════════════════\n' +
         `   License server unreachable: ${err.message}\n` +
+        `   Endpoint: ${serverUrl}\n` +
         '   Ensure you have an internet connection and try again.\n' +
         '══════════════════════════════════════════════════════════════\n'
     );
@@ -222,22 +208,12 @@ async function verifyLicense() {
     return;
   }
 
-  // Non-200 response
-  if (isDev) {
-    licenseState.setAuthorizedState(
-      'AUTH_TOKEN_DEFAULT_SECURE_PAYLOAD_LOCAL_DEV',
-      hardwareId,
-      'Local Developer (Dev Override)'
-    );
-    console.warn(`⚠️ [DRM] Remote verification returned ${response.status}. Dev override enabled.`);
-    return;
-  }
-
   const reason = response.data?.message || `HTTP ${response.status}`;
   console.error(
     '\n❌ ══════════════════════════════════════════════════════════════\n' +
       `   License verification failed: ${reason}\n` +
-      '   This machine or license key is not authorized.\n' +
+      `   Machine Hardware ID: ${hardwareId.substring(0, 16)}...\n` +
+      '   Access is revoked or unauthorized.\n' +
       '══════════════════════════════════════════════════════════════\n'
   );
   process.exit(1);
