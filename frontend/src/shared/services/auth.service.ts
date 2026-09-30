@@ -59,14 +59,13 @@ export interface User {
 
 export interface AuthResponse {
   success: boolean;
-  token: string;
   user: User;
 }
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/login', credentials);
-    // Token is set as HTTP-only cookie by the server, no need to handle client-side
+    // The session is an httpOnly cookie set by the server; the body carries no token
     return response.data;
   }
 
@@ -77,6 +76,11 @@ class AuthService {
       // Best-effort: still clear local session if backend is down or unreachable
       logger.warn('AuthService - logout request failed (local session will still be cleared):', error);
     }
+  }
+
+  /** Revoke every session of this user on every device (server bumps tokenVersion). */
+  async logoutAll(): Promise<void> {
+    await api.post('/auth/logout-all');
   }
 
   async getCurrentUser(): Promise<User> {

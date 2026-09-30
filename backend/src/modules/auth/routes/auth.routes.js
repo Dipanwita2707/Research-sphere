@@ -1,4 +1,5 @@
 const express = require('express');
+const { bindMiddleware } = require('../../../shared/tenancy/tenantContext');
 const router = express.Router();
 const multer = require('multer');
 const { body } = require('express-validator');
@@ -6,6 +7,11 @@ const authController = require('../controllers/auth.controller');
 const forgotPasswordController = require('../controllers/forgotPassword.controller');
 const { protect } = require('../../../shared/middleware/auth');
 const { checkProfilePhotoPermission } = require('../middleware/profilePhoto.middleware');
+const {
+  forgotPasswordIpLimiter,
+  forgotPasswordEmailLimiter,
+  resetPasswordLimiter,
+} = require('../../../shared/middleware/rateLimiter');
 
 // Configure multer for profile photo uploads
 const upload = multer({
@@ -21,7 +27,7 @@ const loginValidation = [
 
 const changePasswordValidation = [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
-  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+  body('newPassword').isLength({ min: 10 }).withMessage('New password must be at least 10 characters')
 ];
 
 const updateProfileValidation = [
@@ -33,31 +39,14 @@ const updateProfileValidation = [
 
 // Public routes
 router.post('/login', loginValidation, authController.login);
-router.post('/forgot-password', body('email').trim().isEmail().withMessage('Valid email required'), forgotPasswordController.forgotPassword);
-router.post('/reset-password', forgotPasswordController.resetPassword);
-
-// Diagnostic endpoint to check environment configuration
-router.get('/config', (req, res) => {
-  const config = require('../../../shared/config/app.config');
-  res.json({
-    success: true,
-    data: {
-      env: config.env,
-      corsOrigin: config.cors.origin,
-      cookieSettings: {
-        sameSite: config.env === 'production' ? 'none' : 'lax',
-        secure: config.env === 'production',
-        httpOnly: true
-      },
-      hasCookie: !!req.cookies.token,
-      hasAuthHeader: !!req.headers.authorization
-    }
-  });
-});
+router.post('/forgot-password', forgotPasswordIpLimiter, forgotPasswordEmailLimiter, body('email').trim().isEmail().withMessage('Valid email required'), forgotPasswordController.forgotPassword);
+router.post('/reset-password', resetPasswordLimiter, forgotPasswordController.resetPassword);
+// Public so that a stale/revoked session can always clear its cookie
+router.post('/logout', authController.logout);
 
 // Protected routes
 router.use(protect);
-router.post('/logout', authController.logout);
+router.post('/logout-all', authController.logoutAll);
 router.get('/me', authController.getMe);
 router.put('/change-password', changePasswordValidation, authController.changePassword);
 router.put('/profile', updateProfileValidation, authController.updateProfile);
@@ -65,7 +54,7 @@ router.get('/settings', authController.getSettings);
 router.put('/settings', authController.updateSettings);
 
 // Profile photo routes (with permission check)
-router.post('/profile/photo', checkProfilePhotoPermission, upload.single('photo'), authController.uploadProfilePhoto);
+router.post('/profile/photo', checkProfilePhotoPermission, bindMiddleware(upload.single('photo')), authController.uploadProfilePhoto);
 router.delete('/profile/photo', authController.deleteProfilePhoto);
 
 module.exports = router;

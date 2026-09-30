@@ -18,6 +18,7 @@ let _runtimeSecret = null;
 let _isVerified = false;
 let _hardwareFingerprint = null;
 let _assignedTo = null;
+let _revokedReason = null;
 
 module.exports = {
   /**
@@ -55,6 +56,22 @@ module.exports = {
    */
   isVerified() {
     return _isVerified && Boolean(_runtimeSecret);
+  },
+
+  /**
+   * Clears the authorized state after the licence server revokes this licence.
+   * Every authenticated request is then refused by licenseGate.
+   * @param {string} reason
+   */
+  revoke(reason = 'revoked') {
+    _isVerified = false;
+    _runtimeSecret = null;
+    _revokedReason = reason;
+  },
+
+  /** Reason given when the licence was revoked at runtime, or null. */
+  getRevokedReason() {
+    return _revokedReason;
   },
 
   /**

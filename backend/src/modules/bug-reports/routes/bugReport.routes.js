@@ -5,6 +5,7 @@
 
 const router = require('express').Router();
 const multer = require('multer');
+const { withTenantContext } = require('../../core/utils/withTenantContext');
 const bugReportController = require('../controllers/bugReport.controller');
 const { protect } = require('../../../shared/middleware/auth');
 const {
@@ -36,7 +37,7 @@ router.post(
   protect, // Require authentication
   bugReportSubmissionLimiter, // Rate limit: 10 reports per hour per user
   screenshotUploadLimiter, // Rate limit: 50 uploads per hour per user
-  upload.array('screenshots', 5), // Accept up to 5 screenshot files
+  withTenantContext(upload.array('screenshots', 5)), // Accept up to 5 screenshot files
   validateScreenshots, // Validate uploaded files
   validateBugReportSubmission, // Validate request body
   checkValidationResult, // Check for validation errors

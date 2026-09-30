@@ -309,7 +309,12 @@ export default function StudentManagement() {
         await api.put(`/students/${editingStudent.id}`, validation.data);
         toast({ type: 'success', message: 'Student updated successfully' });
       } else {
-        await api.post('/students', validation.data);
+        const response = await api.post('/students', validation.data);
+        const generated: string | undefined = response.data?.data?.generatedPassword;
+        if (generated) {
+          // Shown once: the server does not store or return it again
+          window.prompt('Generated password for the new student. Copy it and share it securely; it will not be shown again.', generated);
+        }
         toast({ type: 'success', message: 'Student created successfully' });
       }
       setShowModal(false);
@@ -365,12 +370,17 @@ export default function StudentManagement() {
   const handleResetPassword = async (student: Student) => {
     const confirmed = await confirmDelete(
       'Reset Password',
-      `Are you sure you want to reset the password for ${student.displayName} to default (Welcome@123)?`
+      `Are you sure you want to reset the password for ${student.displayName} ? A new random password will be generated and shown once.`
     );
     if (!confirmed) return;
     
     try {
-      await api.patch(`/students/${student.id}/reset-password`, {});
+      const response = await api.patch(`/students/${student.id}/reset-password`, {});
+      const generated: string | undefined = response.data?.data?.generatedPassword;
+      if (generated) {
+        // Shown once: the server does not store or return it again
+        window.prompt(`New password for ${student.displayName}. Copy it and share it securely; it will not be shown again.`, generated);
+      }
       toast({ type: 'success', message: 'Password reset successfully' });
     } catch (error: unknown) {
       toast({ 
@@ -760,7 +770,7 @@ export default function StudentManagement() {
                     {!editingStudent && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Password <span className="text-gray-400">(Default: Welcome@123)</span>
+                          Password <span className="text-gray-400">(Optional: leave empty to generate one)</span>
                         </label>
                         <input
                           type="password"

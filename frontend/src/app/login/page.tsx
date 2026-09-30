@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Wordmark from '@/shared/components/brand/Wordmark';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { LOGIN_REASON_SESSION_ENDED, LOGIN_REASON_SIGNED_OUT_EVERYWHERE } from '@/shared/auth/sessionEvents';
 import {
   AlertCircle,
   BarChart3,
@@ -48,6 +49,56 @@ const STATS = [
   { value: '50+', label: 'Institutions' },
 ];
 
+const GENERIC_LOGIN_ERROR = 'Invalid username or password.';
+
+type LoginErrorBody = { code?: string; message?: string; minutesRemaining?: number };
+
+/** Map a failed /auth/login response to the message shown on the form. */
+function getLoginErrorMessage(err: unknown): string {
+  const response =
+    err && typeof err === 'object' && 'response' in err
+      ? (err as { response?: { status?: number; data?: unknown } }).response
+      : undefined;
+
+  if (!response) {
+    return 'Unable to reach the server. Please check your connection and try again.';
+  }
+
+  const data: LoginErrorBody = response.data && typeof response.data === 'object' ? (response.data as LoginErrorBody) : {};
+
+  switch (response.status) {
+    case 401:
+      return GENERIC_LOGIN_ERROR;
+    case 423: {
+      const minutes = typeof data.minutesRemaining === 'number' ? data.minutesRemaining : null;
+      return minutes
+        ? `Too many failed sign-in attempts. Your account is locked for ${minutes} more minute${minutes === 1 ? '' : 's'}. Try again later or reset your password.`
+        : 'Too many failed sign-in attempts. Your account is temporarily locked. Try again later or reset your password.';
+    }
+    case 429:
+      return 'Too many sign-in attempts from this device. Please wait a few minutes and try again.';
+    case 403:
+    case 503:
+      // ACCOUNT_DEACTIVATED, NO_TENANT, TENANT_SUSPENDED, SUBSCRIPTION_*, LICENSE_INVALID
+      return data.message || 'You cannot sign in right now. Please contact your administrator.';
+    default:
+      return data.message || 'Login failed. Please try again.';
+  }
+}
+
+/** Notice for /login?reason=… (fixed texts only; query values are never rendered). */
+function getLoginNotice(): string {
+  if (typeof window === 'undefined') return '';
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('reason') === LOGIN_REASON_SIGNED_OUT_EVERYWHERE) {
+    return 'You have been signed out on all devices.';
+  }
+  if (params.get('reason') !== LOGIN_REASON_SESSION_ENDED) return '';
+  return params.get('code') === 'TOKEN_REVOKED'
+    ? 'You were signed out because your session was ended (password change or sign-out from all devices). Please sign in again.'
+    : 'Your session has expired. Please sign in again.';
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuthStore();
@@ -55,12 +106,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    setNotice(getLoginNotice());
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setIsLoading(true);
     try {
       await login(username, password);
@@ -75,11 +132,7 @@ export default function LoginPage() {
         router.push('/research/my-profile');
       }
     } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'response' in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : undefined;
-      setError(message || 'Login failed. Please check your credentials and try again.');
+      setError(getLoginErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -198,8 +251,15 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {notice && !error && (
+              <div role="status" className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[13.5px] text-amber-800">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <span>{notice}</span>
+              </div>
+            )}
+
             {error && (
-              <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-[13.5px] text-red-700">
+              <div role="alert" className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-[13.5px] text-red-700">
                 <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -208,7 +268,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-charcoal">
-                  Email Address
+                  Username or email
                 </label>
                 <div className="relative flex items-center">
                   <User size={18} strokeWidth={1.8} className="pointer-events-none absolute left-4 text-wine" />
@@ -217,7 +277,7 @@ export default function LoginPage() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your email address"
+                    placeholder="Enter your username or email"
                     required
                     autoFocus
                     disabled={isLoading}

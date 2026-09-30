@@ -1,4 +1,5 @@
 const config = require('../../../shared/config/app.config');
+const { safeUploadFolder, authorizeFileKey, canDeleteFile } = require('../utils/uploadPaths');
 
 // Try to load AWS SDK modules, handle gracefully if not installed
 let S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, getSignedUrl;
@@ -156,7 +157,7 @@ const getUploadUrl = async (req, res) => {
       });
     }
 
-    const { filename, contentType, folder = 'documents' } = req.body;
+    const { filename, contentType } = req.body;
     const userId = req.user.id;
 
     if (!filename || !contentType) {
@@ -164,6 +165,11 @@ const getUploadUrl = async (req, res) => {
         success: false,
         message: 'Filename and content type are required',
       });
+    }
+
+    const folder = safeUploadFolder(req.body.folder, 'documents');
+    if (!folder) {
+      return res.status(400).json({ success: false, message: 'Invalid upload folder' });
     }
 
     // Validate content type
@@ -201,7 +207,6 @@ const getUploadUrl = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to generate upload URL',
-      error: error.message,
     });
   }
 };
@@ -243,7 +248,16 @@ const getDownloadUrl = async (req, res) => {
       });
     }
 
-    const downloadUrl = await generateDownloadUrl(s3Key);
+    // Only keys whose uploader belongs to the caller's university (404 otherwise)
+    const access = await authorizeFileKey(String(s3Key), req);
+    if (access.error) {
+      return res.status(access.error).json({
+        success: false,
+        message: access.error === 400 ? 'Invalid S3 key' : 'File not found',
+      });
+    }
+
+    const downloadUrl = await generateDownloadUrl(access.key);
 
     res.json({
       success: true,
@@ -257,7 +271,6 @@ const getDownloadUrl = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to generate download URL',
-      error: error.message,
     });
   }
 };
@@ -276,7 +289,18 @@ const deleteFileController = async (req, res) => {
       });
     }
 
-    await deleteFile(s3Key);
+    const access = await authorizeFileKey(String(s3Key), req);
+    if (access.error) {
+      return res.status(access.error).json({
+        success: false,
+        message: access.error === 400 ? 'Invalid S3 key' : 'File not found',
+      });
+    }
+    if (!canDeleteFile(access.segments, req.user)) {
+      return res.status(403).json({ success: false, message: 'You can only delete files you uploaded' });
+    }
+
+    await deleteFile(access.key);
 
     res.json({
       success: true,
@@ -287,7 +311,6 @@ const deleteFileController = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete file',
-      error: error.message,
     });
   }
 };

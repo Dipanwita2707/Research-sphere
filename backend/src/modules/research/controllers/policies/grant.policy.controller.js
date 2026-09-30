@@ -42,7 +42,6 @@ exports.getAllGrantPolicies = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch grant policies',
-      error: error.message
     });
   }
 };
@@ -100,7 +99,6 @@ exports.getActivePolicyByCategoryAndType = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch active grant policy',
-      error: error.message
     });
   }
 };
@@ -140,7 +138,6 @@ exports.getGrantPolicyById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch grant policy',
-      error: error.message
     });
   }
 };
@@ -254,7 +251,6 @@ exports.createGrantPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create grant policy',
-      error: error.message
     });
   }
 };
@@ -384,7 +380,6 @@ exports.updateGrantPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update grant policy',
-      error: error.message
     });
   }
 };
@@ -436,7 +431,6 @@ exports.deleteGrantPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete grant policy',
-      error: error.message
     });
   }
 };
@@ -533,7 +527,6 @@ exports.calculateIncentive = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to calculate grant incentive',
-      error: error.message
     });
   }
 };

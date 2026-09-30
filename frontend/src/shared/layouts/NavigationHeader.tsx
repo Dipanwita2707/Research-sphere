@@ -2,7 +2,7 @@
 
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle, Menu, X, ChevronRight } from 'lucide-react';
+import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle, Menu, X, ChevronRight, Lock, ShieldCheck } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@/shared/providers/ThemeProvider';
  import Link from 'next/link';
@@ -141,6 +141,8 @@ export default function NavigationHeader() {
   const canApproveConference = hasPermission(userPermissions, 'conference_approve') || hasPermission(userPermissions, 'conference_paper_approve');
   const canReviewGrant = hasPermission(userPermissions, 'grant_review');
   const canApproveGrant = hasPermission(userPermissions, 'grant_approve');
+  // DPDP: data protection console for admins, superadmin and dpdp_manage holders
+  const canManageDpdp = isAdmin || hasPermission(userPermissions, 'dpdp_manage');
 
   // fetchNotingAccess removed — now handled by useNotingPermissions hook above
 
@@ -447,6 +449,7 @@ export default function NavigationHeader() {
       { name: 'Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
       { name: 'Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
       { name: 'Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
+      { name: 'Data Protection', href: '/admin/data-protection', description: 'DPDP consent, requests, breaches & retention' },
 
       // Organization Management
       {
@@ -994,6 +997,26 @@ export default function NavigationHeader() {
                   <User className="w-4 h-4" />
                   Profile Settings
                 </Link>
+                {!isSuperadmin && (
+                  <Link
+                    href="/settings/privacy"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Lock className="w-4 h-4" />
+                    Privacy &amp; my data
+                  </Link>
+                )}
+                {canManageDpdp && (
+                  <Link
+                    href="/admin/data-protection"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Data protection
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm transition-colors"
@@ -1190,6 +1213,26 @@ export default function NavigationHeader() {
             <User className="w-4 h-4" />
             <span>Profile Settings</span>
           </Link>
+          {!isSuperadmin && (
+            <Link
+              href="/settings/privacy"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
+            >
+              <Lock className="w-4 h-4" />
+              <span>Privacy &amp; my data</span>
+            </Link>
+          )}
+          {canManageDpdp && (
+            <Link
+              href="/admin/data-protection"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Data protection</span>
+            </Link>
+          )}
           <button
             onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
             className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm transition-all"

@@ -13,24 +13,73 @@ const { auditService, AuditActionType, AuditSeverity, AuditModule } = require('.
 const { getClientIp } = require('../../../shared/middleware/audit.middleware');
 const log = require('../../../shared/utils/logger');
 const jwt = require('jsonwebtoken');
+const licenseState = require('../../../shared/utils/licenseState');
+const { getTenantStatus } = require('../../../shared/middleware/auth');
+const { signToken, setAuthCookie, clearAuthCookie, revokeUserSessions } = require('../services/session.service');
+const { getLockState, recordFailedLogin, successfulLoginData, lockedResponseBody } = require('../utils/lockout');
 
-const generateToken = (userId, universityId, role) => {
-  return jwt.sign({ id: userId, universityId, role }, config.jwt.secret, {
-    expiresIn: config.jwt.expire
-  });
+const INVALID_CREDENTIALS = 'Invalid username or password';
+
+// Compared against when the username does not exist, so that response time does
+// not reveal whether an account exists. Generated once, lazily, at the same cost
+// factor as real hashes.
+let dummyHashPromise = null;
+const getDummyHash = () => {
+  if (!dummyHashPromise) {
+    dummyHashPromise = bcrypt.hash(`dummy-${Date.now()}-${Math.random()}`, config.bcrypt.rounds);
+  }
+  return dummyHashPromise;
 };
 
-// Login
+const auditLogin = (req, user, { action, severity, responseStatus, metadata }) => {
+  auditService.log({
+    actorId: user.id,
+    universityId: user.universityId || null,
+    action,
+    actionType: AuditActionType.LOGIN,
+    module: AuditModule.AUTH,
+    category: 'authentication',
+    severity,
+    targetTable: 'user_login',
+    targetId: user.id,
+    ipAddress: getClientIp(req),
+    userAgent: req.headers['user-agent'] || null,
+    requestPath: req.originalUrl || req.url,
+    requestMethod: 'POST',
+    responseStatus,
+    metadata: { username: user.uid, role: user.role, ...(metadata || {}) }
+  }).catch((e) => log.warn('Audit log (login) failed:', e.message));
+};
+
+// Login. Runs outside any tenant context (public route): the user lookup is unscoped.
 exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const sanitizedUsername = sanitizeInput(username);
+    const { username, password } = req.body || {};
+
+    if (typeof username !== 'string' || !username.trim() || typeof password !== 'string' || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide username and password'
+      });
+    }
+
+    // Nothing authenticated works on an unlicensed instance; say so up front
+    if (!licenseState.isVerified()) {
+      return res.status(503).json({
+        success: false,
+        code: 'LICENSE_INVALID',
+        message: 'This installation is not licensed. Please contact the platform administrator.'
+      });
+    }
+
+    const sanitizedUsername = sanitizeInput(username.trim());
 
     // OPTIMIZED: Lean login query - only essential fields to reduce load time
+    // Sign in with username (uid) or email — both are globally unique (email is citext)
     const user = await prisma.userLogin.findFirst({
-      where: {
-        uid: sanitizedUsername
-      },
+      where: sanitizedUsername.includes('@')
+        ? { email: sanitizedUsername }
+        : { uid: sanitizedUsername },
       select: {
         id: true,
         uid: true,
@@ -39,6 +88,10 @@ exports.login = async (req, res) => {
         role: true,
         status: true,
         universityId: true,
+        tokenVersion: true,
+        failedLoginAttempts: true,
+        lockedUntil: true,
+        anonymizedAt: true,
         profileImage: true,
         lastLoginAt: true,
         employeeDetails: {
@@ -89,34 +142,70 @@ exports.login = async (req, res) => {
     });
 
     if (!user) {
+      // Equalise timing with the "wrong password" path
+      await bcrypt.compare(password, await getDummyHash());
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: INVALID_CREDENTIALS
       });
     }
 
-    // Check if user is active
-    if (user.status !== 'active') {
-      return res.status(403).json({
-        success: false,
-        message: 'Account is deactivated'
-      });
+    const lockState = getLockState(user);
+    if (lockState.locked) {
+      return res.status(423).json(lockedResponseBody(lockState.minutesRemaining));
     }
 
     // Verify password
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
+      const failure = await recordFailedLogin(prisma, user.id);
+      auditLogin(req, user, {
+        action: failure.locked ? 'Account locked after repeated failed logins' : 'Login attempt failed',
+        severity: AuditSeverity.WARNING,
+        responseStatus: failure.locked ? 423 : 401,
+        metadata: { success: false, failedAttempts: failure.attempts, locked: failure.locked }
+      });
+      if (failure.locked) {
+        return res.status(423).json(lockedResponseBody(failure.minutesRemaining));
+      }
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: INVALID_CREDENTIALS
       });
     }
 
-    // Update last login
+    // Only now (correct password) may the account state be revealed
+    if (user.status !== 'active' || user.anonymizedAt) {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_DEACTIVATED',
+        message: 'Your account is deactivated. Please contact your administrator.'
+      });
+    }
+
+    if (user.role !== 'superadmin') {
+      if (!user.universityId) {
+        return res.status(403).json({
+          success: false,
+          code: 'NO_TENANT',
+          message: 'Your account is not linked to any university. Please contact your administrator.'
+        });
+      }
+      const tenantStatus = await getTenantStatus(user.universityId);
+      if (!tenantStatus.allowed) {
+        return res.status(403).json({
+          success: false,
+          code: tenantStatus.code,
+          message: tenantStatus.message
+        });
+      }
+    }
+
+    // Reset lockout counters and record the login
     await prisma.userLogin.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() }
+      data: successfulLoginData()
     });
 
     // OPTIMIZATION: Load permissions separately (lazy loading)
@@ -227,44 +316,18 @@ exports.login = async (req, res) => {
       };
     }
 
-    // Generate token
-    const token = generateToken(user.id, user.universityId, user.role);
+    // The session lives only in the httpOnly cookie; the token is deliberately not
+    // returned in the body so page scripts can never read it.
+    setAuthCookie(res, signToken(user));
 
-    // Set cookie with appropriate sameSite setting for cross-origin
-    // sameSite: 'none' REQUIRES secure: true for cross-origin cookies
-    const cookieOptions = {
-      expires: new Date(Date.now() + config.jwt.cookieExpire * 24 * 60 * 60 * 1000),
-      httpOnly: true,
-      sameSite: config.env === 'production' ? 'none' : 'lax',
-      secure: config.env === 'production' ? true : false, // Must be true when sameSite is 'none'
-    };
-    
-    res.cookie('token', token, cookieOptions);
-
-    // Audit log with full details
-    await auditService.log({
-      actorId: user.id,
+    auditLogin(req, user, {
       action: 'User logged in successfully',
-      actionType: AuditActionType.LOGIN,
-      module: AuditModule.AUTH,
-      category: 'authentication',
       severity: AuditSeverity.INFO,
-      targetTable: 'user_login',
-      targetId: user.id,
-      ipAddress: getClientIp(req),
-      userAgent: req.headers['user-agent'] || null,
-      requestPath: req.originalUrl || req.url,
-      requestMethod: 'POST',
-      responseStatus: 200,
-      metadata: {
-        username: user.uid,
-        role: user.role
-      }
+      responseStatus: 200
     });
 
     res.status(200).json({
       success: true,
-      token,
       user: userDetails
     });
   } catch (error) {
@@ -279,9 +342,19 @@ exports.login = async (req, res) => {
 // Logout
 exports.logout = async (req, res) => {
   try {
-    const result = await authService.logout(req.user.id, req);
+    // Public route: identify the caller from a still-valid token only for the audit trail
+    const rawToken = req.cookies?.token
+      || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+    if (rawToken) {
+      try {
+        const decoded = jwt.verify(rawToken, config.jwt.secret, { algorithms: ['HS256'] });
+        if (decoded?.id) await authService.logout(decoded.id, req);
+      } catch (_) {
+        // expired/invalid token: nothing to audit, still clear the cookie
+      }
+    }
 
-    res.cookie('token', 'none', result.cookieOptions);
+    clearAuthCookie(res);
 
     res.status(200).json({
       success: true,
@@ -289,6 +362,27 @@ exports.logout = async (req, res) => {
     });
   } catch (error) {
     log.error('Logout error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during logout'
+    });
+  }
+};
+
+// Logout from every device: revokes all tokens issued to this user so far
+exports.logoutAll = async (req, res) => {
+  try {
+    await revokeUserSessions(req.user.id);
+    await authService.logout(req.user.id, req, { allDevices: true });
+
+    clearAuthCookie(res);
+
+    res.status(200).json({
+      success: true,
+      message: 'Signed out from all devices'
+    });
+  } catch (error) {
+    log.error('Logout-all error:', error.message);
     res.status(500).json({
       success: false,
       message: 'Server error during logout'
@@ -487,9 +581,12 @@ exports.changePassword = async (req, res) => {
       });
     }
 
+    // All other sessions were revoked; keep this one signed in with a fresh token
+    setAuthCookie(res, signToken(result.user));
+
     res.status(200).json({
       success: true,
-      message: 'Password changed successfully'
+      message: 'Password changed successfully. You have been signed out on other devices.'
     });
   } catch (error) {
     log.error('Change password error:', error.message);

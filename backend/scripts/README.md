@@ -1,30 +1,22 @@
-# Backend Scripts
+# Backend scripts
 
-Organized utility scripts for database maintenance, testing, and one-time operations.
+Run everything from `backend/`. See `docs/OPERATIONS.md` for the full setup flow.
 
-## Folders
+| Script | npm script | Purpose |
+|--------|-----------|---------|
+| `database/seeds/seed-superadmin.js` | `npm run seed:superadmin` | Create the platform superadmin if missing (password from `SUPERADMIN_PASSWORD` or generated and printed once). |
+| `../src/shared/database/seed.js` | `npm run seed` | Idempotent dev/demo tenant (tiers, university, users, academic structure). |
+| `database/seeds/seed-research-policy-updated.js` | `npm run seed:research-policy -- --university <CODE>` | Default research-paper incentive policies for one university (`--replace` to recreate). |
+| `database/seeds/seed-conference-policy-not-indexed.js` | `npm run seed:conference-policies -- --university <CODE>` | Default conference incentive policies for one university. |
+| `build-protected-dist.js` | `npm run build:protected` | Build the obfuscated production bundle. |
+| `maintenance/healthcheck.js` | – | Container health check (copied by `Dockerfile.backend`). |
+| `find-unindexed-fkeys.js`, `inspect-indexes.js`, `measure-rtt.js` | – | Read-only database diagnostics. |
 
-| Folder | Purpose | When to Use |
-|--------|---------|-------------|
-| `database-maintenance/checks/` | Scripts to verify data integrity | Debugging, audits |
-| `database-maintenance/fixes/` | Scripts to fix data issues | After identifying problems |
-| `data-seeding/` | Scripts to populate test/initial data | Setup, testing |
-| `testing-utilities/` | Scripts to test APIs/connections | Development, debugging |
-| `recalculations/` | Scripts to recalculate derived data | After policy changes |
-| `one-time-migrations/` | One-time data migrations | Specific version upgrades |
+Rules for new scripts:
 
-## Running Scripts
-
-```bash
-# From backend directory
-node scripts/database-maintenance/checks/check-contribution.js
-node scripts/data-seeding/seed-test-users.js
-node scripts/testing-utilities/test-api.js
-```
-
-## Naming Convention
-- `check-*.js` - Verification scripts (read-only)
-- `fix-*.js` - Correction scripts (write operations)
-- `seed-*.js` - Data seeding scripts
-- `test-*.js` - Testing scripts
-- `recalculate-*.js` - Recalculation scripts
+- Seeds refuse to run with `NODE_ENV=production` unless `--force` is passed.
+- Never hardcode passwords, user ids or tenant ids. Take them from arguments or env.
+- Tenant data: require `--university <CODE>` and wrap the work in
+  `tenantContext.runForTenant(universityId, fn)` using the shared Prisma client
+  (`src/shared/config/database`), or pass `universityId` explicitly on every write.
+- One-off debugging scripts do not belong in the repository.

@@ -258,7 +258,7 @@ exports.createSchool = async (req, res) => {
     }
 
     // Check if faculty code already exists
-    const existing = await prisma.facultySchoolList.findUnique({
+    const existing = await prisma.facultySchoolList.findFirst({
       where: { facultyCode: facultyCode.toUpperCase() },
     });
 
@@ -419,7 +419,7 @@ exports.updateSchool = async (req, res) => {
 
     // Check if faculty code is being changed and already exists
     if (facultyCode && facultyCode.toUpperCase() !== existing.facultyCode) {
-      const codeExists = await prisma.facultySchoolList.findUnique({
+      const codeExists = await prisma.facultySchoolList.findFirst({
         where: { facultyCode: facultyCode.toUpperCase() },
       });
 
@@ -663,7 +663,7 @@ exports.bulkCreate = async (req, res) => {
         continue;
       }
       const code = (row.facultyCode || '').toUpperCase();
-      const exists = await prisma.facultySchoolList.findUnique({ where: { facultyCode: code } });
+      const exists = await prisma.facultySchoolList.findFirst({ where: { facultyCode: code } });
       if (exists) {
         results.skipped.push({ row: rowNum, facultyCode: code, reason: 'Already exists' });
         continue;

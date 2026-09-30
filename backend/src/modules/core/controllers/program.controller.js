@@ -337,7 +337,7 @@ exports.getProgramById = async (req, res) => {
             id: true,
             sectionName: true,
             currentStrength: true,
-            maxStrength: true,
+            capacity: true,
           },
         },
         _count: {

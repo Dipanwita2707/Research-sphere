@@ -17,6 +17,41 @@ const config = require('../config/app.config');
 const cache = require('../config/redis');
 const log = require('../utils/logger');
 const { logAuthenticationFailure } = require('../../modules/bug-reports/utils/securityLogger');
+const tenantContext = require('../tenancy/tenantContext');
+const licenseState = require('../utils/licenseState');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const AUTH_CACHE_TTL = 60; // seconds; bounds staleness of revocations across instances without Redis
+const TENANT_STATUS_TTL = 60;
+
+/**
+ * Whether a university may use the platform right now: active, and holding a
+ * subscription that is trialing/active and not past its period end + grace.
+ * Cached briefly; superadmin changes call invalidateTenantStatus().
+ * @param {string} universityId
+ * @returns {Promise<{ allowed: boolean, code?: string, message?: string }>}
+ */
+const getTenantStatus = async (universityId) => {
+  const { data } = await cache.getOrSet(`tenant:status:${universityId}`, async () => {
+    const university = await tenantContext.runAsSystem(() => prisma.university.findUnique({
+      where: { id: universityId },
+      select: { isActive: true, subscription: { select: { status: true, currentPeriodEnd: true } } },
+    }));
+    if (!university) return { allowed: false, code: 'TENANT_NOT_FOUND', message: 'Your university account no longer exists.' };
+    if (!university.isActive) return { allowed: false, code: 'TENANT_SUSPENDED', message: 'Your university account is suspended. Please contact your administrator.' };
+    const sub = university.subscription;
+    if (!sub) return { allowed: false, code: 'SUBSCRIPTION_REQUIRED', message: 'Your university has no active subscription. Please contact your administrator.' };
+    const graceEnd = new Date(sub.currentPeriodEnd);
+    graceEnd.setDate(graceEnd.getDate() + 1 + config.security.subscriptionGraceDays);
+    if (!['active', 'trialing'].includes(sub.status) || graceEnd < new Date()) {
+      return { allowed: false, code: 'SUBSCRIPTION_EXPIRED', message: 'Your university subscription has expired. Please contact your administrator.' };
+    }
+    return { allowed: true };
+  }, TENANT_STATUS_TTL);
+  return data;
+};
+
+const invalidateTenantStatus = (universityId) => cache.del(`tenant:status:${universityId}`);
 
 /**
  * Authenticate incoming request by verifying JWT token.
@@ -29,6 +64,15 @@ const { logAuthenticationFailure } = require('../../modules/bug-reports/utils/se
  */
 const protect = async (req, res, next) => {
   try {
+    // Licence kill switch: nothing authenticated runs on an unlicensed/revoked instance
+    if (!licenseState.isVerified()) {
+      return res.status(503).json({
+        success: false,
+        code: 'LICENSE_INVALID',
+        message: 'This installation is not licensed. Please contact the platform administrator.'
+      });
+    }
+
     let token;
 
     // Check for token in Authorization header or cookies
@@ -45,15 +89,27 @@ const protect = async (req, res, next) => {
       });
     }
 
+    let decoded;
     try {
-      // Verify token â€” pin algorithm to prevent algorithm-switching attacks
-      const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
+      // Verify token — pin algorithm to prevent algorithm-switching attacks
+      decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
+      // Only session tokens authenticate: purpose tokens (e.g. guardian consent) carry an audience and no id
+      if (!decoded || typeof decoded.id !== 'string' || decoded.aud) throw new Error('not a session token');
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    {
       const cacheKey = `${cache.CACHE_KEYS.USER}auth:${decoded.id}`;
 
-      // Try cache first for faster auth
+      // Try cache first for faster auth. The lookup is unscoped: protect can run
+      // again inside an outer request's tenant context (nested routers).
       const { data: user } = await cache.getOrSet(
         cacheKey,
-        async () => {
+        () => tenantContext.runAsSystem(async () => {
           // Get user from database with permissions
           const userData = await prisma.userLogin.findUnique({
             where: { id: decoded.id },
@@ -64,6 +120,8 @@ const protect = async (req, res, next) => {
               role: true,
               status: true,
               universityId: true,
+              tokenVersion: true,
+              anonymizedAt: true,
               assignedRoleIds: true,
               employeeDetails: {
                 select: {
@@ -168,38 +226,14 @@ const protect = async (req, res, next) => {
             }
           });
 
-          // PERF FIX: Pre-cache chairperson club lookup for student users.
-          // This avoids a DB query on EVERY request in checkAnyPermission and
-          // getMyNotingPermissions — both of which do prisma.club.findFirst()
-          // for students who have no default noting permissions.
-          let chairpersonClubData = null;
-          if (userData.role === 'student') {
-            try {
-              const chairClub = await prisma.club.findFirst({
-                where: {
-                  chairpersonId: userData.id,
-                  status: { in: ['approved', 'active'] },
-                },
-                select: { id: true, name: true, facultyFacilitatorId: true },
-              });
-              if (chairClub) {
-                chairpersonClubData = chairClub;
-              }
-            } catch (err) {
-              // Non-critical — fall through gracefully
-            }
-          }
-
           return {
             ...userData,
             centralDeptPermissions: mergedCentralPerms,
             schoolDeptPermissions: mergedSchoolPerms,
             seminarHallBlockIds: Array.from(mergedSeminarHallBlockIds),
-            // Cached chairperson info — avoids DB hit per request
-            _chairpersonClub: chairpersonClubData,
           };
-        },
-        cache.CACHE_TTL.USER_SESSION
+        }),
+        AUTH_CACHE_TTL
       );
 
       if (!user) {
@@ -210,38 +244,56 @@ const protect = async (req, res, next) => {
       }
 
       // Check if user is active
-      if (user.status !== 'active') {
+      if (user.status !== 'active' || user.anonymizedAt) {
         return res.status(401).json({
           success: false,
           message: 'User account is deactivated'
         });
       }
 
+      // Tokens issued before the last logout-all / password change / deactivation are revoked
+      if ((decoded.tv ?? -1) !== (user.tokenVersion ?? 0)) {
+        return res.status(401).json({
+          success: false,
+          code: 'TOKEN_REVOKED',
+          message: 'Your session has ended. Please sign in again.'
+        });
+      }
+
       // Attach user to request
       req.user = user;
 
-      // Resolve Tenant context
+      // Resolve tenant context
+      let tenantId;
       if (user.role === 'superadmin') {
         const headerUniversityId = req.headers['x-university-id'];
-        req.tenantId = headerUniversityId || null;
+        if (headerUniversityId && !UUID_RE.test(headerUniversityId)) {
+          return res.status(400).json({ success: false, message: 'Invalid X-University-Id header' });
+        }
+        tenantId = headerUniversityId || null;
         req.isSuperadmin = true;
       } else {
         if (!user.universityId) {
           return res.status(403).json({
             success: false,
+            code: 'NO_TENANT',
             message: 'User is not associated with any university/tenant.'
           });
         }
-        req.tenantId = user.universityId;
+        const tenantStatus = await getTenantStatus(user.universityId);
+        if (!tenantStatus.allowed) {
+          return res.status(403).json({ success: false, code: tenantStatus.code, message: tenantStatus.message });
+        }
+        tenantId = user.universityId;
         req.isSuperadmin = false;
       }
+      req.tenantId = tenantId;
 
-      next();
-    } catch (error) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired token'
-      });
+      // Every Prisma query in the rest of this request is scoped to tenantId
+      return tenantContext.run(
+        { tenantId, userId: user.id, role: user.role, isSuperadmin: req.isSuperadmin },
+        () => next()
+      );
     }
   } catch (error) {
     log.error('Auth middleware error:', error);
@@ -633,31 +685,6 @@ const checkPermission = (permissionKey, options = {}) => {
         return next();
       }
 
-      // Check 3: Club chairperson override for noting + event permissions
-      // Students who are chairpersons of active/approved clubs can create notings
-      // and manage their own events (created from approved notings)
-      const CHAIRPERSON_ALLOWED_PERMISSIONS = [
-        'noting_create', 'noting_view_own',
-        'event_manage_own', 'event_publish', 'event_cancel',
-      ];
-      if (user.role === 'student' && CHAIRPERSON_ALLOWED_PERMISSIONS.includes(permissionKey)) {
-        try {
-          const chairpersonClub = await prisma.club.findFirst({
-            where: {
-              chairpersonId: user.id,
-              status: { in: ['approved', 'active'] },
-            },
-            select: { id: true },
-          });
-          if (chairpersonClub) {
-            req.chairpersonClubId = chairpersonClub.id;
-            return next();
-          }
-        } catch (clubErr) {
-          log.error('Chairperson club check error:', clubErr);
-        }
-      }
-
       // Access denied
       return res.status(403).json({
         success: false,
@@ -725,23 +752,6 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
 
       if (hasExplicitPermission) {
         return next();
-      }
-
-      // Check 3: Club chairperson override for noting + event permissions
-      if (user.role === 'student') {
-        const CHAIRPERSON_ALLOWED_PERMISSIONS = [
-          'noting_create', 'noting_view_own',
-          'event_manage_own', 'event_publish', 'event_cancel',
-        ];
-        const hasChairpersonKey = allVariants.some((k) => CHAIRPERSON_ALLOWED_PERMISSIONS.includes(k));
-        if (hasChairpersonKey) {
-          // PERF FIX: Use pre-cached chairperson club from protect middleware
-          // instead of doing prisma.club.findFirst on every request.
-          if (user._chairpersonClub) {
-            req.chairpersonClubId = user._chairpersonClub.id;
-            return next();
-          }
-        }
       }
 
       return res.status(403).json({
@@ -968,6 +978,8 @@ const checkIprTenantAccess = async (req, res, next) => {
 };
 
 module.exports = {
+  getTenantStatus,
+  invalidateTenantStatus,
   protect,
   restrictTo,
   checkDepartmentPermission,

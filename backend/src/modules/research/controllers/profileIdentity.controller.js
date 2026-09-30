@@ -22,7 +22,7 @@ const handleError = (res, error, fallback) => {
   }
 
   console.error(error);
-  return res.status(500).json({ success: false, message: fallback, error: error.message });
+  return res.status(500).json({ success: false, message: fallback });
 };
 
 exports.getProfileIdentity = async (req, res) => {

@@ -39,7 +39,7 @@ exports.createGrantApplication = async (req, res) => {
     console.error('Error creating grant application:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to create grant application',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to create grant application',
     });
   }
 };
@@ -61,8 +61,7 @@ exports.getMyGrantApplications = async (req, res) => {
     console.error('Error fetching grant applications:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to fetch grant applications',
-      error: error.message,
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to fetch grant applications',
     });
   }
 };
@@ -70,13 +69,13 @@ exports.getMyGrantApplications = async (req, res) => {
 exports.getGrantApplicationById = async (req, res) => {
   try {
     const { id } = req.params;
-    const grant = await grantService.getApplicationById(id, req.tenantId);
+    const grant = await grantService.getApplicationById(id, req.user);
     res.json({ success: true, data: grant });
   } catch (error) {
     console.error('Error fetching grant application:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to fetch grant application',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to fetch grant application',
     });
   }
 };
@@ -92,7 +91,7 @@ exports.updateGrantApplication = async (req, res) => {
     console.error('Error updating grant application:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to update grant application',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to update grant application',
     });
   }
 };
@@ -108,7 +107,7 @@ exports.submitGrantApplication = async (req, res) => {
     console.error('Error submitting grant application:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to submit grant application',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to submit grant application',
     });
   }
 };
@@ -124,7 +123,7 @@ exports.deleteGrantApplication = async (req, res) => {
     console.error('Error deleting grant application:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to delete grant application',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to delete grant application',
     });
   }
 };
@@ -151,7 +150,7 @@ exports.getPendingGrantReviews = async (req, res) => {
     console.error('Error fetching pending grant reviews:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to fetch pending reviews',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to fetch pending reviews',
     });
   }
 };
@@ -167,7 +166,7 @@ exports.startReview = async (req, res) => {
     console.error('Error starting grant review:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to start review',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to start review',
     });
   }
 };
@@ -184,7 +183,7 @@ exports.requestChanges = async (req, res) => {
     console.error('Error requesting changes:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to request changes',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to request changes',
     });
   }
 };
@@ -201,7 +200,7 @@ exports.recommendForApproval = async (req, res) => {
     console.error('Error recommending grant:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to recommend grant',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to recommend grant',
     });
   }
 };
@@ -218,7 +217,7 @@ exports.approveGrant = async (req, res) => {
     console.error('Error approving grant:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to approve grant',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to approve grant',
     });
   }
 };
@@ -235,7 +234,7 @@ exports.rejectGrant = async (req, res) => {
     console.error('Error rejecting grant:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to reject grant',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to reject grant',
     });
   }
 };
@@ -251,7 +250,7 @@ exports.markCompleted = async (req, res) => {
     console.error('Error marking grant as completed:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to mark grant as completed',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to mark grant as completed',
     });
   }
 };
@@ -272,7 +271,7 @@ exports.respondToGrantSuggestion = async (req, res) => {
     console.error('Error responding to suggestion:', error);
     res.status(error.statusCode || 500).json({
       success: false,
-      message: error.message || 'Failed to respond to suggestion',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to respond to suggestion',
     });
   }
 };

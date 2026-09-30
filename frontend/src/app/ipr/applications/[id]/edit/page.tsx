@@ -20,11 +20,12 @@ import {
   Download
 } from 'lucide-react';
 import Link from 'next/link';
-import api, { getUploadUrl } from '@/shared/api/api';
+import api from '@/shared/api/api';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
+import { getDocumentUrl } from '@/features/research-management/services/documentUrl';
 
 interface EditSuggestion {
   id: string;
@@ -795,7 +796,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               <div className="mb-3">
                 <label className="block text-sm text-gray-700 mb-1">Main Annexure</label>
                 <a
-                  href={getUploadUrl(application.annexureFilePath)}
+                  href={getDocumentUrl(application.annexureFilePath)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -811,7 +812,7 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               <div className="mb-3">
                 <label className="block text-sm text-gray-700 mb-1">Prototype (ZIP)</label>
                 <a
-                  href={getUploadUrl(application.prototypeFilePath)}
+                  href={getDocumentUrl(application.prototypeFilePath)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-3 py-1 bg-purple-50 rounded text-xs text-purple-700 hover:bg-purple-100"

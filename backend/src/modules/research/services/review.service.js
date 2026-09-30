@@ -5,6 +5,7 @@
  */
 
 const { IncentiveCalculator } = require('./incentive-calculator');
+const tenantContext = require('../../../shared/tenancy/tenantContext');
 
 const RESEARCH_REVIEW_LIST_SELECT = {
   id: true,
@@ -136,10 +137,15 @@ function parsePaginationQuery(query = {}) {
 
 // Module-level TTL cache for DRD department permission lookups (per-user).
 // Avoids redundant DB round-trips on every hot review-queue request.
-const _drdPermCache = new Map(); // key: `drd:${userId}` → { data, expiresAt }
+const _drdPermCache = new Map(); // key: `drd:<tenant>:${userId}` → { data, expiresAt }
 const DRD_PERM_CACHE_TTL_MS = 60_000; // 1 minute
 
 class ReviewService {
+  /** Drop cached DRD permission lookups (tests, or after permission changes). */
+  static clearPermissionCache() {
+    _drdPermCache.clear();
+  }
+
   /**
    * @param {object} reviewRepository       - ReviewRepository instance
    * @param {object} contributionRepository - ContributionRepository instance
@@ -163,7 +169,8 @@ class ReviewService {
    * the user has no DRD permission record.
    */
   async _getDrdPermissions(userId) {
-    const key = `drd:${userId}`;
+    // The DRD department row is per university, so the cached lookup is too
+    const key = `drd:${tenantContext.getTenantId() || 'global'}:${userId}`;
     const cached = _drdPermCache.get(key);
     if (cached && Date.now() < cached.expiresAt) return cached.data;
 
@@ -460,7 +467,7 @@ class ReviewService {
   }
 
   async _buildIncentiveBreakdown(contribution, totalIncentiveAwarded, totalPointsAwarded) {
-    const activePolicy = await this._fetchActivePolicy(contribution.applicantUser?.universityId);
+    const activePolicy = await this._fetchActivePolicy(contribution.universityId || contribution.applicantUser?.universityId);
     return {
       totalIncentiveAwarded,
       totalPointsAwarded,
@@ -569,7 +576,7 @@ class ReviewService {
   }
 
   async _creditIncentivesToAuthors(contribution, contributionId, dbClient = this.prisma) {
-    const activePolicy = await this._fetchActivePolicy(contribution.applicantUser?.universityId, dbClient);
+    const activePolicy = await this._fetchActivePolicy(contribution.universityId || contribution.applicantUser?.universityId, dbClient);
     if (!activePolicy) {
       const err = new Error('No active research policy found. Please configure policy in admin panel.');
       err.statusCode = 500;

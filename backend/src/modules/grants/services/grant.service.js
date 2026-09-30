@@ -11,6 +11,7 @@ const {
   logFileUpload,
 } = require('../../../shared/utils/auditLogger');
 const log = require('../../../shared/utils/logger');
+const { canViewGrant, notFound } = require('../../research/utils/objectAccess');
 
 const GRANT_LIST_SELECT = {
   id: true,
@@ -314,20 +315,16 @@ class GrantService {
 
   /**
    * Get a single grant application by ID.
+   * Tenant isolation is enforced by the Prisma extension; within the tenant only the
+   * applicant, investigators, reviewers and grant/finance staff may see the record.
    * @param {string} id
-   * @returns {Promise<object>}
+   * @param {object} [viewer] - req.user; omit only from internal code that already authorised access
+   * @returns {Promise<object>} throws 404 when missing or not visible to the viewer
    */
-  async getApplicationById(id, tenantId = null) {
+  async getApplicationById(id, viewer = undefined) {
     const grant = await this.repo.findById(id, this._detailInclude());
-    if (!grant) {
-      const err = new Error('Grant application not found');
-      err.statusCode = 404;
-      throw err;
-    }
-    if (tenantId && grant.applicantUser?.universityId !== tenantId) {
-      const err = new Error('Access denied: This grant application does not belong to your university.');
-      err.statusCode = 403;
-      throw err;
+    if (!grant || (viewer !== undefined && !canViewGrant(viewer, grant))) {
+      throw notFound('Grant application not found');
     }
     return grant;
   }
@@ -1157,7 +1154,7 @@ class GrantService {
       },
       reviews: {
         include: {
-          reviewer: { select: { uid: true, email: true, employeeDetails: true } },
+          reviewer: { select: { uid: true, email: true, employeeDetails: { select: { firstName: true, lastName: true, displayName: true, designation: true } } } },
         },
       },
       statusHistory: {

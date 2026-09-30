@@ -1,4 +1,15 @@
 const prisma = require('../../../shared/config/database');
+const { canViewIpr, IPR_ACCESS_INCLUDE } = require('../utils/objectAccess');
+
+/** True when the user may view the IPR application (missing and foreign rows are false). */
+const canViewIprById = async (user, iprApplicationId) => {
+  if (!iprApplicationId) return false;
+  const application = await prisma.iprApplication.findUnique({
+    where: { id: iprApplicationId },
+    include: IPR_ACCESS_INCLUDE,
+  });
+  return canViewIpr(user, application);
+};
 
 // Valid enum values for validation
 const ENUM_VALUES = {
@@ -210,6 +221,11 @@ exports.createEditSuggestion = async (req, res) => {
 exports.getEditSuggestions = async (req, res) => {
   try {
     const { iprApplicationId } = req.params;
+
+    // Applicant, contributors, mentor, reviewers and IPR staff only; others get 404
+    if (!(await canViewIprById(req.user, iprApplicationId))) {
+      return res.status(404).json({ success: false, message: 'IPR application not found' });
+    }
     const { status } = req.query;
 
     const where = { iprApplicationId };
@@ -488,15 +504,8 @@ exports.respondToSuggestion = async (req, res) => {
     console.error('Respond to suggestion error:', error);
     
     // Check if it's a validation error (invalid enum value)
-    if (error.message && error.message.includes('Invalid value')) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-    
-    // Check for Prisma validation errors
-    if (error.name === 'PrismaClientValidationError') {
+    // Invalid enum value / Prisma validation errors: generic message (the raw text exposes schema internals)
+    if (error.name === 'PrismaClientValidationError' || (error.message && error.message.includes('Invalid value'))) {
       return res.status(400).json({
         success: false,
         message: 'Invalid value for one of the fields. The suggested value may not be valid for this field type.'
@@ -821,14 +830,13 @@ exports.submitBatchSuggestions = async (req, res) => {
       });
 
       // Create or update review record
-      await tx.iprReview.upsert({
-        where: {
-          iprApplicationId_reviewerId: {
-            iprApplicationId,
-            reviewerId: userId
-          }
-        },
-        create: {
+      // IprReview has no (iprApplicationId, reviewerId) unique key, so upsert by lookup
+      const existingReview = await tx.iprReview.findFirst({
+        where: { iprApplicationId, reviewerId: userId },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true }
+      });
+      const reviewCreate = {
           iprApplicationId,
           reviewerId: userId,
           reviewerRole: 'drd_member',
@@ -838,16 +846,22 @@ exports.submitBatchSuggestions = async (req, res) => {
           suggestionsCount: createdSuggestions.length,
           pendingSuggestionsCount: createdSuggestions.length,
           reviewedAt: new Date()
-        },
-        update: {
-          comments: reviewComments,
-          decision: 'changes_required',
-          hasSuggestions: true,
-          suggestionsCount: { increment: createdSuggestions.length },
-          pendingSuggestionsCount: { increment: createdSuggestions.length },
-          reviewedAt: new Date()
-        }
-      });
+        };
+      if (existingReview) {
+        await tx.iprReview.update({
+          where: { id: existingReview.id },
+          data: {
+            comments: reviewComments,
+            decision: 'changes_required',
+            hasSuggestions: true,
+            suggestionsCount: { increment: createdSuggestions.length },
+            pendingSuggestionsCount: { increment: createdSuggestions.length },
+            reviewedAt: new Date()
+          }
+        });
+      } else {
+        await tx.iprReview.create({ data: reviewCreate });
+      }
 
       return createdSuggestions;
     });
@@ -1167,6 +1181,11 @@ exports.getReviewHistory = async (req, res) => {
   try {
     const { iprApplicationId } = req.params;
 
+    // Applicant, contributors, mentor, reviewers and IPR staff only; others get 404
+    if (!(await canViewIprById(req.user, iprApplicationId))) {
+      return res.status(404).json({ success: false, message: 'IPR application not found' });
+    }
+
     const reviews = await prisma.iprReview.findMany({
       where: { iprApplicationId },
       include: {
@@ -1362,7 +1381,6 @@ exports.mentorCreateEditSuggestion = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create edit suggestion',
-      error: error.message
     });
   }
 };
@@ -1570,7 +1588,6 @@ exports.mentorSubmitBatchSuggestions = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to submit suggestions',
-      error: error.message
     });
   }
 };

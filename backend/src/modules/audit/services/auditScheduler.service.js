@@ -8,13 +8,16 @@ const prisma = require('../../../shared/config/database');
 const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('./audit.service');
 const { emailService } = require('../../core/services/email.service');
 const { excelExportService } = require('../../core/services/excelExport.service');
+const tenantContext = require('../../../shared/tenancy/tenantContext');
 const path = require('path');
 const fs = require('fs').promises;
 
 class AuditReportScheduler {
   constructor() {
     this.jobs = new Map();
-    this.reportsDir = path.join(__dirname, '../../uploads/audit-reports');
+    // backend/uploads/audit-reports/<universityId|platform>/ — never served by the
+    // /uploads file route (see modules/uploads/fileAccess.service.js)
+    this.reportsDir = path.join(__dirname, '../../../../uploads/audit-reports');
   }
 
   /**
@@ -50,7 +53,7 @@ class AuditReportScheduler {
     // Run at 00:00 on the 1st day of every month
     const job = cron.schedule('0 0 1 * *', async () => {
       console.log('[REPORT] Starting monthly audit report generation...');
-      await this.generateAndSendReport('monthly');
+      await this.runScheduledReport('monthly');
     }, {
       scheduled: true,
       timezone: 'Asia/Kolkata'
@@ -67,7 +70,7 @@ class AuditReportScheduler {
     // Run at 00:00 every Monday
     const job = cron.schedule('0 0 * * 1', async () => {
       console.log('[REPORT] Starting weekly audit report generation...');
-      await this.generateAndSendReport('weekly');
+      await this.runScheduledReport('weekly');
     }, {
       scheduled: true,
       timezone: 'Asia/Kolkata'
@@ -84,7 +87,7 @@ class AuditReportScheduler {
     // Run at 00:00 every day
     const job = cron.schedule('0 0 * * *', async () => {
       console.log('[REPORT] Starting daily audit report generation...');
-      await this.generateAndSendReport('daily');
+      await this.runScheduledReport('daily');
     }, {
       scheduled: true,
       timezone: 'Asia/Kolkata'
@@ -102,7 +105,8 @@ class AuditReportScheduler {
     // Run at 03:00 every Sunday
     const job = cron.schedule('0 3 * * 0', async () => {
       console.log('🧹 Starting audit log cleanup...');
-      await this.cleanupOldLogs();
+      // Deliberate cross-tenant retention sweep (same retention rule for every tenant)
+      await tenantContext.runAsSystem(() => this.cleanupOldLogs());
     }, {
       scheduled: true,
       timezone: 'Asia/Kolkata'
@@ -110,6 +114,17 @@ class AuditReportScheduler {
 
     this.jobs.set('cleanup', job);
     console.log('[SCHEDULE] Log cleanup scheduled for every Sunday at 03:00 IST');
+  }
+
+  /**
+   * Scheduled run: one report per university (tenant recipients, tenant logs
+   * only), then one platform report for platform-level recipients
+   * (AuditReportConfig.universityId = null) covering all tenants.
+   */
+  async runScheduledReport(reportType) {
+    const { forEachTenant } = require('../../../jobs/jobRunner');
+    await forEachTenant(() => this.generateAndSendReport(reportType), { label: `AuditReport:${reportType}` });
+    await tenantContext.runAsSystem(() => this.generateAndSendReport(reportType));
   }
 
   /**
@@ -166,10 +181,15 @@ class AuditReportScheduler {
     const flag = fieldMap[reportType];
     if (!flag) return [];
 
+    // Inside a tenant context the query is scoped to that university. Outside
+    // one (platform/system run) only platform-level recipients may receive the
+    // cross-tenant report — never another university's configured recipients.
+    const tenantId = tenantContext.getTenantId();
     const recipients = await prisma.auditReportConfig.findMany({
       where: {
         isActive: true,
-        [flag]: true
+        [flag]: true,
+        ...(tenantId ? {} : { universityId: null })
       },
       select: {
         name: true,
@@ -197,12 +217,12 @@ class AuditReportScheduler {
       const recipientConfigs = await this.getRecipients(reportType);
       
       if (recipientConfigs.length === 0) {
-        console.log(`⚠️  No recipients configured for ${reportType} reports — skipping send. Add recipients in Audit Report Settings.`);
-        return;
+        return { success: false, skipped: true, error: `No recipients configured for ${reportType} reports` };
       }
 
       const recipientEmails = recipientConfigs.map(r => r.email);
-      console.log(`📧 Sending ${reportType} report to ${recipientEmails.length} recipients:`, recipientEmails.join(', '));
+      const scopeLabel = tenantContext.getTenantId() || 'platform';
+      console.log(`📧 Sending ${reportType} report (${scopeLabel}) to ${recipientEmails.length} recipient(s)`);
 
       // Create report history record
       reportHistory = await prisma.auditReportHistory.create({
@@ -266,7 +286,9 @@ class AuditReportScheduler {
 
       // Save report file
       const fileName = `audit-report-${reportType}-${startDate.toISOString().split('T')[0]}.xlsx`;
-      const filePath = path.join(this.reportsDir, fileName);
+      const reportDir = path.join(this.reportsDir, scopeLabel);
+      await fs.mkdir(reportDir, { recursive: true });
+      const filePath = path.join(reportDir, fileName);
       await fs.writeFile(filePath, excelBuffer);
 
       // Send emails

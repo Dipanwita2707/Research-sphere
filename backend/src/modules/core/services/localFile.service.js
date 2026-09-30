@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
+const { safeUploadFolder, authorizeFileKey, canDeleteFile } = require('../utils/uploadPaths');
 
 // Create uploads directory if it doesn't exist
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
@@ -118,7 +119,10 @@ const uploadFile = async (req, res) => {
       });
     }
 
-    const folder = req.body.folder || 'documents';
+    const folder = safeUploadFolder(req.body.folder, 'documents');
+    if (!folder) {
+      return res.status(400).json({ success: false, message: 'Invalid upload folder' });
+    }
     const userId = req.user.id;
     
     // Create the directory
@@ -156,9 +160,28 @@ const uploadFile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to upload file',
-      error: error.message,
     });
   }
+};
+
+/**
+ * Tenant/ownership check for a stored path (see utils/uploadPaths). Sends the error
+ * response itself and returns false when the caller may not access the file.
+ */
+const checkFileAccess = async (filePath, req, res, { forDelete = false } = {}) => {
+  const access = await authorizeFileKey(String(filePath), req);
+  if (access.error) {
+    res.status(access.error).json({
+      success: false,
+      message: access.error === 400 ? 'Invalid file path' : 'File not found',
+    });
+    return false;
+  }
+  if (forDelete && !canDeleteFile(access.segments, req.user)) {
+    res.status(403).json({ success: false, message: 'You can only delete files you uploaded' });
+    return false;
+  }
+  return true;
 };
 
 /**
@@ -176,6 +199,7 @@ const downloadFile = async (req, res) => {
       });
     }
     
+    if (!(await checkFileAccess(filePath, req, res, {}))) return;
     const fullPath = path.join(UPLOADS_DIR, filePath);
 
     // Security check: ensure the file is within the uploads directory
@@ -194,7 +218,6 @@ const downloadFile = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'File not found',
-        path: filePath
       });
     }
 
@@ -205,7 +228,6 @@ const downloadFile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to download file',
-      error: error.message,
     });
   }
 };
@@ -224,6 +246,7 @@ const deleteFile = async (req, res) => {
       });
     }
 
+    if (!(await checkFileAccess(filePath, req, res, { forDelete: true }))) return;
     const fullPath = path.join(UPLOADS_DIR, filePath);
 
     // Security check: ensure the file is within the uploads directory
@@ -257,7 +280,6 @@ const deleteFile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete file',
-      error: error.message,
     });
   }
 };
@@ -268,6 +290,7 @@ const deleteFile = async (req, res) => {
 const getFileInfo = async (req, res) => {
   try {
     const { filePath } = req.params;
+    if (!(await checkFileAccess(filePath, req, res, {}))) return;
     const fullPath = path.join(UPLOADS_DIR, filePath);
 
     // Security check
@@ -306,7 +329,6 @@ const getFileInfo = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get file info',
-      error: error.message,
     });
   }
 };
@@ -362,7 +384,6 @@ const uploadPrototypeFile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to upload prototype file',
-      error: error.message,
     });
   }
 };

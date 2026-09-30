@@ -204,8 +204,6 @@ exports.createRole = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create role',
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 };
@@ -405,7 +403,6 @@ exports.updateRole = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update role',
-      error: error.message,
     });
   }
 };
@@ -662,7 +659,6 @@ exports.applyRoleToUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to apply role to user',
-      error: error.message,
     });
   }
 };
@@ -786,7 +782,6 @@ exports.duplicateRole = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to duplicate role',
-      error: error.message,
     });
   }
 };

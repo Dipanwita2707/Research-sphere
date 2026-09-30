@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/shared/providers/ThemeProvider';
 import ErrorBoundary from '@/shared/providers/ErrorBoundary';
 import { ToastProvider } from '@/shared/ui-components/Toast';
 import { ConfirmModalProvider } from '@/shared/ui-components/ConfirmModal';
+import ConsentGate from '@/features/dpdp/components/ConsentGate';
 import '@/styles/globals.css';
 
 const NavigationProgress = dynamic(
@@ -43,6 +44,7 @@ export default function RootLayout({
                   <AuthProvider>
                     <NavigationProgress />
                     {children}
+                    <ConsentGate />
                   </AuthProvider>
                 </QueryProvider>
               </ConfirmModalProvider>

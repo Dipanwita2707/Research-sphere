@@ -59,15 +59,19 @@ function getHardwareId() {
     process.env.LICENSE_SALT &&
     !process.env.LICENSE_SALT.includes('REPLACE_WITH')
       ? process.env.LICENSE_SALT
-      : 'sgt_ums_local_dev_salt_2026';
+      : null;
+  if (!salt && process.env.NODE_ENV === 'production') {
+    throw new Error('LICENSE_SALT must be set in production');
+  }
+  const effectiveSalt = salt || 'sgt_ums_local_dev_salt_2026';
 
   try {
     const rawId = machineIdSync ? machineIdSync(true) : require('os').hostname();
-    return crypto.createHmac('sha256', salt).update(String(rawId)).digest('hex');
+    return crypto.createHmac('sha256', effectiveSalt).update(String(rawId)).digest('hex');
   } catch (err) {
     const os = require('os');
     const fallbackRaw = `${os.hostname()}-${os.platform()}-${os.arch()}`;
-    return crypto.createHmac('sha256', salt).update(fallbackRaw).digest('hex');
+    return crypto.createHmac('sha256', effectiveSalt).update(fallbackRaw).digest('hex');
   }
 }
 
@@ -232,4 +236,45 @@ async function verifyLicense() {
   process.exit(1);
 }
 
-module.exports = { verifyLicense, getHardwareId };
+/**
+ * Periodically re-verifies the licence so a revocation (kill switch) takes effect
+ * without a restart. Only an explicit rejection from the licence server revokes;
+ * a network error keeps the current state so an outage of the licence server
+ * does not take tenants offline.
+ */
+let recheckTimer = null;
+function startLicenseRecheck(intervalMs = parseInt(process.env.LICENSE_RECHECK_MS || String(6 * 60 * 60 * 1000), 10)) {
+  const licenseState = require('./licenseState');
+  const licenseKey = process.env.LICENSE_KEY;
+  const isLocalBypass = process.env.LICENSE_WHITELIST_LOCAL === 'true' && (!licenseKey || licenseKey === 'LOCAL_DEV_WHITELISTED');
+  if (isLocalBypass || !licenseKey || recheckTimer) return;
+
+  const serverUrl = process.env.LICENSE_SERVER_URL || 'https://researchsphere.tech/api/v1/license/verify';
+  const timeoutMs = parseInt(process.env.LICENSE_TIMEOUT_MS || '10000', 10);
+
+  recheckTimer = setInterval(async () => {
+    let response;
+    try {
+      response = await post(serverUrl, { licenseKey, hardwareId: getHardwareId() }, timeoutMs);
+    } catch (err) {
+      console.warn(`[DRM] Licence re-check skipped, server unreachable: ${err.message}`);
+      return;
+    }
+    if (response.status === 200 && response.data?.success) return;
+    if (response.status >= 500) {
+      console.warn(`[DRM] Licence re-check skipped, server error HTTP ${response.status}`);
+      return;
+    }
+    const reason = response.data?.message || `HTTP ${response.status}`;
+    console.error(`[DRM] Licence revoked by licence server: ${reason}`);
+    licenseState.revoke(reason);
+  }, intervalMs);
+  recheckTimer.unref();
+}
+
+function stopLicenseRecheck() {
+  if (recheckTimer) clearInterval(recheckTimer);
+  recheckTimer = null;
+}
+
+module.exports = { verifyLicense, getHardwareId, startLicenseRecheck, stopLicenseRecheck };

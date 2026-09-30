@@ -156,9 +156,78 @@ const searchQueryLimiter = rateLimit({
   },
 });
 
+/**
+ * Build a limiter for the public password-recovery endpoints.
+ * The 429 body keeps the API's { success, code, message } shape.
+ */
+const passwordRecoveryLimiter = ({ windowMs, max, limitType, windowLabel, keyGenerator, message }) => rateLimit({
+  windowMs,
+  max,
+  standardHeaders: true,
+  legacyHeaders: false,
+  ...(keyGenerator ? { keyGenerator } : {}),
+  handler: (req, res) => {
+    logRateLimitViolation({
+      endpoint: req.originalUrl || req.url,
+      userId: null,
+      ip: req.ip,
+      limitType,
+      limit: max,
+      window: windowLabel,
+    });
+    res.status(429).json({
+      success: false,
+      code: 'RATE_LIMITED',
+      message,
+    });
+  },
+});
+
+/**
+ * Forgot password, per IP: 5 requests per 15 minutes.
+ */
+const forgotPasswordIpLimiter = passwordRecoveryLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  limitType: 'forgot_password_ip',
+  windowLabel: '15 minutes',
+  message: 'Too many password reset requests. Please try again in 15 minutes.',
+});
+
+/**
+ * Forgot password, per email address: 3 requests per hour. Counts every
+ * request for the address (registered or not), so it reveals nothing.
+ * Must run after body parsing.
+ */
+const forgotPasswordEmailLimiter = passwordRecoveryLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  limitType: 'forgot_password_email',
+  windowLabel: '1 hour',
+  keyGenerator: (req) => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    return email ? `forgot-email:${email}` : `forgot-ip:${req.ip}`;
+  },
+  message: 'Too many password reset requests for this email. Please try again later.',
+});
+
+/**
+ * Reset password (token submission), per IP: 10 attempts per 15 minutes.
+ */
+const resetPasswordLimiter = passwordRecoveryLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  limitType: 'reset_password_ip',
+  windowLabel: '15 minutes',
+  message: 'Too many password reset attempts. Please try again in 15 minutes.',
+});
+
 module.exports = {
   bugReportSubmissionLimiter,
   screenshotUploadLimiter,
   adminDashboardLimiter,
   searchQueryLimiter,
+  forgotPasswordIpLimiter,
+  forgotPasswordEmailLimiter,
+  resetPasswordLimiter,
 };

@@ -397,12 +397,17 @@ export default function EmployeeManagement() {
 
   const handleResetPassword = async (employee: Employee) => {
     const name = employee.employeeDetails?.displayName || employee.uid;
-    const confirmed = confirm(`Are you sure you want to reset password for "${name}" to default (Welcome@123)?`);
+    const confirmed = confirm(`Are you sure you want to reset password for "${name}" ? A new random password will be generated and shown once.`);
     if (!confirmed) return;
 
     try {
       setResettingId(employee.id);
-      await api.patch(`/employees/${employee.id}/reset-password`, {});
+      const response = await api.patch(`/employees/${employee.id}/reset-password`, {});
+      const generated: string | undefined = response.data?.data?.generatedPassword;
+      if (generated) {
+        // Shown once: the server does not store or return it again
+        window.prompt(`New password for "${name}". Copy it and share it securely; it will not be shown again.`, generated);
+      }
       toast({ type: 'success', message: 'Password reset successfully' });
     } catch (error: unknown) {
       toast({ type: 'error', message: extractErrorMessage(error) || 'Failed to reset password' });

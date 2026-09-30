@@ -140,7 +140,8 @@ describe('Bug Report Service', () => {
         mockFiles, 
         mockBugReport.id,
         validData.userId,
-        validData.userIdentifier
+        validData.userIdentifier,
+        mockBugReport.universityId
       );
       expect(result.screenshots).toEqual(mockScreenshots);
     });

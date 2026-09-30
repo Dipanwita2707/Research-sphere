@@ -167,3 +167,6 @@ backend/scripts/QUICK_*.md
 backend/scripts/ENDPOINT_*.md
 backend/scripts/bulk-upload-*.js
 backend/scripts/display-*.js
+
+# Generated audit reports contain personal data - never commit
+backend/src/modules/uploads/audit-reports/

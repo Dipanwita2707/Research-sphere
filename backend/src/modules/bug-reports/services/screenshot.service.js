@@ -229,9 +229,10 @@ const getDateBasedDirectory = () => {
  * @param {string} bugReportId - Bug report ID
  * @param {string} userId - User ID for logging
  * @param {string} userIdentifier - User identifier for logging
+ * @param {string|null} universityId - University of the bug report (screenshots are tenant rows)
  * @returns {Promise<Array>} - Array of created screenshot records
  */
-const saveScreenshots = async (files, bugReportId, userId = null, userIdentifier = null) => {
+const saveScreenshots = async (files, bugReportId, userId = null, userIdentifier = null, universityId = null) => {
   if (!files || files.length === 0) {
     return [];
   }
@@ -251,7 +252,10 @@ const saveScreenshots = async (files, bugReportId, userId = null, userIdentifier
         error: validation.error,
       });
       
-      throw new Error(`File validation failed for ${file.originalname}: ${validation.error}`);
+      throw Object.assign(
+        new Error(`File validation failed for ${file.originalname}: ${validation.error}`),
+        { statusCode: 400, isOperational: true }
+      );
     }
   }
 
@@ -295,6 +299,9 @@ const saveScreenshots = async (files, bugReportId, userId = null, userIdentifier
       const screenshot = await prisma.bugReportScreenshot.create({
         data: {
           bugReportId,
+          // Explicit so it is also correct outside a tenant context; the tenant
+          // extension stamps/validates it inside one.
+          ...(universityId ? { universityId } : {}),
           originalFilename: file.originalname,
           storedFilename,
           fileSize: file.size,

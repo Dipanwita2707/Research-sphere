@@ -7,9 +7,40 @@ const bugReportService = require('../services/bugReport.service');
 const screenshotService = require('../services/screenshot.service');
 const { sanitizeBugReportData } = require('../utils/inputSanitizer');
 const { createModuleLogger } = require('../../../shared/utils/logger');
+const { resolveLocalFile, sendResolvedFile } = require('../../uploads/fileAccess.service');
 
 // Create module-specific logger
 const logger = createModuleLogger('bug-reports');
+
+/**
+ * Stream a stored screenshot/thumbnail through the shared upload file server
+ * (confined to the upload roots; nosniff, sandbox CSP, private cache headers).
+ * Access must already have been checked. Returns false when the file is missing.
+ */
+const sendStoredFile = (res, storagePath, next) => {
+  const segments = String(storagePath || '').split(/[\\/]+/).filter(Boolean);
+  if (segments.length === 0 || segments.some((s) => s === '..' || s === '.')) return false;
+  const fullPath = resolveLocalFile(segments);
+  if (!fullPath) return false;
+  sendResolvedFile(res, fullPath, next);
+  return true;
+};
+
+/**
+ * Load a screenshot the caller may see: tenant scoping is automatic (a foreign id is
+ * "not found"); within the tenant only the reporter or an admin/superadmin.
+ */
+const loadAccessibleScreenshot = async (screenshotId, user) => {
+  let screenshot;
+  try {
+    screenshot = await screenshotService.getScreenshotById(screenshotId);
+  } catch (error) {
+    if (/not found/i.test(error.message)) return null;
+    throw error;
+  }
+  if (!screenshot || !bugReportService.canAccessBugReport(screenshot.bugReport || {}, user)) return null;
+  return screenshot;
+};
 
 /**
  * Submit a new bug report
@@ -52,11 +83,13 @@ const submitBugReport = async (req, res, next) => {
     const sanitizedData = sanitizationResult.sanitized;
 
     // Create bug report data object with sanitized values
+    // Reporter identity always comes from the authenticated session (body values are ignored
+    // so a report cannot be filed in someone else's name).
     const bugReportData = {
       userId,
-      userRole: sanitizedData.userRole || req.user.role,
-      userIdentifier: sanitizedData.userIdentifier || req.user.uid,
-      userEmail: sanitizedData.userEmail || req.user.email,
+      userRole: req.user.role,
+      userIdentifier: req.user.uid || sanitizedData.userIdentifier,
+      userEmail: req.user.email || null,
       description: sanitizedData.description,
       pageUrl: sanitizedData.pageUrl,
       routePath: sanitizedData.routePath,
@@ -67,6 +100,14 @@ const submitBugReport = async (req, res, next) => {
       routePath: sanitizedData.routePath,
       screenshotCount: files.length
     });
+
+    // Screenshots are tenant rows: a superadmin must pick a university to attach them
+    if (files.length > 0 && !req.tenantId) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Select a university before attaching screenshots.',
+      });
+    }
 
     // Create bug report with screenshots
     const bugReport = await bugReportService.createBugReport(bugReportData, files);
@@ -90,15 +131,8 @@ const submitBugReport = async (req, res, next) => {
       pageUrl: req.body?.pageUrl
     });
 
-    // Handle specific error cases
-    if (error.message.includes('required') || error.message.includes('must be') || error.message.includes('validation')) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Maximum') || error.message.includes('exceed')) {
+    // Deliberate validation errors from the service are safe to show
+    if (error.isOperational && error.statusCode === 400) {
       return res.status(400).json({
         error: 'Validation Error',
         message: error.message,
@@ -121,8 +155,8 @@ const getScreenshots = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get screenshots for the bug report
-    const screenshots = await bugReportService.getScreenshots(id);
+    // Get screenshots for the bug report (reporter or admin only)
+    const screenshots = await bugReportService.getScreenshots(id, req.user);
 
     return res.status(200).json({
       success: true,
@@ -138,7 +172,7 @@ const getScreenshots = async (req, res) => {
     });
 
     // Handle specific error cases
-    if (error.message === 'Bug report not found') {
+    if (error.statusCode === 404) {
       return res.status(404).json({
         error: 'Not Found',
         message: 'Bug report not found',
@@ -157,12 +191,12 @@ const getScreenshots = async (req, res) => {
  * Download a specific screenshot
  * GET /api/bug-reports/screenshots/:screenshotId
  */
-const downloadScreenshot = async (req, res) => {
+const downloadScreenshot = async (req, res, next) => {
   try {
     const { screenshotId } = req.params;
 
-    // Get screenshot file
-    const screenshot = await screenshotService.getScreenshotById(screenshotId);
+    // Get screenshot file (404 for missing, foreign-tenant, or not the caller's report)
+    const screenshot = await loadAccessibleScreenshot(screenshotId, req.user);
 
     if (!screenshot) {
       return res.status(404).json({
@@ -171,16 +205,14 @@ const downloadScreenshot = async (req, res) => {
       });
     }
 
-    // Get file from storage
-    const fileBuffer = await screenshotService.getScreenshotFile(screenshot.storagePath);
-
-    // Set appropriate headers for file download
-    res.setHeader('Content-Type', screenshot.mimeType);
-    res.setHeader('Content-Length', screenshot.fileSize);
-    res.setHeader('Content-Disposition', `inline; filename="${screenshot.originalFilename}"`);
-
-    // Send file buffer
-    return res.send(fileBuffer);
+    // Stream from storage via the shared upload file server
+    if (!sendStoredFile(res, screenshot.storagePath, next)) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Screenshot file not found in storage',
+      });
+    }
+    return undefined;
   } catch (error) {
     // Log error with context
     logger.logError('download_screenshot', error, {
@@ -196,7 +228,7 @@ const downloadScreenshot = async (req, res) => {
       });
     }
 
-    if (error.message.includes('File not found') || error.message.includes('not found in storage')) {
+    if (/not found/i.test(error.message || '')) {
       return res.status(404).json({
         error: 'Not Found',
         message: 'Screenshot file not found in storage',
@@ -215,12 +247,12 @@ const downloadScreenshot = async (req, res) => {
  * Download a screenshot thumbnail
  * GET /api/bug-reports/screenshots/:screenshotId/thumbnail
  */
-const downloadThumbnail = async (req, res) => {
+const downloadThumbnail = async (req, res, next) => {
   try {
     const { screenshotId } = req.params;
 
-    // Get screenshot metadata
-    const screenshot = await screenshotService.getScreenshotById(screenshotId);
+    // Get screenshot metadata (404 for missing, foreign-tenant, or not the caller's report)
+    const screenshot = await loadAccessibleScreenshot(screenshotId, req.user);
 
     if (!screenshot) {
       return res.status(404).json({
@@ -237,17 +269,14 @@ const downloadThumbnail = async (req, res) => {
       });
     }
 
-    // Get thumbnail from storage
-    const thumbnailBuffer = await screenshotService.getThumbnailFile(screenshot.thumbnailPath);
-
-    // Set appropriate headers for thumbnail
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Content-Length', thumbnailBuffer.length);
-    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-    res.setHeader('Content-Disposition', `inline; filename="thumb_${screenshot.originalFilename}"`);
-
-    // Send thumbnail buffer
-    return res.send(thumbnailBuffer);
+    // Stream from storage via the shared upload file server
+    if (!sendStoredFile(res, screenshot.thumbnailPath, next)) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Thumbnail file not found in storage',
+      });
+    }
+    return undefined;
   } catch (error) {
     // Log error with context
     logger.logError('download_thumbnail', error, {
@@ -263,7 +292,7 @@ const downloadThumbnail = async (req, res) => {
       });
     }
 
-    if (error.message.includes('not found')) {
+    if (/not found/i.test(error.message || '')) {
       return res.status(404).json({
         error: 'Not Found',
         message: 'Thumbnail file not found in storage',

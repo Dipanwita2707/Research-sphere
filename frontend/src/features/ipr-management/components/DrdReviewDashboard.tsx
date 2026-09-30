@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getFileUrl } from '@/shared/api/api';
+import { getDocumentUrl } from '@/features/research-management/services/documentUrl';
 import { drdReviewService } from '@/features/ipr-management/services/ipr.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
@@ -1424,7 +1424,7 @@ export default function DrdReviewDashboard() {
                       const fileName = filePath.split('/').pop() || 'Annexure Document';
                       const isPdf = fileName.toLowerCase().endsWith('.pdf');
                       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
-                      const fileUrl = getFileUrl(filePath);
+                      const fileUrl = getDocumentUrl(filePath);
                       
                       return (
                         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -1474,7 +1474,7 @@ export default function DrdReviewDashboard() {
                       const fileName = filePath.split('/').pop() || `Supporting Document ${index + 1}`;
                       const isPdf = fileName.toLowerCase().endsWith('.pdf');
                       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
-                      const fileUrl = getFileUrl(filePath);
+                      const fileUrl = getDocumentUrl(filePath);
                       
                       return (
                         <div key={index} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -1890,7 +1890,7 @@ export default function DrdReviewDashboard() {
                   <div className="grid gap-3">
                     {/* Main Document (annexureFilePath) */}
                     {selectedApp.annexureFilePath && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.annexureFilePath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.annexureFilePath)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-[#7d1a34]" />
                         </div>
@@ -1904,7 +1904,7 @@ export default function DrdReviewDashboard() {
                     
                     {/* Prototype ZIP (prototypeFilePath) */}
                     {selectedApp.prototypeFilePath && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.prototypeFilePath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.prototypeFilePath)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-purple-600" />
                         </div>
@@ -1918,7 +1918,7 @@ export default function DrdReviewDashboard() {
                     
                     {/* Supporting Documents (supportingDocsFilePaths - JSON array) */}
                     {selectedApp.supportingDocsFilePaths && Array.isArray(selectedApp.supportingDocsFilePaths) && selectedApp.supportingDocsFilePaths.map((docPath: string, idx: number) => (
-                      <a key={idx} href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${docPath.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a key={idx} href={`${getDocumentUrl(docPath)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-green-600" />
                         </div>
@@ -1932,7 +1932,7 @@ export default function DrdReviewDashboard() {
                     
                     {/* Legacy fields for backward compatibility */}
                     {selectedApp.abstractFile && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.abstractFile.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.abstractFile)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-red-600" />
                         </div>
@@ -1944,7 +1944,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.supportingDocs && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.supportingDocs.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.supportingDocs)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-[#7d1a34]" />
                         </div>
@@ -1956,7 +1956,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.nocDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.nocDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.nocDocument)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-green-600" />
                         </div>
@@ -1968,7 +1968,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.formIDocument)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
@@ -1980,7 +1980,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIIDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.formIIDocument)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
@@ -1992,7 +1992,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIIIDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIIIDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.formIIIDocument)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>
@@ -2004,7 +2004,7 @@ export default function DrdReviewDashboard() {
                       </a>
                     )}
                     {selectedApp.formIVDocument && (
-                      <a href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/uploads/ipr/${selectedApp.formIVDocument.split('/').pop()}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
+                      <a href={`${getDocumentUrl(selectedApp.formIVDocument)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
                         <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-amber-600" />
                         </div>

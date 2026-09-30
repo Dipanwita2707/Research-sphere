@@ -12,7 +12,6 @@ const isSessionExpiredAt = (sessionExpiresAt: number | null) =>
 
 const clearedAuthState = {
   user: null,
-  token: null,
   isAuthenticated: false,
   isLoading: false,
   lastActivityAt: null,
@@ -21,7 +20,6 @@ const clearedAuthState = {
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   lastActivityAt: number | null;
@@ -29,9 +27,12 @@ interface AuthState {
   setUser: (user: User | null) => void;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Sign out on every device (revokes all sessions server-side). */
+  logoutAll: () => Promise<void>;
+  /** Drop local auth state after the server ended the session (no API call). */
+  clearSession: () => void;
   checkAuth: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  getToken: () => string | null;
   markActivity: () => void;
   isSessionExpired: () => boolean;
 }
@@ -40,7 +41,6 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
       isAuthenticated: false,
       isLoading: false,
       lastActivityAt: null,
@@ -63,8 +63,6 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      getToken: () => get().token ?? null,
-
       markActivity: () => {
         const state = get();
         if (!state.isAuthenticated) {
@@ -85,11 +83,9 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authService.login({ username, password });
           logger.debug('AuthStore - login response:', response);
-          const token = (response as { token?: string }).token ?? null;
           const timestamp = Date.now();
           set({
             user: response.user,
-            token,
             isAuthenticated: true,
             isLoading: false,
             lastActivityAt: timestamp,
@@ -112,6 +108,19 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           set({ ...clearedAuthState });
         }
+      },
+
+      logoutAll: async () => {
+        logger.debug('AuthStore - logout from all devices');
+        try {
+          await authService.logoutAll();
+        } finally {
+          set({ ...clearedAuthState });
+        }
+      },
+
+      clearSession: () => {
+        set({ ...clearedAuthState });
       },
 
       checkAuth: async () => {
@@ -198,9 +207,14 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // v1: the JWT lives only in the httpOnly cookie; drop any token persisted by v0
+      version: 1,
+      migrate: (persistedState) => {
+        const { token: _legacyToken, ...rest } = (persistedState ?? {}) as Record<string, unknown>;
+        return rest as unknown as AuthState;
+      },
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
         isAuthenticated: state.isAuthenticated,
         lastActivityAt: state.lastActivityAt,
         sessionExpiresAt: state.sessionExpiresAt,

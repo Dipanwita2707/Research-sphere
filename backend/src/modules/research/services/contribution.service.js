@@ -5,6 +5,7 @@
  */
 
 const { analyzeAuthorComposition, IncentiveCalculator } = require('./incentive-calculator');
+const { canViewContribution, canViewGrant, notFound, CONTRIBUTION_ACCESS_INCLUDE } = require('../utils/objectAccess');
 
 class ContributionService {
   /**
@@ -863,8 +864,6 @@ class ContributionService {
         },
         data: {
           status: 'submitted',
-          mentorApprovedAt: new Date(),
-          mentorRemarks: comments || 'Approved by mentor',
         },
       });
 
@@ -924,7 +923,6 @@ class ContributionService {
         },
         data: {
           status: 'changes_required',
-          mentorRemarks: comments,
         },
       });
 
@@ -1223,6 +1221,60 @@ class ContributionService {
         statusHistory: { include: { changedBy: { select: { id: true, uid: true, employeeDetails: { select: { firstName: true, lastName: true, displayName: true } } } } }, orderBy: { changedAt: 'desc' } }
       }
     });
+  }
+
+  /**
+   * Load a contribution (or, as a fallback, a grant application) that the viewer may see.
+   * Throws 404 when the record is missing OR the viewer has no relationship/permission,
+   * so another user's record is indistinguishable from a missing one.
+   * @param {string} id
+   * @param {object} user - req.user
+   * @returns {Promise<{ record: object, isGrant: boolean }>}
+   */
+  async getContributionForViewer(id, user) {
+    const person = { select: { id: true, uid: true, employeeDetails: { select: { firstName: true, lastName: true, displayName: true } } } };
+    const contribution = await this.repo.findById(id, {
+      applicantDetails: true, authors: true, school: true, department: true,
+      reviews: { include: { reviewer: person }, orderBy: { createdAt: 'desc' } },
+      statusHistory: { include: { changedBy: person }, orderBy: { changedAt: 'desc' } },
+      editSuggestions: { include: { reviewer: { select: { id: true, uid: true, employeeDetails: { select: { firstName: true, lastName: true } } } } }, orderBy: { createdAt: 'desc' } },
+      applicantUser: { select: { id: true, uid: true, email: true, employeeDetails: { select: { firstName: true, lastName: true, displayName: true, designation: true } } } },
+    });
+    if (contribution) {
+      if (!canViewContribution(user, contribution)) throw notFound('Research contribution or grant not found');
+      return { record: contribution, isGrant: false };
+    }
+    const grant = await this.getGrantById(id);
+    if (!grant || !canViewGrant(user, grant)) throw notFound('Research contribution or grant not found');
+    return { record: grant, isGrant: true };
+  }
+
+  /**
+   * Resolve the S3 key of a contribution document the viewer may download.
+   * @param {string} id
+   * @param {object} user - req.user
+   * @param {'manuscript'|'supporting'} type
+   * @param {string} filename
+   * @returns {Promise<{ s3Key: string, filename: string }>} throws 404 when missing or not visible
+   */
+  async resolveDocumentForViewer(id, user, type, filename) {
+    const contribution = await this.repo.findById(id, CONTRIBUTION_ACCESS_INCLUDE);
+    if (!contribution || !canViewContribution(user, contribution)) throw notFound('Research contribution not found');
+
+    let s3Key = null;
+    let originalFilename = filename;
+    if (type === 'manuscript' && contribution.manuscriptFilePath) {
+      let m = contribution.manuscriptFilePath;
+      if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { s3Key = m; } }
+      if (m && typeof m === 'object') { s3Key = m.s3Key; originalFilename = m.name || filename; }
+    } else if (type === 'supporting' && contribution.supportingDocsFilePaths) {
+      let docs = contribution.supportingDocsFilePaths;
+      if (typeof docs === 'string') { try { docs = JSON.parse(docs); } catch (e) { docs = null; } }
+      const doc = docs?.files?.find(f => f.name === filename || f.s3Key?.includes(filename));
+      if (doc) { s3Key = doc.s3Key; originalFilename = doc.name || filename; }
+    }
+    if (!s3Key) throw notFound('Document not found');
+    return { s3Key, filename: originalFilename };
   }
 
   async getIncentivePolicies() {

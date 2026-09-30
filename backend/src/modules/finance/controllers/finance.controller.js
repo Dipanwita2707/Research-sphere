@@ -98,7 +98,6 @@ const getPendingFinanceReviews = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pending finance reviews',
-      error: error.message,
     });
   }
 };
@@ -206,7 +205,6 @@ const processFinanceIncentive = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to process finance incentive',
-      error: error.message,
     });
   }
 };
@@ -282,7 +280,6 @@ const getFinanceStatistics = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics',
-      error: error.message,
     });
   }
 };
@@ -346,7 +343,6 @@ const getApplicantIncentiveHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch incentive history',
-      error: error.message,
     });
   }
 };
@@ -437,7 +433,6 @@ const approveFinanceApplication = async (req, res) => {
         applicantUser: {
           include: {
             employeeDetails: true,
-            permissions: true
           }
         },
         applicantDetails: true,
@@ -504,7 +499,6 @@ const approveFinanceApplication = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to process incentives',
-      error: error.message,
     });
   }
 };
@@ -558,7 +552,6 @@ const rejectFinanceApplication = async (req, res) => {
         applicantUser: {
           include: {
             employeeDetails: true,
-            permissions: true
           }
         },
         applicantDetails: true,
@@ -611,7 +604,6 @@ const rejectFinanceApplication = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to reject application',
-      error: error.message,
     });
   }
 };
@@ -664,7 +656,6 @@ const requestAdditionalAudit = async (req, res) => {
         applicantUser: {
           include: {
             employeeDetails: true,
-            permissions: true
           }
         },
         applicantDetails: true,
@@ -708,7 +699,6 @@ const requestAdditionalAudit = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to request additional audit',
-      error: error.message,
     });
   }
 };

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useAuthStore } from '@/shared/auth/authStore';
+import api from '@/shared/api/api';
 
 export default function AuthDebugPage() {
-  const { user, token, isAuthenticated, isLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<any>(null);
 
@@ -13,24 +14,12 @@ export default function AuthDebugPage() {
     setTestResult(null);
     
     try {
-      const response = await fetch('http://localhost:5001/api/v1/auth/me', {
-        method: 'GET',
-        credentials: 'include', // Include cookies
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        setError(`${response.status} ${response.statusText}: ${data.message || 'Unknown error'}`);
-      } else {
-        setTestResult(data);
-      }
+      // Auth rides on the httpOnly session cookie, which page scripts cannot read
+      const response = await api.get('/auth/me');
+      setTestResult(response.data);
     } catch (err: any) {
-      setError('Network error: ' + err.message);
+      const status = err?.response?.status;
+      setError(status ? `${status}: ${err.response?.data?.message || 'Unknown error'}` : 'Network error: ' + err?.message);
     }
   };
 
@@ -56,18 +45,6 @@ export default function AuthDebugPage() {
             <div>
               <span className="text-gray-600 dark:text-gray-400">isLoading:</span>{' '}
               <span className="text-gray-900 dark:text-white">{String(isLoading)}</span>
-            </div>
-            <div>
-              <span className="text-gray-600 dark:text-gray-400">Has Token:</span>{' '}
-              <span className={token ? 'text-green-600' : 'text-red-600'}>
-                {String(!!token)}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-600 dark:text-gray-400">Token (first 50 chars):</span>{' '}
-              <span className="text-gray-900 dark:text-white break-all">
-                {token ? token.substring(0, 50) + '...' : 'null'}
-              </span>
             </div>
           </div>
         </div>
@@ -124,7 +101,6 @@ export default function AuthDebugPage() {
           </h2>
           <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-200 text-sm">
             <li>Check if "isAuthenticated" is true above</li>
-            <li>Check if "Has Token" is true above</li>
             <li>Click "Test Endpoint" to verify backend authentication</li>
             <li>Open browser console (F12) and check for error messages</li>
             <li>Check backend server is running (port 5001)</li>
@@ -134,9 +110,8 @@ export default function AuthDebugPage() {
           <div className="mt-4 p-4 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
             <p className="text-blue-900 dark:text-blue-100 font-semibold">Common Issues:</p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-blue-800 dark:text-blue-200 text-sm">
-              <li><strong>401 Error:</strong> Token is invalid or expired - logout and login again</li>
+              <li><strong>401 Error:</strong> Session cookie is missing, expired or revoked - log in again</li>
               <li><strong>Network Error:</strong> Backend server is not running or wrong URL</li>
-              <li><strong>No Token:</strong> Login process didn't store token correctly</li>
             </ul>
           </div>
         </div>

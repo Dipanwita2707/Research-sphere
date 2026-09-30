@@ -47,27 +47,64 @@ const excludedRoutes = [
   /\.js$/
 ];
 
-// Sensitive fields to mask in logs
-const sensitiveFields = ['password', 'passwordHash', 'token', 'refreshToken', 'accessToken', 'secret', 'apiKey'];
+// ── Sensitive data masking (DPDP data minimisation) ─────────────────────────
+const MASK = '***MASKED***';
+
+// Keys containing any of these (case-insensitive, separators ignored) are masked
+const SENSITIVE_KEY_PARTS = [
+  'password', 'passwd', 'secret', 'token', 'apikey', 'authorization', 'cookie', 'session',
+  'otp', 'captcha', 'cvv', 'aadhaar', 'aadhar', 'uidai',
+  'phone', 'mobile', 'contactnumber', 'whatsapp', 'landline',
+  'dateofbirth', 'birthdate', 'bank', 'account', 'ifsc', 'iban', 'cardnumber',
+  'passport', 'pannumber', 'panno', 'pancard',
+];
+// Keys masked only on an exact (normalised) match — too short for substring matching
+const SENSITIVE_EXACT_KEYS = new Set(['pan', 'dob', 'pin', 'mpin', 'tpin', 'ssn', 'upi', 'upiid', 'vpa', 'code', 'verificationcode', 'resetcode']);
+
+// Value patterns masked wherever they appear in a string
+const VALUE_PATTERNS = [
+  /\b\d{4}[ -]?\d{4}[ -]?\d{4}\b/g, // Aadhaar-like 12 digits
+  /\b[A-Z]{5}\d{4}[A-Z]\b/gi, // PAN-like
+  /(?:\+?91[ -]?)?\b[6-9]\d{9}\b/g, // Indian mobile-like
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, // JWT
+];
+
+const normaliseKey = (key) => String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function isSensitiveKey(key) {
+  const k = normaliseKey(key);
+  return SENSITIVE_EXACT_KEYS.has(k) || SENSITIVE_KEY_PARTS.some((part) => k.includes(part));
+}
+
+function maskString(value) {
+  let out = value;
+  for (const re of VALUE_PATTERNS) out = out.replace(re, MASK);
+  return out;
+}
 
 /**
- * Mask sensitive data in objects
+ * Deep-copy obj with sensitive keys and Aadhaar/PAN/phone/JWT-like values masked.
  */
-function maskSensitiveData(obj) {
+function maskSensitiveData(obj, depth = 0) {
+  if (typeof obj === 'string') return maskString(obj);
   if (!obj || typeof obj !== 'object') return obj;
-  
-  const masked = Array.isArray(obj) ? [...obj] : { ...obj };
-  
-  for (const key of Object.keys(masked)) {
-    if (sensitiveFields.some(f => key.toLowerCase().includes(f.toLowerCase()))) {
-      masked[key] = '***MASKED***';
-    } else if (typeof masked[key] === 'object' && masked[key] !== null) {
-      masked[key] = maskSensitiveData(masked[key]);
+  if (depth > 8) return '[depth limit]';
+
+  if (Array.isArray(obj)) return obj.map((v) => maskSensitiveData(v, depth + 1));
+
+  const masked = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (isSensitiveKey(key)) {
+      masked[key] = value === null || value === undefined || value === '' ? value : MASK;
+    } else {
+      masked[key] = maskSensitiveData(value, depth + 1);
     }
   }
-  
   return masked;
 }
+
+/** Path without query string — query strings may carry tokens / reset codes. */
+const stripQuery = (url) => (url || '').split('?')[0];
 
 /**
  * Get route context based on path pattern
@@ -105,7 +142,13 @@ function shouldLogRoute(path, method) {
  * Get client IP address
  */
 function getClientIp(req) {
-  // Try various sources for the real IP address
+  // Express resolves req.ip from X-Forwarded-For honouring `trust proxy`, so a
+  // client cannot spoof it by sending its own X-Forwarded-For header.
+  if (req.ip) {
+    if (req.ip.startsWith('::ffff:')) return req.ip.substring(7);
+    if (req.ip === '::1') return '127.0.0.1';
+    return req.ip;
+  }
   const forwardedFor = req.headers['x-forwarded-for'];
   if (forwardedFor) {
     return forwardedFor.split(',')[0].trim();
@@ -196,7 +239,7 @@ const auditMiddleware = (options = {}) => {
 
   return (req, res, next) => {
     const startTime = Date.now();
-    const originalPath = req.originalUrl || req.url;
+    const originalPath = stripQuery(req.originalUrl || req.url);
     
     // Check if this route should be logged
     if (!shouldLogRoute(originalPath, req.method)) {
@@ -328,7 +371,7 @@ const auditMiddleware = (options = {}) => {
           entityId,
           entityName,
           status: operationStatus,
-          metadata: {}
+          metadata: req.id ? { requestId: req.id } : {}
         };
 
         // Add request body (masked) for POST/PUT/PATCH
@@ -345,7 +388,7 @@ const auditMiddleware = (options = {}) => {
 
         // Add route params if present
         if (Object.keys(req.params || {}).length > 0) {
-          auditData.metadata.params = req.params;
+          auditData.metadata.params = maskSensitiveData(req.params);
           
           // Try to extract target ID (only if valid UUID and not already set)
           if (!auditData.targetId && req.params.id && isValidUUID(req.params.id)) {
@@ -360,7 +403,8 @@ const auditMiddleware = (options = {}) => {
 
         // Log error message if request failed
         if (res.statusCode >= 400 && responseBody) {
-          auditData.errorMessage = responseBody.message || responseBody.error || `HTTP ${res.statusCode}`;
+          const errMsg = responseBody.message || responseBody.error || `HTTP ${res.statusCode}`;
+          auditData.errorMessage = typeof errMsg === 'string' ? maskString(errMsg) : `HTTP ${res.statusCode}`;
         }
 
         if (logResponseBody && responseBody && typeof responseBody === 'object') {
@@ -412,14 +456,15 @@ const auditAction = (action, actionType, module, category) => {
           severity: res.statusCode >= 400 ? AuditSeverity.WARNING : AuditSeverity.INFO,
           ipAddress: getClientIp(req),
           userAgent: req.headers['user-agent'],
-          requestPath: req.originalUrl || req.url,
+          requestPath: stripQuery(req.originalUrl || req.url),
           requestMethod: req.method,
           responseStatus: res.statusCode,
           duration,
           targetId: req.params?.id || body?.data?.id,
           metadata: {
-            params: req.params,
-            success: body?.success
+            params: maskSensitiveData(req.params),
+            success: body?.success,
+            ...(req.id ? { requestId: req.id } : {})
           },
           errorMessage: body?.success === false ? body?.message : null
         });
@@ -438,5 +483,7 @@ module.exports = {
   auditMiddleware,
   auditAction,
   maskSensitiveData,
+  isSensitiveKey,
+  stripQuery,
   getClientIp
 };

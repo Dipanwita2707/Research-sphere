@@ -1,4 +1,7 @@
 const service = require('../services/drdAnalytics.service');
+const { createModuleLogger } = require('../../../shared/utils/logger');
+
+const logger = createModuleLogger('drd-analytics');
 
 function getFilters(req) {
   const {
@@ -26,9 +29,10 @@ async function handle(res, fn) {
     res.json({ success: true, data });
   } catch (error) {
     const statusCode = error.statusCode || 500;
+    if (statusCode >= 500) logger.error('DRD analytics request failed', { error: error.message, stack: error.stack });
     res.status(statusCode).json({
       success: false,
-      message: error.message || 'Failed to load DRD analytics',
+      message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to load DRD analytics',
     });
   }
 }

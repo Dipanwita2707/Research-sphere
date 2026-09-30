@@ -15,7 +15,7 @@ const createIprApplication = async (req, res) => {
   } catch (error) {
     console.error('Create IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to create IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to create IPR application' });
   }
 };
 
@@ -28,7 +28,7 @@ const submitIprApplication = async (req, res) => {
   } catch (error) {
     console.error('Submit IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to submit IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to submit IPR application' });
   }
 };
 
@@ -36,7 +36,7 @@ const submitIprApplication = async (req, res) => {
 
 const getAllIprApplications = async (req, res) => {
   try {
-    const { applications, total, page, limit } = await iprService.getAllApplications(req.query, req.tenantId);
+    const { applications, total, page, limit } = await iprService.getAllApplications(req.query, req.user);
     res.json({
       success: true,
       data: applications,
@@ -44,7 +44,7 @@ const getAllIprApplications = async (req, res) => {
     });
   } catch (error) {
     console.error('Get IPR applications error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch IPR applications', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch IPR applications' });
   }
 };
 
@@ -52,12 +52,12 @@ const getAllIprApplications = async (req, res) => {
 
 const getIprApplicationById = async (req, res) => {
   try {
-    const application = await iprService.getApplicationById(req.params.id);
+    const application = await iprService.getApplicationById(req.params.id, req.user);
     res.json({ success: true, data: application });
   } catch (error) {
     console.error('Get IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to fetch IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to fetch IPR application' });
   }
 };
 
@@ -70,7 +70,7 @@ const updateIprApplication = async (req, res) => {
   } catch (error) {
     console.error('Update IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to update IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to update IPR application' });
   }
 };
 
@@ -83,7 +83,7 @@ const deleteIprApplication = async (req, res) => {
   } catch (error) {
     console.error('Delete IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to delete IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to delete IPR application' });
   }
 };
 
@@ -95,7 +95,7 @@ const getMyIprApplications = async (req, res) => {
     res.json({ success: true, data: applications, grouped, stats, ...(pagination ? { pagination } : {}) });
   } catch (error) {
     console.error('Get my IPR applications error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch your IPR applications', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch your IPR applications' });
   }
 };
 
@@ -107,7 +107,7 @@ const getMyPublishedProvisionals = async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Get published provisionals error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch published provisional applications', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch published provisional applications' });
   }
 };
 
@@ -120,7 +120,7 @@ const getMyIprApplicationById = async (req, res) => {
   } catch (error) {
     console.error('Get my IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to fetch IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to fetch IPR application' });
   }
 };
 
@@ -132,7 +132,7 @@ const getIprStatistics = async (req, res) => {
     res.json({ success: true, data });
   } catch (error) {
     console.error('Get IPR statistics error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch IPR statistics', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch IPR statistics' });
   }
 };
 
@@ -145,7 +145,7 @@ const resubmitIprApplication = async (req, res) => {
   } catch (error) {
     console.error('Error resubmitting IPR application:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to resubmit IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to resubmit IPR application' });
   }
 };
 
@@ -157,7 +157,7 @@ const getContributedIprApplications = async (req, res) => {
     res.status(200).json({ success: true, message: 'Contributed IPR applications retrieved successfully', data: applications, count: applications.length });
   } catch (error) {
     console.error('Get contributed IPR applications error:', error);
-    res.status(500).json({ success: false, message: 'Failed to get contributed IPR applications', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to get contributed IPR applications' });
   }
 };
 
@@ -168,7 +168,7 @@ const getContributedIprApplicationById = async (req, res) => {
   } catch (error) {
     console.error('Get contributed IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to get IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to get IPR application' });
   }
 };
 
@@ -180,7 +180,7 @@ const getPendingMentorApprovals = async (req, res) => {
     res.json({ success: true, data: applications, total: applications.length });
   } catch (error) {
     console.error('Get pending mentor approvals error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch pending mentor approvals', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch pending mentor approvals' });
   }
 };
 
@@ -190,7 +190,7 @@ const getMentorReviewHistory = async (req, res) => {
     res.json({ success: true, data, stats });
   } catch (error) {
     console.error('Get mentor review history error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch mentor review history', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch mentor review history' });
   }
 };
 
@@ -201,7 +201,7 @@ const getMentorApplicationById = async (req, res) => {
   } catch (error) {
     console.error('Get mentor IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to fetch IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to fetch IPR application' });
   }
 };
 
@@ -212,7 +212,7 @@ const approveMentorApplication = async (req, res) => {
   } catch (error) {
     console.error('Mentor approve IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to approve IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to approve IPR application' });
   }
 };
 
@@ -223,7 +223,7 @@ const rejectMentorApplication = async (req, res) => {
   } catch (error) {
     console.error('Mentor reject IPR application error:', error);
     const status = error.statusCode || 500;
-    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to reject IPR application', error: error.message });
+    res.status(status).json({ success: false, message: error.statusCode ? error.message : 'Failed to reject IPR application' });
   }
 };
 

@@ -9,6 +9,8 @@ const crypto = require('crypto');
 const multer = require('multer');
 const path = require('path');
 const { uploadToS3, downloadFromS3, deleteFromS3, getS3FileMetadata } = require('../../../shared/utils/s3');
+const { resolveLocalFile, sendResolvedFile } = require('../../uploads/fileAccess.service');
+const { safeUploadFolder, authorizeFileKey, canDeleteFile } = require('../utils/uploadPaths');
 
 const UPLOADS_DIR = path.join(__dirname, '../../../uploads');
 
@@ -124,7 +126,10 @@ const uploadFile = async (req, res) => {
       });
     }
 
-    const folder = req.body.folder || 'documents';
+    const folder = safeUploadFolder(req.body.folder, 'documents');
+    if (!folder) {
+      return res.status(400).json({ success: false, message: 'Invalid upload folder' });
+    }
     const userId = req.user.id;
     let result;
 
@@ -163,8 +168,7 @@ const uploadFile = async (req, res) => {
     console.error('File upload error:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to upload file',
-      error: error.message,
+      message: 'Failed to upload file',
     });
   }
 };
@@ -181,7 +185,10 @@ const uploadPrototypeFile = async (req, res) => {
       });
     }
 
-    const folder = req.body.folder || 'ipr/prototypes';
+    const folder = safeUploadFolder(req.body.folder, 'ipr/prototypes');
+    if (!folder) {
+      return res.status(400).json({ success: false, message: 'Invalid upload folder' });
+    }
     const userId = req.user.id;
     let result;
 
@@ -220,16 +227,20 @@ const uploadPrototypeFile = async (req, res) => {
     console.error('Prototype upload error:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to upload prototype file',
-      error: error.message,
+      message: 'Failed to upload prototype file',
     });
   }
 };
 
+const sendPathError = (res, code) => res.status(code).json({
+  success: false,
+  message: code === 400 ? 'Invalid file path' : 'File not found',
+});
+
 /**
  * Controller: Download file (local disk first, then S3)
  */
-const downloadFile = async (req, res) => {
+const downloadFile = async (req, res, next) => {
   try {
     let filePath = req.params[0] || req.params.filePath;
     if (!filePath && req.path && req.path.startsWith('/download/')) {
@@ -242,20 +253,18 @@ const downloadFile = async (req, res) => {
       });
     }
 
-    const localPath = path.join(UPLOADS_DIR, filePath);
-    if (fs.existsSync(localPath)) {
-      const stat = fs.statSync(localPath);
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Content-Length', stat.size);
-      res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
-      fs.createReadStream(localPath).pipe(res);
-      return;
-    }
+    const access = await authorizeFileKey(filePath, req);
+    if (access.error) return sendPathError(res, access.error);
 
-    const result = await downloadFromS3(filePath);
+    const localPath = resolveLocalFile(access.segments);
+    if (localPath) return sendResolvedFile(res, localPath, next);
+
+    const result = await downloadFromS3(access.key);
+    const fileName = path.basename(access.key).replace(/[^\w.\-]/g, '_');
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Content-Length', result.contentLength);
-    res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, max-age=300'); // Cache 5 min for repeat loads (e.g. sponsor logos)
     result.stream.pipe(res);
   } catch (error) {
@@ -268,8 +277,7 @@ const downloadFile = async (req, res) => {
     }
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to download file',
-      error: error.message,
+      message: 'Failed to download file',
     });
   }
 };
@@ -287,14 +295,17 @@ const getFileInfo = async (req, res) => {
       });
     }
 
-    const localPath = path.join(UPLOADS_DIR, filePath);
-    if (fs.existsSync(localPath)) {
+    const access = await authorizeFileKey(filePath, req);
+    if (access.error) return sendPathError(res, access.error);
+
+    const localPath = resolveLocalFile(access.segments);
+    if (localPath) {
       const stat = fs.statSync(localPath);
       return res.json({
         success: true,
         data: {
-          s3Key: filePath,
-          fileName: path.basename(filePath),
+          s3Key: access.key,
+          fileName: path.basename(access.key),
           contentType: 'application/octet-stream',
           size: stat.size,
           lastModified: stat.mtime,
@@ -303,12 +314,12 @@ const getFileInfo = async (req, res) => {
       });
     }
 
-    const metadata = await getS3FileMetadata(filePath);
+    const metadata = await getS3FileMetadata(access.key);
     res.json({
       success: true,
       data: {
-        s3Key: filePath,
-        fileName: path.basename(filePath),
+        s3Key: access.key,
+        fileName: path.basename(access.key),
         contentType: metadata.contentType,
         size: metadata.contentLength,
         lastModified: metadata.lastModified,
@@ -322,14 +333,14 @@ const getFileInfo = async (req, res) => {
     }
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to get file info',
-      error: error.message,
+      message: 'Failed to get file info',
     });
   }
 };
 
 /**
- * Controller: Delete file (local first, then S3)
+ * Controller: Delete file (local first, then S3).
+ * Only the uploader, or an admin/superadmin of the same university, may delete.
  */
 const deleteFile = async (req, res) => {
   try {
@@ -341,8 +352,18 @@ const deleteFile = async (req, res) => {
       });
     }
 
-    const localPath = path.join(UPLOADS_DIR, filePath);
-    if (fs.existsSync(localPath)) {
+    const access = await authorizeFileKey(filePath, req);
+    if (access.error) return sendPathError(res, access.error);
+
+    if (!canDeleteFile(access.segments, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete files you uploaded',
+      });
+    }
+
+    const localPath = resolveLocalFile(access.segments);
+    if (localPath) {
       fs.unlinkSync(localPath);
       return res.json({
         success: true,
@@ -350,7 +371,7 @@ const deleteFile = async (req, res) => {
       });
     }
 
-    await deleteFromS3(filePath);
+    await deleteFromS3(access.key);
     res.json({
       success: true,
       message: 'File deleted successfully',
@@ -359,8 +380,7 @@ const deleteFile = async (req, res) => {
     console.error('File delete error:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to delete file',
-      error: error.message,
+      message: 'Failed to delete file',
     });
   }
 };

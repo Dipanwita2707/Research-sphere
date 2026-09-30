@@ -39,7 +39,7 @@ describe('research workflow lifecycle', () => {
         applicantUser: {
           id: 'applicant-1',
           uid: 'FAC001',
-          role: { name: 'faculty' },
+          role: 'faculty',
           studentLogin: null,
         },
         authors: [
@@ -182,6 +182,13 @@ describe('research workflow lifecycle', () => {
       researchContributionReview: {
         updateMany: jest.fn(),
         findMany: jest.fn(),
+        // resubmitContribution re-assigns the reviewer who last requested changes
+        findFirst: jest.fn(async ({ where }) =>
+          [...state.reviews].reverse().find((review) =>
+            review.researchContributionId === where.researchContributionId &&
+            review.decision === where.decision
+          ) || null
+        ),
       },
       researchIncentivePolicy: {
         findFirst: jest.fn(async () => ({
@@ -269,7 +276,7 @@ describe('research workflow lifecycle', () => {
   });
 
   test('supports mentor approval path before DRD review', async () => {
-    state.contribution.applicantUser.role.name = 'student';
+    state.contribution.applicantUser.role = 'student';
     state.contribution.applicantUser.studentLogin = { id: 'student-login-1' };
     state.contribution.applicantDetails.mentorUid = 'MENTOR001';
     state.contribution.applicantDetails.mentorName = 'Mentor';

@@ -400,7 +400,7 @@ exports.updateDepartment = async (req, res) => {
 
     // Check if department code is being changed and already exists
     if (departmentCode && departmentCode !== existing.departmentCode) {
-      const codeExists = await prisma.department.findUnique({
+      const codeExists = await prisma.department.findFirst({
         where: { departmentCode },
       });
 

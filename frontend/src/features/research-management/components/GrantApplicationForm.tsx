@@ -23,11 +23,12 @@ import {
   Info
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
-import api, { getFileUrl } from '@/shared/api/api';
+import api from '@/shared/api/api';
 import InvestigatorManager from './InvestigatorManager';
 import grantPolicyService, { GrantIncentivePolicy } from '@/features/research-management/services/grantPolicy.service';
 import { logger } from '@/shared/utils/logger';
 import { extractErrorMessage } from '@/shared/types/api.types';
+import { getDocumentUrl } from '@/features/research-management/services/documentUrl';
 
 // SDG Goals - Same as research contribution form
 const SDG_GOALS = [
@@ -1844,7 +1845,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     </div>
                   </div>
                   <a
-                    href={getFileUrl(existingProposalPath)}
+                    href={getDocumentUrl(existingProposalPath)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#7d1a34] hover:text-[#7d1a34] text-sm font-medium"

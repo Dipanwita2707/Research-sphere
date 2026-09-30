@@ -10,10 +10,11 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "prisma:deploy": "prisma migrate deploy",
     "seed": "node src/shared/database/seed.js",
-    "seed:admin": "node scripts/database/seeds/seed-admin.js",
-    "cleanup:noting": "node scripts/cleanup-noting.js",
-    "migrate:noting-view-key": "node scripts/migrate-noting-view-permission-key.js",
+    "seed:superadmin": "node scripts/database/seeds/seed-superadmin.js",
+    "seed:research-policy": "node scripts/database/seeds/seed-research-policy-updated.js",
+    "seed:conference-policies": "node scripts/database/seeds/seed-conference-policy-not-indexed.js",
     "build:protect": "javascript-obfuscator src/shared/utils/licensing.js --output dist/licensing.protected.js --compact true --self-defending true --string-array true --string-array-encoding rc4",
     "build:protected": "node scripts/build-protected-dist.js",
     "test": "jest"
@@ -60,7 +61,6 @@
     "socket.io": "^4.7.2",
     "uuid": "^9.0.0",
     "winston": "^3.19.0",
-    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

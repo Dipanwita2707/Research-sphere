@@ -46,7 +46,6 @@ exports.getAllConferencePolicies = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch conference policies',
-      error: error.message
     });
   }
 };
@@ -96,7 +95,6 @@ exports.getActivePolicyBySubType = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch active conference policy',
-      error: error.message
     });
   }
 };
@@ -136,7 +134,6 @@ exports.getConferencePolicyById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch conference policy',
-      error: error.message
     });
   }
 };
@@ -272,7 +269,6 @@ exports.createConferencePolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create conference policy',
-      error: error.message
     });
   }
 };
@@ -354,7 +350,6 @@ exports.updateConferencePolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update conference policy',
-      error: error.message
     });
   }
 };
@@ -403,7 +398,6 @@ exports.deleteConferencePolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete conference policy',
-      error: error.message
     });
   }
 };

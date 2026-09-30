@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const { bindMiddleware } = require('../../../shared/tenancy/tenantContext');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -69,7 +70,6 @@ const requireGrantAccess = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: 'Failed to verify permissions',
-      error: error.message
     });
   }
 };
@@ -82,7 +82,7 @@ router.use(protect);
  * @desc    Create a new grant application
  * @access  Private
  */
-router.post('/', upload.single('proposalFile'), grantController.createGrantApplication);
+router.post('/', bindMiddleware(upload.single('proposalFile')), grantController.createGrantApplication);
 
 /**
  * @route   GET /api/grants/my-grants

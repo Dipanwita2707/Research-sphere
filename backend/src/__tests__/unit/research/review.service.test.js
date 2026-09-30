@@ -144,6 +144,8 @@ describe('research review.service - extended coverage', () => {
   }
 
   beforeEach(() => {
+    // DRD permission lookups are cached per process; start every test from a clean cache
+    ReviewService.clearPermissionCache();
     reviewRepo = {
       create: jest.fn().mockResolvedValue({}),
       findMany: jest.fn().mockResolvedValue([]),

@@ -38,7 +38,6 @@ exports.getAllBookChapterPolicies = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch book chapter policies',
-      error: error.message
     });
   }
 };
@@ -79,7 +78,6 @@ exports.getActivePolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch active book chapter policy',
-      error: error.message
     });
   }
 };
@@ -185,7 +183,6 @@ exports.createBookChapterPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create book chapter policy',
-      error: error.message
     });
   }
 };
@@ -261,7 +258,6 @@ exports.updateBookChapterPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update book chapter policy',
-      error: error.message
     });
   }
 };
@@ -310,7 +306,6 @@ exports.deleteBookChapterPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete book chapter policy',
-      error: error.message
     });
   }
 };
@@ -328,16 +323,12 @@ exports.getBookChapterPolicyById = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
             email: true
           }
         },
         updatedBy: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
             email: true
           }
         }
@@ -367,7 +358,6 @@ exports.getBookChapterPolicyById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch book chapter policy',
-      error: error.message
     });
   }
 };

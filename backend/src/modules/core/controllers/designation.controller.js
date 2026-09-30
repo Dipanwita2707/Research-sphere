@@ -1,4 +1,6 @@
 const prisma = require('../../../shared/config/database');
+const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
+const cache = require('../../../shared/config/redis');
 const {
   DSW_PERMISSIONS,
   NOTING_PERMISSIONS,
@@ -434,7 +436,7 @@ exports.getUserPermissions = async (req, res) => {
       where: { id: userId },
       include: {
         employeeDetails: true,
-        userDepartmentPermissions: true
+        departmentPermissions: true
       }
     });
 
@@ -453,7 +455,7 @@ exports.getUserPermissions = async (req, res) => {
 
     // Get user's custom permissions from database
     const customPermissions = {};
-    user.userDepartmentPermissions.forEach(dp => {
+    user.departmentPermissions.forEach(dp => {
       if (dp.permissions && typeof dp.permissions === 'object') {
         Object.assign(customPermissions, dp.permissions);
       }
@@ -514,6 +516,13 @@ exports.updateUserPermissions = async (req, res) => {
       });
     }
 
+    if (!user.universityId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not linked to a university'
+      });
+    }
+
     // Update or create permission record
     const updatedPermission = await prisma.userDepartmentPermission.upsert({
       where: {
@@ -528,6 +537,7 @@ exports.updateUserPermissions = async (req, res) => {
         assignedAt: new Date()
       },
       create: {
+        universityId: user.universityId,
         userId: userId,
         department: department,
         permissions: permissions,
@@ -537,21 +547,21 @@ exports.updateUserPermissions = async (req, res) => {
       }
     });
 
+    await cache.invalidateUser(userId);
+
     // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'UPDATE_PERMISSIONS',
-        entityType: 'UserDepartmentPermission',
-        entityId: updatedPermission.id,
-        changes: {
-          userId: userId,
-          department: department,
-          permissions: permissions
-        },
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent']
-      }
+    await auditService.log({
+      actorId: req.user.id,
+      universityId: user.universityId,
+      action: 'UPDATE_PERMISSIONS',
+      actionType: AuditActionType.PERMISSION_CHANGE || AuditActionType.UPDATE,
+      module: AuditModule.ADMIN,
+      severity: AuditSeverity.WARNING,
+      targetTable: 'user_department_permission',
+      targetId: updatedPermission.id,
+      details: { userId, department, permissions },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
     });
 
     res.status(200).json({
@@ -598,6 +608,13 @@ exports.applyDesignationTemplate = async (req, res) => {
       });
     }
 
+    if (!user.universityId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not linked to a university'
+      });
+    }
+
     const template = DESIGNATION_TEMPLATES[designation];
 
     // Apply permissions for each department in template
@@ -615,6 +632,7 @@ exports.applyDesignationTemplate = async (req, res) => {
           assignedAt: new Date()
         },
         create: {
+          universityId: user.universityId,
           userId: userId,
           department: dept,
           permissions: template.defaultPermissions,
@@ -625,20 +643,21 @@ exports.applyDesignationTemplate = async (req, res) => {
       });
     }
 
+    await cache.invalidateUser(userId);
+
     // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user.id,
-        action: 'APPLY_DESIGNATION_TEMPLATE',
-        entityType: 'UserDepartmentPermission',
-        entityId: userId,
-        changes: {
-          designation: designation,
-          template: template
-        },
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent']
-      }
+    await auditService.log({
+      actorId: req.user.id,
+      universityId: user.universityId,
+      action: 'APPLY_DESIGNATION_TEMPLATE',
+      actionType: AuditActionType.PERMISSION_CHANGE || AuditActionType.UPDATE,
+      module: AuditModule.ADMIN,
+      severity: AuditSeverity.WARNING,
+      targetTable: 'user_login',
+      targetId: userId,
+      details: { designation, template },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
     });
 
     res.status(200).json({

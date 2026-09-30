@@ -1,5 +1,6 @@
 const prisma = require('../../../shared/config/database');
 const { logIprStatusChange, logIprUpdate } = require('../../../shared/utils/auditLogger');
+const { canViewIpr, IPR_ACCESS_INCLUDE } = require('../utils/objectAccess');
 
 // Non-blocking audit helper
 const _auditIprStatus = (application, oldStatus, newStatus, userId, req, comments) => {
@@ -282,7 +283,6 @@ const getPendingDrdReviews = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pending reviews',
-      error: error.message,
     });
   }
 };
@@ -345,7 +345,6 @@ const assignDrdReviewer = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign reviewer',
-      error: error.message,
     });
   }
 };
@@ -459,7 +458,6 @@ const submitDrdReview = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to submit review',
-      error: error.message,
     });
   }
 };
@@ -517,7 +515,6 @@ const acceptEditsAndResubmit = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to accept edits',
-      error: error.message,
     });
   }
 };
@@ -612,7 +609,6 @@ const getDrdReviewStatistics = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics',
-      error: error.message,
     });
   }
 };
@@ -757,7 +753,6 @@ const finalApproval = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to approve application',
-      error: error.message
     });
   }
 };
@@ -834,7 +829,6 @@ const finalRejection = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to reject application',
-      error: error.message
     });
   }
 };
@@ -958,7 +952,6 @@ const requestChanges = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to request changes',
-      error: error.message
     });
   }
 };
@@ -1004,7 +997,6 @@ const systemOverride = async (req, res) => {
         applicantUser: {
           include: {
             employeeDetails: true,
-            permissions: true
           }
         },
         applicantDetails: true,
@@ -1065,7 +1057,6 @@ const systemOverride = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to apply system override',
-      error: error.message
     });
   }
 };
@@ -1148,7 +1139,6 @@ const recommendToHead = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to recommend application',
-      error: error.message
     });
   }
 };
@@ -1230,7 +1220,6 @@ const headApproveAndSubmitToGovt = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to approve application',
-      error: error.message
     });
   }
 };
@@ -1331,7 +1320,6 @@ const addGovtApplicationId = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to add Government Application ID',
-      error: error.message
     });
   }
 };
@@ -1671,7 +1659,6 @@ const addPublicationId = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to add Publication ID',
-      error: error.message
     });
   }
 };
@@ -1765,7 +1752,6 @@ const markGovtRejected = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to mark application as rejected',
-      error: error.message
     });
   }
 };
@@ -1888,7 +1874,6 @@ const addStatusUpdate = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to add status update',
-      error: error.message,
     });
   }
 };
@@ -1902,33 +1887,16 @@ const getStatusUpdates = async (req, res) => {
     const { id } = req.params; // IPR application ID
     const userId = req.user.id;
 
-    // Check if user has access to this application
-    const iprApplication = await prisma.iprApplication.findFirst({
-      where: {
-        id,
-        OR: [
-          { applicantUserId: userId }, // Applicant
-          { contributors: { some: { userId } } }, // Contributor/Inventor
-        ]
-      }
+    // Applicant, inventors/contributors, mentor, reviewers and IPR staff only; others get 404
+    const iprApplication = await prisma.iprApplication.findUnique({
+      where: { id },
+      include: IPR_ACCESS_INCLUDE,
     });
-
-    // If not applicant/inventor, check DRD permissions from req.user (includes role-based)
-    if (!iprApplication) {
-      let hasDrdPermission = false;
-      
-      if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
-        hasDrdPermission = req.user.centralDeptPermissions.some(deptPerm => {
-          return deptPerm.permissions && Object.keys(deptPerm.permissions).length > 0;
-        });
-      }
-
-      if (!hasDrdPermission) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have permission to view updates for this application',
-        });
-      }
+    if (!canViewIpr(req.user, iprApplication)) {
+      return res.status(404).json({
+        success: false,
+        message: 'IPR application not found',
+      });
     }
 
     // Get status updates
@@ -1956,7 +1924,6 @@ const getStatusUpdates = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get status updates',
-      error: error.message,
     });
   }
 };
@@ -2025,7 +1992,6 @@ const deleteStatusUpdate = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete status update',
-      error: error.message,
     });
   }
 };

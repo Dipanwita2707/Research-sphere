@@ -12,6 +12,13 @@ export interface BulkUploadResult {
     message: string;
     data: any;
   }>;
+  /** Passwords generated for rows without one; returned only once by the server. */
+  generatedCredentials?: Array<{
+    row: number;
+    uid?: string;
+    email?: string;
+    generatedPassword: string;
+  }>;
 }
 
 export interface PreviewData {

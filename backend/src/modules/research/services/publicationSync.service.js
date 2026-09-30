@@ -1,6 +1,7 @@
 const { createModuleLogger } = require('../../../shared/utils/logger');
 const { isAffiliationMatch } = require('../../../shared/utils/affiliationEngine');
 const affiliationService = require('../../core/services/affiliation.service');
+const tenantContext = require('../../../shared/tenancy/tenantContext');
 
 const log = createModuleLogger('research-publication-sync');
 
@@ -53,6 +54,39 @@ class PublicationSyncService {
     }
   }
 
+  /**
+   * Run fn(runner) for one user inside that user's university, on a per-run copy of
+   * this service.
+   *
+   * - Inside a tenant context (request or job) the run stays in that tenant; a
+   *   different explicit universityId is refused (the user is "not found").
+   * - Outside any tenant (legacy scheduler, superadmin global view) the user's own
+   *   university is looked up and the run is wrapped in runForTenant, so reads are
+   *   filtered and created contributions/imports are stamped with universityId.
+   * - The sync keeps per-run caches and the affiliation context on `this`; the copy
+   *   (Object.create) keeps concurrent runs for different tenants from sharing them.
+   */
+  async _runForUser(userId, universityId, fn) {
+    const runner = Object.create(this);
+    const current = tenantContext.getTenantId();
+    if (current) {
+      if (universityId && universityId !== current) {
+        const error = new Error('User not found');
+        error.statusCode = 404;
+        throw error;
+      }
+      return fn(runner);
+    }
+    let tenantId = universityId || null;
+    if (!tenantId) {
+      const owner = await tenantContext.runAsSystem(() =>
+        this.prisma.userLogin.findUnique({ where: { id: userId }, select: { universityId: true } })
+      );
+      tenantId = owner?.universityId || null;
+    }
+    return tenantId ? tenantContext.runForTenant(tenantId, () => fn(runner)) : fn(runner);
+  }
+
   /** Whether the current tenant is the legacy SGT University (for Scopus afid fallback only). */
   _isSgtTenant() {
     return this._universityCode === 'SGT';
@@ -90,7 +124,17 @@ class PublicationSyncService {
     };
   }
 
-  async upsertProfileIdentity(userId, payload = {}) {
+  /**
+   * Create/update a user's research profile identity.
+   * @param {string} userId
+   * @param {object} payload
+   * @param {{ universityId?: string }} [options] - tenant to run in when called outside a request
+   */
+  async upsertProfileIdentity(userId, payload = {}, { universityId } = {}) {
+    return this._runForUser(userId, universityId, (runner) => runner._upsertProfileIdentity(userId, payload));
+  }
+
+  async _upsertProfileIdentity(userId, payload = {}) {
     const data = {
       orcid: payload.orcid !== undefined ? this._normalizeOrcid(payload.orcid) : undefined,
       scopusAuthorId: payload.scopusAuthorId !== undefined ? this._normalizeScopusAuthorId(payload.scopusAuthorId) : undefined,
@@ -123,6 +167,13 @@ class PublicationSyncService {
         studentLogin: { select: { displayName: true } }
       }
     });
+
+    // The lookup is tenant-scoped: never create an identity for a user of another university
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
 
     const userDisplayName = user?.employeeDetails?.displayName || user?.studentLogin?.displayName || user?.uid;
 
@@ -229,7 +280,17 @@ class PublicationSyncService {
     });
   }
 
+  /**
+   * Import manually supplied publications for a user.
+   * @param {string} userId
+   * @param {object} options - { publications, importFormat, triggeredById, actor, universityId? }
+   *   universityId: tenant to run in when called outside a request (optional otherwise)
+   */
   async importManualPublications(userId, options = {}) {
+    return this._runForUser(userId, options.universityId, (runner) => runner._importManualPublications(userId, options));
+  }
+
+  async _importManualPublications(userId, options = {}) {
     const {
       publications = [],
       importFormat = 'manual',
@@ -381,7 +442,17 @@ class PublicationSyncService {
     }
   }
 
+  /**
+   * Sync a faculty member's publications from ORCID/Scopus/OpenAlex.
+   * @param {string} userId
+   * @param {object} options - { triggeredById, triggerType, sourcePreference, universityId? }
+   *   universityId: tenant to run in when called outside a request (optional otherwise)
+   */
   async syncFacultyPublications(userId, options = {}) {
+    return this._runForUser(userId, options.universityId, (runner) => runner._syncFacultyPublications(userId, options));
+  }
+
+  async _syncFacultyPublications(userId, options = {}) {
     this._authorMatchCache = new Map();
     this._openAlexInstCache = null;
     const {
@@ -571,28 +642,49 @@ class PublicationSyncService {
     }
   }
 
-  async runScheduledSync() {
+  /**
+   * Sync every profile that is due.
+   * @param {{ universityId?: string }} [options]
+   *   universityId: process only this university (runs inside runForTenant when no tenant
+   *   context is active). Without it and without a tenant context, profiles of every
+   *   university are read explicitly (runAsSystem) and each is synced inside its own
+   *   university's context.
+   * @returns {Promise<Array<{ userId, status, result?, error? }>>}
+   */
+  async runScheduledSync({ universityId } = {}) {
+    const current = tenantContext.getTenantId();
+    if (universityId && current !== universityId) {
+      if (current) throw new Error('runScheduledSync: universityId does not match the active tenant');
+      return tenantContext.runForTenant(universityId, () => this.runScheduledSync({ universityId }));
+    }
+
     const now = new Date();
-    const identities = await this.prisma.researchProfileIdentity.findMany({
+    const scoped = Boolean(current);
+    const loadIdentities = () => this.prisma.researchProfileIdentity.findMany({
       where: {
         autoSyncEnabled: true,
       },
       select: {
         userId: true,
+        universityId: true,
         lastSyncedAt: true,
         syncFrequencyDays: true,
       },
       take: 500,
     });
+    const identities = scoped ? await loadIdentities() : await tenantContext.runAsSystem(loadIdentities);
 
     const results = [];
     const dueIdentities = identities.filter((identity) => this._isSyncDue(identity, now));
 
     for (const identity of dueIdentities) {
       try {
-        const result = await this.syncFacultyPublications(identity.userId, {
+        const run = () => this.syncFacultyPublications(identity.userId, {
           triggerType: 'scheduled',
         });
+        const result = !scoped && identity.universityId
+          ? await tenantContext.runForTenant(identity.universityId, run)
+          : await run();
         results.push({ userId: identity.userId, status: 'success', result });
       } catch (error) {
         results.push({ userId: identity.userId, status: 'failed', error: error.message });

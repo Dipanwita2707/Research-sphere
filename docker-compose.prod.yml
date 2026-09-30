@@ -25,7 +25,10 @@ services:
       - backend_uploads:/app/uploads
     networks:
       - app-network
+    # server.js drains for up to SHUTDOWN_TIMEOUT_MS (25 s) on SIGTERM
+    stop_grace_period: 30s
     healthcheck:
+      # liveness (/health, no DB); load balancers should use /ready for readiness
       test: ["CMD", "node", "healthcheck.js"]
       interval: 30s
       timeout: 10s

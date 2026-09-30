@@ -71,7 +71,7 @@ const getBugReportById = async (req, res) => {
     });
 
     // Handle specific error cases
-    if (error.message === 'Bug report not found') {
+    if (error.statusCode === 404) {
       return res.status(404).json({
         error: 'Not Found',
         message: 'Bug report not found',
@@ -122,14 +122,14 @@ const updateResolutionStatus = async (req, res) => {
     });
 
     // Handle specific error cases
-    if (error.message === 'Bug report not found') {
+    if (error.statusCode === 404) {
       return res.status(404).json({
         error: 'Not Found',
         message: 'Bug report not found',
       });
     }
 
-    if (error.message.includes('required') || error.message.includes('must be')) {
+    if (error.isOperational && error.statusCode === 400) {
       return res.status(400).json({
         error: 'Validation Error',
         message: error.message,

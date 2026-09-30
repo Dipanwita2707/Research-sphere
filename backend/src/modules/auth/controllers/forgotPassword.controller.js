@@ -7,61 +7,90 @@
 
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../../../shared/config/database');
+const config = require('../../../shared/config/app.config');
+const cache = require('../../../shared/config/redis');
 const { emailService } = require('../../core/services/email.service');
+const { auditService, AuditActionType, AuditSeverity, AuditModule } = require('../../audit/services/audit.service');
+const { getClientIp } = require('../../../shared/middleware/audit.middleware');
+const { createModuleLogger } = require('../../../shared/utils/logger');
+const { checkNewPassword } = require('../utils/passwordPolicy');
+const { REVOKE_SESSIONS_DATA } = require('../services/session.service');
 
-const prisma = new PrismaClient();
+const log = createModuleLogger('auth:password-reset');
 
 const TOKEN_EXPIRY_MINUTES = 30;
+const GENERIC_FORGOT_RESPONSE = {
+  success: true,
+  message: 'If this email is registered you will receive a reset link shortly.'
+};
+const INVALID_LINK = 'This reset link is invalid or has expired. Please request a new one.';
+
+/** Only the SHA-256 of a reset token is stored, so a database leak does not leak usable links. */
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+
+const hashResetToken = (rawToken) => crypto.createHash('sha256').update(rawToken, 'utf8').digest('hex');
 
 /* ---------------------------------------------------------------
    POST /api/auth/forgot-password
    Body: { email }
+   Always answers with the same message (no account enumeration). The DB
+   work and the email are done after the response so that timing does not
+   reveal whether the address exists either.
 --------------------------------------------------------------- */
 exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
+  const { email } = req.body || {};
 
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ success: false, message: 'Email is required' });
+  if (!email || typeof email !== 'string' || email.length > 254) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  const sanitizedEmail = email.trim().toLowerCase();
+  res.json(GENERIC_FORGOT_RESPONSE);
+
+  issueResetLink(sanitizedEmail).catch((error) => {
+    log.error('[forgotPassword] Failed to issue reset link:', error.message);
+  });
+};
+
+const issueResetLink = async (sanitizedEmail) => {
+  // Runs outside any tenant context: the lookup is unscoped (email is unique)
+  const user = await prisma.userLogin.findFirst({
+    where: { email: sanitizedEmail },
+    select: {
+      id: true,
+      email: true,
+      uid: true,
+      status: true,
+      anonymizedAt: true,
+      employeeDetails: { select: { firstName: true } }
     }
+  });
 
-    const sanitizedEmail = email.trim().toLowerCase();
+  if (!user || !user.email || user.status !== 'active' || user.anonymizedAt) {
+    return;
+  }
 
-    // Find the user (silently succeed even if email not found – avoids enumeration)
-    const user = await prisma.userLogin.findFirst({
-      where: { email: sanitizedEmail },
-      select: { id: true, email: true, uid: true, employeeDetails: { select: { firstName: true } } }
-    });
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
 
-    // Always return success to prevent email enumeration
-    if (!user || !user.email) {
-      return res.json({
-        success: true,
-        message: 'If this email is registered you will receive a reset link shortly.'
-      });
-    }
+  // Issuing a new link invalidates every older one
+  await prisma.$transaction([
+    prisma.passwordResetToken.deleteMany({ where: { userId: user.id } }),
+    prisma.passwordResetToken.create({
+      data: { userId: user.id, token: hashResetToken(rawToken), expiresAt }
+    })
+  ]);
 
-    // Invalidate any existing tokens for this user
-    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+  const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const resetLink = `${frontendBase}/reset-password?token=${rawToken}`;
+  const userName = user.employeeDetails?.firstName || user.uid || 'User';
 
-    // Generate a secure random token
-    const rawToken = crypto.randomBytes(48).toString('hex');
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
-
-    await prisma.passwordResetToken.create({
-      data: { userId: user.id, token: rawToken, expiresAt }
-    });
-
-    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const resetLink = `${frontendBase}/reset-password?token=${rawToken}`;
-    const userName = user.employeeDetails?.firstName || user.uid || 'User';
-
-    await emailService.sendEmail({
-      to: user.email,
-      subject: 'Reset Your ResearchSphere Password',
-      text: `Hello ${userName},\n\nYou requested a password reset. Use the link below within ${TOKEN_EXPIRY_MINUTES} minutes:\n\n${resetLink}\n\nIf you did not request this, please ignore this email.\n\n– ResearchSphere Team`,
-      html: `
+  await emailService.sendEmail({
+    to: user.email,
+    subject: 'Reset Your ResearchSphere Password',
+    text: `Hello ${userName},\n\nYou requested a password reset. Use the link below within ${TOKEN_EXPIRY_MINUTES} minutes:\n\n${resetLink}\n\nIf you did not request this, please ignore this email.\n\n– ResearchSphere Team`,
+    html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -90,7 +119,7 @@ exports.forgotPassword = async (req, res) => {
       <p>ResearchSphere · University Management System</p>
     </div>
     <div class="body">
-      <p>Hello <strong>${userName}</strong>,</p>
+      <p>Hello <strong>${escapeHtml(userName)}</strong>,</p>
       <p>We received a request to reset your ResearchSphere password. Click the button below to create a new password. This link expires in <strong>${TOKEN_EXPIRY_MINUTES} minutes</strong>.</p>
       <div class="btn-wrap">
         <a href="${resetLink}" class="btn">Reset My Password</a>
@@ -103,70 +132,99 @@ exports.forgotPassword = async (req, res) => {
   </div>
 </body>
 </html>
-      `
-    });
-
-    return res.json({
-      success: true,
-      message: 'If this email is registered you will receive a reset link shortly.'
-    });
-  } catch (error) {
-    console.error('[forgotPassword] Error:', error);
-    return res.status(500).json({ success: false, message: 'Something went wrong. Please try again later.' });
-  }
+    `
+  });
 };
 
 /* ---------------------------------------------------------------
    POST /api/auth/reset-password
    Body: { token, newPassword, confirmPassword }
+   Single use, 30-minute expiry. Success revokes all sessions and clears
+   any login lockout (the user just proved control of the mailbox).
 --------------------------------------------------------------- */
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, newPassword, confirmPassword } = req.body;
+    const { token, newPassword, confirmPassword } = req.body || {};
 
-    if (!token || !newPassword) {
+    if (typeof token !== 'string' || !token || typeof newPassword !== 'string' || !newPassword) {
       return res.status(400).json({ success: false, message: 'Token and new password are required.' });
     }
 
-    if (newPassword !== confirmPassword) {
+    if (confirmPassword !== undefined && newPassword !== confirmPassword) {
       return res.status(400).json({ success: false, message: 'Passwords do not match.' });
     }
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+    const tokenHash = hashResetToken(token);
+    const record = await prisma.passwordResetToken.findUnique({ where: { token: tokenHash } });
+
+    if (!record || record.usedAt || record.expiresAt <= new Date()) {
+      return res.status(400).json({ success: false, code: 'RESET_LINK_INVALID', message: INVALID_LINK });
     }
 
-    const record = await prisma.passwordResetToken.findUnique({ where: { token } });
-
-    if (!record) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired reset link.' });
+    const user = await prisma.userLogin.findUnique({
+      where: { id: record.userId },
+      select: { id: true, uid: true, email: true, passwordHash: true, status: true, anonymizedAt: true, universityId: true }
+    });
+    if (!user || user.status !== 'active' || user.anonymizedAt) {
+      return res.status(400).json({ success: false, code: 'RESET_LINK_INVALID', message: INVALID_LINK });
     }
 
-    if (record.usedAt) {
-      return res.status(400).json({ success: false, message: 'This reset link has already been used.' });
+    const policyError = await checkNewPassword(newPassword, user);
+    if (policyError) {
+      return res.status(400).json({ success: false, message: policyError });
     }
 
-    if (new Date() > record.expiresAt) {
-      await prisma.passwordResetToken.delete({ where: { token } });
-      return res.status(400).json({ success: false, message: 'This reset link has expired. Please request a new one.' });
+    const passwordHash = await bcrypt.hash(newPassword, config.bcrypt.rounds);
+    const now = new Date();
+
+    const claimed = await prisma.$transaction(async (tx) => {
+      // Claim the token atomically so two concurrent requests cannot both use it
+      const { count } = await tx.passwordResetToken.updateMany({
+        where: { id: record.id, usedAt: null, expiresAt: { gt: now } },
+        data: { usedAt: now }
+      });
+      if (count !== 1) return false;
+
+      await tx.userLogin.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          passwordChangedAt: now,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          ...REVOKE_SESSIONS_DATA
+        }
+      });
+      await tx.passwordResetToken.deleteMany({ where: { userId: user.id, id: { not: record.id } } });
+      return true;
+    });
+
+    if (!claimed) {
+      return res.status(400).json({ success: false, code: 'RESET_LINK_INVALID', message: INVALID_LINK });
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, parseInt(process.env.BCRYPT_ROUNDS) || 10);
+    await cache.invalidateUser(user.id);
 
-    await prisma.$transaction([
-      prisma.userLogin.update({
-        where: { id: record.userId },
-        data: { passwordHash }
-      }),
-      prisma.passwordResetToken.update({
-        where: { token },
-        data: { usedAt: new Date() }
-      })
-    ]);
+    auditService.log({
+      actorId: user.id,
+      universityId: user.universityId || null,
+      action: 'Password reset via email link',
+      actionType: AuditActionType.UPDATE,
+      module: AuditModule.AUTH,
+      category: 'security',
+      severity: AuditSeverity.INFO,
+      targetTable: 'user_login',
+      targetId: user.id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] || null,
+      requestPath: req.originalUrl || req.url,
+      requestMethod: 'POST',
+      responseStatus: 200
+    }).catch((e) => log.warn('Audit log (password reset) failed:', e.message));
 
     return res.json({ success: true, message: 'Password updated successfully. You can now log in.' });
   } catch (error) {
-    console.error('[resetPassword] Error:', error);
+    log.error('[resetPassword] Error:', error.message);
     return res.status(500).json({ success: false, message: 'Something went wrong. Please try again later.' });
   }
 };

@@ -42,7 +42,7 @@ const tabs: TabConfig[] = [
     label: 'Schools',
     icon: School,
     description: 'Upload schools/faculties',
-    templateFields: ['facultyCode', 'facultyName', 'shortName', 'description', 'establishedYear', 'website', 'contactEmail', 'contactPhone'],
+    templateFields: ['facultyCode', 'facultyName', 'facultyType', 'shortName', 'description', 'establishedYear', 'contactEmail', 'contactPhone', 'officeLocation', 'websiteUrl'],
     fileFormat: 'xlsx',
   },
   {
@@ -50,7 +50,7 @@ const tabs: TabConfig[] = [
     label: 'Departments',
     icon: Building2,
     description: 'Upload departments under schools',
-    templateFields: ['facultyCode', 'departmentCode', 'departmentName', 'shortName', 'description', 'establishedYear', 'contactEmail', 'contactPhone'],
+    templateFields: ['schoolCode', 'departmentCode', 'departmentName', 'shortName', 'description', 'establishedYear', 'contactEmail', 'contactPhone', 'officeLocation'],
     fileFormat: 'xlsx',
   },
   {
@@ -66,7 +66,7 @@ const tabs: TabConfig[] = [
     label: 'Faculty/Staff',
     icon: Users,
     description: 'Upload faculty and staff members',
-    templateFields: ['empId', 'firstName', 'lastName', 'email', 'phoneNumber', 'schoolCode', 'departmentCode', 'designation', 'userType', 'password'],
+    templateFields: ['empId', 'firstName', 'lastName', 'email', 'phoneNumber', 'schoolCode', 'departmentCode', 'designation', 'userType', 'password', 'scopusAuthorId', 'orcid', 'pubmedId'],
     fileFormat: 'xlsx',
   },
   {
@@ -79,7 +79,31 @@ const tabs: TabConfig[] = [
   },
 ];
 
-const isExcelFile = (fileName: string) => /\.(xlsx|xls)$/i.test(fileName);
+// The server parses .xlsx only (legacy .xls is rejected)
+const isExcelFile = (fileName: string) => /\.xlsx$/i.test(fileName);
+
+/** CSV cell: quoted, and neutralised so a spreadsheet app never evaluates it as a formula. */
+const csvCell = (value: unknown) => {
+  let text = String(value ?? '');
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+type GeneratedCredential = NonNullable<BulkUploadResult['generatedCredentials']>[number];
+
+const downloadCredentials = (rows: GeneratedCredential[]) => {
+  const lines = [
+    ['row', 'uid', 'email', 'password'].map(csvCell).join(','),
+    ...rows.map((r) => [r.row, r.uid, r.email, r.generatedPassword].map(csvCell).join(',')),
+  ];
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `generated-credentials-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 export default function BulkUploadManagement() {
   const { toast } = useToast();
@@ -147,8 +171,21 @@ export default function BulkUploadManagement() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (err: unknown) {
+    } catch (err: any) {
       logger.error('Failed to download template:', err);
+      // responseType is 'blob', so the server's JSON error arrives as a Blob — parse it for the message
+      const data = err?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          err.response.data = JSON.parse(await data.text());
+        } catch {
+          // not JSON; fall through to the generic message
+        }
+      }
+      toast({
+        type: 'error',
+        message: extractErrorMessage(err, 'Failed to download template. Please try again.'),
+      });
     }
   };
 
@@ -218,7 +255,7 @@ export default function BulkUploadManagement() {
     if (!isValidFile) {
       toast({
         type: 'warning',
-        message: 'Please upload an Excel file (.xlsx or .xls)',
+        message: 'Please upload an Excel file (.xlsx)',
       });
       return;
     }
@@ -287,7 +324,7 @@ export default function BulkUploadManagement() {
   const activeTabConfig = tabs.find(t => t.id ===
    activeTab)!;
   const TabIcon = activeTabConfig.icon;
-  const acceptedFileExtensions = '.xlsx,.xls'; // All uploads are now Excel
+  const acceptedFileExtensions = '.xlsx'; // All uploads are Excel workbooks (.xlsx)
   const fileFormatLabel = 'Excel'; // All uploads are now Excel
 
   return (
@@ -533,6 +570,49 @@ export default function BulkUploadManagement() {
                   </div>
                 </div>
               </div>
+
+              {/* Generated passwords (shown once) */}
+              {result.generatedCredentials && result.generatedCredentials.length > 0 && (
+                <div className="border-t border-blue-200 px-4 py-3 bg-blue-50">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h5 className="text-sm font-medium text-gray-900">
+                      Generated passwords ({result.generatedCredentials.length}) - shown only once
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={() => downloadCredentials(result.generatedCredentials || [])}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-[#7d1a34] text-white hover:opacity-90"
+                    >
+                      Download CSV
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-600 mb-2">
+                    Rows without a password got a random one. Share each password securely with its user; it cannot be retrieved again.
+                  </p>
+                  <div className="max-h-48 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-left text-gray-500">
+                          <th className="py-1 pr-2">Row</th>
+                          <th className="py-1 pr-2">User ID</th>
+                          <th className="py-1 pr-2">Email</th>
+                          <th className="py-1">Password</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.generatedCredentials.map((c) => (
+                          <tr key={c.row} className="border-t border-blue-100">
+                            <td className="py-1 pr-2">{c.row}</td>
+                            <td className="py-1 pr-2">{c.uid}</td>
+                            <td className="py-1 pr-2 break-all">{c.email}</td>
+                            <td className="py-1 font-mono">{c.generatedPassword}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Error Details */}
               {result.errors && result.errors.length > 0 && (

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFileUrl } from '@/shared/api/api';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -17,6 +16,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
+import { getDocumentUrl } from '@/features/research-management/services/documentUrl';
 
 const STATUS_CONFIG = {
   draft: { label: 'Draft', color: 'text-gray-600', bgColor: 'bg-gray-100', icon: FileText },
@@ -1101,7 +1101,7 @@ export default function GrantReviewPage() {
                 </div>
               </div>
               <a
-                href={getFileUrl(grant.proposalFilePath)}
+                href={getDocumentUrl(grant.proposalFilePath)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

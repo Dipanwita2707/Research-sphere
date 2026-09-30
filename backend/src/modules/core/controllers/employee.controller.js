@@ -1,6 +1,10 @@
 const prisma = require('../../../shared/config/database');
-const bcrypt = require('bcryptjs');
 const auditLogger = require('../../../shared/utils/auditLogger');
+const cache = require('../../../shared/config/redis');
+const { REVOKE_SESSIONS_DATA } = require('../../auth/services/session.service');
+const { preparePassword, PasswordPolicyError } = require('../utils/userCredentials');
+
+const EMPLOYEE_ROLES = ['faculty', 'staff'];
 const { validateCreateEmployee, validateUpdateEmployee } = require('../../../shared/validations/employee.validation');
 
 // Create new employee (Faculty/Staff)
@@ -56,13 +60,14 @@ const createEmployee = async (req, res) => {
       pubmedId,
     } = validation.data;
 
-    // Debug logging
-    console.log('=== CREATE EMPLOYEE DEBUG ===');
-    console.log('schoolId:', schoolId);
-    console.log('departmentId:', departmentId);
-    console.log('designation:', designation);
-    console.log('primaryCentralDeptId:', req.body.primaryCentralDeptId);
-    console.log('Full request body:', JSON.stringify(req.body, null, 2));
+    // Employees always belong to one university (superadmin must pick one)
+    if (!req.tenantId) {
+      return res.status(400).json({
+        success: false,
+        code: 'UNIVERSITY_REQUIRED',
+        message: 'Select a university before creating employees.',
+      });
+    }
 
     // Check if user already exists
     const existingUser = await prisma.userLogin.findFirst({
@@ -90,8 +95,8 @@ const createEmployee = async (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash password (policy-checked)
+    const { passwordHash: hashedPassword, passwordChangedAt } = await preparePassword(password, { uid, email });
     const normalizedMiddleName = (middleName || '').trim();
     const normalizedLastName = (lastName || '').trim();
     const storedLastName = [normalizedMiddleName, normalizedLastName].filter(Boolean).join(' ') || null;
@@ -105,10 +110,11 @@ const createEmployee = async (req, res) => {
           uid,
           email,
           passwordHash: hashedPassword,
+          passwordChangedAt,
           role: role || 'faculty',
           status: isActive ? 'active' : 'inactive',
           // Tenant binding — required by protect() for non-superadmin users
-          universityId: req.tenantId || req.user?.universityId || null,
+          universityId: req.tenantId,
         },
       });
 
@@ -218,13 +224,6 @@ const createEmployee = async (req, res) => {
       req
     );
 
-    // Log what was created
-    console.log('=== EMPLOYEE CREATED ===');
-    console.log('Employee ID:', result.employee.id);
-    console.log('Primary School ID:', result.employee.primarySchoolId);
-    console.log('Primary Department ID:', result.employee.primaryDepartmentId);
-    console.log('Designation:', result.employee.designation);
-
     res.status(201).json({
       success: true,
       message: 'Employee created successfully',
@@ -238,6 +237,9 @@ const createEmployee = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error instanceof PasswordPolicyError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error('Create employee error:', error);
     // Unique constraint (e.g. duplicate uid/email) → return 400 with clear message
     if (error.code === 'P2002') {
@@ -257,7 +259,6 @@ const createEmployee = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create employee',
-      error: error.message,
     });
   }
 };
@@ -375,17 +376,6 @@ const getAllEmployees = async (req, res) => {
       }),
     ]);
 
-    // Debug: Log raw employee data from database
-    console.log('Raw employees from DB:', employees.map(emp => ({
-      id: emp.id,
-      uid: emp.uid,
-      hasEmployeeDetails: !!emp.employeeDetails,
-      primarySchoolId: emp.employeeDetails?.primarySchoolId,
-      primaryDepartmentId: emp.employeeDetails?.primaryDepartmentId,
-      hasPrimarySchool: !!emp.employeeDetails?.primarySchool,
-      hasPrimaryDepartment: !!emp.employeeDetails?.primaryDepartment,
-    })));
-
     // Format employee data to include IDs for frontend
     const formattedEmployees = employees.map(emp => {
       if (!emp.employeeDetails) {
@@ -420,14 +410,6 @@ const getAllEmployees = async (req, res) => {
         centralDepartmentName: emp.employeeDetails.primaryCentralDept?.departmentName || null,
       };
 
-      console.log('Formatted employee:', {
-        id: emp.id,
-        schoolId: employeeDetails.schoolId,
-        departmentId: employeeDetails.departmentId,
-        schoolName: employeeDetails.schoolName,
-        departmentName: employeeDetails.departmentName
-      });
-
       return {
         ...emp,
         isActive: emp.status === 'active',
@@ -450,7 +432,6 @@ const getAllEmployees = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch employees',
-      error: error.message,
     });
   }
 };
@@ -512,7 +493,6 @@ const getEmployeeById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch employee',
-      error: error.message,
     });
   }
 };
@@ -534,9 +514,17 @@ const updateEmployee = async (req, res) => {
 
     const updates = validation.data;
 
-    console.log('=== UPDATE EMPLOYEE DEBUG ===');
-    console.log('User ID:', id);
-    console.log('Updates received:', JSON.stringify(updates, null, 2));
+    // Only faculty/staff accounts of this university are managed here
+    const target = await prisma.userLogin.findUnique({
+      where: { id },
+      select: { id: true, uid: true, email: true, role: true },
+    });
+    if (!target || !EMPLOYEE_ROLES.includes(target.role)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found',
+      });
+    }
 
     // Separate login updates from employee details updates
     const loginUpdates = {};
@@ -549,8 +537,17 @@ const updateEmployee = async (req, res) => {
       loginUpdates.status = updates.isActive ? 'active' : 'inactive';
     }
     if (updates.password) {
-      loginUpdates.passwordHash = await bcrypt.hash(updates.password, 12);
+      const prepared = await preparePassword(updates.password, { uid: target.uid, email: updates.email || target.email });
+      loginUpdates.passwordHash = prepared.passwordHash;
+      loginUpdates.passwordChangedAt = prepared.passwordChangedAt;
     }
+    // Role, status or password changes end every existing session of the user
+    const revokeSessions = Boolean(
+      (updates.role && updates.role !== target.role)
+      || updates.isActive !== undefined
+      || updates.password
+    );
+    if (revokeSessions) Object.assign(loginUpdates, REVOKE_SESSIONS_DATA);
 
     // Employee detail fields (only fields that exist in schema)
     if (updates.firstName) employeeUpdates.firstName = updates.firstName;
@@ -570,8 +567,6 @@ const updateEmployee = async (req, res) => {
       employeeUpdates.primaryCentralDeptId = null;
     }
     if (updates.isActive !== undefined) employeeUpdates.isActive = updates.isActive;
-    
-    console.log('Employee updates to apply:', employeeUpdates);
     
     // Store extra fields in metadata
     const employee = await prisma.employeeDetails.findFirst({
@@ -653,21 +648,23 @@ const updateEmployee = async (req, res) => {
       );
     }
 
-    console.log('=== EMPLOYEE UPDATE COMPLETE ===');
-    console.log('Updated fields:', Object.keys(employeeUpdates));
-    console.log('Result:', result);
+    // Drop the cached auth record after commit (role/status/tokenVersion may have changed)
+    await cache.invalidateUser(id);
 
+    const { passwordHash, ...safeUser } = result.user;
     res.json({
       success: true,
       message: 'Employee updated successfully',
-      data: result.user,
+      data: safeUser,
     });
   } catch (error) {
+    if (error instanceof PasswordPolicyError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error('Update employee error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update employee',
-      error: error.message,
     });
   }
 };
@@ -690,24 +687,36 @@ const resetEmployeePassword = async (req, res) => {
       });
     }
 
-    const password = newPassword || 'Welcome@123';
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // No default password: use the admin's (policy-checked) or generate a strong one
+    const { passwordHash, passwordChangedAt, generatedPassword } = await preparePassword(newPassword, user);
 
     await prisma.userLogin.update({
       where: { id },
-      data: { passwordHash: hashedPassword },
+      data: {
+        passwordHash,
+        passwordChangedAt,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        ...REVOKE_SESSIONS_DATA,
+      },
     });
+    await cache.invalidateUser(id);
 
     res.json({
       success: true,
-      message: 'Password reset successfully',
+      message: generatedPassword
+        ? 'Password reset successfully. Share the generated password with the user; it will not be shown again.'
+        : 'Password reset successfully',
+      ...(generatedPassword && { data: { generatedPassword } }),
     });
   } catch (error) {
+    if (error instanceof PasswordPolicyError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error('Reset employee password error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to reset password',
-      error: error.message,
     });
   }
 };
@@ -719,15 +728,16 @@ const toggleEmployeeStatus = async (req, res) => {
 
     const user = await prisma.userLogin.findUnique({
       where: { id },
-      select: { 
+      select: {
         status: true,
+        role: true,
         employeeDetails: {
           select: { isActive: true }
         }
       },
     });
 
-    if (!user) {
+    if (!user || !EMPLOYEE_ROLES.includes(user.role)) {
       return res.status(404).json({
         success: false,
         message: 'Employee not found',
@@ -742,7 +752,8 @@ const toggleEmployeeStatus = async (req, res) => {
       // Update user login status
       const updatedUser = await tx.userLogin.update({
         where: { id },
-        data: { status: newStatus },
+        data: { status: newStatus, ...REVOKE_SESSIONS_DATA },
+        select: { id: true, uid: true, email: true, role: true, status: true, universityId: true, updatedAt: true },
       });
 
       // Update employee details isActive
@@ -753,6 +764,7 @@ const toggleEmployeeStatus = async (req, res) => {
 
       return updatedUser;
     });
+    await cache.invalidateUser(id);
 
     res.json({
       success: true,
@@ -764,7 +776,6 @@ const toggleEmployeeStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to toggle employee status',
-      error: error.message,
     });
   }
 };
@@ -785,7 +796,6 @@ const getDesignations = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch designations',
-      error: error.message,
     });
   }
 };
@@ -1014,7 +1024,6 @@ const deleteEmployee = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete employee',
-      error: error.message,
     });
   }
 };
@@ -1078,7 +1087,6 @@ const updateEmployeeResearchIds = async (req, res) => {
       update: updateData,
     });
 
-    console.log(`[Admin] Updated researcher IDs for user ${user.uid}:`, updateData);
 
     return res.json({
       success: true,
@@ -1097,7 +1105,6 @@ const updateEmployeeResearchIds = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to update researcher IDs',
-      error: error.message,
     });
   }
 };

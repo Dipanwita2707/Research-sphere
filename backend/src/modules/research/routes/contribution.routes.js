@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const { bindMiddleware } = require('../../../shared/tenancy/tenantContext');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -90,7 +91,6 @@ const requireResearchAccess = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: 'Failed to verify permissions',
-      error: error.message
     });
   }
 };
@@ -208,10 +208,10 @@ router.delete(
 router.post(
   '/:id/documents',
   protect,
-  upload.fields([
+  bindMiddleware(upload.fields([
     { name: 'researchDocument', maxCount: 1 },
     { name: 'supportingDocuments', maxCount: 10 }
-  ]),
+  ])),
   researchContributionController.uploadDocuments
 );
 

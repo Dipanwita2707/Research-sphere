@@ -169,10 +169,27 @@ const CACHE_KEYS = {
   EVENT: 'event:',
 };
 
+// ── Tenant-scoped keys ───────────────────────────────────────────────────────
+// Cached query results are per tenant: inside a tenant context every key is
+// prefixed with `t:<universityId>:` so one university can never be served another
+// university's cached data. Keys written by protect before the tenant is known
+// (auth session, tenant status) stay global and are keyed by user/university id.
+const UNSCOPED_PREFIXES = [`${CACHE_KEYS.USER}auth:`, 'tenant:status:'];
+
+const scopeKey = (key) => {
+  if (UNSCOPED_PREFIXES.some((p) => key.startsWith(p))) return key;
+  const tenantId = require('../tenancy/tenantContext').getTenantId();
+  return tenantId ? `t:${tenantId}:${key}` : key;
+};
+
+const escapeRegex = (text) => text.replace(/[.+?^$()|{}[\]\\]/g, '\\$&');
+const patternToRegex = (pattern) => new RegExp('^' + pattern.split('*').map(escapeRegex).join('.*') + '$');
+
 /**
  * Get value from cache (Redis or memory fallback)
  */
-const get = async (key) => {
+const get = async (rawKey) => {
+  const key = scopeKey(rawKey);
   try {
     if (isConnected && redis) {
       const value = await redis.get(key);
@@ -197,7 +214,8 @@ const get = async (key) => {
 /**
  * Set value in cache with TTL
  */
-const set = async (key, value, ttlSeconds = 300) => {
+const set = async (rawKey, value, ttlSeconds = 300) => {
+  const key = scopeKey(rawKey);
   try {
     const serialized = JSON.stringify(value);
     
@@ -219,7 +237,8 @@ const set = async (key, value, ttlSeconds = 300) => {
 /**
  * Delete specific key from cache
  */
-const del = async (key) => {
+const del = async (rawKey) => {
+  const key = scopeKey(rawKey);
   try {
     if (isConnected && redis) {
       await redis.del(key);
@@ -238,25 +257,30 @@ const del = async (key) => {
  * Uses SCAN (non-blocking, cursor-based) instead of KEYS to avoid
  * blocking Redis on large key-spaces.
  */
-const delPattern = async (pattern) => {
+const delPattern = async (rawPattern) => {
+  // Delete the tenant-scoped matches, plus global keys (e.g. user:auth:<id>) that
+  // the unscoped pattern matches — deleting is always safe.
+  const patterns = Array.from(new Set([scopeKey(rawPattern), rawPattern]));
   try {
-    if (isConnected && redis) {
-      let cursor = '0';
-      do {
-        const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-        cursor = nextCursor;
-        if (keys.length > 0) {
-          await redis.del(...keys);
+    for (const pattern of patterns) {
+      if (isConnected && redis) {
+        let cursor = '0';
+        do {
+          const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+          cursor = nextCursor;
+          if (keys.length > 0) {
+            await redis.del(...keys);
+          }
+        } while (cursor !== '0');
+      }
+
+      // Memory fallback - delete matching keys
+      const matcher = patternToRegex(pattern);
+      for (const key of memoryCache.keys()) {
+        if (matcher.test(key)) {
+          memoryCache.delete(key);
+          memoryCacheTTL.delete(key);
         }
-      } while (cursor !== '0');
-    }
-    
-    // Memory fallback - delete matching keys
-    const plainPattern = pattern.replace(/\*/g, '');
-    for (const key of memoryCache.keys()) {
-      if (key.includes(plainPattern)) {
-        memoryCache.delete(key);
-        memoryCacheTTL.delete(key);
       }
     }
     return true;
@@ -303,6 +327,8 @@ const _inflight = new Map();
  * @param {number} ttl - TTL in seconds
  */
 const getOrSet = async (key, fetchFn, ttl = 300) => {
+  // get/set scope the key themselves; the in-flight map needs the scoped key too
+  const flightKey = scopeKey(key);
   try {
     // Try to get from cache first
     const cached = await get(key);
@@ -311,8 +337,8 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
     }
 
     // Singleflight: if another caller is already fetching this key, wait for it
-    if (_inflight.has(key)) {
-      const data = await _inflight.get(key);
+    if (_inflight.has(flightKey)) {
+      const data = await _inflight.get(flightKey);
       return { data, fromCache: true };
     }
 
@@ -321,19 +347,19 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
       if (data !== null && data !== undefined) {
         await set(key, data, ttl);
       }
-      _inflight.delete(key);
+      _inflight.delete(flightKey);
       return data;
     }).catch((err) => {
-      _inflight.delete(key);
+      _inflight.delete(flightKey);
       throw err;
     });
 
-    _inflight.set(key, fetchPromise);
+    _inflight.set(flightKey, fetchPromise);
     const data = await fetchPromise;
     return { data, fromCache: false };
   } catch (error) {
     log.error('Cache getOrSet error:', error.message);
-    _inflight.delete(key);
+    _inflight.delete(flightKey);
     // On error, try to fetch directly
     const data = await fetchFn();
     return { data, fromCache: false };
@@ -509,6 +535,7 @@ const getConnectionOpts = () => {
 
 module.exports = {
   initRedis,
+  scopeKey,
   get,
   set,
   del,

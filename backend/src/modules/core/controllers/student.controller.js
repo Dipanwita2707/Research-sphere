@@ -1,6 +1,8 @@
 const prisma = require('../../../shared/config/database');
-const bcrypt = require('bcryptjs');
 const auditLogger = require('../../../shared/utils/auditLogger');
+const cache = require('../../../shared/config/redis');
+const { REVOKE_SESSIONS_DATA } = require('../../auth/services/session.service');
+const { preparePassword, PasswordPolicyError } = require('../utils/userCredentials');
 const { validateCreateStudent, validateUpdateStudent } = require('../../../shared/validations/student.validation');
 
 /**
@@ -141,9 +143,21 @@ const createStudent = async (req, res) => {
       });
     }
 
-    // Hash password (default: Welcome@123)
-    const defaultPassword = password || 'Welcome@123';
-    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+    // Students always belong to one university (superadmin must pick one)
+    if (!req.tenantId) {
+      return res.status(400).json({
+        success: false,
+        code: 'UNIVERSITY_REQUIRED',
+        message: 'Select a university before creating students.',
+      });
+    }
+
+    // No default password: the admin's (policy-checked) or a generated one, shown once
+    const {
+      passwordHash: hashedPassword,
+      passwordChangedAt,
+      generatedPassword,
+    } = await preparePassword(password, { uid: studentId, email });
 
     // Create user and student in transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -153,10 +167,11 @@ const createStudent = async (req, res) => {
           uid: studentId,
           email,
           passwordHash: hashedPassword,
+          passwordChangedAt,
           role: 'student',
           status: 'active',
           // Tenant binding — required by protect() for non-superadmin users
-          universityId: req.tenantId || req.user?.universityId || null,
+          universityId: req.tenantId,
         },
       });
 
@@ -205,20 +220,25 @@ const createStudent = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Student created successfully',
+      message: generatedPassword
+        ? 'Student created successfully. Share the generated password with the student; it will not be shown again.'
+        : 'Student created successfully',
       data: {
         userId: result.user.id,
         studentId: result.student.studentId,
         name: result.student.displayName,
         email: result.student.email,
+        ...(generatedPassword && { generatedPassword }),
       },
     });
   } catch (error) {
+    if (error instanceof PasswordPolicyError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error('Create student error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create student',
-      error: error.message,
     });
   }
 };
@@ -238,10 +258,7 @@ const getAllStudents = async (req, res) => {
 
     const where = {};
 
-    // Tenant isolation: scope students to the requesting university via their UserLogin
-    if (req.tenantId) {
-      where.userLogin = { universityId: req.tenantId };
-    }
+    // Tenant isolation is applied automatically on StudentDetails.universityId
 
     // Search filter
     if (search) {
@@ -349,7 +366,6 @@ const getAllStudents = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch students',
-      error: error.message,
     });
   }
 };
@@ -410,7 +426,6 @@ const getStudentById = async (req, res) => {
             semester: true,
           },
         },
-        parents: true,
       },
     });
 
@@ -422,7 +437,7 @@ const getStudentById = async (req, res) => {
     }
 
     // Tenant isolation: prevent cross-university access
-    if (req.tenantId && student.userLogin?.universityId !== req.tenantId) {
+    if (req.tenantId && student.universityId !== req.tenantId) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: This student does not belong to your university.',
@@ -438,7 +453,6 @@ const getStudentById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch student',
-      error: error.message,
     });
   }
 };
@@ -479,7 +493,7 @@ const updateStudent = async (req, res) => {
     }
 
     // Tenant isolation: prevent cross-university modification
-    if (req.tenantId && existingStudent.userLogin?.universityId !== req.tenantId) {
+    if (req.tenantId && existingStudent.universityId !== req.tenantId) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: This student does not belong to your university.',
@@ -579,7 +593,6 @@ const updateStudent = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update student',
-      error: error.message,
     });
   }
 };
@@ -602,7 +615,7 @@ const toggleStudentStatus = async (req, res) => {
     }
 
     // Tenant isolation
-    if (req.tenantId && student.userLogin?.universityId !== req.tenantId) {
+    if (req.tenantId && student.universityId !== req.tenantId) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: This student does not belong to your university.',
@@ -619,10 +632,11 @@ const toggleStudentStatus = async (req, res) => {
       if (student.userLoginId) {
         await tx.userLogin.update({
           where: { id: student.userLoginId },
-          data: { status: student.isActive ? 'inactive' : 'active' },
+          data: { status: student.isActive ? 'inactive' : 'active', ...REVOKE_SESSIONS_DATA },
         });
       }
     });
+    if (student.userLoginId) await cache.invalidateUser(student.userLoginId);
 
     res.json({
       success: true,
@@ -634,7 +648,6 @@ const toggleStudentStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to toggle student status',
-      error: error.message,
     });
   }
 };
@@ -671,7 +684,6 @@ const getPrograms = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch programs',
-      error: error.message,
     });
   }
 };
@@ -708,7 +720,6 @@ const getSectionsByProgram = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch sections',
-      error: error.message,
     });
   }
 };
@@ -771,7 +782,6 @@ const getFacultyByProgram = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch faculty',
-      error: error.message,
     });
   }
 };
@@ -795,7 +805,7 @@ const resetStudentPassword = async (req, res) => {
     }
 
     // Tenant isolation: prevent cross-university password reset
-    if (req.tenantId && student.userLogin?.universityId !== req.tenantId) {
+    if (req.tenantId && student.universityId !== req.tenantId) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: This student does not belong to your university.',
@@ -809,24 +819,39 @@ const resetStudentPassword = async (req, res) => {
       });
     }
 
-    const password = newPassword || 'Welcome@123';
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // No default password: the admin's (policy-checked) or a generated one, shown once
+    const { passwordHash, passwordChangedAt, generatedPassword } = await preparePassword(newPassword, {
+      uid: student.studentId,
+      email: student.email,
+    });
 
     await prisma.userLogin.update({
       where: { id: student.userLoginId },
-      data: { passwordHash: hashedPassword },
+      data: {
+        passwordHash,
+        passwordChangedAt,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        ...REVOKE_SESSIONS_DATA,
+      },
     });
+    await cache.invalidateUser(student.userLoginId);
 
     res.json({
       success: true,
-      message: 'Password reset successfully',
+      message: generatedPassword
+        ? 'Password reset successfully. Share the generated password with the student; it will not be shown again.'
+        : 'Password reset successfully',
+      ...(generatedPassword && { data: { generatedPassword } }),
     });
   } catch (error) {
+    if (error instanceof PasswordPolicyError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     console.error('Reset password error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to reset password',
-      error: error.message,
     });
   }
 };

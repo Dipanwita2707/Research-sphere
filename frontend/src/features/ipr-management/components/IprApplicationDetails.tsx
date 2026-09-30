@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getUploadUrl } from '@/shared/api/api';
 import { iprService, drdReviewService, fileUploadService } from '@/features/ipr-management/services/ipr.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
 import IPRStatusUpdates from './IPRStatusUpdates';
+import { getDocumentUrl } from '@/features/research-management/services/documentUrl';
 import {
   ArrowLeft,
   Clock,
@@ -387,7 +387,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">Main Document (Annexure)</label>
                   <a
-                    href={getUploadUrl(application.annexureFilePath)}
+                    href={getDocumentUrl(application.annexureFilePath)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-[#7d1a34] text-white rounded-md hover:bg-[#5e1024] transition-colors"
@@ -402,7 +402,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">Prototype Package (ZIP)</label>
                   <a
-                    href={getUploadUrl(application.prototypeFilePath)}
+                    href={getDocumentUrl(application.prototypeFilePath)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
@@ -421,7 +421,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                     {application.supportingDocsFilePaths.map((filePath: string, index: number) => (
                       <a
                         key={index}
-                        href={getUploadUrl(filePath)}
+                        href={getDocumentUrl(filePath)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors w-fit"

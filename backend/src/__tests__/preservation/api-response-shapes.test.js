@@ -176,7 +176,7 @@ describe('Preservation: IPR API response shapes', () => {
       expect(pagination.totalPages).toBe(0);
     });
 
-    test('error response has { success: false, message, error } shape', async () => {
+    test('error response has { success: false, message } shape without internals', async () => {
       prisma.iprApplication.findMany.mockRejectedValue(new Error('DB failure'));
 
       const req = makeReq({ query: {} });
@@ -188,8 +188,10 @@ describe('Preservation: IPR API response shapes', () => {
       expect(res._body).toMatchObject({
         success: false,
         message: expect.any(String),
-        error: expect.any(String),
       });
+      // 5xx responses must not leak internal error text
+      expect(res._body).not.toHaveProperty('error');
+      expect(res._body.message).not.toMatch(/DB (failure|error)/);
     });
   });
 
@@ -232,7 +234,7 @@ describe('Preservation: IPR API response shapes', () => {
       });
     });
 
-    test('error: 500 with { success: false, message, error }', async () => {
+    test('error: 500 with { success: false, message } without internals', async () => {
       prisma.iprApplication.findUnique.mockRejectedValue(new Error('DB error'));
 
       const req = makeReq({ params: { id: 'ipr-1' } });
@@ -244,8 +246,10 @@ describe('Preservation: IPR API response shapes', () => {
       expect(res._body).toMatchObject({
         success: false,
         message: expect.any(String),
-        error: expect.any(String),
       });
+      // 5xx responses must not leak internal error text
+      expect(res._body).not.toHaveProperty('error');
+      expect(res._body.message).not.toMatch(/DB (failure|error)/);
     });
   });
 
@@ -327,7 +331,7 @@ describe('Preservation: Grants API response shapes', () => {
       });
     });
 
-    test('error response has { success: false, message, error } shape', async () => {
+    test('error response has { success: false, message } shape without internals', async () => {
       prisma.grantApplication.findMany.mockRejectedValue(new Error('DB error'));
 
       const req = makeReq();
@@ -339,8 +343,10 @@ describe('Preservation: Grants API response shapes', () => {
       expect(res._body).toMatchObject({
         success: false,
         message: expect.any(String),
-        error: expect.any(String),
       });
+      // 5xx responses must not leak internal error text
+      expect(res._body).not.toHaveProperty('error');
+      expect(res._body.message).not.toMatch(/DB (failure|error)/);
     });
   });
 

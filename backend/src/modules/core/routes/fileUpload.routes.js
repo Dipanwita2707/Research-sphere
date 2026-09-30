@@ -2,18 +2,19 @@ const express = require('express');
 const router = express.Router();
 const s3FileService = require('../services/s3File.service');
 const { protect } = require('../../../shared/middleware/auth');
+const { withTenantContext } = require('../utils/withTenantContext');
 
 // All routes require authentication
 router.use(protect);
 
 // Upload file to S3
-router.post('/upload', s3FileService.upload.single('file'), s3FileService.uploadFile);
+router.post('/upload', withTenantContext(s3FileService.upload.single('file')), s3FileService.uploadFile);
 
 // Upload noting attachment (5MB max per file)
-router.post('/upload-noting', s3FileService.uploadNoting.single('file'), s3FileService.uploadFile);
+router.post('/upload-noting', withTenantContext(s3FileService.uploadNoting.single('file')), s3FileService.uploadFile);
 
 // Upload prototype ZIP file (up to 50MB) for IPR Complete Filing
-router.post('/upload-prototype', s3FileService.uploadPrototype.single('file'), s3FileService.uploadPrototypeFile);
+router.post('/upload-prototype', withTenantContext(s3FileService.uploadPrototype.single('file')), s3FileService.uploadPrototypeFile);
 
 // Download file from S3 (path may contain slashes, e.g. noting/userId/file.pdf)
 router.get(/^\/download\/(.*)/, s3FileService.downloadFile);

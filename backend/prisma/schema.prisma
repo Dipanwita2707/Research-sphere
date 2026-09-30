@@ -14,106 +14,162 @@ datasource db {
 // =====================================
 
 model University {
-  id             String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code           String                  @unique @db.VarChar(32)
-  name           String                  @db.VarChar(256)
-  slug           String                  @unique @db.VarChar(64)
-  logoUrl        String?                 @map("logo_url") @db.VarChar(512)
-  primaryColor   String?                 @map("primary_color") @db.VarChar(16)
-  contactEmail   String?                 @map("contact_email") @db.VarChar(256)
-  websiteUrl     String?                 @map("website_url") @db.VarChar(512)
-  address        String?                 @db.Text
-  city           String?                 @db.VarChar(128)
-  state          String?                 @db.VarChar(128)
-  country        String?                 @default("India") @db.VarChar(64)
-  timezone       String?                 @default("Asia/Kolkata") @db.VarChar(64)
-  isActive       Boolean                 @default(true) @map("is_active")
-  trialEndsAt    DateTime?               @map("trial_ends_at") @db.Timestamptz(6)
+  id                              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code                            String    @unique @db.VarChar(32)
+  name                            String    @db.VarChar(256)
+  slug                            String    @unique @db.VarChar(64)
+  logoUrl                         String?   @map("logo_url") @db.VarChar(512)
+  primaryColor                    String?   @map("primary_color") @db.VarChar(16)
+  contactEmail                    String?   @map("contact_email") @db.VarChar(256)
+  websiteUrl                      String?   @map("website_url") @db.VarChar(512)
+  address                         String?   @db.Text
+  city                            String?   @db.VarChar(128)
+  state                           String?   @db.VarChar(128)
+  country                         String?   @default("India") @db.VarChar(64)
+  timezone                        String?   @default("Asia/Kolkata") @db.VarChar(64)
+  isActive                        Boolean   @default(true) @map("is_active")
+  trialEndsAt                     DateTime? @map("trial_ends_at") @db.Timestamptz(6)
   // Admin-curated extra affiliation name variants (aliases) that the
   // affiliation engine can't derive algorithmically (e.g. alternate
   // transliterations, historical names). Union'd with the auto-generated
   // variant list — see backend/src/shared/utils/affiliationEngine.js.
-  affiliationAliases Json?               @default("[]") @map("affiliation_aliases")
-  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  affiliationAliases              Json?     @default("[]") @map("affiliation_aliases")
+  // DPDP: Data Protection Officer / grievance officer published to data principals
+  dpoName                         String?   @map("dpo_name") @db.VarChar(256)
+  dpoEmail                        String?   @map("dpo_email") @db.VarChar(256)
+  dpoPhone                        String?   @map("dpo_phone") @db.VarChar(32)
+  requireGuardianConsentForMinors Boolean   @default(true) @map("require_guardian_consent_for_minors")
+  createdAt                       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  users                         UserLogin[]
-  schools                       FacultySchoolList[]
-  centralDepts                  CentralDepartment[]
-  roles                         Role[]
-  notifications                 Notification[]
-  auditLogs                     AuditLog[]
-  subscription                  UniversitySubscription?
-  apiUsageDaily                 ApiUsageDaily[]
-  bugReports                    BugReport[]
-  incentivePolicies             IncentivePolicy[]
-  researchIncentivePolicies     ResearchIncentivePolicy[]
-  bookIncentivePolicies         BookIncentivePolicy[]
-  bookChapterIncentivePolicies  BookChapterIncentivePolicy[]
-  conferenceIncentivePolicies   ConferenceIncentivePolicy[]
-  grantIncentivePolicies        GrantIncentivePolicy[]
+  users                                 UserLogin[]
+  schools                               FacultySchoolList[]
+  centralDepts                          CentralDepartment[]
+  roles                                 Role[]
+  notifications                         Notification[]
+  auditLogs                             AuditLog[]
+  subscription                          UniversitySubscription?
+  apiUsageDaily                         ApiUsageDaily[]
+  bugReports                            BugReport[]
+  incentivePolicies                     IncentivePolicy[]
+  researchIncentivePolicies             ResearchIncentivePolicy[]
+  bookIncentivePolicies                 BookIncentivePolicy[]
+  bookChapterIncentivePolicies          BookChapterIncentivePolicy[]
+  conferenceIncentivePolicies           ConferenceIncentivePolicy[]
+  grantIncentivePolicies                GrantIncentivePolicy[]
+  iprApplications                       IprApplication[]                       @relation("IprApplicationUniversity")
+  iprStatusHistorys                     IprStatusHistory[]                     @relation("IprStatusHistoryUniversity")
+  iprReviews                            IprReview[]                            @relation("IprReviewUniversity")
+  iprEditSuggestions                    IprEditSuggestion[]                    @relation("IprEditSuggestionUniversity")
+  iprContributors                       IprContributor[]                       @relation("IprContributorUniversity")
+  iprFinances                           IprFinance[]                           @relation("IprFinanceUniversity")
+  iprApplicantDetailss                  IprApplicantDetails[]                  @relation("IprApplicantDetailsUniversity")
+  iprSdgs                               IprSdg[]                               @relation("IprSdgUniversity")
+  iprStatusUpdates                      IprStatusUpdate[]                      @relation("IprStatusUpdateUniversity")
+  iprCollaborativeSessions              IprCollaborativeSession[]              @relation("IprCollaborativeSessionUniversity")
+  iPRs                                  IPR[]                                  @relation("IPRUniversity")
+  researchContributions                 ResearchContribution[]                 @relation("ResearchContributionUniversity")
+  researchContributionReviews           ResearchContributionReview[]           @relation("ResearchContributionReviewUniversity")
+  researchContributionAuthors           ResearchContributionAuthor[]           @relation("ResearchContributionAuthorUniversity")
+  researchContributionStatusHistorys    ResearchContributionStatusHistory[]    @relation("ResearchContributionStatusHistoryUniversity")
+  researchContributionEditSuggestions   ResearchContributionEditSuggestion[]   @relation("ResearchContributionEditSuggestionUniversity")
+  researchContributionApplicantDetailss ResearchContributionApplicantDetails[] @relation("ResearchContributionApplicantDetailsUniversity")
+  researchProgressTrackers              ResearchProgressTracker[]              @relation("ResearchProgressTrackerUniversity")
+  researchProgressStatusHistorys        ResearchProgressStatusHistory[]        @relation("ResearchProgressStatusHistoryUniversity")
+  researchProfileIdentitys              ResearchProfileIdentity[]              @relation("ResearchProfileIdentityUniversity")
+  publicationImportRuns                 PublicationImportRun[]                 @relation("PublicationImportRunUniversity")
+  publicationImports                    PublicationImport[]                    @relation("PublicationImportUniversity")
+  grantApplications                     GrantApplication[]                     @relation("GrantApplicationUniversity")
+  grantInvestigators                    GrantInvestigator[]                    @relation("GrantInvestigatorUniversity")
+  grantApplicationReviews               GrantApplicationReview[]               @relation("GrantApplicationReviewUniversity")
+  grantApplicationStatusHistorys        GrantApplicationStatusHistory[]        @relation("GrantApplicationStatusHistoryUniversity")
+  grantApplicationEditSuggestions       GrantApplicationEditSuggestion[]       @relation("GrantApplicationEditSuggestionUniversity")
+  grantConsortiumOrganizations          GrantConsortiumOrganization[]          @relation("GrantConsortiumOrganizationUniversity")
+  departments                           Department[]                           @relation("DepartmentUniversity")
+  programs                              Program[]                              @relation("ProgramUniversity")
+  programSpecializations                ProgramSpecialization[]                @relation("ProgramSpecializationUniversity")
+  sections                              Section[]                              @relation("SectionUniversity")
+  studentDetailss                       StudentDetails[]                       @relation("StudentDetailsUniversity")
+  employeeDetailss                      EmployeeDetails[]                      @relation("EmployeeDetailsUniversity")
+  centralDepartmentPermissions          CentralDepartmentPermission[]          @relation("CentralDepartmentPermissionUniversity")
+  departmentPermissions                 DepartmentPermission[]                 @relation("DepartmentPermissionUniversity")
+  userDepartmentPermissions             UserDepartmentPermission[]             @relation("UserDepartmentPermissionUniversity")
+  reportingStructures                   ReportingStructure[]                   @relation("ReportingStructureUniversity")
+  bugReportScreenshots                  BugReportScreenshot[]                  @relation("BugReportScreenshotUniversity")
+  reissueRequests                       ReissueRequest[]                       @relation("ReissueRequestUniversity")
+  cards                                 Card[]                                 @relation("CardUniversity")
+  documentChanges                       DocumentChange[]                       @relation("DocumentChangeUniversity")
+  changeHistorys                        ChangeHistory[]                        @relation("ChangeHistoryUniversity")
+  auditReportConfigs                    AuditReportConfig[]                    @relation("AuditReportConfigUniversity")
+  auditReportHistorys                   AuditReportHistory[]                   @relation("AuditReportHistoryUniversity")
+  consentNotices                        ConsentNotice[]
+  consentRecords                        ConsentRecord[]
+  dataPrincipalRequests                 DataPrincipalRequest[]
+  dataBreachIncidents                   DataBreachIncident[]
+  dataRetentionPolicies                 DataRetentionPolicy[]
+  nominees                              DataPrincipalNominee[]
 
   @@map("universities")
 }
 
 model SaaSTier {
-  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name                String                  @unique @db.VarChar(64)
-  displayName         String                  @map("display_name") @db.VarChar(128)
-  monthlyPriceCents   Int                     @map("monthly_price_cents")
-  yearlyPriceCents    Int                     @map("yearly_price_cents")
-  maxUsers            Int                     @map("max_users")
-  maxApiCallsPerMonth Int                     @map("max_api_calls_per_month")
-  maxStorageGb        Int                     @default(10) @map("max_storage_gb")
-  features            Json                    @default("{}")
-  overagePer1kCalls   Int                     @default(10) @map("overage_per_1k_calls")
-  isPublic            Boolean                 @default(true) @map("is_public")
-  sortOrder           Int                     @default(0) @map("sort_order")
-  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                  String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                String   @unique @db.VarChar(64)
+  displayName         String   @map("display_name") @db.VarChar(128)
+  monthlyPriceCents   Int      @map("monthly_price_cents")
+  yearlyPriceCents    Int      @map("yearly_price_cents")
+  maxUsers            Int      @map("max_users")
+  maxApiCallsPerMonth Int      @map("max_api_calls_per_month")
+  maxStorageGb        Int      @default(10) @map("max_storage_gb")
+  features            Json     @default("{}")
+  overagePer1kCalls   Int      @default(10) @map("overage_per_1k_calls")
+  isPublic            Boolean  @default(true) @map("is_public")
+  sortOrder           Int      @default(0) @map("sort_order")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  subscriptions       UniversitySubscription[]
+  subscriptions UniversitySubscription[]
 
   @@map("saas_tiers")
 }
 
 model UniversitySubscription {
-  id                 String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  universityId       String     @unique @map("university_id") @db.Uuid
-  tierId             String     @map("tier_id") @db.Uuid
-  status             String     @default("trialing") @db.VarChar(32)
-  billingCycle       String     @default("monthly") @map("billing_cycle") @db.VarChar(16)
-  currentPeriodStart DateTime   @map("current_period_start") @db.Date
-  currentPeriodEnd   DateTime   @map("current_period_end") @db.Date
-  cancelAtPeriodEnd  Boolean    @default(false) @map("cancel_at_period_end")
-  externalPaymentId  String?    @map("external_payment_id") @db.VarChar(256)
-  metadata           Json       @default("{}")
-  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String   @unique @map("university_id") @db.Uuid
+  tierId             String   @map("tier_id") @db.Uuid
+  status             String   @default("trialing") @db.VarChar(32)
+  billingCycle       String   @default("monthly") @map("billing_cycle") @db.VarChar(16)
+  currentPeriodStart DateTime @map("current_period_start") @db.Date
+  currentPeriodEnd   DateTime @map("current_period_end") @db.Date
+  cancelAtPeriodEnd  Boolean  @default(false) @map("cancel_at_period_end")
+  externalPaymentId  String?  @map("external_payment_id") @db.VarChar(256)
+  metadata           Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  university         University @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  tier               SaaSTier   @relation(fields: [tierId], references: [id])
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  tier       SaaSTier   @relation(fields: [tierId], references: [id])
 
   @@map("university_subscriptions")
 }
 
 model ApiUsageDaily {
-  id                  String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  universityId        String     @map("university_id") @db.Uuid
-  date                DateTime   @db.Date
-  totalRequests       Int        @default(0) @map("total_requests")
-  successRequests     Int        @default(0) @map("success_requests")
-  errorRequests       Int        @default(0) @map("error_requests")
-  avgDurationMs       Int        @default(0) @map("avg_duration_ms")
-  p95DurationMs       Int        @default(0) @map("p95_duration_ms")
-  uniqueUsers         Int        @default(0) @map("unique_users")
-  billableUnits       Int        @default(0) @map("billable_units")
-  billableAmountCents Int        @default(0) @map("billable_amount_cents")
-  endpointBreakdown   Json       @default("{}") @map("endpoint_breakdown")
-  computedAt          DateTime   @default(now()) @map("computed_at") @db.Timestamptz(6)
-  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId        String   @map("university_id") @db.Uuid
+  date                DateTime @db.Date
+  totalRequests       Int      @default(0) @map("total_requests")
+  successRequests     Int      @default(0) @map("success_requests")
+  errorRequests       Int      @default(0) @map("error_requests")
+  avgDurationMs       Int      @default(0) @map("avg_duration_ms")
+  p95DurationMs       Int      @default(0) @map("p95_duration_ms")
+  uniqueUsers         Int      @default(0) @map("unique_users")
+  billableUnits       Int      @default(0) @map("billable_units")
+  billableAmountCents Int      @default(0) @map("billable_amount_cents")
+  endpointBreakdown   Json     @default("{}") @map("endpoint_breakdown")
+  computedAt          DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  university          University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@unique([universityId, date])
   @@index([date])
@@ -122,104 +178,111 @@ model ApiUsageDaily {
 }
 
 model UserLogin {
-  id                                                String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  uid                                               String                               @unique @db.VarChar(32)
-  email                                             String?                              @unique @db.Citext
-  phone                                             String?                              @db.VarChar(20)
-  profileImageFilePath                              String?                              @map("profile_image_file_path")
-  profileImage                                      String?                              @map("profile_image") @db.VarChar(64)
-  passwordHash                                      String                               @map("password_hash")
-  role                                              UserRoleEnum
-  assignedRoleIds                                   Json?                                @default("[]") @map("assigned_role_ids")
-  status                                            String                               @default("active") @db.VarChar(32)
-  universityId                                      String?                              @map("university_id") @db.Uuid
-  lastLoginAt                                       DateTime?                            @map("last_login_at") @db.Timestamptz(6)
-  createdAt                                         DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                                         DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  university                                        University?                          @relation(fields: [universityId], references: [id])
-  auditLogs                                         AuditLog[]
-  createdBookChapterPolicies                        BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
-  updatedBookChapterPolicies                        BookChapterIncentivePolicy[]         @relation("BookChapterPolicyUpdatedBy")
-  createdBookPolicies                               BookIncentivePolicy[]                @relation("BookPolicyCreatedBy")
-  updatedBookPolicies                               BookIncentivePolicy[]                @relation("BookPolicyUpdatedBy")
-  cardsIssued                                       Card[]                               @relation("IssuedBy")
-  headOfCentralDepts                                CentralDepartment[]                  @relation("HeadOfCentralDepartment")
-  assignedCentralDeptPerms                          CentralDepartmentPermission[]        @relation("AssignedCentralDeptPermissions")
-  centralDeptPermissions                            CentralDepartmentPermission[]        @relation("UserCentralDeptPermissions")
-  changesHistory                                    ChangeHistory[]
-  createdConferencePolicies                         ConferenceIncentivePolicy[]          @relation("ConferencePolicyCreatedBy")
-  updatedConferencePolicies                         ConferenceIncentivePolicy[]          @relation("ConferencePolicyUpdatedBy")
-  headOfDepartments                                 Department[]                         @relation("HeadOfDepartment")
-  assignedSchoolDeptPerms                           DepartmentPermission[]               @relation("AssignedDepartmentPermissions")
-  schoolDeptPermissions                             DepartmentPermission[]               @relation("UserDepartmentPermissions")
-  documentChangeReviews                             DocumentChange[]                     @relation("DocumentChangeReviewer")
-  employeeDetails                                   EmployeeDetails?
-  headOfFaculties                                   FacultySchoolList[]                  @relation("HeadOfFaculty")
-  grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
-  grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
-  grantApplicationReviews                           GrantApplicationReview[]             @relation("GrantApplicationReviews")
-  grantApplicationStatusChanges                     GrantApplicationStatusHistory[]      @relation("GrantApplicationStatusChanges")
-  createdGrantPolicies                              GrantIncentivePolicy[]               @relation("GrantPolicyCreatedBy")
-  updatedGrantPolicies                              GrantIncentivePolicy[]               @relation("GrantPolicyUpdatedBy")
-  grantInvestigators                                GrantInvestigator[]                  @relation("GrantInvestigators")
-  createdIncentivePolicies                          IncentivePolicy[]                    @relation("IncentivePolicyCreatedBy")
-  updatedIncentivePolicies                          IncentivePolicy[]                    @relation("IncentivePolicyUpdatedBy")
-  approvedIPRs                                      IPR[]                                @relation("IPRApprover")
-  createdIPRs                                       IPR[]                                @relation("IPRCreator")
-  iprApplications                                   IprApplication[]                     @relation("IprApplications")
-  iprCollaborativeSessions                          IprCollaborativeSession[]            @relation("IprCollaborativeSessions")
-  iprContributions                                  IprContributor[]                     @relation("IprContributors")
-  uploadedIPRDocuments                              IPRDocument[]                        @relation("IPRDocumentUploader")
-  iprEditSuggestions                                IprEditSuggestion[]                  @relation("IprEditSuggestions")
-  iprFinanceReviews                                 IprFinance[]                         @relation("IprFinanceReviews")
-  iprReviews                                        IprReview[]                          @relation("IprReviews")
-  iprStatusChanges                                  IprStatusHistory[]                   @relation("IprStatusChanges")
-  iprStatusUpdates                                  IprStatusUpdate[]                    @relation("IprStatusUpdates")
-  notifications                                     Notification[]                       @relation("UserNotifications")
-  parentLogin                                       ParentDetails?                       @relation("ParentLogin")
-  programCoordinators                               Program[]                            @relation("ProgramCoordinator")
-  reissueRequestsApproved                           ReissueRequest[]                     @relation("ApprovedBy")
-  reissueRequestsMade                               ReissueRequest[]                     @relation("RequestedBy")
-  researchContributions                             ResearchContribution[]               @relation("ResearchContributions")
-  researchContributionAuthorship                    ResearchContributionAuthor[]         @relation("ResearchContributionAuthors")
-  researchContributionEditSuggestions               ResearchContributionEditSuggestion[] @relation("ResearchContributionEditSuggestions")
-  researchContributionReviews                       ResearchContributionReview[]         @relation("ResearchContributionReviews")
-  researchContributionStatusChanges                 ResearchContributionStatusHistory[]  @relation("ResearchContributionStatusChanges")
-  researchProfileIdentity                           ResearchProfileIdentity?             @relation("UserResearchProfileIdentity")
-  triggeredPublicationImportRuns                    PublicationImportRun[]               @relation("PublicationImportRunTriggeredBy")
-  createdResearchPolicies                           ResearchIncentivePolicy[]            @relation("ResearchPolicyCreatedBy")
-  updatedResearchPolicies                           ResearchIncentivePolicy[]            @relation("ResearchPolicyUpdatedBy")
-  researchPapers                                    ResearchPaper[]                      @relation("ResearchPapers")
-  researchPaperReviews                              ResearchPaperReview[]                @relation("ResearchPaperReviews")
-  researchPaperStatusChanges                        ResearchPaperStatusHistory[]         @relation("ResearchPaperStatusChanges")
-  researchProgressTrackers                          ResearchProgressTracker[]            @relation("ResearchProgressTrackers")
-  classTeachers                                     Section[]                            @relation("ClassTeacher")
-  approvedStudents                                  StudentDetails[]                     @relation("DataApprovedBy")
-  mentoredStudents                                  StudentDetails[]                     @relation("StudentMentor")
-  studentLogin                                      StudentDetails?                      @relation("StudentLogin")
-  assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
-  departmentPermissions                             UserDepartmentPermission[]
-  userSettings                                      UserSettings?                        @relation("UserSettings")
+  id                                  String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  uid                                 String                               @unique @db.VarChar(32)
+  email                               String?                              @unique @db.Citext
+  phone                               String?                              @db.VarChar(20)
+  profileImageFilePath                String?                              @map("profile_image_file_path")
+  profileImage                        String?                              @map("profile_image") @db.VarChar(64)
+  passwordHash                        String                               @map("password_hash")
+  role                                UserRoleEnum
+  assignedRoleIds                     Json?                                @default("[]") @map("assigned_role_ids")
+  status                              String                               @default("active") @db.VarChar(32)
+  universityId                        String?                              @map("university_id") @db.Uuid
+  // Incremented to revoke every JWT issued before (logout-all, password change, deactivation)
+  tokenVersion                        Int                                  @default(0) @map("token_version")
+  failedLoginAttempts                 Int                                  @default(0) @map("failed_login_attempts")
+  lockedUntil                         DateTime?                            @map("locked_until") @db.Timestamptz(6)
+  passwordChangedAt                   DateTime?                            @map("password_changed_at") @db.Timestamptz(6)
+  // DPDP: set when personal data has been erased/anonymised on a data principal request
+  anonymizedAt                        DateTime?                            @map("anonymized_at") @db.Timestamptz(6)
+  lastLoginAt                         DateTime?                            @map("last_login_at") @db.Timestamptz(6)
+  createdAt                           DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                           DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  university                          University?                          @relation(fields: [universityId], references: [id])
+  auditLogs                           AuditLog[]
+  createdBookChapterPolicies          BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
+  updatedBookChapterPolicies          BookChapterIncentivePolicy[]         @relation("BookChapterPolicyUpdatedBy")
+  createdBookPolicies                 BookIncentivePolicy[]                @relation("BookPolicyCreatedBy")
+  updatedBookPolicies                 BookIncentivePolicy[]                @relation("BookPolicyUpdatedBy")
+  cardsIssued                         Card[]                               @relation("IssuedBy")
+  headOfCentralDepts                  CentralDepartment[]                  @relation("HeadOfCentralDepartment")
+  assignedCentralDeptPerms            CentralDepartmentPermission[]        @relation("AssignedCentralDeptPermissions")
+  centralDeptPermissions              CentralDepartmentPermission[]        @relation("UserCentralDeptPermissions")
+  changesHistory                      ChangeHistory[]
+  createdConferencePolicies           ConferenceIncentivePolicy[]          @relation("ConferencePolicyCreatedBy")
+  updatedConferencePolicies           ConferenceIncentivePolicy[]          @relation("ConferencePolicyUpdatedBy")
+  headOfDepartments                   Department[]                         @relation("HeadOfDepartment")
+  assignedSchoolDeptPerms             DepartmentPermission[]               @relation("AssignedDepartmentPermissions")
+  schoolDeptPermissions               DepartmentPermission[]               @relation("UserDepartmentPermissions")
+  documentChangeReviews               DocumentChange[]                     @relation("DocumentChangeReviewer")
+  employeeDetails                     EmployeeDetails?
+  headOfFaculties                     FacultySchoolList[]                  @relation("HeadOfFaculty")
+  grantApplications                   GrantApplication[]                   @relation("GrantApplications")
+  grantApplicationEditSuggestions     GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
+  grantApplicationReviews             GrantApplicationReview[]             @relation("GrantApplicationReviews")
+  grantApplicationStatusChanges       GrantApplicationStatusHistory[]      @relation("GrantApplicationStatusChanges")
+  createdGrantPolicies                GrantIncentivePolicy[]               @relation("GrantPolicyCreatedBy")
+  updatedGrantPolicies                GrantIncentivePolicy[]               @relation("GrantPolicyUpdatedBy")
+  grantInvestigators                  GrantInvestigator[]                  @relation("GrantInvestigators")
+  createdIncentivePolicies            IncentivePolicy[]                    @relation("IncentivePolicyCreatedBy")
+  updatedIncentivePolicies            IncentivePolicy[]                    @relation("IncentivePolicyUpdatedBy")
+  approvedIPRs                        IPR[]                                @relation("IPRApprover")
+  createdIPRs                         IPR[]                                @relation("IPRCreator")
+  iprApplications                     IprApplication[]                     @relation("IprApplications")
+  iprCollaborativeSessions            IprCollaborativeSession[]            @relation("IprCollaborativeSessions")
+  iprContributions                    IprContributor[]                     @relation("IprContributors")
+  iprEditSuggestions                  IprEditSuggestion[]                  @relation("IprEditSuggestions")
+  iprFinanceReviews                   IprFinance[]                         @relation("IprFinanceReviews")
+  iprReviews                          IprReview[]                          @relation("IprReviews")
+  iprStatusChanges                    IprStatusHistory[]                   @relation("IprStatusChanges")
+  iprStatusUpdates                    IprStatusUpdate[]                    @relation("IprStatusUpdates")
+  notifications                       Notification[]                       @relation("UserNotifications")
+  programCoordinators                 Program[]                            @relation("ProgramCoordinator")
+  reissueRequestsApproved             ReissueRequest[]                     @relation("ApprovedBy")
+  reissueRequestsMade                 ReissueRequest[]                     @relation("RequestedBy")
+  researchContributions               ResearchContribution[]               @relation("ResearchContributions")
+  researchContributionAuthorship      ResearchContributionAuthor[]         @relation("ResearchContributionAuthors")
+  researchContributionEditSuggestions ResearchContributionEditSuggestion[] @relation("ResearchContributionEditSuggestions")
+  researchContributionReviews         ResearchContributionReview[]         @relation("ResearchContributionReviews")
+  researchContributionStatusChanges   ResearchContributionStatusHistory[]  @relation("ResearchContributionStatusChanges")
+  researchProfileIdentity             ResearchProfileIdentity?             @relation("UserResearchProfileIdentity")
+  triggeredPublicationImportRuns      PublicationImportRun[]               @relation("PublicationImportRunTriggeredBy")
+  createdResearchPolicies             ResearchIncentivePolicy[]            @relation("ResearchPolicyCreatedBy")
+  updatedResearchPolicies             ResearchIncentivePolicy[]            @relation("ResearchPolicyUpdatedBy")
+  researchProgressTrackers            ResearchProgressTracker[]            @relation("ResearchProgressTrackers")
+  classTeachers                       Section[]                            @relation("ClassTeacher")
+  approvedStudents                    StudentDetails[]                     @relation("DataApprovedBy")
+  mentoredStudents                    StudentDetails[]                     @relation("StudentMentor")
+  studentLogin                        StudentDetails?                      @relation("StudentLogin")
+  assignedDepartmentPermissions       UserDepartmentPermission[]           @relation("AssignedBy")
+  departmentPermissions               UserDepartmentPermission[]
+  userSettings                        UserSettings?                        @relation("UserSettings")
   // Chat System Relations
 
   // Mail System Relations
-  reportingStructure                                ReportingStructure[]                 @relation("UserReporting")
-  directReports                                     ReportingStructure[]                 @relation("ManagerReporting")
+  reportingStructure           ReportingStructure[]           @relation("UserReporting")
+  directReports                ReportingStructure[]           @relation("ManagerReporting")
   // TMS Relations
-  bugReportsCreated                                  BugReport[]                          @relation("BugReportUser")
-  bugReportsResolved                                 BugReport[]                          @relation("BugReportResolver")
+  bugReportsCreated            BugReport[]                    @relation("BugReportUser")
+  bugReportsResolved           BugReport[]                    @relation("BugReportResolver")
+  consentRecords               ConsentRecord[]                @relation("ConsentRecordUser")
+  dataPrincipalRequests        DataPrincipalRequest[]         @relation("DataPrincipalRequestUser")
+  handledDataPrincipalRequests DataPrincipalRequest[]         @relation("DataPrincipalRequestHandler")
+  reportedBreaches             DataBreachIncident[]           @relation("DataBreachReporter")
+  nominee                      DataPrincipalNominee?          @relation("DataPrincipalNomineeUser")
 
   @@index([universityId])
   @@map("user_login")
 }
 
 model PasswordResetToken {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  token     String   @unique @db.VarChar(128)
-  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  token     String    @unique @db.VarChar(128)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
   usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([userId])
   @@index([token])
@@ -227,42 +290,34 @@ model PasswordResetToken {
 }
 
 model EmployeeDetails {
-  id                        String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userLoginId               String?                     @unique @map("user_login_id") @db.Uuid
-  firstName                 String                      @map("first_name") @db.VarChar(128)
-  lastName                  String?                     @map("last_name") @db.VarChar(128)
-  displayName               String?                     @map("display_name") @db.VarChar(256)
-  photoFilePath             String?                     @map("photo_file_path")
-  photo                     String?                     @db.VarChar(64)
-  empId                     String?                     @unique @map("emp_id") @db.VarChar(64)
-  designation               String?                     @db.VarChar(128)
-  joinDate                  DateTime?                   @map("join_date") @db.Date
-  isActive                  Boolean                     @default(true) @map("is_active")
-  metadata                  Json                        @default("{}")
-  createdAt                 DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  primaryCentralDeptId      String?                     @map("primary_central_dept_id") @db.Uuid
-  primaryDepartmentId       String?                     @map("primary_department_id") @db.Uuid
-  email                     String?                     @db.VarChar(256)
-  phoneNumber               String?                     @map("phone_number") @db.VarChar(20)
-  primarySchoolId           String?                     @map("primary_school_id") @db.Uuid
-  officerLevel              String?                     @map("officer_level") @db.VarChar(10)
-  admissionFacultyStaff     AdmissionFacultyStaff[]
-  admissionStaffDetails     AdmissionStaffDetails[]
-  admissionStaffRoles       AdmissionStaffRoles[]
-  cards                     Card[]
-  primaryCentralDept        CentralDepartment?          @relation("PrimaryCentralDepartment", fields: [primaryCentralDeptId], references: [id])
-  primaryDepartment         Department?                 @relation("PrimaryDepartment", fields: [primaryDepartmentId], references: [id])
-  primarySchool             FacultySchoolList?          @relation("PrimarySchool", fields: [primarySchoolId], references: [id])
-  userLogin                 UserLogin?                  @relation(fields: [userLoginId], references: [id])
-  hrNonTeachingStaffDetails HrNonTeachingStaffDetails[]
-  hrNonTeachingStaffRoles   HrNonTeachingStaffRoles[]
-  hrTeachingStaffDetails    HrTeachingStaffDetails[]
-  hrTeachingStaffRoles      HrTeachingStaffRoles[]
-  registrarFacultyStaff     RegistrarFacultyStaff[]
-  registrarStaffDetails     RegistrarStaffDetails[]
-  registrarStaffRoles       RegistrarStaffRoles[]
-  reissueRequests           ReissueRequest[]
+  id                   String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId         String             @map("university_id") @db.Uuid
+  university           University         @relation("EmployeeDetailsUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  userLoginId          String?            @unique @map("user_login_id") @db.Uuid
+  firstName            String             @map("first_name") @db.VarChar(128)
+  lastName             String?            @map("last_name") @db.VarChar(128)
+  displayName          String?            @map("display_name") @db.VarChar(256)
+  photoFilePath        String?            @map("photo_file_path")
+  photo                String?            @db.VarChar(64)
+  empId                String?            @unique @map("emp_id") @db.VarChar(64)
+  designation          String?            @db.VarChar(128)
+  joinDate             DateTime?          @map("join_date") @db.Date
+  isActive             Boolean            @default(true) @map("is_active")
+  metadata             Json               @default("{}")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  primaryCentralDeptId String?            @map("primary_central_dept_id") @db.Uuid
+  primaryDepartmentId  String?            @map("primary_department_id") @db.Uuid
+  email                String?            @db.VarChar(256)
+  phoneNumber          String?            @map("phone_number") @db.VarChar(20)
+  primarySchoolId      String?            @map("primary_school_id") @db.Uuid
+  officerLevel         String?            @map("officer_level") @db.VarChar(10)
+  cards                Card[]
+  primaryCentralDept   CentralDepartment? @relation("PrimaryCentralDepartment", fields: [primaryCentralDeptId], references: [id])
+  primaryDepartment    Department?        @relation("PrimaryDepartment", fields: [primaryDepartmentId], references: [id])
+  primarySchool        FacultySchoolList? @relation("PrimarySchool", fields: [primarySchoolId], references: [id])
+  userLogin            UserLogin?         @relation(fields: [userLoginId], references: [id])
+  reissueRequests      ReissueRequest[]
 
   @@index([empId])
   @@index([primarySchoolId])
@@ -270,11 +325,14 @@ model EmployeeDetails {
   @@index([displayName])
   @@index([firstName])
   @@index([lastName])
+  @@index([universityId])
   @@map("employee_details")
 }
 
 model Card {
   id                  String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId        String           @map("university_id") @db.Uuid
+  university          University       @relation("CardUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   cardHolderType      String           @map("card_holder_type") @db.VarChar(32)
   employeeId          String?          @map("employee_id") @db.Uuid
   studentId           String?          @map("student_id") @db.Uuid
@@ -299,15 +357,17 @@ model Card {
   updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   employee            EmployeeDetails? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   issuedBy            UserLogin?       @relation("IssuedBy", fields: [issuedById], references: [id])
-  parent              ParentDetails?   @relation("ParentCards", fields: [parentId], references: [id], onDelete: Cascade)
   student             StudentDetails?  @relation("StudentCards", fields: [studentId], references: [id], onDelete: Cascade)
   reissueRequests     ReissueRequest[]
 
+  @@index([universityId])
   @@map("card")
 }
 
 model ReissueRequest {
   id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId   String           @map("university_id") @db.Uuid
+  university     University       @relation("ReissueRequestUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   cardHolderType String           @map("card_holder_type") @db.VarChar(32)
   employeeId     String?          @map("employee_id") @db.Uuid
   studentId      String?          @map("student_id") @db.Uuid
@@ -326,10 +386,10 @@ model ReissueRequest {
   approvedBy     UserLogin?       @relation("ApprovedBy", fields: [approvedById], references: [id])
   employee       EmployeeDetails? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   oldCard        Card?            @relation(fields: [oldCardId], references: [id])
-  parent         ParentDetails?   @relation("ParentReissueRequests", fields: [parentId], references: [id], onDelete: Cascade)
   requestedBy    UserLogin?       @relation("RequestedBy", fields: [requestedById], references: [id])
   student        StudentDetails?  @relation("StudentReissueRequests", fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@index([universityId])
   @@map("reissue_request")
 }
 
@@ -372,204 +432,65 @@ model AuditLog {
 }
 
 model AuditReportConfig {
-  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name           String   @db.VarChar(128)
-  email          String   @db.VarChar(256)
-  role           String   @db.VarChar(64)
-  isActive       Boolean  @default(true) @map("is_active")
-  receiveMonthly Boolean  @default(true) @map("receive_monthly")
-  receiveWeekly  Boolean  @default(false) @map("receive_weekly")
-  receiveDaily   Boolean  @default(false) @map("receive_daily")
-  modules        String[] @default([])
-  severities     String[] @default([])
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId   String?     @map("university_id") @db.Uuid
+  university     University? @relation("AuditReportConfigUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  name           String      @db.VarChar(128)
+  email          String      @db.VarChar(256)
+  role           String      @db.VarChar(64)
+  isActive       Boolean     @default(true) @map("is_active")
+  receiveMonthly Boolean     @default(true) @map("receive_monthly")
+  receiveWeekly  Boolean     @default(false) @map("receive_weekly")
+  receiveDaily   Boolean     @default(false) @map("receive_daily")
+  modules        String[]    @default([])
+  severities     String[]    @default([])
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  @@index([universityId])
   @@map("audit_report_config")
 }
 
 model AuditReportHistory {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  reportType  String   @map("report_type") @db.VarChar(32)
-  periodStart DateTime @map("period_start") @db.Timestamptz(6)
-  periodEnd   DateTime @map("period_end") @db.Timestamptz(6)
-  recipients  String[]
-  totalLogs   Int      @map("total_logs")
-  filePath    String?  @map("file_path")
-  status      String   @db.VarChar(32)
-  errorMsg    String?  @map("error_msg")
-  sentAt      DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String?     @map("university_id") @db.Uuid
+  university   University? @relation("AuditReportHistoryUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  reportType   String      @map("report_type") @db.VarChar(32)
+  periodStart  DateTime    @map("period_start") @db.Timestamptz(6)
+  periodEnd    DateTime    @map("period_end") @db.Timestamptz(6)
+  recipients   String[]
+  totalLogs    Int         @map("total_logs")
+  filePath     String?     @map("file_path")
+  status       String      @db.VarChar(32)
+  errorMsg     String?     @map("error_msg")
+  sentAt       DateTime    @default(now()) @map("sent_at") @db.Timestamptz(6)
 
+  @@index([universityId])
   @@map("audit_report_history")
 }
 
 model ChangeHistory {
-  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tableId     String    @map("table_id") @db.Uuid
-  tableName   String    @map("table_name") @db.VarChar(128)
-  columnName  String    @map("column_name") @db.VarChar(128)
-  oldValue    String?   @map("old_value")
-  newValue    String?   @map("new_value")
-  changedById String    @map("changed_by_id") @db.Uuid
-  changeType  String    @map("change_type") @db.VarChar(32)
-  changedAt   DateTime  @default(now()) @map("changed_at") @db.Timestamptz(6)
-  changedBy   UserLogin @relation(fields: [changedById], references: [id])
+  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String?     @map("university_id") @db.Uuid
+  university   University? @relation("ChangeHistoryUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  tableId      String      @map("table_id") @db.Uuid
+  tableName    String      @map("table_name") @db.VarChar(128)
+  columnName   String      @map("column_name") @db.VarChar(128)
+  oldValue     String?     @map("old_value")
+  newValue     String?     @map("new_value")
+  changedById  String      @map("changed_by_id") @db.Uuid
+  changeType   String      @map("change_type") @db.VarChar(32)
+  changedAt    DateTime    @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedBy    UserLogin   @relation(fields: [changedById], references: [id])
 
+  @@index([universityId])
   @@map("changes_history")
-}
-
-model AdmissionStaffRoles {
-  id                 String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId         String          @map("employee_id") @db.Uuid
-  title              String          @db.VarChar(256)
-  canViewAll         Boolean         @default(false) @map("can_view_all")
-  canModifyAll       Boolean         @default(false) @map("can_modify_all")
-  specialPermissions Json            @default("{}") @map("special_permissions")
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee           EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("admission_staff_roles")
-}
-
-model AdmissionStaffDetails {
-  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId     String          @map("employee_id") @db.Uuid
-  workLocation   String?         @map("work_location") @db.VarChar(256)
-  supervisor     String?         @db.VarChar(256)
-  responsibleFor String?         @map("responsible_for") @db.VarChar(256)
-  admissionCycle String?         @map("admission_cycle") @db.VarChar(64)
-  metadata       Json            @default("{}")
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee       EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("admission_staff_details")
-}
-
-model AdmissionFacultyStaff {
-  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId       String          @map("employee_id") @db.Uuid
-  facultyType      String?         @map("faculty_type") @db.VarChar(128)
-  qualification    String?         @db.VarChar(256)
-  experience       String?         @db.VarChar(256)
-  specialization   String?         @db.VarChar(256)
-  responsibilities String?         @db.VarChar(512)
-  metadata         Json            @default("{}")
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee         EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("admission_faculty_staff")
-}
-
-model RegistrarStaffRoles {
-  id                 String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId         String          @map("employee_id") @db.Uuid
-  title              String          @db.VarChar(256)
-  canViewAll         Boolean         @default(false) @map("can_view_all")
-  canModifyAll       Boolean         @default(false) @map("can_modify_all")
-  specialPermissions Json            @default("{}") @map("special_permissions")
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee           EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("registrar_staff_roles")
-}
-
-model RegistrarStaffDetails {
-  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId     String          @map("employee_id") @db.Uuid
-  workLocation   String?         @map("work_location") @db.VarChar(256)
-  supervisor     String?         @db.VarChar(256)
-  responsibleFor String?         @map("responsible_for") @db.VarChar(256)
-  accessLevel    String?         @map("access_level") @db.VarChar(64)
-  metadata       Json            @default("{}")
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee       EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("registrar_staff_details")
-}
-
-model RegistrarFacultyStaff {
-  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId       String          @map("employee_id") @db.Uuid
-  facultyType      String?         @map("faculty_type") @db.VarChar(128)
-  qualification    String?         @db.VarChar(256)
-  experience       String?         @db.VarChar(256)
-  specialization   String?         @db.VarChar(256)
-  responsibilities String?         @db.VarChar(512)
-  metadata         Json            @default("{}")
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee         EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("registrar_faculty_staff")
-}
-
-model HrTeachingStaffRoles {
-  id                 String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId         String          @map("employee_id") @db.Uuid
-  title              String          @db.VarChar(256)
-  canViewAll         Boolean         @default(false) @map("can_view_all")
-  canModifyAll       Boolean         @default(false) @map("can_modify_all")
-  specialPermissions Json            @default("{}") @map("special_permissions")
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee           EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("hr_teaching_staff_roles")
-}
-
-model HrNonTeachingStaffRoles {
-  id                 String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId         String          @map("employee_id") @db.Uuid
-  title              String          @db.VarChar(256)
-  canViewAll         Boolean         @default(false) @map("can_view_all")
-  canModifyAll       Boolean         @default(false) @map("can_modify_all")
-  specialPermissions Json            @default("{}") @map("special_permissions")
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee           EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("hr_non_teaching_staff_roles")
-}
-
-model HrTeachingStaffDetails {
-  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId     String          @map("employee_id") @db.Uuid
-  qualification  String?         @db.VarChar(256)
-  experience     String?         @db.VarChar(256)
-  specialization String?         @db.VarChar(256)
-  currentPosting String?         @map("current_posting") @db.VarChar(256)
-  salaryGrade    String?         @map("salary_grade") @db.VarChar(64)
-  metadata       Json            @default("{}")
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee       EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("hr_teaching_staff_details")
-}
-
-model HrNonTeachingStaffDetails {
-  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId     String          @map("employee_id") @db.Uuid
-  qualification  String?         @db.VarChar(256)
-  experience     String?         @db.VarChar(256)
-  skillSet       String?         @map("skill_set") @db.VarChar(256)
-  currentPosting String?         @map("current_posting") @db.VarChar(256)
-  salaryGrade    String?         @map("salary_grade") @db.VarChar(64)
-  metadata       Json            @default("{}")
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  employee       EmployeeDetails @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@map("hr_non_teaching_staff_details")
 }
 
 model UserDepartmentPermission {
   id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId   String         @map("university_id") @db.Uuid
+  university     University     @relation("UserDepartmentPermissionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   userId         String         @map("user_id") @db.Uuid
   department     DepartmentEnum
   permissions    Json           @default("{}")
@@ -582,11 +503,14 @@ model UserDepartmentPermission {
   user           UserLogin      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, department])
+  @@index([universityId])
   @@map("user_department_permission")
 }
 
 model DepartmentPermission {
   id             String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId   String     @map("university_id") @db.Uuid
+  university     University @relation("DepartmentPermissionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   userId         String     @map("user_id") @db.Uuid
   departmentId   String     @map("department_id") @db.Uuid
   permissions    Json       @default("{}")
@@ -604,11 +528,14 @@ model DepartmentPermission {
   @@index([userId])
   @@index([departmentId])
   @@index([isPrimary])
+  @@index([universityId])
   @@map("department_permission")
 }
 
 model CentralDepartmentPermission {
   id                                 String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId                       String            @map("university_id") @db.Uuid
+  university                         University        @relation("CentralDepartmentPermissionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   userId                             String            @map("user_id") @db.Uuid
   centralDeptId                      String            @map("central_dept_id") @db.Uuid
   permissions                        Json              @default("{}")
@@ -633,6 +560,7 @@ model CentralDepartmentPermission {
   @@index([userId])
   @@index([centralDeptId])
   @@index([isPrimary])
+  @@index([universityId])
   @@map("central_department_permission")
 }
 
@@ -661,7 +589,6 @@ model FacultySchoolList {
   grantApplications        GrantApplication[]        @relation("SchoolGrantApplications")
   iprApplications          IprApplication[]          @relation("SchoolIprApplications")
   researchContributions    ResearchContribution[]    @relation("SchoolResearchContributions")
-  researchPapers           ResearchPaper[]           @relation("SchoolResearchPapers")
   researchProgressTrackers ResearchProgressTracker[] @relation("SchoolResearchProgressTrackers")
 
   @@unique([universityId, facultyCode])
@@ -671,8 +598,10 @@ model FacultySchoolList {
 
 model Department {
   id                       String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId             String                    @map("university_id") @db.Uuid
+  university               University                @relation("DepartmentUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   facultyId                String                    @map("faculty_id") @db.Uuid
-  departmentCode           String                    @unique @map("department_code") @db.VarChar(32)
+  departmentCode           String                    @map("department_code") @db.VarChar(32)
   departmentName           String                    @map("department_name") @db.VarChar(256)
   shortName                String?                   @map("short_name") @db.VarChar(64)
   description              String?
@@ -694,9 +623,10 @@ model Department {
   iprApplications          IprApplication[]          @relation("DepartmentIprApplications")
   programs                 Program[]
   researchContributions    ResearchContribution[]    @relation("DepartmentResearchContributions")
-  researchPapers           ResearchPaper[]           @relation("DepartmentResearchPapers")
   researchProgressTrackers ResearchProgressTracker[] @relation("DepartmentResearchProgressTrackers")
 
+  @@unique([universityId, departmentCode])
+  @@index([universityId])
   @@map("department")
 }
 
@@ -748,50 +678,59 @@ model Role {
 }
 
 model Program {
-  id                   String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  departmentId         String           @map("department_id") @db.Uuid
-  programCode          String           @unique @map("program_code") @db.VarChar(32)
-  programName          String           @map("program_name") @db.VarChar(256)
-  programType          ProgramTypeEnum  @map("program_type")
-  shortName            String?          @map("short_name") @db.VarChar(64)
+  id                   String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId         String                  @map("university_id") @db.Uuid
+  university           University              @relation("ProgramUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  departmentId         String                  @map("department_id") @db.Uuid
+  programCode          String                  @map("program_code") @db.VarChar(32)
+  programName          String                  @map("program_name") @db.VarChar(256)
+  programType          ProgramTypeEnum         @map("program_type")
+  shortName            String?                 @map("short_name") @db.VarChar(64)
   description          String?
-  durationYears        Int              @default(4) @map("duration_years")
-  durationMonths       Int?             @map("duration_months")
-  durationSemesters    Int              @default(8) @map("duration_semesters")
-  totalCredits         Int?             @map("total_credits")
-  admissionCapacity    Int              @default(0) @map("admission_capacity")
-  currentEnrollment    Int              @default(0) @map("current_enrollment")
-  programCoordinatorId String?          @map("program_coordinator") @db.Uuid
-  accreditationBody    String?          @map("accreditation_body") @db.VarChar(128)
-  accreditationStatus  String?          @map("accreditation_status") @db.VarChar(64)
-  isActive             Boolean          @default(true) @map("is_active")
-  metadata             Json             @default("{}")
-  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  department           Department       @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  programCoordinator   UserLogin?       @relation("ProgramCoordinator", fields: [programCoordinatorId], references: [id])
+  durationYears        Int                     @default(4) @map("duration_years")
+  durationMonths       Int?                    @map("duration_months")
+  durationSemesters    Int                     @default(8) @map("duration_semesters")
+  totalCredits         Int?                    @map("total_credits")
+  admissionCapacity    Int                     @default(0) @map("admission_capacity")
+  currentEnrollment    Int                     @default(0) @map("current_enrollment")
+  programCoordinatorId String?                 @map("program_coordinator") @db.Uuid
+  accreditationBody    String?                 @map("accreditation_body") @db.VarChar(128)
+  accreditationStatus  String?                 @map("accreditation_status") @db.VarChar(64)
+  isActive             Boolean                 @default(true) @map("is_active")
+  metadata             Json                    @default("{}")
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  department           Department              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  programCoordinator   UserLogin?              @relation("ProgramCoordinator", fields: [programCoordinatorId], references: [id])
   sections             Section[]
   students             StudentDetails[]
   specializations      ProgramSpecialization[]
 
+  @@unique([universityId, programCode])
+  @@index([universityId])
   @@map("program")
 }
 
 model ProgramSpecialization {
-  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  programId            String   @map("program_id") @db.Uuid
-  specializationCode   String   @unique @map("specialization_code") @db.VarChar(64)
-  specializationName   String   @map("specialization_name") @db.VarChar(256)
-  isActive             Boolean  @default(true) @map("is_active")
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  program              Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  id                 String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String     @map("university_id") @db.Uuid
+  university         University @relation("ProgramSpecializationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  programId          String     @map("program_id") @db.Uuid
+  specializationCode String     @unique @map("specialization_code") @db.VarChar(64)
+  specializationName String     @map("specialization_name") @db.VarChar(256)
+  isActive           Boolean    @default(true) @map("is_active")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  program            Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
 
+  @@index([universityId])
   @@map("program_specialization")
 }
 
 model Section {
   id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId    String            @map("university_id") @db.Uuid
+  university      University        @relation("SectionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   programId       String            @map("program_id") @db.Uuid
   sectionCode     String            @map("section_code") @db.VarChar(32)
   sectionName     String            @map("section_name") @db.VarChar(128)
@@ -812,11 +751,14 @@ model Section {
   students        StudentDetails[]
 
   @@unique([programId, sectionCode, academicYear, semester])
+  @@index([universityId])
   @@map("section")
 }
 
 model StudentDetails {
   id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  universityId         String           @map("university_id") @db.Uuid
+  university           University       @relation("StudentDetailsUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   userLoginId          String?          @unique @map("user_login_id") @db.Uuid
   studentId            String           @unique @map("student_id") @db.VarChar(64)
   firstName            String           @map("first_name") @db.VarChar(128)
@@ -859,7 +801,6 @@ model StudentDetails {
   updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   mentorId             String?          @map("mentor_id") @db.Uuid
   cards                Card[]           @relation("StudentCards")
-  parents              ParentDetails[]
   reissueRequests      ReissueRequest[] @relation("StudentReissueRequests")
   dataApprovedBy       UserLogin?       @relation("DataApprovedBy", fields: [dataApprovedById], references: [id])
   mentor               UserLogin?       @relation("StudentMentor", fields: [mentorId], references: [id])
@@ -874,36 +815,14 @@ model StudentDetails {
   @@index([displayName])
   @@index([firstName])
   @@index([lastName])
+  @@index([universityId])
   @@map("student_details")
-}
-
-model ParentDetails {
-  id               String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userLoginId      String?          @unique @map("user_login_id") @db.Uuid
-  studentId        String           @map("student_id") @db.Uuid
-  relationship     String           @db.VarChar(32)
-  firstName        String           @map("first_name") @db.VarChar(128)
-  lastName         String?          @map("last_name") @db.VarChar(128)
-  occupation       String?          @db.VarChar(128)
-  organization     String?          @db.VarChar(256)
-  phone            String?          @db.VarChar(20)
-  email            String?          @db.Citext
-  address          String?
-  isPrimaryContact Boolean          @default(false) @map("is_primary_contact")
-  isActive         Boolean          @default(true) @map("is_active")
-  metadata         Json             @default("{}")
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  cards            Card[]           @relation("ParentCards")
-  student          StudentDetails   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  userLogin        UserLogin?       @relation("ParentLogin", fields: [userLoginId], references: [id])
-  reissueRequests  ReissueRequest[] @relation("ParentReissueRequests")
-
-  @@map("parent_details")
 }
 
 model IprApplication {
   id                      String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String                    @map("university_id") @db.Uuid
+  university              University                @relation("IprApplicationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   applicantUserId         String?                   @map("applicant_user_id") @db.Uuid
   applicantType           ApplicantTypeEnum         @map("applicant_type")
   iprType                 IprTypeEnum               @map("ipr_type")
@@ -960,11 +879,14 @@ model IprApplication {
   @@index([status, currentReviewerId])
   @@index([schoolId, submittedAt])
   @@index([sourceProvisionalId])
+  @@index([universityId])
   @@map("ipr_application")
 }
 
 model IprApplicantDetails {
   id                    String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId          String         @map("university_id") @db.Uuid
+  university            University     @relation("IprApplicantDetailsUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId      String         @unique @map("ipr_application_id") @db.Uuid
   employeeCategory      String?        @map("employee_category") @db.VarChar(64)
   employeeType          String?        @map("employee_type") @db.VarChar(64)
@@ -992,11 +914,14 @@ model IprApplicantDetails {
   iprApplication        IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
   @@index([mentorUid])
+  @@index([universityId])
   @@map("ipr_applicant_details")
 }
 
 model IprContributor {
   id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String         @map("university_id") @db.Uuid
+  university       University     @relation("IprContributorUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId String         @map("ipr_application_id") @db.Uuid
   userId           String?        @map("user_id") @db.Uuid
   uid              String?        @db.VarChar(64)
@@ -1017,11 +942,14 @@ model IprContributor {
   @@unique([iprApplicationId, uid])
   @@index([iprApplicationId])
   @@index([userId])
+  @@index([universityId])
   @@map("ipr_contributor")
 }
 
 model IprSdg {
   id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String         @map("university_id") @db.Uuid
+  university       University     @relation("IprSdgUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId String         @map("ipr_application_id") @db.Uuid
   sdgCode          String         @map("sdg_code") @db.VarChar(16)
   sdgTitle         String?        @map("sdg_title") @db.VarChar(256)
@@ -1029,11 +957,14 @@ model IprSdg {
   iprApplication   IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
   @@unique([iprApplicationId, sdgCode])
+  @@index([universityId])
   @@map("ipr_sdg")
 }
 
 model IprReview {
   id                      String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String         @map("university_id") @db.Uuid
+  university              University     @relation("IprReviewUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId        String         @map("ipr_application_id") @db.Uuid
   reviewerId              String         @map("reviewer_id") @db.Uuid
   reviewerRole            String         @map("reviewer_role") @db.VarChar(64)
@@ -1053,11 +984,14 @@ model IprReview {
   @@index([reviewerId])
   @@index([decision])
   @@index([iprApplicationId, decision])
+  @@index([universityId])
   @@map("ipr_review")
 }
 
 model IprEditSuggestion {
   id                String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId      String                   @map("university_id") @db.Uuid
+  university        University               @relation("IprEditSuggestionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId  String                   @map("ipr_application_id") @db.Uuid
   reviewerId        String                   @map("reviewer_id") @db.Uuid
   fieldName         String                   @map("field_name") @db.VarChar(128)
@@ -1077,11 +1011,14 @@ model IprEditSuggestion {
   @@index([iprApplicationId])
   @@index([reviewerId])
   @@index([status])
+  @@index([universityId])
   @@map("ipr_edit_suggestion")
 }
 
 model IprCollaborativeSession {
   id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String         @map("university_id") @db.Uuid
+  university       University     @relation("IprCollaborativeSessionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId String         @map("ipr_application_id") @db.Uuid
   reviewerId       String         @map("reviewer_id") @db.Uuid
   sessionData      Json           @default("{}") @map("session_data")
@@ -1095,11 +1032,14 @@ model IprCollaborativeSession {
 
   @@index([iprApplicationId])
   @@index([reviewerId])
+  @@index([universityId])
   @@map("ipr_collaborative_session")
 }
 
 model IprStatusHistory {
   id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String         @map("university_id") @db.Uuid
+  university       University     @relation("IprStatusHistoryUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId String         @map("ipr_application_id") @db.Uuid
   changedById      String         @map("changed_by_id") @db.Uuid
   comments         String?
@@ -1111,11 +1051,14 @@ model IprStatusHistory {
   iprApplication   IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
   @@index([iprApplicationId])
+  @@index([universityId])
   @@map("ipr_status_history")
 }
 
 model IprFinance {
   id                String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId      String         @map("university_id") @db.Uuid
+  university        University     @relation("IprFinanceUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId  String         @map("ipr_application_id") @db.Uuid
   financeReviewerId String         @map("finance_reviewer_id") @db.Uuid
   auditStatus       String         @map("audit_status") @db.VarChar(64)
@@ -1132,11 +1075,14 @@ model IprFinance {
   iprApplication    IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
   @@index([iprApplicationId])
+  @@index([universityId])
   @@map("ipr_finance")
 }
 
 model IprStatusUpdate {
   id                   String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId         String         @map("university_id") @db.Uuid
+  university           University     @relation("IprStatusUpdateUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId     String         @map("ipr_application_id") @db.Uuid
   createdById          String         @map("created_by_id") @db.Uuid
   updateMessage        String         @map("update_message")
@@ -1152,6 +1098,7 @@ model IprStatusUpdate {
   @@index([iprApplicationId])
   @@index([createdById])
   @@index([updateType])
+  @@index([universityId])
   @@map("ipr_status_update")
 }
 
@@ -1185,155 +1132,71 @@ model IncentivePolicy {
 }
 
 model UserSettings {
-  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId             String    @unique @map("user_id") @db.Uuid
-  emailNotifications Boolean   @default(true) @map("email_notifications")
-  pushNotifications  Boolean   @default(true) @map("push_notifications")
-  iprUpdates         Boolean   @default(true) @map("ipr_updates")
-  taskReminders      Boolean   @default(true) @map("task_reminders")
-  systemAlerts       Boolean   @default(true) @map("system_alerts")
-  weeklyDigest       Boolean   @default(false) @map("weekly_digest")
-  theme              String    @default("light") @db.VarChar(20)
-  language           String    @default("en") @db.VarChar(10)
-  compactView        Boolean   @default(false) @map("compact_view")
-  showTips           Boolean   @default(true) @map("show_tips")
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId              String    @unique @map("user_id") @db.Uuid
+  emailNotifications  Boolean   @default(true) @map("email_notifications")
+  pushNotifications   Boolean   @default(true) @map("push_notifications")
+  iprUpdates          Boolean   @default(true) @map("ipr_updates")
+  taskReminders       Boolean   @default(true) @map("task_reminders")
+  systemAlerts        Boolean   @default(true) @map("system_alerts")
+  weeklyDigest        Boolean   @default(false) @map("weekly_digest")
+  theme               String    @default("light") @db.VarChar(20)
+  language            String    @default("en") @db.VarChar(10)
+  compactView         Boolean   @default(false) @map("compact_view")
+  showTips            Boolean   @default(true) @map("show_tips")
   // User-provided override for their displayed research affiliation string.
   // When null, the UI falls back to the affiliation engine's suggested name.
-  affiliationOverride String?  @map("affiliation_override") @db.VarChar(256)
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user               UserLogin @relation("UserSettings", fields: [userId], references: [id], onDelete: Cascade)
+  affiliationOverride String?   @map("affiliation_override") @db.VarChar(256)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                UserLogin @relation("UserSettings", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }
 
-model ResearchPaper {
-  id                      String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  authorUserId            String                       @map("author_user_id") @db.Uuid
-  title                   String                       @db.VarChar(512)
-  abstract                String
-  keywords                String?                      @db.VarChar(512)
-  journalName             String?                      @map("journal_name") @db.VarChar(256)
-  issn                    String?                      @db.VarChar(32)
-  impactFactor            Decimal?                     @map("impact_factor") @db.Decimal(5, 2)
-  publicationDate         DateTime?                    @map("publication_date") @db.Date
-  doi                     String?                      @db.VarChar(128)
-  schoolId                String?                      @map("school_id") @db.Uuid
-  departmentId            String?                      @map("department_id") @db.Uuid
-  status                  ResearchPaperStatusEnum      @default(draft)
-  currentReviewerId       String?                      @map("current_reviewer_id") @db.Uuid
-  manuscriptFilePath      String?                      @map("manuscript_file_path")
-  supportingDocsFilePaths Json?                        @map("supporting_docs_file_paths")
-  incentiveAmount         Decimal?                     @map("incentive_amount") @db.Decimal(15, 2)
-  pointsAwarded           Int?                         @map("points_awarded")
-  creditedAt              DateTime?                    @map("credited_at") @db.Timestamptz(6)
-  submittedAt             DateTime?                    @map("submitted_at") @db.Timestamptz(6)
-  publishedAt             DateTime?                    @map("published_at") @db.Timestamptz(6)
-  createdAt               DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  author                  UserLogin                    @relation("ResearchPapers", fields: [authorUserId], references: [id], onDelete: Cascade)
-  department              Department?                  @relation("DepartmentResearchPapers", fields: [departmentId], references: [id])
-  school                  FacultySchoolList?           @relation("SchoolResearchPapers", fields: [schoolId], references: [id])
-  reviews                 ResearchPaperReview[]
-  statusHistory           ResearchPaperStatusHistory[]
-
-  @@index([authorUserId])
-  @@index([status])
-  @@index([schoolId])
-  @@index([departmentId])
-  @@map("research_paper")
-}
-
-model ResearchPaperReview {
-  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  researchPaperId String        @map("research_paper_id") @db.Uuid
-  reviewerId      String        @map("reviewer_id") @db.Uuid
-  comments        String?
-  edits           Json?
-  decision        String        @db.VarChar(32)
-  reviewedAt      DateTime?     @map("reviewed_at") @db.Timestamptz(6)
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  researchPaper   ResearchPaper @relation(fields: [researchPaperId], references: [id], onDelete: Cascade)
-  reviewer        UserLogin     @relation("ResearchPaperReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
-
-  @@index([researchPaperId])
-  @@index([reviewerId])
-  @@map("research_paper_review")
-}
-
-model ResearchPaperStatusHistory {
-  id              String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  researchPaperId String                   @map("research_paper_id") @db.Uuid
-  fromStatus      ResearchPaperStatusEnum? @map("from_status")
-  toStatus        ResearchPaperStatusEnum  @map("to_status")
-  changedById     String                   @map("changed_by_id") @db.Uuid
-  comments        String?
-  metadata        Json?
-  changedAt       DateTime                 @default(now()) @map("changed_at") @db.Timestamptz(6)
-  changedBy       UserLogin                @relation("ResearchPaperStatusChanges", fields: [changedById], references: [id], onDelete: Cascade)
-  researchPaper   ResearchPaper            @relation(fields: [researchPaperId], references: [id], onDelete: Cascade)
-
-  @@index([researchPaperId])
-  @@map("research_paper_status_history")
-}
-
 model IPR {
-  id                      String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title                   String        @db.VarChar(255)
+  id                      String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String     @map("university_id") @db.Uuid
+  university              University @relation("IPRUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  title                   String     @db.VarChar(255)
   description             String
-  type                    String        @db.VarChar(50)
-  status                  String        @default("draft") @db.VarChar(50)
-  applicationNumber       String?       @unique @map("application_number") @db.VarChar(100)
-  submissionDate          DateTime?     @map("submission_date") @db.Timestamptz(6)
-  applicant               String        @db.VarChar(255)
-  coApplicants            Json?         @map("co_applicants")
-  department              String        @db.VarChar(100)
-  researchArea            String?       @map("research_area") @db.VarChar(255)
+  type                    String     @db.VarChar(50)
+  status                  String     @default("draft") @db.VarChar(50)
+  applicationNumber       String?    @unique @map("application_number") @db.VarChar(100)
+  submissionDate          DateTime?  @map("submission_date") @db.Timestamptz(6)
+  applicant               String     @db.VarChar(255)
+  coApplicants            Json?      @map("co_applicants")
+  department              String     @db.VarChar(100)
+  researchArea            String?    @map("research_area") @db.VarChar(255)
   keywords                Json?
-  technicalSpecifications String?       @map("technical_specifications")
-  estimatedValue          Decimal?      @map("estimated_value") @db.Decimal(15, 2)
-  marketPotential         String?       @map("market_potential")
-  competitiveAdvantage    String?       @map("competitive_advantage")
-  priority                String        @default("medium") @db.VarChar(20)
-  reviewComments          String?       @map("review_comments")
-  reviewerNotes           String?       @map("reviewer_notes")
-  reviewDate              DateTime?     @map("review_date") @db.Timestamptz(6)
-  createdById             String        @map("created_by_id") @db.Uuid
-  approvedById            String?       @map("approved_by_id") @db.Uuid
-  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  approvedBy              UserLogin?    @relation("IPRApprover", fields: [approvedById], references: [id])
-  createdBy               UserLogin     @relation("IPRCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  documents               IPRDocument[]
+  technicalSpecifications String?    @map("technical_specifications")
+  estimatedValue          Decimal?   @map("estimated_value") @db.Decimal(15, 2)
+  marketPotential         String?    @map("market_potential")
+  competitiveAdvantage    String?    @map("competitive_advantage")
+  priority                String     @default("medium") @db.VarChar(20)
+  reviewComments          String?    @map("review_comments")
+  reviewerNotes           String?    @map("reviewer_notes")
+  reviewDate              DateTime?  @map("review_date") @db.Timestamptz(6)
+  createdById             String     @map("created_by_id") @db.Uuid
+  approvedById            String?    @map("approved_by_id") @db.Uuid
+  createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  approvedBy              UserLogin? @relation("IPRApprover", fields: [approvedById], references: [id])
+  createdBy               UserLogin  @relation("IPRCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([type])
   @@index([status])
   @@index([department])
   @@index([createdById])
   @@index([submissionDate])
+  @@index([universityId])
   @@map("ipr")
-}
-
-model IPRDocument {
-  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  iprId        String    @map("ipr_id") @db.Uuid
-  name         String    @db.VarChar(255)
-  type         String    @db.VarChar(100)
-  filePath     String    @map("file_path") @db.VarChar(500)
-  fileSize     BigInt    @map("file_size")
-  mimeType     String    @map("mime_type") @db.VarChar(100)
-  uploadedById String    @map("uploaded_by_id") @db.Uuid
-  uploadedAt   DateTime  @default(now()) @map("uploaded_at") @db.Timestamptz(6)
-  ipr          IPR       @relation(fields: [iprId], references: [id], onDelete: Cascade)
-  uploadedBy   UserLogin @relation("IPRDocumentUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
-
-  @@index([iprId])
-  @@map("ipr_document")
 }
 
 model DocumentChange {
   id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String?        @map("university_id") @db.Uuid
+  university       University?    @relation("DocumentChangeUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   iprApplicationId String         @map("ipr_application_id") @db.Uuid
   fieldName        String         @map("field_name") @db.VarChar(100)
   type             String         @db.VarChar(20)
@@ -1352,23 +1215,24 @@ model DocumentChange {
   @@index([fieldName])
   @@index([status])
   @@index([reviewerId])
+  @@index([universityId])
   @@map("document_change")
 }
 
 model Notification {
-  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId        String    @map("user_id") @db.Uuid
-  universityId  String?   @map("university_id") @db.Uuid
-  type          String    @db.VarChar(50)
-  title         String    @db.VarChar(255)
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  universityId  String?     @map("university_id") @db.Uuid
+  type          String      @db.VarChar(50)
+  title         String      @db.VarChar(255)
   message       String
-  referenceType String?   @map("reference_type") @db.VarChar(50)
-  referenceId   String?   @map("reference_id") @db.Uuid
-  isRead        Boolean   @default(false) @map("is_read")
-  readAt        DateTime? @map("read_at") @db.Timestamptz(6)
-  metadata      Json      @default("{}")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  user          UserLogin @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  referenceType String?     @map("reference_type") @db.VarChar(50)
+  referenceId   String?     @map("reference_id") @db.Uuid
+  isRead        Boolean     @default(false) @map("is_read")
+  readAt        DateTime?   @map("read_at") @db.Timestamptz(6)
+  metadata      Json        @default("{}")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          UserLogin   @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
   university    University? @relation(fields: [universityId], references: [id])
 
   @@index([userId])
@@ -1382,6 +1246,8 @@ model Notification {
 
 model ResearchContribution {
   id                         String                                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId               String                                @map("university_id") @db.Uuid
+  university                 University                            @relation("ResearchContributionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   applicationNumber          String?                               @unique @map("application_number") @db.VarChar(32)
   applicantUserId            String?                               @map("applicant_user_id") @db.Uuid
   applicantType              ApplicantTypeEnum                     @map("applicant_type")
@@ -1516,26 +1382,29 @@ model ResearchContribution {
   @@index([specialReviewRequired])
   @@index([doi])
   @@index([applicantUserId, doi])
+  @@index([universityId])
   @@map("research_contribution")
 }
 
 model ResearchProfileIdentity {
-  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId             String               @unique @map("user_id") @db.Uuid
-  orcid              String?              @db.VarChar(32)
-  scopusAuthorId     String?              @map("scopus_author_id") @db.VarChar(64)
-  pubmedId           String?              @map("pubmed_id") @db.VarChar(64)
-  webOfScienceId     String?              @map("web_of_science_id") @db.VarChar(64)
-  affiliationAliases Json?                @default("[]") @map("affiliation_aliases")
-  autoSyncEnabled    Boolean              @default(true) @map("auto_sync_enabled")
-  filterSgtOnly      Boolean              @default(false) @map("filter_sgt_only")
-  syncFrequencyDays  Int                  @default(1) @map("sync_frequency_days")
-  syncStatus         String               @default("never_synced") @map("sync_status") @db.VarChar(32)
-  syncError          String?              @map("sync_error")
-  lastSyncedAt       DateTime?            @map("last_synced_at") @db.Timestamptz(6)
-  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user               UserLogin            @relation("UserResearchProfileIdentity", fields: [userId], references: [id], onDelete: Cascade)
+  id                 String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String                 @map("university_id") @db.Uuid
+  university         University             @relation("ResearchProfileIdentityUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  userId             String                 @unique @map("user_id") @db.Uuid
+  orcid              String?                @db.VarChar(32)
+  scopusAuthorId     String?                @map("scopus_author_id") @db.VarChar(64)
+  pubmedId           String?                @map("pubmed_id") @db.VarChar(64)
+  webOfScienceId     String?                @map("web_of_science_id") @db.VarChar(64)
+  affiliationAliases Json?                  @default("[]") @map("affiliation_aliases")
+  autoSyncEnabled    Boolean                @default(true) @map("auto_sync_enabled")
+  filterSgtOnly      Boolean                @default(false) @map("filter_sgt_only")
+  syncFrequencyDays  Int                    @default(1) @map("sync_frequency_days")
+  syncStatus         String                 @default("never_synced") @map("sync_status") @db.VarChar(32)
+  syncError          String?                @map("sync_error")
+  lastSyncedAt       DateTime?              @map("last_synced_at") @db.Timestamptz(6)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user               UserLogin              @relation("UserResearchProfileIdentity", fields: [userId], references: [id], onDelete: Cascade)
   importRuns         PublicationImportRun[]
   publicationImports PublicationImport[]
 
@@ -1543,58 +1412,67 @@ model ResearchProfileIdentity {
   @@index([scopusAuthorId])
   @@index([pubmedId])
   @@index([autoSyncEnabled, lastSyncedAt])
+  @@index([universityId])
   @@map("research_profile_identity")
 }
 
 model PublicationImportRun {
-  id                String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  researchProfileId String                  @map("research_profile_id") @db.Uuid
-  triggeredById     String?                 @map("triggered_by_id") @db.Uuid
-  triggerType       String                  @default("scheduled") @map("trigger_type") @db.VarChar(32)
-  sourceSystems     String[]                @default([]) @map("source_systems")
-  status            String                  @default("pending") @db.VarChar(32)
-  discoveredCount   Int                     @default(0) @map("discovered_count")
-  createdCount      Int                     @default(0) @map("created_count")
-  updatedCount      Int                     @default(0) @map("updated_count")
-  skippedCount      Int                     @default(0) @map("skipped_count")
-  failedCount       Int                     @default(0) @map("failed_count")
-  specialReviewCount Int                    @default(0) @map("special_review_count")
-  startedAt         DateTime                @default(now()) @map("started_at") @db.Timestamptz(6)
-  finishedAt        DateTime?               @map("finished_at") @db.Timestamptz(6)
-  errorSummary      Json?                   @default("[]") @map("error_summary")
-  metadata          Json?                   @default("{}")
-  researchProfile   ResearchProfileIdentity @relation(fields: [researchProfileId], references: [id], onDelete: Cascade)
-  triggeredBy       UserLogin?              @relation("PublicationImportRunTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
+  id                 String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String                  @map("university_id") @db.Uuid
+  university         University              @relation("PublicationImportRunUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  researchProfileId  String                  @map("research_profile_id") @db.Uuid
+  triggeredById      String?                 @map("triggered_by_id") @db.Uuid
+  triggerType        String                  @default("scheduled") @map("trigger_type") @db.VarChar(32)
+  sourceSystems      String[]                @default([]) @map("source_systems")
+  status             String                  @default("pending") @db.VarChar(32)
+  discoveredCount    Int                     @default(0) @map("discovered_count")
+  createdCount       Int                     @default(0) @map("created_count")
+  updatedCount       Int                     @default(0) @map("updated_count")
+  skippedCount       Int                     @default(0) @map("skipped_count")
+  failedCount        Int                     @default(0) @map("failed_count")
+  specialReviewCount Int                     @default(0) @map("special_review_count")
+  startedAt          DateTime                @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt         DateTime?               @map("finished_at") @db.Timestamptz(6)
+  errorSummary       Json?                   @default("[]") @map("error_summary")
+  metadata           Json?                   @default("{}")
+  researchProfile    ResearchProfileIdentity @relation(fields: [researchProfileId], references: [id], onDelete: Cascade)
+  triggeredBy        UserLogin?              @relation("PublicationImportRunTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
 
   @@index([researchProfileId, startedAt])
   @@index([status, startedAt])
+  @@index([universityId])
   @@map("publication_import_run")
 }
 
 model PublicationImport {
-  id                   String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  researchProfileId    String                  @map("research_profile_id") @db.Uuid
-  researchContributionId String?               @map("research_contribution_id") @db.Uuid
-  sourceSystem         String                  @map("source_system") @db.VarChar(32)
-  externalId           String                  @map("external_id") @db.VarChar(191)
-  doi                  String?                 @db.VarChar(256)
-  publishedYear        Int?                    @map("published_year")
-  normalizedTitle      String?                 @map("normalized_title") @db.VarChar(512)
-  lastSeenAt           DateTime                @default(now()) @map("last_seen_at") @db.Timestamptz(6)
-  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  metadata             Json?                   @default("{}")
-  researchProfile      ResearchProfileIdentity @relation(fields: [researchProfileId], references: [id], onDelete: Cascade)
-  researchContribution ResearchContribution?   @relation(fields: [researchContributionId], references: [id], onDelete: SetNull)
+  id                     String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId           String                  @map("university_id") @db.Uuid
+  university             University              @relation("PublicationImportUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  researchProfileId      String                  @map("research_profile_id") @db.Uuid
+  researchContributionId String?                 @map("research_contribution_id") @db.Uuid
+  sourceSystem           String                  @map("source_system") @db.VarChar(32)
+  externalId             String                  @map("external_id") @db.VarChar(191)
+  doi                    String?                 @db.VarChar(256)
+  publishedYear          Int?                    @map("published_year")
+  normalizedTitle        String?                 @map("normalized_title") @db.VarChar(512)
+  lastSeenAt             DateTime                @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata               Json?                   @default("{}")
+  researchProfile        ResearchProfileIdentity @relation(fields: [researchProfileId], references: [id], onDelete: Cascade)
+  researchContribution   ResearchContribution?   @relation(fields: [researchContributionId], references: [id], onDelete: SetNull)
 
   @@unique([sourceSystem, externalId], map: "publication_import_source_external_key")
   @@index([researchProfileId, lastSeenAt])
   @@index([doi])
+  @@index([universityId])
   @@map("publication_import")
 }
 
 model ResearchContributionApplicantDetails {
   id                     String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId           String               @map("university_id") @db.Uuid
+  university             University           @relation("ResearchContributionApplicantDetailsUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   researchContributionId String               @unique(map: "research_contribution_applicant_details_contribution_key") @map("research_contribution_id") @db.Uuid
   employeeCategory       String?              @map("employee_category") @db.VarChar(64)
   employeeType           String?              @map("employee_type") @db.VarChar(64)
@@ -1622,11 +1500,14 @@ model ResearchContributionApplicantDetails {
   researchContribution   ResearchContribution @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_applicant_details_contribution_fkey")
 
   @@index([mentorUid])
+  @@index([universityId])
   @@map("research_contribution_applicant_details")
 }
 
 model ResearchContributionAuthor {
   id                     String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId           String                 @map("university_id") @db.Uuid
+  university             University             @relation("ResearchContributionAuthorUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   researchContributionId String                 @map("research_contribution_id") @db.Uuid
   userId                 String?                @map("user_id") @db.Uuid
   uid                    String?                @db.VarChar(64)
@@ -1668,11 +1549,14 @@ model ResearchContributionAuthor {
   @@unique([researchContributionId, uid], map: "research_contribution_author_contribution_uid_key")
   @@index([userId])
   @@index([researchContributionId], map: "research_contribution_author_contribution_id_idx")
+  @@index([universityId])
   @@map("research_contribution_author")
 }
 
 model ResearchContributionReview {
   id                      String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String               @map("university_id") @db.Uuid
+  university              University           @relation("ResearchContributionReviewUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   researchContributionId  String               @map("research_contribution_id") @db.Uuid
   reviewerId              String               @map("reviewer_id") @db.Uuid
   reviewerRole            String               @map("reviewer_role") @db.VarChar(64)
@@ -1692,11 +1576,14 @@ model ResearchContributionReview {
   @@index([researchContributionId], map: "research_contribution_review_contribution_id_idx")
   @@index([decision])
   @@index([researchContributionId, decision])
+  @@index([universityId])
   @@map("research_contribution_review")
 }
 
 model ResearchContributionStatusHistory {
   id                     String                          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId           String                          @map("university_id") @db.Uuid
+  university             University                      @relation("ResearchContributionStatusHistoryUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   researchContributionId String                          @map("research_contribution_id") @db.Uuid
   fromStatus             ResearchContributionStatusEnum? @map("from_status")
   toStatus               ResearchContributionStatusEnum  @map("to_status")
@@ -1708,11 +1595,14 @@ model ResearchContributionStatusHistory {
   researchContribution   ResearchContribution            @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_status_history_contribution_fkey")
 
   @@index([researchContributionId], map: "research_contribution_status_history_contribution_id_idx")
+  @@index([universityId])
   @@map("research_contribution_status_history")
 }
 
 model ResearchContributionEditSuggestion {
   id                     String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId           String                   @map("university_id") @db.Uuid
+  university             University               @relation("ResearchContributionEditSuggestionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   researchContributionId String                   @map("research_contribution_id") @db.Uuid
   reviewerId             String                   @map("reviewer_id") @db.Uuid
   fieldName              String                   @map("field_name") @db.VarChar(128)
@@ -1731,6 +1621,7 @@ model ResearchContributionEditSuggestion {
 
   @@index([reviewerId])
   @@index([researchContributionId], map: "research_contribution_edit_suggestion_contribution_id_idx")
+  @@index([universityId])
   @@map("research_contribution_edit_suggestion")
 }
 
@@ -1868,7 +1759,7 @@ model GrantIncentivePolicy {
   effectiveTo             DateTime?  @map("effective_to") @db.Timestamptz(6)
   createdById             String     @map("created_by_id") @db.Uuid
   updatedById             String?    @map("updated_by_id") @db.Uuid
-  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy               UserLogin  @relation("GrantPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "grant_incentive_policy_created_by_fkey")
   updatedBy               UserLogin? @relation("GrantPolicyUpdatedBy", fields: [updatedById], references: [id], map: "grant_incentive_policy_updated_by_fkey")
@@ -1883,6 +1774,8 @@ model GrantIncentivePolicy {
 
 model ResearchProgressTracker {
   id                     String                          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId           String                          @map("university_id") @db.Uuid
+  university             University                      @relation("ResearchProgressTrackerUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   trackingNumber         String                          @unique @map("tracking_number") @db.VarChar(32)
   userId                 String                          @map("user_id") @db.Uuid
   publicationType        ResearchPublicationTypeEnum     @map("publication_type")
@@ -1913,11 +1806,14 @@ model ResearchProgressTracker {
   @@index([departmentId])
   @@index([title])
   @@index([trackingNumber])
+  @@index([universityId])
   @@map("research_progress_tracker")
 }
 
 model ResearchProgressStatusHistory {
   id           String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String                     @map("university_id") @db.Uuid
+  university   University                 @relation("ResearchProgressStatusHistoryUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   trackerId    String                     @map("tracker_id") @db.Uuid
   fromStatus   ResearchTrackerStatusEnum? @map("from_status")
   toStatus     ResearchTrackerStatusEnum  @map("to_status")
@@ -1931,11 +1827,14 @@ model ResearchProgressStatusHistory {
 
   @@index([trackerId])
   @@index([toStatus])
+  @@index([universityId])
   @@map("research_progress_status_history")
 }
 
 model GrantApplication {
   id                        String                           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId              String                           @map("university_id") @db.Uuid
+  university                University                       @relation("GrantApplicationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   applicationNumber         String?                          @unique @map("application_number") @db.VarChar(32)
   applicantUserId           String?                          @map("applicant_user_id") @db.Uuid
   applicantType             ApplicantTypeEnum                @map("applicant_type")
@@ -1994,11 +1893,14 @@ model GrantApplication {
   @@index([departmentId])
   @@index([submittedAt])
   @@index([schoolId, submittedAt])
+  @@index([universityId])
   @@map("grant_application")
 }
 
 model GrantConsortiumOrganization {
   id                 String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String              @map("university_id") @db.Uuid
+  university         University          @relation("GrantConsortiumOrganizationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   grantApplicationId String              @map("grant_application_id") @db.Uuid
   organizationName   String              @map("organization_name") @db.VarChar(256)
   country            String              @db.VarChar(128)
@@ -2011,11 +1913,14 @@ model GrantConsortiumOrganization {
   investigators      GrantInvestigator[] @relation("ConsortiumOrgInvestigators")
 
   @@index([grantApplicationId])
+  @@index([universityId])
   @@map("grant_consortium_organization")
 }
 
 model GrantInvestigator {
   id                 String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String                       @map("university_id") @db.Uuid
+  university         University                   @relation("GrantInvestigatorUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   grantApplicationId String                       @map("grant_application_id") @db.Uuid
   userId             String?                      @map("user_id") @db.Uuid
   uid                String?                      @db.VarChar(64)
@@ -2043,11 +1948,14 @@ model GrantInvestigator {
   @@index([grantApplicationId])
   @@index([userId])
   @@index([consortiumOrgId])
+  @@index([universityId])
   @@map("grant_investigator")
 }
 
 model GrantApplicationReview {
   id                      String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId            String           @map("university_id") @db.Uuid
+  university              University       @relation("GrantApplicationReviewUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   grantApplicationId      String           @map("grant_application_id") @db.Uuid
   reviewerId              String           @map("reviewer_id") @db.Uuid
   reviewerRole            String           @map("reviewer_role") @db.VarChar(64)
@@ -2065,11 +1973,14 @@ model GrantApplicationReview {
 
   @@index([grantApplicationId])
   @@index([reviewerId])
+  @@index([universityId])
   @@map("grant_application_review")
 }
 
 model GrantApplicationStatusHistory {
   id                 String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String                      @map("university_id") @db.Uuid
+  university         University                  @relation("GrantApplicationStatusHistoryUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   grantApplicationId String                      @map("grant_application_id") @db.Uuid
   fromStatus         GrantApplicationStatusEnum? @map("from_status")
   toStatus           GrantApplicationStatusEnum  @map("to_status")
@@ -2081,11 +1992,14 @@ model GrantApplicationStatusHistory {
   grantApplication   GrantApplication            @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
 
   @@index([grantApplicationId])
+  @@index([universityId])
   @@map("grant_application_status_history")
 }
 
 model GrantApplicationEditSuggestion {
   id                 String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String                   @map("university_id") @db.Uuid
+  university         University               @relation("GrantApplicationEditSuggestionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   grantApplicationId String                   @map("grant_application_id") @db.Uuid
   reviewerId         String                   @map("reviewer_id") @db.Uuid
   fieldName          String                   @map("field_name") @db.VarChar(128)
@@ -2104,24 +2018,27 @@ model GrantApplicationEditSuggestion {
 
   @@index([reviewerId])
   @@index([grantApplicationId])
+  @@index([universityId])
   @@map("grant_application_edit_suggestion")
 }
 
 model ReportingStructure {
-  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId        String     @map("user_id") @db.Uuid
-  departmentScope String?  @map("department_scope") @db.VarChar(32)
-  departmentId  String?    @map("department_id") @db.Uuid
-  managerId     String?    @map("manager_id") @db.Uuid
-  hierarchyDepth Int       @default(0) @map("hierarchy_depth")
-  hierarchyPath String?    @map("hierarchy_path") @db.Text
-  isActive      Boolean    @default(true) @map("is_active")
-  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdById   String     @map("created_by_id") @db.Uuid
+  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId    String     @map("university_id") @db.Uuid
+  university      University @relation("ReportingStructureUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  userId          String     @map("user_id") @db.Uuid
+  departmentScope String?    @map("department_scope") @db.VarChar(32)
+  departmentId    String?    @map("department_id") @db.Uuid
+  managerId       String?    @map("manager_id") @db.Uuid
+  hierarchyDepth  Int        @default(0) @map("hierarchy_depth")
+  hierarchyPath   String?    @map("hierarchy_path") @db.Text
+  isActive        Boolean    @default(true) @map("is_active")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdById     String     @map("created_by_id") @db.Uuid
 
-  user          UserLogin  @relation("UserReporting", fields: [userId], references: [id], onDelete: Cascade)
-  manager       UserLogin? @relation("ManagerReporting", fields: [managerId], references: [id], onDelete: SetNull)
+  user    UserLogin  @relation("UserReporting", fields: [userId], references: [id], onDelete: Cascade)
+  manager UserLogin? @relation("ManagerReporting", fields: [managerId], references: [id], onDelete: SetNull)
 
   @@unique([userId, departmentScope, departmentId], map: "reporting_structure_user_department_unique")
   @@index([userId])
@@ -2135,6 +2052,7 @@ model ReportingStructure {
   @@index([isActive])
   @@index([isActive, managerId])
   @@index([isActive, hierarchyDepth])
+  @@index([universityId])
   @@map("reporting_structure")
 }
 
@@ -2455,7 +2373,6 @@ enum quartile_enum {
   Q4
 }
 
-
 // =====================================
 // Bug Report System
 // =====================================
@@ -2466,25 +2383,25 @@ enum ResolutionStatus {
 }
 
 model BugReport {
-  id               String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId           String              @map("user_id") @db.Uuid
-  universityId     String?             @map("university_id") @db.Uuid
-  userRole         String              @map("user_role") @db.VarChar(32)
-  userIdentifier   String              @map("user_identifier") @db.VarChar(64)
-  userEmail        String?             @map("user_email") @db.VarChar(255)
-  description      String              @db.Text
-  pageUrl          String              @map("page_url") @db.VarChar(2048)
-  routePath        String              @map("route_path") @db.VarChar(512)
-  resolutionStatus ResolutionStatus    @default(unresolved) @map("resolution_status")
-  resolvedAt       DateTime?           @map("resolved_at") @db.Timestamptz(6)
-  resolvedBy       String?             @map("resolved_by") @db.Uuid
-  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId           String           @map("user_id") @db.Uuid
+  universityId     String?          @map("university_id") @db.Uuid
+  userRole         String           @map("user_role") @db.VarChar(32)
+  userIdentifier   String           @map("user_identifier") @db.VarChar(64)
+  userEmail        String?          @map("user_email") @db.VarChar(255)
+  description      String           @db.Text
+  pageUrl          String           @map("page_url") @db.VarChar(2048)
+  routePath        String           @map("route_path") @db.VarChar(512)
+  resolutionStatus ResolutionStatus @default(unresolved) @map("resolution_status")
+  resolvedAt       DateTime?        @map("resolved_at") @db.Timestamptz(6)
+  resolvedBy       String?          @map("resolved_by") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user             UserLogin           @relation("BugReportUser", fields: [userId], references: [id], onDelete: Cascade)
-  resolver         UserLogin?          @relation("BugReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
-  university       University?         @relation(fields: [universityId], references: [id])
-  screenshots      BugReportScreenshot[]
+  user        UserLogin             @relation("BugReportUser", fields: [userId], references: [id], onDelete: Cascade)
+  resolver    UserLogin?            @relation("BugReportResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+  university  University?           @relation(fields: [universityId], references: [id])
+  screenshots BugReportScreenshot[]
 
   @@index([userId])
   @@index([createdAt])
@@ -2495,20 +2412,23 @@ model BugReport {
 }
 
 model BugReportScreenshot {
-  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  bugReportId        String    @map("bug_report_id") @db.Uuid
-  originalFilename   String    @map("original_filename") @db.VarChar(255)
-  storedFilename     String    @map("stored_filename") @db.VarChar(255)
-  fileSize           Int       @map("file_size")
-  mimeType           String    @map("mime_type") @db.VarChar(64)
-  storagePath        String    @map("storage_path") @db.VarChar(512)
-  thumbnailFilename  String?   @map("thumbnail_filename") @db.VarChar(255)
-  thumbnailPath      String?   @map("thumbnail_path") @db.VarChar(512)
-  uploadedAt         DateTime  @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  id                String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId      String     @map("university_id") @db.Uuid
+  university        University @relation("BugReportScreenshotUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  bugReportId       String     @map("bug_report_id") @db.Uuid
+  originalFilename  String     @map("original_filename") @db.VarChar(255)
+  storedFilename    String     @map("stored_filename") @db.VarChar(255)
+  fileSize          Int        @map("file_size")
+  mimeType          String     @map("mime_type") @db.VarChar(64)
+  storagePath       String     @map("storage_path") @db.VarChar(512)
+  thumbnailFilename String?    @map("thumbnail_filename") @db.VarChar(255)
+  thumbnailPath     String?    @map("thumbnail_path") @db.VarChar(512)
+  uploadedAt        DateTime   @default(now()) @map("uploaded_at") @db.Timestamptz(6)
 
-  bugReport          BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade)
+  bugReport BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade)
 
   @@index([bugReportId])
+  @@index([universityId])
   @@map("bug_report_screenshots")
 }
 
@@ -2537,4 +2457,176 @@ model License {
   @@index([licenseKey])
   @@index([isActive])
   @@map("licenses")
+}
+
+// =====================================
+// DPDP Act 2023 compliance
+// =====================================
+
+enum DataPrincipalRequestType {
+  access
+  correction
+  erasure
+  grievance
+  consent_withdrawal
+  nomination
+
+  @@map("data_principal_request_type")
+}
+
+enum DataPrincipalRequestStatus {
+  submitted
+  in_review
+  completed
+  rejected
+
+  @@map("data_principal_request_status")
+}
+
+enum BreachStatus {
+  detected
+  contained
+  board_notified
+  principals_notified
+  closed
+
+  @@map("breach_status")
+}
+
+/// Versioned privacy notice shown to data principals before consent. universityId null = platform default.
+model ConsentNotice {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId  String?         @map("university_id") @db.Uuid
+  university    University?     @relation(fields: [universityId], references: [id], onDelete: Restrict)
+  version       String          @db.VarChar(32)
+  language      String          @default("en") @db.VarChar(8)
+  title         String          @db.VarChar(256)
+  content       String          @db.Text
+  /// [{ key, label, description, required }]
+  purposes      Json            @default("[]")
+  isActive      Boolean         @default(true) @map("is_active")
+  effectiveFrom DateTime        @default(now()) @map("effective_from") @db.Timestamptz(6)
+  createdById   String?         @map("created_by_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  records       ConsentRecord[]
+
+  @@unique([universityId, version, language])
+  @@index([universityId, isActive])
+  @@map("consent_notices")
+}
+
+/// One row per (user, purpose) decision; withdrawal is recorded, never deleted.
+model ConsentRecord {
+  id                 String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String?       @map("university_id") @db.Uuid
+  university         University?   @relation(fields: [universityId], references: [id], onDelete: Restrict)
+  userId             String        @map("user_id") @db.Uuid
+  user               UserLogin     @relation("ConsentRecordUser", fields: [userId], references: [id], onDelete: Cascade)
+  noticeId           String        @map("notice_id") @db.Uuid
+  notice             ConsentNotice @relation(fields: [noticeId], references: [id], onDelete: Restrict)
+  purpose            String        @db.VarChar(64)
+  granted            Boolean
+  grantedAt          DateTime?     @map("granted_at") @db.Timestamptz(6)
+  withdrawnAt        DateTime?     @map("withdrawn_at") @db.Timestamptz(6)
+  /// self | guardian
+  givenBy            String        @default("self") @map("given_by") @db.VarChar(16)
+  guardianName       String?       @map("guardian_name") @db.VarChar(256)
+  guardianEmail      String?       @map("guardian_email") @db.VarChar(256)
+  guardianRelation   String?       @map("guardian_relation") @db.VarChar(64)
+  guardianVerifiedAt DateTime?     @map("guardian_verified_at") @db.Timestamptz(6)
+  ipAddress          String?       @map("ip_address") @db.VarChar(64)
+  userAgent          String?       @map("user_agent") @db.VarChar(512)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, noticeId, purpose])
+  @@index([universityId])
+  @@index([userId])
+  @@map("consent_records")
+}
+
+/// Data principal rights requests (DPDP ss. 11-14) and grievances (s. 13).
+model DataPrincipalRequest {
+  id           String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String?                    @map("university_id") @db.Uuid
+  university   University?                @relation(fields: [universityId], references: [id], onDelete: Restrict)
+  userId       String                     @map("user_id") @db.Uuid
+  user         UserLogin                  @relation("DataPrincipalRequestUser", fields: [userId], references: [id], onDelete: Restrict)
+  type         DataPrincipalRequestType
+  status       DataPrincipalRequestStatus @default(submitted)
+  description  String?                    @db.Text
+  /// For correction requests: { field: newValue }
+  details      Json                       @default("{}")
+  response     String?                    @db.Text
+  dueAt        DateTime                   @map("due_at") @db.Timestamptz(6)
+  handledById  String?                    @map("handled_by_id") @db.Uuid
+  handledBy    UserLogin?                 @relation("DataPrincipalRequestHandler", fields: [handledById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?                  @map("resolved_at") @db.Timestamptz(6)
+  createdAt    DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([universityId, status])
+  @@index([userId])
+  @@index([dueAt])
+  @@map("data_principal_requests")
+}
+
+/// Person nominated to exercise the data principal's rights on death/incapacity (DPDP s. 14).
+model DataPrincipalNominee {
+  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String?     @map("university_id") @db.Uuid
+  university   University? @relation(fields: [universityId], references: [id], onDelete: Restrict)
+  userId       String      @unique @map("user_id") @db.Uuid
+  user         UserLogin   @relation("DataPrincipalNomineeUser", fields: [userId], references: [id], onDelete: Cascade)
+  name         String      @db.VarChar(256)
+  email        String?     @db.VarChar(256)
+  phone        String?     @db.VarChar(32)
+  relation     String?     @db.VarChar(64)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([universityId])
+  @@map("data_principal_nominees")
+}
+
+/// Personal data breach register. Board intimation is due within 72h of detection (DPDP Rules 2025).
+model DataBreachIncident {
+  id                   String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId         String?      @map("university_id") @db.Uuid
+  university           University?  @relation(fields: [universityId], references: [id], onDelete: Restrict)
+  title                String       @db.VarChar(256)
+  description          String       @db.Text
+  severity             String       @default("medium") @db.VarChar(16)
+  status               BreachStatus @default(detected)
+  detectedAt           DateTime     @map("detected_at") @db.Timestamptz(6)
+  boardReportDueAt     DateTime     @map("board_report_due_at") @db.Timestamptz(6)
+  boardNotifiedAt      DateTime?    @map("board_notified_at") @db.Timestamptz(6)
+  principalsNotifiedAt DateTime?    @map("principals_notified_at") @db.Timestamptz(6)
+  affectedCount        Int?         @map("affected_count")
+  dataCategories       Json         @default("[]") @map("data_categories")
+  remediation          String?      @db.Text
+  reportedById         String?      @map("reported_by_id") @db.Uuid
+  reportedBy           UserLogin?   @relation("DataBreachReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([universityId, status])
+  @@map("data_breach_incidents")
+}
+
+/// How long each category of personal data is kept once its purpose ends. universityId null = platform default.
+model DataRetentionPolicy {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId  String?     @map("university_id") @db.Uuid
+  university    University? @relation(fields: [universityId], references: [id], onDelete: Restrict)
+  category      String      @db.VarChar(64)
+  retentionDays Int         @map("retention_days")
+  /// delete | anonymize
+  action        String      @default("anonymize") @db.VarChar(16)
+  isActive      Boolean     @default(true) @map("is_active")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([universityId, category])
+  @@map("data_retention_policies")
 }

@@ -6,6 +6,7 @@
 
 const { logIprFiling, logIprUpdate, logIprStatusChange, logFileUpload } = require('../../../shared/utils/auditLogger');
 const log = require('../../../shared/utils/logger');
+const { canViewIpr, hasAnyPermission, notFound, IPR_STAFF_PERMISSIONS } = require('../../research/utils/objectAccess');
 
 const IPR_LIST_INCLUDE = {
   contributors: {
@@ -594,7 +595,7 @@ class IprService {
    * @param {object} query - { status, iprType, schoolId, departmentId, applicantUserId, page, limit }
    * @returns {{ applications, total, page, limit }}
    */
-  async getAllApplications(query, tenantId = null) {
+  async getAllApplications(query, viewer = undefined) {
     const { status, iprType, schoolId, departmentId, applicantUserId, page = 1, limit = 10 } = query;
 
     const where = {};
@@ -603,8 +604,13 @@ class IprService {
     if (schoolId) where.schoolId = schoolId;
     if (departmentId) where.departmentId = departmentId;
     if (applicantUserId) where.applicantUserId = applicantUserId;
-    if (tenantId) {
-      where.applicantUser = { universityId: tenantId };
+    // Tenant scoping is automatic. Users whose only access is an "own dashboard" permission
+    // see just the applications they filed or contribute to.
+    if (viewer !== undefined && viewer?.role !== 'superadmin' && !hasAnyPermission(viewer, IPR_STAFF_PERMISSIONS)) {
+      where.OR = [
+        { applicantUserId: viewer?.id || '__none__' },
+        { contributors: { some: { OR: [{ userId: viewer?.id || '__none__' }, { uid: viewer?.uid || '__none__' }] } } },
+      ];
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -631,9 +637,10 @@ class IprService {
   /**
    * Get a single IPR application by ID (admin/DRD view).
    * @param {string} id
-   * @returns {object}
+   * @param {object} [viewer] - req.user; omit only from internal code that already authorised access
+   * @returns {object} throws 404 when missing or not visible to the viewer
    */
-  async getApplicationById(id) {
+  async getApplicationById(id, viewer = undefined) {
     const include = {
       applicantUser: {
         select: {
@@ -652,10 +659,8 @@ class IprService {
     };
 
     const application = await this.repo.findById(id, include);
-    if (!application) {
-      const err = new Error('IPR application not found');
-      err.statusCode = 404;
-      throw err;
+    if (!application || (viewer !== undefined && !canViewIpr(viewer, application))) {
+      throw notFound('IPR application not found');
     }
     return application;
   }
@@ -1053,7 +1058,7 @@ class IprService {
   async getContributedApplicationById(id, userId, userUid) {
     const contribution = await this.repo.findFirstContributor({ iprApplicationId: id, OR: [{ userId }, { uid: userUid }] });
     if (!contribution) {
-      const err = new Error('You do not have access to view this application'); err.statusCode = 403; throw err;
+      throw notFound('IPR application not found');
     }
 
     const include = {

@@ -615,7 +615,7 @@ exports.updateUserIprPermissions = async (req, res) => {
           permissions,
           isActive: true,
           isPrimary: true,
-          assignedById: req.user.id
+          assignedBy: req.user.id
         }
       });
     }

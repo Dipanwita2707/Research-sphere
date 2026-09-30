@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const prisma = require('../shared/config/database');
+const tenantContext = require('../shared/tenancy/tenantContext');
 
 let apiUsageJob = null;
 
@@ -13,8 +14,9 @@ async function aggregateApiUsageForDate(date) {
 
   console.log(`[ApiUsageJob] Starting aggregation for date: ${startDate.toISOString().slice(0, 10)}`);
 
-  // Get all active universities
-  const universities = await prisma.university.findMany({
+  // Get all active universities (deliberate cross-tenant listing; callers may be
+  // a superadmin request scoped to one university via X-University-Id)
+  const universities = await tenantContext.runAsSystem(() => prisma.university.findMany({
     where: { isActive: true },
     include: {
       subscription: {
@@ -23,9 +25,12 @@ async function aggregateApiUsageForDate(date) {
         }
       }
     }
-  });
+  }));
 
   for (const university of universities) {
+    // Each university's aggregation runs inside its own tenant context so every
+    // read/upsert is scoped to (and stamped with) that universityId.
+    await tenantContext.runForTenant(university.id, async () => {
     try {
       // 1. Count total requests, success, and errors
       const totalRequests = await prisma.auditLog.count({
@@ -37,7 +42,7 @@ async function aggregateApiUsageForDate(date) {
 
       if (totalRequests === 0) {
         // No activity for this university today, skip or create empty entry
-        continue;
+        return;
       }
 
       const successRequests = await prisma.auditLog.count({
@@ -210,6 +215,7 @@ async function aggregateApiUsageForDate(date) {
     } catch (uniError) {
       console.error(`[ApiUsageJob] Error aggregating for university ${university.name}:`, uniError);
     }
+    });
   }
 }
 

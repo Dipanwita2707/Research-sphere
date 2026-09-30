@@ -1,112 +1,89 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+/**
+ * Seed default conference incentive policies for one university:
+ * paper_not_indexed, keynote_speaker_invited_talks, organizer_coordinator_member.
+ *
+ *   npm run seed:conference-policies -- --university SGT [--force]
+ *
+ * Idempotent: a sub-type that already has an active policy in that university is skipped.
+ */
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+const tenantContext = require('../../../src/shared/tenancy/tenantContext');
+const {
+  assertNotProduction, requireUniversity, findTenantAdmin,
+} = require('../../../src/shared/database/seedUtils');
 
-async function main() {
-  try {
-    console.log('Starting conference policy seeding for paper_not_indexed...');
+const SCRIPT = 'seed:conference-policies';
 
-    // Get an admin user to set as creator
-    const adminUser = await prisma.userLogin.findFirst({
-      where: {
-        OR: [
-          { role: 'superadmin' },
-          { role: 'admin' }
-        ]
+const POLICIES = [
+  {
+    policyName: 'Conference Paper (Not Indexed) - Default Policy',
+    conferenceSubType: 'paper_not_indexed',
+    flatIncentiveAmount: 15000,
+    flatPoints: 15,
+    internationalBonus: 5000,
+    bestPaperAwardBonus: 5000,
+  },
+  {
+    policyName: 'Conference Keynote/Invited Speaker - Default Policy',
+    conferenceSubType: 'keynote_speaker_invited_talks',
+    flatIncentiveAmount: 20000,
+    flatPoints: 20,
+    internationalBonus: 5000,
+    bestPaperAwardBonus: 0,
+  },
+  {
+    policyName: 'Conference Organizer/Coordinator - Default Policy',
+    conferenceSubType: 'organizer_coordinator_member',
+    flatIncentiveAmount: 10000,
+    flatPoints: 10,
+    internationalBonus: 5000,
+    bestPaperAwardBonus: 0,
+  },
+];
+
+async function seedConferencePolicies(prisma) {
+  const university = await requireUniversity(prisma);
+  const universityId = university.id;
+
+  await tenantContext.runForTenant(universityId, async () => {
+    const admin = await findTenantAdmin(prisma, universityId);
+    for (const p of POLICIES) {
+      const existing = await prisma.conferenceIncentivePolicy.findFirst({
+        where: { universityId, conferenceSubType: p.conferenceSubType, isActive: true },
+        select: { policyName: true },
+      });
+      if (existing) {
+        console.log(`Skip ${p.conferenceSubType}: active policy "${existing.policyName}" exists`);
+        continue;
       }
-    });
-
-    if (!adminUser) {
-      throw new Error('No admin user found. Please create an admin user first.');
+      await prisma.conferenceIncentivePolicy.create({
+        data: {
+          ...p,
+          universityId,
+          splitPolicy: 'equal',
+          isActive: true,
+          effectiveFrom: new Date('2024-01-01'),
+          effectiveTo: null,
+          createdById: admin.id,
+          updatedById: admin.id,
+        },
+      });
+      console.log(`Created ${p.conferenceSubType}`);
     }
-
-    console.log('Using admin user:', adminUser.email);
-
-    // Check if policy already exists
-    const existingPolicy = await prisma.conferenceIncentivePolicy.findFirst({
-      where: {
-        conferenceSubType: 'paper_not_indexed',
-        isActive: true
-      }
-    });
-
-    if (existingPolicy) {
-      console.log('Policy already exists:', existingPolicy.policyName);
-      return;
-    }
-
-    // Create the policy for paper_not_indexed conferences
-    const policy = await prisma.conferenceIncentivePolicy.create({
-      data: {
-        policyName: 'Conference Paper (Not Indexed) - Default Policy',
-        conferenceSubType: 'paper_not_indexed',
-        flatIncentiveAmount: 15000, // ₹15,000 flat amount
-        flatPoints: 15, // 15 points flat
-        splitPolicy: 'equal', // Equal distribution among all authors
-        internationalBonus: 5000, // ₹5,000 bonus for international
-        bestPaperAwardBonus: 5000, // ₹5,000 bonus for best paper award
-        isActive: true,
-        effectiveFrom: new Date('2024-01-01'), // Effective from past to cover all submissions
-        effectiveTo: null, // No end date (active indefinitely)
-        createdById: adminUser.id,
-        updatedById: adminUser.id
-      }
-    });
-
-    console.log('✅ Conference policy created successfully:');
-    console.log(JSON.stringify(policy, null, 2));
-
-    // Create policy for keynote_speaker_invited_talks
-    const keynotePolicy = await prisma.conferenceIncentivePolicy.create({
-      data: {
-        policyName: 'Conference Keynote/Invited Speaker - Default Policy',
-        conferenceSubType: 'keynote_speaker_invited_talks',
-        flatIncentiveAmount: 20000, // ₹20,000 flat amount
-        flatPoints: 20, // 20 points flat
-        splitPolicy: 'equal',
-        internationalBonus: 5000,
-        bestPaperAwardBonus: 0, // No best paper award bonus for keynote
-        isActive: true,
-        effectiveFrom: new Date('2024-01-01'),
-        effectiveTo: null,
-        createdById: adminUser.id,
-        updatedById: adminUser.id
-      }
-    });
-
-    console.log('✅ Keynote conference policy created successfully:');
-    console.log(JSON.stringify(keynotePolicy, null, 2));
-
-    // Create policy for organizer_coordinator_member
-    const organizerPolicy = await prisma.conferenceIncentivePolicy.create({
-      data: {
-        policyName: 'Conference Organizer/Coordinator - Default Policy',
-        conferenceSubType: 'organizer_coordinator_member',
-        flatIncentiveAmount: 10000, // ₹10,000 flat amount
-        flatPoints: 10, // 10 points flat
-        splitPolicy: 'equal',
-        internationalBonus: 5000,
-        bestPaperAwardBonus: 0, // No best paper award bonus for organizer
-        isActive: true,
-        effectiveFrom: new Date('2024-01-01'),
-        effectiveTo: null,
-        createdById: adminUser.id,
-        updatedById: adminUser.id
-      }
-    });
-
-    console.log('✅ Organizer conference policy created successfully:');
-    console.log(JSON.stringify(organizerPolicy, null, 2));
-
-  } catch (error) {
-    console.error('Error seeding conference policies:', error);
-    throw error;
-  } finally {
-    await prisma.$disconnect();
-  }
+  });
+  console.log(`Conference policies seeded for ${university.code}.`);
 }
 
-main()
-  .catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
+if (require.main === module) {
+  assertNotProduction(SCRIPT);
+  const prisma = require('../../../src/shared/config/database');
+  seedConferencePolicies(prisma)
+    .catch((error) => {
+      console.error(`[${SCRIPT}] failed:`, error.message);
+      process.exitCode = 1;
+    })
+    .finally(() => prisma.$disconnect());
+}
+
+module.exports = { seedConferencePolicies };

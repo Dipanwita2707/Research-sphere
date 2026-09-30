@@ -91,23 +91,17 @@ frontend/
    ```
 
 3. **Configure environment variables**
-   - Update `.env` file with your database credentials:
-   ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/sgt_university"
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+   ```powershell
+   copy .env.example .env   # then fill in DATABASE_URL, JWT_SECRET, licensing, ...
    ```
 
 4. **Setup database**
    ```powershell
-   # Create database migrations
-   npx prisma migrate dev --name init
-   
-   # Generate Prisma Client
-   npx prisma generate
-   
-   # Seed database with test data
-   node src/database/seed.js
+   npx prisma migrate deploy      # apply migrations (never `migrate dev` on a shared DB)
+   npm run seed:superadmin        # platform superadmin (password printed once)
+   npm run seed                   # dev/demo tenant SGT (passwords printed once)
    ```
+   Full details (tenants, PM2, backups, tenant isolation): `backend/docs/OPERATIONS.md`.
 
 5. **Start development server**
    ```powershell
@@ -141,14 +135,10 @@ frontend/
 
 ## 👤 Test User Credentials
 
-After seeding the database, you can login with:
-
-| Role | UID/RegNo | Password | Email |
-|------|-----------|----------|-------|
-| **Superadmin** | admin | admin123 | admin@sgtuniversity.edu |
-| **Faculty** | FAC001 | faculty123 | faculty@sgtuniversity.edu |
-| **Staff** | STF001 | staff123 | staff@sgtuniversity.edu |
-| **Student** | STU123456789 | student123 | student@sgtuniversity.edu |
+No passwords are hardcoded. `npm run seed` creates `SGT-ADMIN`, `SGT-FAC001`, `SGT-STF001`
+and `SGT-STU001`; their passwords come from `SEED_DEFAULT_PASSWORD` or are generated and
+printed once at the end of the seed. `npm run seed:superadmin` does the same for the
+superadmin (`SUPERADMIN_PASSWORD`). Re-running a seed never resets an existing password.
 
 ## 🎯 Key Features
 
@@ -295,9 +285,9 @@ Example:
 npm run dev          # Start development server
 npm start            # Start production server
 npx prisma studio    # Open Prisma Studio (Database GUI)
-npx prisma migrate dev    # Create and apply migration
+npx prisma migrate dev    # Create a migration (local dev DB only)
 npx prisma generate  # Regenerate Prisma Client
-node src/database/seed.js # Seed database
+npm run seed              # Seed demo data (see backend/docs/OPERATIONS.md)
 ```
 
 ### Frontend

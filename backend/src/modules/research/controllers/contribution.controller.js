@@ -13,175 +13,15 @@ const _err = (res, error, fallback = 'Operation failed') => {
   const code = error.statusCode || 500;
   if (code < 500) return res.status(code).json({ success: false, message: error.message });
   logger.error(error.message || error, { stack: error.stack, statusCode: code });
-  return res.status(500).json({ success: false, message: fallback, error: error.message });
+  return res.status(500).json({ success: false, message: fallback });
 };
 
-const RESEARCH_LIST_SELECT = {
-  id: true,
-  applicationNumber: true,
-  applicantUserId: true,
-  publicationType: true,
-  title: true,
-  journalName: true,
-  conferenceName: true,
-  status: true,
-  submittedAt: true,
-  completedAt: true,
-  createdAt: true,
-  updatedAt: true,
-  incentiveAmount: true,
-  pointsAwarded: true,
-  calculatedIncentiveAmount: true,
-  calculatedPoints: true,
-  sourceType: true,
-  sourceSystems: true,
-  specialReviewRequired: true,
-  importConfidence: true,
-  missingFields: true,
-  autoCalculatedFields: true,
-  schoolId: true,
-  departmentId: true,
-  doi: true,
-  publicationDate: true,
-  indexingDetails: true,
-  school: {
-    select: {
-      id: true,
-      facultyName: true,
-      shortName: true,
-    },
-  },
-  department: {
-    select: {
-      id: true,
-      departmentName: true,
-      shortName: true,
-    },
-  },
-  authors: {
-    select: {
-      userId: true,
-      uid: true,
-      registrationNo: true,
-      authorType: true,
-      name: true,
-      email: true,
-      affiliation: true,
-      isCorresponding: true,
-      authorOrder: true,
-      incentiveShare: true,
-      pointsShare: true,
-    },
-  },
-};
-
-function parsePagination(query = {}) {
-  const rawPage = Number.parseInt(query.page, 10);
-  const rawLimit = Number.parseInt(query.limit, 10);
-  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
-  return {
-    page,
-    limit,
-    skip: (page - 1) * limit,
-    usePagination: query.page !== undefined || query.limit !== undefined,
-  };
-}
-
-async function buildPaginatedResearchSummary(where, userId) {
-  const asApplicantWhere = {
-    AND: [
-      where,
-      { applicantUserId: userId },
-    ],
-  };
-  const asCoAuthorWhere = {
-    AND: [
-      where,
-      { applicantUserId: { not: userId } },
-      { authors: { some: { userId } } },
-    ],
-  };
-  const [statusCounts, completedTotals, asApplicant, asCoAuthor] = await Promise.all([
-    contributionRepo.groupBy({
-      by: ['status'],
-      where,
-      _count: { id: true },
-    }),
-    contributionRepo.aggregate({
-      where: {
-        AND: [
-          where,
-          { status: 'completed' },
-        ],
-      },
-      _sum: {
-        incentiveAmount: true,
-        pointsAwarded: true,
-      },
-    }),
-    contributionRepo.count(asApplicantWhere),
-    contributionRepo.count(asCoAuthorWhere),
-  ]);
-
-  const summary = {
-    total: 0,
-    draft: 0,
-    pending: 0,
-    approved: 0,
-    completed: 0,
-    rejected: 0,
-    totalIncentives: Number(completedTotals._sum.incentiveAmount || 0),
-    totalPoints: Number(completedTotals._sum.pointsAwarded || 0),
-    asApplicant,
-    asCoAuthor,
-  };
-
-  statusCounts.forEach((row) => {
-    const count = row._count.id;
-    summary.total += count;
-    if (row.status === 'draft') summary.draft = count;
-    if (['submitted', 'under_review', 'resubmitted', 'changes_required', 'pending_mentor_approval'].includes(row.status)) {
-      summary.pending += count;
-    }
-    if (row.status === 'approved') summary.approved = count;
-    if (row.status === 'completed') summary.completed = count;
-    if (row.status === 'rejected') summary.rejected = count;
-  });
-
-  summary.totalIncentives = Number(summary.totalIncentives.toFixed(2));
-  return summary;
-}
-
-function buildContributionSummary(contributions = []) {
-  const summary = {
-    total: contributions.length,
-    draft: 0,
-    pending: 0,
-    approved: 0,
-    completed: 0,
-    rejected: 0,
-    totalIncentives: 0,
-    totalPoints: 0,
-  };
-
-  contributions.forEach((contribution) => {
-    if (contribution.status === 'draft') summary.draft += 1;
-    if (['submitted', 'under_review', 'resubmitted', 'changes_required', 'pending_mentor_approval'].includes(contribution.status)) {
-      summary.pending += 1;
-    }
-    if (contribution.status === 'approved') summary.approved += 1;
-    if (contribution.status === 'completed') {
-      summary.completed += 1;
-      summary.totalIncentives += Number(contribution.incentiveAmount || 0);
-      summary.totalPoints += Number(contribution.pointsAwarded || 0);
-    }
-    if (contribution.status === 'rejected') summary.rejected += 1;
-  });
-
-  summary.totalIncentives = Number(summary.totalIncentives.toFixed(2));
-  return summary;
-}
+const {
+  RESEARCH_LIST_SELECT,
+  parsePagination,
+  buildPaginatedResearchSummary,
+  buildContributionSummary,
+} = require('./contribution.helpers');
 
 exports.createResearchContribution = async (req, res) => {
   try {
@@ -345,21 +185,9 @@ exports.getContributedResearch = async (req, res) => {
 
 exports.getResearchContributionById = async (req, res) => {
   try {
-    const { id } = req.params;
     const userId = req.user.id;
-    let contribution = await contributionRepo.findById(id, {
-      applicantDetails: true, authors: true, school: true, department: true,
-      reviews: { include: { reviewer: { select: { id: true, uid: true, employeeDetails: { select: { firstName: true, lastName: true, displayName: true } } } } }, orderBy: { createdAt: 'desc' } },
-      statusHistory: { include: { changedBy: { select: { id: true, uid: true, employeeDetails: { select: { firstName: true, lastName: true, displayName: true } } } } }, orderBy: { changedAt: 'desc' } },
-      editSuggestions: { include: { reviewer: { select: { id: true, uid: true, employeeDetails: { select: { firstName: true, lastName: true } } } } }, orderBy: { createdAt: 'desc' } },
-      applicantUser: { select: { id: true, uid: true, email: true, employeeDetails: { select: { firstName: true, lastName: true, displayName: true, designation: true } } } }
-    });
-    let isGrant = false;
-    if (!contribution) {
-      contribution = await contributionService.getGrantById(id);
-      isGrant = true;
-    }
-    if (!contribution) return res.status(404).json({ success: false, message: 'Research contribution or grant not found' });
+    // 404 for records that do not exist or that this user may not see (object-level authz)
+    const { record: contribution, isGrant } = await contributionService.getContributionForViewer(req.params.id, req.user);
     const isApplicant = contribution.applicantUserId === userId;
     const isAuthor = isGrant ? contribution.investigators?.some(i => i.userId === userId || i.uid === req.user.uid) : contribution.authors?.some(a => a.userId === userId || a.uid === req.user.uid || a.registrationNo === req.user.uid);
     const n = v => v ? Number(v) : v;
@@ -472,24 +300,12 @@ exports.uploadDocuments = async (req, res) => {
 exports.downloadDocument = async (req, res) => {
   try {
     const { id, type, filename } = req.params;
-    const contribution = await contributionRepo.findById(id);
-    if (!contribution) return res.status(404).json({ success: false, message: 'Research contribution not found' });
-    const canAccess = contribution.applicantUserId === req.user.id || ['admin','central_admin','reviewer'].includes(req.user.role);
-    if (!canAccess) return res.status(403).json({ success: false, message: 'You do not have permission to access this file' });
-    let s3Key = null, originalFilename = filename;
-    if (type === 'manuscript' && contribution.manuscriptFilePath) {
-      let m = contribution.manuscriptFilePath;
-      if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { s3Key = m; } }
-      if (m && typeof m === 'object') { s3Key = m.s3Key; originalFilename = m.name || filename; }
-    } else if (type === 'supporting' && contribution.supportingDocsFilePaths) {
-      const docs = typeof contribution.supportingDocsFilePaths === 'string' ? JSON.parse(contribution.supportingDocsFilePaths) : contribution.supportingDocsFilePaths;
-      const doc = docs.files?.find(f => f.name === filename || f.s3Key?.includes(filename));
-      if (doc) { s3Key = doc.s3Key; originalFilename = doc.name || filename; }
-    }
-    if (!s3Key) return res.status(404).json({ success: false, message: 'Document not found' });
+    // Applicant, authors, mentor, reviewers and DRD staff only; everyone else gets 404
+    const { s3Key, filename: originalFilename } = await contributionService.resolveDocumentForViewer(id, req.user, type, filename);
     const fileData = await downloadFromS3(s3Key);
+    const safeName = String(originalFilename).replace(/["\r\n\\]/g, '_');
     res.setHeader('Content-Type', fileData.contentType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${originalFilename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
     res.setHeader('Content-Length', fileData.contentLength);
     fileData.stream.pipe(res);
   } catch (error) { _err(res, error, 'Failed to download document'); }

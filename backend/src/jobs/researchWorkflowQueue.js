@@ -12,6 +12,7 @@ const { Queue, Worker } = require('bullmq');
 const Redis = require('ioredis');
 const prisma = require('../shared/config/database');
 const auditLogger = require('../shared/utils/auditLogger');
+const tenantContext = require('../shared/tenancy/tenantContext');
 
 const QUEUE_NAME = 'research-workflow';
 
@@ -54,7 +55,20 @@ function buildRequestFromContext(requestContext = {}) {
   };
 }
 
+/**
+ * BullMQ workers run outside the request, so the tenant captured at enqueue
+ * time is restored here; otherwise notification/audit rows would be created
+ * without a universityId.
+ */
 async function processResearchWorkflowJob(job) {
+  const { tenantId } = job.data;
+  if (tenantId) {
+    return tenantContext.runForTenant(tenantId, () => runResearchWorkflowJob(job));
+  }
+  return runResearchWorkflowJob(job);
+}
+
+async function runResearchWorkflowJob(job) {
   const { type, payload } = job.data;
 
   if (type === 'notification') {
@@ -118,7 +132,8 @@ async function enqueue(type, payload) {
   if (!isAvailable()) return null;
 
   try {
-    const job = await queue.add(type, { type, payload }, {
+    const tenantId = tenantContext.getTenantId();
+    const job = await queue.add(type, { type, payload, tenantId }, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 3000 },
       removeOnComplete: { age: 86400 },

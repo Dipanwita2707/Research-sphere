@@ -1,35 +1,25 @@
 require('dotenv').config();
 
-// Fail-fast: JWT_SECRET must be set in production
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('FATAL: JWT_SECRET environment variable is not set. Aborting.');
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Fail-fast: a strong JWT_SECRET is mandatory in production
+if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+  throw new Error('FATAL: JWT_SECRET must be set to at least 32 characters in production. Aborting.');
 }
 
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 5001,
   apiVersion: process.env.API_VERSION || 'v1',
-  
+
+  // Signed with JWT_SECRET only, so tokens survive redeploys and are valid on every
+  // instance. Licence enforcement is separate: see licenseGate in middleware/auth.js.
   jwt: {
-    get secret() {
-      const licenseState = require('../utils/licenseState');
-      const baseSecret = process.env.JWT_SECRET || 'dev-only-insecure-secret';
-      return `${baseSecret}::${licenseState.getRuntimeSecret()}`;
-    },
-    expire: process.env.JWT_EXPIRE || '7d',
-    cookieExpire: parseInt(process.env.JWT_COOKIE_EXPIRE) || 7,
+    secret: process.env.JWT_SECRET || 'dev-only-insecure-secret-do-not-use-in-production',
+    expire: process.env.JWT_EXPIRE || '1d',
+    cookieExpire: parseInt(process.env.JWT_COOKIE_EXPIRE) || 1,
   },
 
-  chatJwt: {
-    get secret() {
-      const licenseState = require('../utils/licenseState');
-      const baseSecret = process.env.CHAT_JWT_SECRET || process.env.JWT_SECRET || 'dev-only-insecure-chat-secret';
-      return `${baseSecret}::${licenseState.getRuntimeSecret()}`;
-    },
-    accessExpire: process.env.CHAT_JWT_ACCESS_EXPIRE || '15m',
-    refreshExpire: process.env.CHAT_JWT_REFRESH_EXPIRE || '30d',
-  },
-  
   bcrypt: {
     // Optimized for scalability: 10 rounds = ~100ms, good balance for 25k users
     rounds: parseInt(process.env.BCRYPT_ROUNDS) || 10,
@@ -37,7 +27,10 @@ module.exports = {
   
   security: {
     maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5,
+    // minutes
     lockoutDuration: parseInt(process.env.LOCKOUT_DURATION) || 15,
+    // Days a tenant subscription may run past currentPeriodEnd before access is blocked
+    subscriptionGraceDays: parseInt(process.env.SUBSCRIPTION_GRACE_DAYS) || 7,
   },
   
   cors: {

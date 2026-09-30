@@ -6,6 +6,7 @@
 
 const prisma = require('../../../shared/config/database');
 const cache = require('../../../shared/config/redis');
+const { canViewTracker, canViewContribution, CONTRIBUTION_ACCESS_INCLUDE } = require('../utils/objectAccess');
 const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
 
 function _getIp(req) {
@@ -192,7 +193,6 @@ const createTracker = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to create research progress tracker',
-      error: error.message
     });
   }
 };
@@ -269,7 +269,6 @@ const getMyTrackers = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch trackers',
-      error: error.message
     });
   }
 };
@@ -328,19 +327,12 @@ const getTrackerById = async (req, res) => {
       });
     }
 
-    // Check if user has permission to view this tracker
-    if (tracker.userId !== userId) {
-      // Check if user is DRD or has review permissions
-      const userRole = req.user.role;
-      const allowedRoles = ['superadmin', 'admin'];
-      
-      // Also allow if user is the DRD reviewer for this school/department
-      if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have permission to view this tracker'
-        });
-      }
+    // Owner, or research staff once the tracker is linked to a submitted contribution
+    if (!canViewTracker(req.user, tracker)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tracker not found'
+      });
     }
 
     return res.json({
@@ -352,7 +344,6 @@ const getTrackerById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch tracker',
-      error: error.message
     });
   }
 };
@@ -410,9 +401,9 @@ const updateTracker = async (req, res) => {
 
     // Check ownership
     if (tracker.userId !== userId) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: 'You can only update your own trackers'
+        message: 'Tracker not found'
       });
     }
 
@@ -538,7 +529,6 @@ const updateTracker = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to update tracker',
-      error: error.message
     });
   }
 };
@@ -584,9 +574,9 @@ const updateTrackerStatus = async (req, res) => {
 
     // Check ownership
     if (tracker.userId !== userId) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: 'You can only update your own trackers'
+        message: 'Tracker not found'
       });
     }
 
@@ -700,7 +690,6 @@ const updateTrackerStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to update tracker status',
-      error: error.message
     });
   }
 };
@@ -725,9 +714,9 @@ const deleteTracker = async (req, res) => {
     }
 
     if (tracker.userId !== userId) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: 'You can only delete your own trackers'
+        message: 'Tracker not found'
       });
     }
 
@@ -766,7 +755,6 @@ const deleteTracker = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to delete tracker',
-      error: error.message
     });
   }
 };
@@ -813,9 +801,9 @@ const getTrackerForSubmission = async (req, res) => {
     }
 
     if (tracker.userId !== userId) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: 'You can only submit your own research for incentive'
+        message: 'Tracker not found'
       });
     }
 
@@ -871,7 +859,6 @@ const getTrackerForSubmission = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to get tracker for submission',
-      error: error.message
     });
   }
 };
@@ -897,9 +884,9 @@ const linkToContribution = async (req, res) => {
     }
 
     if (tracker.userId !== userId) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: 'You can only link your own trackers'
+        message: 'Tracker not found'
       });
     }
 
@@ -923,9 +910,9 @@ const linkToContribution = async (req, res) => {
     }
 
     if (contribution.applicantUserId !== userId) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: 'Contribution does not belong to you'
+        message: 'Research contribution not found'
       });
     }
 
@@ -944,7 +931,6 @@ const linkToContribution = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to link tracker to contribution',
-      error: error.message
     });
   }
 };
@@ -955,6 +941,18 @@ const linkToContribution = async (req, res) => {
 const getTrackerHistoryForContribution = async (req, res) => {
   try {
     const { contributionId } = req.params;
+
+    // Only people who may see the contribution may see its progress history
+    const contribution = await prisma.researchContribution.findUnique({
+      where: { id: contributionId },
+      include: CONTRIBUTION_ACCESS_INCLUDE,
+    });
+    if (!canViewContribution(req.user, contribution)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Research contribution not found'
+      });
+    }
 
     const tracker = await prisma.researchProgressTracker.findUnique({
       where: { researchContributionId: contributionId },
@@ -1015,7 +1013,6 @@ const getTrackerHistoryForContribution = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to get tracker history',
-      error: error.message
     });
   }
 };
@@ -1065,7 +1062,6 @@ const getTrackerStats = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to get tracker statistics',
-      error: error.message
     });
   }
 };

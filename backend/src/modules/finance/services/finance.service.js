@@ -303,7 +303,7 @@ const approveFinanceApplication = async (id, comments, userId) => {
       completedAt: new Date(),
     },
     include: {
-      applicantUser: { include: { employeeDetails: true, permissions: true } },
+      applicantUser: { include: { employeeDetails: true } },
       applicantDetails: true,
       sdgs: true,
       school: true,
@@ -375,7 +375,7 @@ const rejectFinanceApplication = async (id, comments, userId) => {
     where: { id },
     data: { status: 'finance_rejected', completedAt: new Date() },
     include: {
-      applicantUser: { include: { employeeDetails: true, permissions: true } },
+      applicantUser: { include: { employeeDetails: true } },
       applicantDetails: true,
       sdgs: true,
       school: true,
@@ -441,7 +441,7 @@ const requestAdditionalAudit = async (id, comments, userId) => {
       currentReviewerId: userId,
     },
     include: {
-      applicantUser: { include: { employeeDetails: true, permissions: true } },
+      applicantUser: { include: { employeeDetails: true } },
       applicantDetails: true,
       sdgs: true,
       school: true,

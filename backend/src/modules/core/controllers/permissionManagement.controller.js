@@ -1056,7 +1056,6 @@ exports.assignDrdMemberSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign schools',
-      error: error.message,
     });
   }
 };
@@ -1310,7 +1309,6 @@ exports.getDrdMembersWithSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch DRD members',
-      error: error.message,
     });
   }
 };
@@ -1386,7 +1384,6 @@ exports.getMyAssignedSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch assigned schools',
-      error: error.message,
     });
   }
 };
@@ -1500,7 +1497,6 @@ exports.getSchoolsWithAssignedMembers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch schools with members',
-      error: error.message,
     });
   }
 };
@@ -1638,7 +1634,6 @@ exports.assignResearchMemberSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign research schools',
-      error: error.message,
     });
   }
 };
@@ -1751,7 +1746,6 @@ exports.getDrdMembersWithResearchSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch members with research schools',
-      error: error.message,
     });
   }
 };
@@ -1827,7 +1821,6 @@ exports.getMyAssignedResearchSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch assigned research schools',
-      error: error.message,
     });
   }
 };
@@ -1939,7 +1932,6 @@ exports.getSchoolsWithResearchMembers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch schools with research members',
-      error: error.message,
     });
   }
 };
@@ -2077,7 +2069,6 @@ exports.assignBookMemberSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign book schools',
-      error: error.message,
     });
   }
 };
@@ -2195,7 +2186,6 @@ exports.getDrdMembersWithBookSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch DRD members with book schools',
-      error: error.message,
     });
   }
 };
@@ -2308,7 +2298,6 @@ exports.getSchoolsWithBookMembers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch schools with book members',
-      error: error.message,
     });
   }
 };
@@ -2389,7 +2378,6 @@ exports.getMyAssignedBookSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch assigned book schools',
-      error: error.message,
     });
   }
 };
@@ -2525,7 +2513,6 @@ exports.assignConferenceMemberSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign conference schools',
-      error: error.message,
     });
   }
 };
@@ -2643,7 +2630,6 @@ exports.getDrdMembersWithConferenceSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch DRD members with conference schools',
-      error: error.message,
     });
   }
 };
@@ -2756,7 +2742,6 @@ exports.getSchoolsWithConferenceMembers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch schools with conference members',
-      error: error.message,
     });
   }
 };
@@ -2837,7 +2822,6 @@ exports.getMyAssignedConferenceSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch assigned conference schools',
-      error: error.message,
     });
   }
 };
@@ -2972,7 +2956,6 @@ exports.assignGrantMemberSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign grant schools',
-      error: error.message,
     });
   }
 };
@@ -3090,7 +3073,6 @@ exports.getDrdMembersWithGrantSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch DRD members with grant schools',
-      error: error.message,
     });
   }
 };
@@ -3203,7 +3185,6 @@ exports.getSchoolsWithGrantMembers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch schools with grant members',
-      error: error.message,
     });
   }
 };
@@ -3284,7 +3265,6 @@ exports.getMyAssignedGrantSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch assigned grant schools',
-      error: error.message,
     });
   }
 };
@@ -3368,7 +3348,6 @@ exports.assignRolesToUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign roles',
-      error: error.message,
     });
   }
 };

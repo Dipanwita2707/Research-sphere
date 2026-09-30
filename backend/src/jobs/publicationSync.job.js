@@ -1,7 +1,21 @@
 const cron = require('node-cron');
 const { publicationSyncService } = require('../modules/research/services');
+const { forEachTenant } = require('./jobRunner');
 
 let publicationSyncJob = null;
+
+/**
+ * runScheduledSync() is not tenant-aware itself: running it inside
+ * runForTenant scopes its identity lookup to that university and stamps
+ * universityId on every contribution / import row it creates.
+ */
+async function runScheduledSyncForAllTenants() {
+  const perTenant = await forEachTenant(
+    (universityId) => publicationSyncService.runScheduledSync({ universityId }),
+    { label: 'PublicationSyncJob' }
+  );
+  return perTenant.flatMap((r) => (r.ok && Array.isArray(r.value) ? r.value : []));
+}
 
 function startPublicationSyncJob() {
   if (publicationSyncJob) {
@@ -19,7 +33,7 @@ function startPublicationSyncJob() {
   publicationSyncJob = cron.schedule(cronExpression, async () => {
     try {
       console.log('[PublicationSyncJob] Starting scheduled faculty publication sync');
-      const results = await publicationSyncService.runScheduledSync();
+      const results = await runScheduledSyncForAllTenants();
       console.log(`[PublicationSyncJob] Completed scheduled sync for ${results.length} profile(s)`);
     } catch (error) {
       console.error('[PublicationSyncJob] Scheduled sync failed:', error.message);
@@ -40,4 +54,5 @@ function stopPublicationSyncJob() {
 module.exports = {
   startPublicationSyncJob,
   stopPublicationSyncJob,
+  runScheduledSyncForAllTenants,
 };

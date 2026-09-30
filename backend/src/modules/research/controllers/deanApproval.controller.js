@@ -98,7 +98,6 @@ const getPendingDeanApprovals = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pending approvals',
-      error: error.message,
     });
   }
 };
@@ -175,7 +174,6 @@ const submitDeanDecision = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to submit decision',
-      error: error.message,
     });
   }
 };
@@ -234,7 +232,6 @@ const getDeanApprovalStatistics = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics',
-      error: error.message,
     });
   }
 };
@@ -289,7 +286,6 @@ const approveDeanApplication = async (req, res) => {
         applicantUser: {
           include: {
             employeeDetails: true,
-            permissions: true
           }
         },
         applicantDetails: true,
@@ -349,7 +345,6 @@ const approveDeanApplication = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to approve application',
-      error: error.message,
     });
   }
 };
@@ -412,7 +407,6 @@ const rejectDeanApplication = async (req, res) => {
         applicantUser: {
           include: {
             employeeDetails: true,
-            permissions: true
           }
         },
         applicantDetails: true,
@@ -463,7 +457,6 @@ const rejectDeanApplication = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to reject application',
-      error: error.message,
     });
   }
 };

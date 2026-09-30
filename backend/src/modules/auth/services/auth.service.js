@@ -6,35 +6,13 @@
 
 const prisma = require('../../../shared/config/database');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const config = require('../../../shared/config/app.config');
 const cache = require('../../../shared/config/redis');
-const { prewarmAuthCache } = require('../../../shared/utils/authCache');
-const { sanitizeInput } = require('../../../shared/utils/validators');
 const { auditService, AuditActionType, AuditSeverity, AuditModule } = require('../../audit/services/audit.service');
 const { getClientIp } = require('../../../shared/middleware/audit.middleware');
 const log = require('../../../shared/utils/logger');
-
-// Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, config.jwt.secret, {
-    expiresIn: config.jwt.expire
-  });
-};
-
-/**
- * Build cookie options based on request origin
- */
-const buildCookieOptions = (req, expiresMs) => {
-  const origin = req.headers.origin || '';
-  const isSecureOrigin = config.env === 'production' || origin.startsWith('https://');
-  return {
-    expires: new Date(Date.now() + expiresMs),
-    httpOnly: true,
-    sameSite: isSecureOrigin ? 'none' : 'lax',
-    secure: isSecureOrigin,
-  };
-};
+const { checkNewPassword } = require('../utils/passwordPolicy');
+const { REVOKE_SESSIONS_DATA } = require('./session.service');
 
 /**
  * Format employee department/school info for response
@@ -82,188 +60,14 @@ const formatDepartmentInfo = (employeeDetails) => {
 };
 
 /**
- * Login user
- * @returns {{ token, userDetails, cookieOptions }}
+ * Logout user (audit only; the controller clears the auth cookie).
+ * @param {{ allDevices?: boolean }} [options]
  */
-const login = async (username, password, req) => {
-  if (!username || !password) {
-    return { error: 'Please provide username and password', status: 400 };
-  }
-
-  const sanitizedUsername = sanitizeInput(username);
-
-  // OPTIMIZED: Lean login query - only essential fields to reduce load time
-  const user = await prisma.userLogin.findFirst({
-    where: { uid: sanitizedUsername },
-    select: {
-      id: true,
-      uid: true,
-      email: true,
-      passwordHash: true,
-      role: true,
-      status: true,
-      profileImage: true,
-      lastLoginAt: true,
-      employeeDetails: {
-        select: {
-          empId: true,
-          displayName: true,
-          designation: true,
-          phoneNumber: true,
-          email: true,
-          primaryDepartmentId: true,
-          primaryCentralDeptId: true,
-          primaryDepartment: {
-            select: {
-              id: true,
-              departmentName: true,
-              departmentCode: true,
-              facultyId: true,
-            }
-          },
-          primaryCentralDept: {
-            select: {
-              id: true,
-              departmentName: true,
-            }
-          }
-        }
-      },
-      studentLogin: {
-        select: {
-          studentId: true,
-          registrationNo: true,
-          displayName: true,
-          currentSemester: true,
-          programId: true,
-          sectionId: true,
-        }
-      },
-    }
-  });
-
-  if (!user) {
-    return { error: 'Invalid credentials', status: 401 };
-  }
-
-  if (user.status !== 'active') {
-    return { error: 'Account is deactivated', status: 403 };
-  }
-
-  const isMatch = await bcrypt.compare(password, user.passwordHash);
-  if (!isMatch) {
-    return { error: 'Invalid credentials', status: 401 };
-  }
-
-  // PERF: Run lastLoginAt update + permissions query in parallel
-  const [, departmentPermissions] = await Promise.all([
-    prisma.userLogin.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() }
-    }),
-    prisma.departmentPermission.findMany({
-      where: { userId: user.id, isActive: true },
-      select: {
-        departmentId: true,
-        permissions: true,
-        isPrimary: true
-      }
-    }),
-  ]);
-
-  // Prepare user details (match frontend User interface)
-  const userDetails = {
-    id: user.id,
-    username: user.uid,
-    email: user.email,
-    userType: user.role,
-    firstName: null,
-    lastName: null,
-    uid: user.uid,
-    role: {
-      name: user.role,
-      displayName: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : null
-    },
-    profileImage: user.profileImage,
-    permissions: departmentPermissions || []
-  };
-
-  if (user.employeeDetails) {
-    userDetails.firstName = user.employeeDetails.firstName;
-    userDetails.lastName = user.employeeDetails.lastName;
-    userDetails.employee = {
-      empId: user.employeeDetails.empId,
-      designation: user.employeeDetails.designation,
-      displayName: user.employeeDetails.displayName
-    };
-
-    const departmentInfo = formatDepartmentInfo(user.employeeDetails);
-
-    userDetails.employeeDetails = {
-      employeeId: user.employeeDetails.empId,
-      phone: user.employeeDetails.phoneNumber,
-      email: user.employeeDetails.email,
-      joiningDate: user.employeeDetails.joinDate,
-      department: departmentInfo,
-      designation: user.employeeDetails.designation ? {
-        name: user.employeeDetails.designation
-      } : null
-    };
-  }
-
-  if (user.studentLogin) {
-    userDetails.firstName = user.studentLogin.firstName;
-    userDetails.lastName = user.studentLogin.lastName;
-    userDetails.student = {
-      studentId: user.studentLogin.studentId,
-      registrationNo: user.studentLogin.registrationNo,
-      program: user.studentLogin.section?.program?.programName,
-      semester: user.studentLogin.currentSemester,
-      displayName: user.studentLogin.displayName
-    };
-  }
-
-  const token = generateToken(user.id);
-
-  // Pre-warm auth cache so first request after login doesn't hit DB
-  prewarmAuthCache(user.id).catch(() => {});
-
-  const cookieOptions = buildCookieOptions(req, config.jwt.cookieExpire * 24 * 60 * 60 * 1000);
-
-  // PERF: Fire-and-forget audit log — don't block the response
-  auditService.log({
-    actorId: user.id,
-    action: 'User logged in successfully',
-    actionType: AuditActionType.LOGIN,
-    module: AuditModule.AUTH,
-    category: 'authentication',
-    severity: AuditSeverity.INFO,
-    targetTable: 'user_login',
-    targetId: user.id,
-    ipAddress: getClientIp(req),
-    userAgent: req.headers['user-agent'] || null,
-    requestPath: req.originalUrl || req.url,
-    requestMethod: 'POST',
-    responseStatus: 200,
-    metadata: {
-      username: user.uid,
-      role: user.role
-    }
-  }).catch(e => log.warn('Audit log (login) failed:', e.message));
-
-  return { token, userDetails, cookieOptions };
-};
-
-/**
- * Logout user
- */
-const logout = async (userId, req) => {
-  const cookieOptions = buildCookieOptions(req, 1000);
-
+const logout = async (userId, req, { allDevices = false } = {}) => {
   // PERF: Fire-and-forget audit log
   auditService.log({
     actorId: userId,
-    action: 'User logged out',
+    action: allDevices ? 'User logged out from all devices' : 'User logged out',
     actionType: AuditActionType.LOGOUT,
     module: AuditModule.AUTH,
     category: 'authentication',
@@ -277,7 +81,7 @@ const logout = async (userId, req) => {
     responseStatus: 200
   }).catch(e => log.warn('Audit log (logout) failed:', e.message));
 
-  return { cookieOptions };
+  return { success: true };
 };
 
 /**
@@ -423,25 +227,38 @@ const changePassword = async (userId, currentPassword, newPassword, req) => {
     return { error: 'Please provide current and new password', status: 400 };
   }
 
-  if (newPassword.length < 8) {
-    return { error: 'Password must be at least 8 characters', status: 400 };
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+    return { error: 'Please provide current and new password', status: 400 };
   }
 
   const user = await prisma.userLogin.findUnique({
-    where: { id: userId }
+    where: { id: userId },
+    select: { id: true, uid: true, email: true, passwordHash: true }
   });
+  if (!user) {
+    return { error: 'User not found', status: 404 };
+  }
 
   const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!isMatch) {
-    return { error: 'Current password is incorrect', status: 401 };
+    // 400, not 401: a wrong current password must not look like an expired session
+    return { error: 'Current password is incorrect', status: 400 };
+  }
+
+  const policyError = await checkNewPassword(newPassword, user);
+  if (policyError) {
+    return { error: policyError, status: 400 };
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, config.bcrypt.rounds);
 
-  await prisma.userLogin.update({
+  // Changing the password revokes every existing session (tokenVersion++)
+  const updated = await prisma.userLogin.update({
     where: { id: userId },
-    data: { passwordHash: hashedPassword }
+    data: { passwordHash: hashedPassword, passwordChangedAt: new Date(), ...REVOKE_SESSIONS_DATA },
+    select: { id: true, universityId: true, role: true, tokenVersion: true }
   });
+  await cache.invalidateUser(userId);
 
   await auditService.log({
     actorId: userId,
@@ -459,7 +276,7 @@ const changePassword = async (userId, currentPassword, newPassword, req) => {
     responseStatus: 200
   });
 
-  return { success: true };
+  return { success: true, user: updated };
 };
 
 /**
@@ -667,7 +484,6 @@ const updateSettings = async (userId, fields) => {
 };
 
 module.exports = {
-  login,
   logout,
   getMe,
   changePassword,

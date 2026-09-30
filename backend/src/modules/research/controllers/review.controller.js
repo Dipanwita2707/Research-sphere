@@ -8,7 +8,7 @@ const _err = (res, error, fallback = 'Operation failed') => {
   const code = error.statusCode || 500;
   if (code < 500) return res.status(code).json({ success: false, message: error.message });
   console.error(error);
-  return res.status(500).json({ success: false, message: fallback, error: error.message });
+  return res.status(500).json({ success: false, message: fallback });
 };
 
 exports.getPendingReviews = async (req, res) => {

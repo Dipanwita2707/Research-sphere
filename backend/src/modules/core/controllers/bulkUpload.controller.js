@@ -1,6 +1,6 @@
 const prisma = require('../../../shared/config/database');
-const bcrypt = require('bcryptjs');
-const XLSX = require('xlsx');
+const { preparePassword, PasswordPolicyError } = require('../utils/userCredentials');
+const { readSpreadsheet, buildWorkbookBuffer, SpreadsheetError, MAX_UPLOAD_ROWS } = require('../utils/spreadsheet');
 const { createModuleLogger } = require('../../../shared/utils/logger');
 const { parseErrorWithContext, isValidationError, isSystemError } = require('../../../shared/utils/prismaErrorHandler');
 
@@ -10,6 +10,9 @@ const log = createModuleLogger('bulk-upload');
  * Format bulk upload response consistently
  */
 function formatBulkUploadResponse(rows, results) {
+  const generatedCredentials = results.success
+    .filter((s) => s.generatedPassword)
+    .map((s) => ({ row: s.row, uid: s.data?.empId || s.data?.studentId, email: s.data?.email, generatedPassword: s.generatedPassword }));
   return {
     success: true,
     message: `Processed ${rows.length} rows: ${results.success.length} succeeded, ${results.failed.length} failed`,
@@ -25,213 +28,68 @@ function formatBulkUploadResponse(rows, results) {
         message: f.error,
         data: f.data,
       })),
+      // Passwords generated for rows without one; shown only in this response
+      ...(generatedCredentials.length > 0 && { generatedCredentials }),
     },
   };
 }
 
-function sendExcelTemplate(res, headers, sampleRows, fileName, sheetName) {
-  const workbook = XLSX.utils.book_new();
-  
-  // Create worksheet with headers and sample data
-  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-  
-  // Define fields that should support multi-line content
-  const multiLineFields = [
-    'description', 'programName', 'departmentName', 'facultyName', 'shortName',
-    'headName', 'specializations', 'internshipSpecializations', 'contactEmail',
-    'officeLocation', 'websiteUrl', 'firstName', 'lastName', 'designation'
-  ];
-  
-  // Set column widths and formatting for better readability
-  worksheet['!cols'] = headers.map((header, index) => {
-    const cleanHeader = header.replace(/\*$/, ''); // Remove asterisk for comparison
-    const isMultiLine = multiLineFields.includes(cleanHeader);
-    
-    return { 
-      wch: isMultiLine ? Math.max(header.length + 8, 25) : Math.max(header.length + 4, 18)
-    };
-  });
-  
-  // Set default row height for data rows to accommodate multi-line content
-  worksheet['!rows'] = [];
-  for (let i = 0; i <= sampleRows.length; i++) {
-    worksheet['!rows'][i] = { hpt: i === 0 ? 25 : 35 }; // Header row: 25pt, Data rows: 35pt
-  }
-  
-  // Add header formatting (make headers bold)
-  const headerRange = XLSX.utils.decode_range(worksheet['!ref']);
-  for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-    if (!worksheet[cellAddress]) continue;
-    
-    const header = headers[col];
-    const cleanHeader = header.replace(/\*$/, '');
-    const isMultiLine = multiLineFields.includes(cleanHeader);
-    
-    // Set cell style for headers
-    worksheet[cellAddress].s = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: "E6E6FA" } }, // Light purple background
-      alignment: { 
-        horizontal: "center",
-        vertical: "center",
-        wrapText: true
-      }
-    };
-    
-    // Set formatting for data cells in multi-line columns
-    if (isMultiLine) {
-      for (let row = 1; row <= sampleRows.length; row++) {
-        const dataCellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-        if (worksheet[dataCellAddress]) {
-          worksheet[dataCellAddress].s = {
-            alignment: { 
-              vertical: "top",
-              wrapText: true
-            }
-          };
-        }
-      }
-    }
-  }
-  
-  // Add data validation and comments for specific fields
-  if (sheetName === 'Schools') {
-    // Add comment for facultyType field
-    const facultyTypeCell = 'C2'; // Assuming facultyType is in column C
-    if (worksheet[facultyTypeCell]) {
-      worksheet[facultyTypeCell].c = [{
-        a: 'System',
-        t: 'Valid values: engineering, management, arts, science, medical, law, other'
-      }];
-    }
-  }
-  
-  if (sheetName === 'Employees') {
-    // Add comment for userType field
-    const userTypeCell = 'I2'; // Assuming userType is in column I
-    if (worksheet[userTypeCell]) {
-      worksheet[userTypeCell].c = [{
-        a: 'System',
-        t: 'Valid values: faculty, staff, admin'
-      }];
-    }
-  }
-  
-  // Add instructions sheet with comprehensive guidance
-  const instructionsData = [
-    ['SGT UNIVERSITY BULK UPLOAD INSTRUCTIONS'],
-    [''],
-    ['📋 BASIC INSTRUCTIONS:'],
-    ['1. Fill in the data starting from row 2 (keep the headers in row 1)'],
-    ['2. Required fields are marked with * in the template'],
-    ['3. Do not modify the header row'],
-    ['4. Save the file and upload it using the bulk upload feature'],
-    [''],
-    ['📝 MULTI-LINE CONTENT SUPPORT:'],
-    ['• For fields like descriptions, names, specializations, etc.'],
-    ['• Press ALT + ENTER to create new lines within the same cell'],
-    ['• Example: "Computer Science\\nArtificial Intelligence" (use ALT+ENTER instead of \\n)'],
-    ['• Cells are pre-configured with text wrapping for better display'],
-    [''],
-    ['⌨️ EXCEL KEYBOARD SHORTCUTS:'],
-    ['• ALT + ENTER: Create new line within cell (recommended)'],
-    ['• F2: Enter edit mode for the selected cell'],
-    ['• CTRL + ENTER: Finish editing and stay in same cell'],
-    ['• ESC: Cancel editing and revert changes'],
-    [''],
-    ['📊 FIELD-SPECIFIC GUIDELINES:'],
-    ['• Names (firstName, lastName): Can include titles, prefixes'],
-    ['• Descriptions: Use ALT+ENTER for detailed multi-line descriptions'],
-    ['• Specializations: Separate multiple items with | or use ALT+ENTER'],
-    ['• Email addresses: Must be unique across the system'],
-    ['• Phone numbers: Include country code if international'],
-    ['• Codes (studentId, empId, etc.): Must be unique identifiers'],
-    [''],
-    ['⚠️ IMPORTANT NOTES:'],
-    ['• Email addresses must be unique across the system'],
-    ['• IDs must be unique (empId, studentId, facultyCode, etc.)'],
-    ['• Use exact values for dropdown fields (see comments in cells)'],
-    ['• Leave optional fields empty if not applicable'],
-    ['• Multi-line content is supported in description and name fields'],
-    [''],
-    ['🔧 EXCEL SETTINGS (Optional):'],
-    ['• File → Options → Advanced → "After pressing Enter, move selection"'],
-    ['• Uncheck this option to prevent automatic cell movement'],
-    ['• Or change direction preference (Down/Right/Up/Left)'],
-    [''],
-    ['📞 SUPPORT:'],
-    ['For technical support or questions about bulk upload,'],
-    ['contact the system administrator or IT helpdesk.']
-  ];
-  
-  const instructionsSheet = XLSX.utils.aoa_to_sheet(instructionsData);
-  
-  // Set column width and formatting for instructions
-  instructionsSheet['!cols'] = [{ wch: 70 }]; // Wide column for instructions
-  
-  // Set row heights for better readability
-  instructionsSheet['!rows'] = instructionsData.map((row, index) => {
-    if (row[0] && row[0].includes('INSTRUCTIONS')) return { hpt: 30 }; // Title rows
-    if (row[0] && row[0].includes(':')) return { hpt: 25 }; // Section headers
-    if (row[0] === '') return { hpt: 15 }; // Empty rows
-    return { hpt: 20 }; // Regular rows
-  });
-  
-  // Format the instructions sheet
-  instructionsData.forEach((row, rowIndex) => {
-    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: 0 });
-    if (!instructionsSheet[cellAddress]) return;
-    
-    const cellValue = row[0];
-    let cellStyle = {
-      alignment: { vertical: "top", wrapText: true }
-    };
-    
-    // Style different types of content
-    if (cellValue && cellValue.includes('INSTRUCTIONS')) {
-      // Main title
-      cellStyle = {
-        ...cellStyle,
-        font: { bold: true, size: 16, color: { rgb: "1F4E79" } },
-        fill: { fgColor: { rgb: "D9E2F3" } },
-        alignment: { horizontal: "center", vertical: "center", wrapText: true }
-      };
-    } else if (cellValue && cellValue.match(/^[📋📝⌨️📊⚠️🔧📞]/)) {
-      // Section headers with emojis
-      cellStyle = {
-        ...cellStyle,
-        font: { bold: true, size: 12, color: { rgb: "2F5597" } },
-        fill: { fgColor: { rgb: "F2F2F2" } }
-      };
-    } else if (cellValue && cellValue.startsWith('•')) {
-      // Bullet points
-      cellStyle = {
-        ...cellStyle,
-        font: { size: 10 },
-        alignment: { ...cellStyle.alignment, indent: 1 }
-      };
-    } else if (cellValue && cellValue.match(/^\d+\./)) {
-      // Numbered lists
-      cellStyle = {
-        ...cellStyle,
-        font: { size: 11, bold: true }
-      };
-    }
-    
-    instructionsSheet[cellAddress].s = cellStyle;
-  });
-  
-  // Add sheets to workbook
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-  XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
-  
-  // Generate buffer
-  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+const MULTI_LINE_FIELDS = new Set([
+  'description', 'programName', 'departmentName', 'facultyName', 'shortName',
+  'headName', 'specializations', 'internshipSpecializations', 'contactEmail',
+  'officeLocation', 'websiteUrl', 'firstName', 'lastName', 'designation',
+]);
 
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+const TEMPLATE_INSTRUCTIONS = [
+  ['BULK UPLOAD INSTRUCTIONS'],
+  [''],
+  ['BASIC INSTRUCTIONS:'],
+  ['1. Fill in the data starting from row 2 (keep the headers in row 1)'],
+  ['2. Required fields are marked with * in the template'],
+  ['3. Do not modify the header row'],
+  ['4. Save the file as .xlsx (or .csv) and upload it using the bulk upload feature'],
+  [`5. A single upload may contain at most ${MAX_UPLOAD_ROWS} data rows (1000 for employees/students) and 10MB`],
+  [''],
+  ['MULTI-LINE CONTENT SUPPORT:'],
+  ['• For fields like descriptions, names, specializations, etc.'],
+  ['• Press ALT + ENTER to create new lines within the same cell'],
+  [''],
+  ['FIELD-SPECIFIC GUIDELINES:'],
+  ['• Specializations: Separate multiple items with | or use ALT+ENTER'],
+  ['• Email addresses: Must be valid and unique across the system'],
+  ['• Phone numbers: 7-15 digits; may start with + and contain spaces or dashes'],
+  ['• Codes (studentId, empId, etc.): Must be unique identifiers'],
+  ['• Password: optional; at least 10 characters with a letter and a digit. Leave empty to auto-generate (shown once after upload)'],
+  ['• Formulas are not evaluated: enter plain values only'],
+  [''],
+  ['IMPORTANT NOTES:'],
+  ['• Use exact values for dropdown-like fields (facultyType, userType, programType)'],
+  ['• Leave optional fields empty if not applicable'],
+  [''],
+  ['SUPPORT:'],
+  ['For questions about bulk upload, contact your system administrator.'],
+];
+
+const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+function sendWorkbook(res, buffer, fileName) {
+  res.setHeader('Content-Type', XLSX_CONTENT_TYPE);
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
   res.send(buffer);
+}
+
+async function sendExcelTemplate(res, headers, sampleRows, fileName, sheetName) {
+  const isMultiLine = (header) => MULTI_LINE_FIELDS.has(header.replace(/\*$/, ''));
+  const widths = headers.map((header) => (isMultiLine(header)
+    ? Math.max(header.length + 8, 25)
+    : Math.max(header.length + 4, 18)));
+  const wrapColumns = headers.map((header, index) => (isMultiLine(header) ? index : -1)).filter((i) => i >= 0);
+
+  const buffer = await buildWorkbookBuffer([
+    { name: sheetName, rows: [headers, ...sampleRows], widths, wrapColumns },
+    { name: 'Instructions', rows: TEMPLATE_INSTRUCTIONS, widths: [80] },
+  ]);
+  sendWorkbook(res, buffer, fileName);
 }
 
 /**
@@ -265,7 +123,7 @@ exports.getSchoolTemplate = async (req, res) => {
       'https://sgtuniversity.ac.in/socs',
     ]];
 
-    sendExcelTemplate(res, headers, sampleRows, 'schools_template.xlsx', 'Schools');
+    await sendExcelTemplate(res, headers, sampleRows, 'schools_template.xlsx', 'Schools');
   } catch (error) {
     log.logError('get_school_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -324,20 +182,9 @@ exports.getDepartmentTemplate = async (req, res) => {
       'Block A, Room 201',
     ]];
 
-    // Create workbook with three sheets
-    const workbook = XLSX.utils.book_new();
-    
-    // Sheet 1: Template for new departments
-    const templateSheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-    templateSheet['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 18) }));
-    XLSX.utils.book_append_sheet(workbook, templateSheet, 'Template');
-    
     // Sheet 2: Schools Reference - all schools with code and name for cross-checking
     const schoolsRefHeaders = ['School Code', 'School Name'];
     const schoolsRefRows = schools.map(s => [s.facultyCode, s.facultyName]);
-    const schoolsRefSheet = XLSX.utils.aoa_to_sheet([schoolsRefHeaders, ...schoolsRefRows]);
-    schoolsRefSheet['!cols'] = [{ wch: 20 }, { wch: 45 }];
-    XLSX.utils.book_append_sheet(workbook, schoolsRefSheet, 'Schools Reference');
 
     // Sheet 3: Existing Departments
     const existingHeaders = ['School Code', 'School Name', 'Department Code', 'Department Name', 'Short Name', 'Description'];
@@ -349,15 +196,12 @@ exports.getDepartmentTemplate = async (req, res) => {
       d.shortName || '',
       d.description || ''
     ]);
-    const existingSheet = XLSX.utils.aoa_to_sheet([existingHeaders, ...existingRows]);
-    existingSheet['!cols'] = existingHeaders.map(h => ({ wch: Math.max(h.length + 4, 25) }));
-    XLSX.utils.book_append_sheet(workbook, existingSheet, 'Existing Departments');
-    
-    // Send response
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=departments_template.xlsx`);
-    res.send(buffer);
+    const buffer = await buildWorkbookBuffer([
+      { name: 'Template', rows: [headers, ...sampleRows], widths: headers.map(h => Math.max(h.length + 4, 18)) },
+      { name: 'Schools Reference', rows: [schoolsRefHeaders, ...schoolsRefRows], widths: [20, 45] },
+      { name: 'Existing Departments', rows: [existingHeaders, ...existingRows], widths: existingHeaders.map(h => Math.max(h.length + 4, 25)) },
+    ]);
+    sendWorkbook(res, buffer, 'departments_template.xlsx');
   } catch (error) {
     log.logError('get_department_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -453,20 +297,9 @@ exports.getProgrammeTemplate = async (req, res) => {
       orderBy: { facultyName: 'asc' }
     });
 
-    // Create workbook with four sheets
-    const workbook = XLSX.utils.book_new();
-    
-    // Sheet 1: Template for new programmes
-    const templateSheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-    templateSheet['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 4, 20) }));
-    XLSX.utils.book_append_sheet(workbook, templateSheet, 'Template');
-
     // Sheet 2: Schools Reference - all school codes and names
     const schoolsRefHeaders = ['School Code', 'School Name'];
     const schoolsRefRows = allSchools.map(s => [s.facultyCode, s.facultyName]);
-    const schoolsRefSheet = XLSX.utils.aoa_to_sheet([schoolsRefHeaders, ...schoolsRefRows]);
-    schoolsRefSheet['!cols'] = [{ wch: 20 }, { wch: 45 }];
-    XLSX.utils.book_append_sheet(workbook, schoolsRefSheet, 'Schools Reference');
 
     // Sheet 3: Departments Reference - all department codes with their school
     const deptRefHeaders = ['School Code', 'School Name', 'Department Code', 'Department Name'];
@@ -476,9 +309,6 @@ exports.getProgrammeTemplate = async (req, res) => {
       d.departmentCode,
       d.departmentName
     ]);
-    const deptRefSheet = XLSX.utils.aoa_to_sheet([deptRefHeaders, ...deptRefRows]);
-    deptRefSheet['!cols'] = [{ wch: 20 }, { wch: 45 }, { wch: 20 }, { wch: 45 }];
-    XLSX.utils.book_append_sheet(workbook, deptRefSheet, 'Departments Reference');
     
     // Sheet 4: Existing Programmes
     const existingHeaders = ['School Code', 'School Name', 'Department Code', 'Department Name', 'Programme Code', 'Programme Name', 'Type', 'Duration (Years)'];
@@ -492,15 +322,13 @@ exports.getProgrammeTemplate = async (req, res) => {
       p.programType,
       p.durationYears || ''
     ]);
-    const existingSheet = XLSX.utils.aoa_to_sheet([existingHeaders, ...existingRows]);
-    existingSheet['!cols'] = existingHeaders.map(h => ({ wch: Math.max(h.length + 4, 25) }));
-    XLSX.utils.book_append_sheet(workbook, existingSheet, 'Existing Programmes');
-    
-    // Send response
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=programmes_template.xlsx`);
-    res.send(buffer);
+    const buffer = await buildWorkbookBuffer([
+      { name: 'Template', rows: [headers, ...sampleRows], widths: headers.map(h => Math.max(h.length + 4, 20)) },
+      { name: 'Schools Reference', rows: [schoolsRefHeaders, ...schoolsRefRows], widths: [20, 45] },
+      { name: 'Departments Reference', rows: [deptRefHeaders, ...deptRefRows], widths: [20, 45, 20, 45] },
+      { name: 'Existing Programmes', rows: [existingHeaders, ...existingRows], widths: existingHeaders.map(h => Math.max(h.length + 4, 25)) },
+    ]);
+    sendWorkbook(res, buffer, 'programmes_template.xlsx');
   } catch (error) {
     log.logError('get_programme_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -538,13 +366,13 @@ exports.getEmployeeTemplate = async (req, res) => {
       'CS',
       'Assistant Professor',
       'faculty',
-      'Welcome@123',
+      '',                      // password (optional: leave empty to auto-generate)
       '57205678901',           // scopusAuthorId (optional)
       '0000-0002-1825-0097',   // orcid (optional)
       '',                      // pubmedId (optional)
     ]];
 
-    sendExcelTemplate(res, headers, sampleRows, 'employees_template.xlsx', 'Employees');
+    await sendExcelTemplate(res, headers, sampleRows, 'employees_template.xlsx', 'Employees');
   } catch (error) {
     log.logError('get_employee_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
@@ -580,7 +408,7 @@ exports.getStudentTemplate = async (req, res) => {
         'BTECH-CS',
         'CS-A',
         '1',
-        'Welcome@123',
+        '', // password (optional: leave empty to auto-generate)
       ],
       [
         'STU2025002',
@@ -592,85 +420,87 @@ exports.getStudentTemplate = async (req, res) => {
         'BTECH-CS',
         '', // Empty sectionCode to show it's optional
         '1',
-        'Welcome@123',
+        '', // password (optional: leave empty to auto-generate)
       ]
     ];
 
-    sendExcelTemplate(res, headers, sampleRows, 'students_template.xlsx', 'Students');
+    await sendExcelTemplate(res, headers, sampleRows, 'students_template.xlsx', 'Students');
   } catch (error) {
     log.logError('get_student_template_error', error);
     res.status(500).json({ success: false, message: 'Failed to generate template' });
   }
 };
 
+// ── Upload parsing & validation ─────────────────────────────────────────────
+// Account uploads hash a password per row (bcrypt, 12 rounds), so they get a lower cap
+// to keep one request within a few minutes.
+const MAX_ACCOUNT_UPLOAD_ROWS = 1000;
+const MAX_BASE64_LENGTH = Math.ceil((10 * 1024 * 1024 * 4) / 3) + 4;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_RE = /^\+?[0-9][0-9\s-]{5,18}[0-9]$/;
+
+const isValidEmail = (value) => typeof value === 'string' && value.length <= 254 && EMAIL_RE.test(value);
+const isValidPhone = (value) => {
+  if (typeof value !== 'string' || !PHONE_RE.test(value)) return false;
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 7 && digits.length <= 15;
+};
+
 /**
- * Parse CSV content
+ * Get the uploaded spreadsheet from multipart `file` or a base64 `excelContent` body field.
+ * Returns null when neither was sent.
  */
-function parseCSV(content) {
-  const lines = content.trim().split('\n');
-  if (lines.length < 2) return { headers: [], rows: [] };
-
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  const rows = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-    if (values.length === headers.length) {
-      const row = {};
-      headers.forEach((header, index) => {
-        row[header] = values[index];
-      });
-      rows.push(row);
+async function parseUploadRequest(req, opts = {}) {
+  if (req.file) return readSpreadsheet(req.file, opts);
+  if (req.body && typeof req.body.excelContent === 'string' && req.body.excelContent) {
+    if (req.body.excelContent.length > MAX_BASE64_LENGTH) {
+      throw new SpreadsheetError('File is too large (max 10MB)');
     }
+    return readSpreadsheet({
+      buffer: Buffer.from(req.body.excelContent, 'base64'),
+      originalname: 'upload.xlsx',
+    }, opts);
   }
-
-  return { headers, rows };
+  return null;
 }
 
-function parseTabularRows(matrix) {
-  const normalizedRows = matrix
-    .map((row) => row.map((cell) => String(cell ?? '').trim()))
-    .filter((row) => row.some((cell) => cell));
-
-  if (normalizedRows.length < 2) return { headers: [], rows: [] };
-
-  // Clean headers by removing asterisks and quotes
-  const headers = normalizedRows[0].map((header) => 
-    header.replace(/^"|"$/g, '').replace(/\*$/, '')
-  );
-  
-  const rows = normalizedRows.slice(1).map((values) => {
-    const row = {};
-    headers.forEach((header, index) => {
-      row[header] = (values[index] || '').replace(/^"|"$/g, '');
-    });
-    return row;
-  });
-
-  return { headers, rows };
+/**
+ * Validate an optional contact field on a row. Returns an error message or null.
+ */
+function validateContactFields(row, { emailFields = [], phoneFields = [] }) {
+  for (const field of emailFields) {
+    if (row[field] && !isValidEmail(row[field])) return `Invalid email address in '${field}': '${row[field]}'`;
+  }
+  for (const field of phoneFields) {
+    if (row[field] && !isValidPhone(row[field])) return `Invalid phone number in '${field}': '${row[field]}' (7-15 digits, optional leading +)`;
+  }
+  return null;
 }
 
-function parseUploadedFile(file) {
-  const isExcelFile = file
-    && (/\.(xlsx|xls)$/i.test(file.originalname)
-      || [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-      ].includes(file.mimetype));
-
-  if (isExcelFile) {
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const firstSheetName = workbook.SheetNames[0];
-    if (!firstSheetName) return { headers: [], rows: [] };
-    const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], {
-      header: 1,
-      raw: false,
-      defval: '',
-    });
-    return parseTabularRows(matrix);
+/**
+ * Common preamble for every bulk upload: parse + row checks. Sends the 400 itself and
+ * returns null when the request cannot proceed.
+ */
+async function loadUploadRows(req, res, opts = {}) {
+  let parsed;
+  try {
+    parsed = await parseUploadRequest(req, opts);
+  } catch (error) {
+    if (error instanceof SpreadsheetError) {
+      res.status(400).json({ success: false, message: error.message });
+      return null;
+    }
+    throw error;
   }
-
-  return parseCSV(file.buffer.toString('utf-8'));
+  if (!parsed) {
+    res.status(400).json({ success: false, message: 'Excel file is required' });
+    return null;
+  }
+  if (parsed.rows.length === 0) {
+    res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
+    return null;
+  }
+  return parsed;
 }
 
 function numberOrNull(value) {
@@ -758,25 +588,9 @@ function mapProgramType(value) {
  */
 exports.bulkUploadSchools = async (req, res) => {
   try {
-    let parsedData;
-    if (req.file) {
-      parsedData = parseUploadedFile(req.file);
-    } else if (req.body.excelContent) {
-      // Handle base64 encoded Excel content if needed
-      parsedData = parseUploadedFile({
-        buffer: Buffer.from(req.body.excelContent, 'base64'),
-        originalname: 'upload.xlsx',
-        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-    } else {
-      return res.status(400).json({ success: false, message: 'Excel file is required' });
-    }
-
+    const parsedData = await loadUploadRows(req, res);
+    if (!parsedData) return;
     const { rows } = parsedData;
-    
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
-    }
 
     const results = { success: [], failed: [] };
 
@@ -795,9 +609,16 @@ exports.bulkUploadSchools = async (req, res) => {
           continue;
         }
 
-        // Check if already exists
-        const existing = await prisma.facultySchoolList.findUnique({
+        const contactError = validateContactFields(row, { emailFields: ['contactEmail'], phoneFields: ['contactPhone'] });
+        if (contactError) {
+          results.failed.push({ row: rowNumber, data: row, error: contactError });
+          continue;
+        }
+
+        // Check if already exists (facultyCode is unique per university; tenant filter is automatic)
+        const existing = await prisma.facultySchoolList.findFirst({
           where: { facultyCode: row.facultyCode },
+          select: { id: true },
         });
 
         if (existing) {
@@ -887,25 +708,9 @@ exports.bulkUploadSchools = async (req, res) => {
  */
 exports.bulkUploadDepartments = async (req, res) => {
   try {
-    let parsedData;
-    if (req.file) {
-      parsedData = parseUploadedFile(req.file);
-    } else if (req.body.excelContent) {
-      // Handle base64 encoded Excel content if needed
-      parsedData = parseUploadedFile({
-        buffer: Buffer.from(req.body.excelContent, 'base64'),
-        originalname: 'upload.xlsx',
-        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-    } else {
-      return res.status(400).json({ success: false, message: 'Excel file is required' });
-    }
-
+    const parsedData = await loadUploadRows(req, res);
+    if (!parsedData) return;
     const { rows } = parsedData;
-    
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
-    }
 
     const results = { success: [], failed: [] };
 
@@ -939,9 +744,16 @@ exports.bulkUploadDepartments = async (req, res) => {
           continue;
         }
 
-        // Check if department already exists
-        const existing = await prisma.department.findUnique({
+        const contactError = validateContactFields(row, { emailFields: ['contactEmail'], phoneFields: ['contactPhone'] });
+        if (contactError) {
+          results.failed.push({ row: rowNumber, data: row, error: contactError });
+          continue;
+        }
+
+        // Check if department already exists (departmentCode is unique per university)
+        const existing = await prisma.department.findFirst({
           where: { departmentCode: row.departmentCode },
+          select: { id: true },
         });
 
         if (existing) {
@@ -1019,25 +831,9 @@ exports.bulkUploadDepartments = async (req, res) => {
  */
 exports.bulkUploadProgrammes = async (req, res) => {
   try {
-    let parsedData;
-    if (req.file) {
-      parsedData = parseUploadedFile(req.file);
-    } else if (req.body.excelContent) {
-      // Handle base64 encoded Excel content if needed
-      parsedData = parseUploadedFile({
-        buffer: Buffer.from(req.body.excelContent, 'base64'),
-        originalname: 'upload.xlsx',
-        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-    } else {
-      return res.status(400).json({ success: false, message: 'Excel file is required' });
-    }
-
+    const parsedData = await loadUploadRows(req, res);
+    if (!parsedData) return;
     const { rows } = parsedData;
-    
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
-    }
 
     const results = { success: [], failed: [] };
 
@@ -1095,9 +891,10 @@ exports.bulkUploadProgrammes = async (req, res) => {
           continue;
         }
 
-        // Check if programme already exists
-        const existing = await prisma.program.findUnique({
+        // Check if programme already exists (programCode is unique per university)
+        const existing = await prisma.program.findFirst({
           where: { programCode },
+          select: { id: true },
         });
 
         if (existing) {
@@ -1221,25 +1018,9 @@ exports.bulkUploadEmployees = async (req, res) => {
       hasExcelContent: !!req.body.excelContent
     });
     
-    let parsedData;
-    if (req.file) {
-      parsedData = parseUploadedFile(req.file);
-    } else if (req.body.excelContent) {
-      // Handle base64 encoded Excel content if needed
-      parsedData = parseUploadedFile({
-        buffer: Buffer.from(req.body.excelContent, 'base64'),
-        originalname: 'upload.xlsx',
-        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-    } else {
-      return res.status(400).json({ success: false, message: 'Excel file is required' });
-    }
-
+    const parsedData = await loadUploadRows(req, res, { maxRows: MAX_ACCOUNT_UPLOAD_ROWS });
+    if (!parsedData) return;
     const { rows } = parsedData;
-    
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
-    }
 
     const results = { success: [], failed: [] };
 
@@ -1261,6 +1042,16 @@ exports.bulkUploadEmployees = async (req, res) => {
             data: row,
             error: 'Missing required fields: empId, firstName, email, or userType',
           });
+          continue;
+        }
+
+        if (!isValidEmail(row.email)) {
+          results.failed.push({ row: rowNumber, data: row, error: `Invalid email address '${row.email}'` });
+          continue;
+        }
+        const contactError = validateContactFields(row, { phoneFields: ['phoneNumber'] });
+        if (contactError) {
+          results.failed.push({ row: rowNumber, data: row, error: contactError });
           continue;
         }
 
@@ -1331,9 +1122,11 @@ exports.bulkUploadEmployees = async (req, res) => {
           }
         }
 
-        // Hash password
-        const password = row.password || 'Welcome@123';
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Password: the row's (policy-checked) or a generated one returned once in the response
+        const { passwordHash: hashedPassword, passwordChangedAt, generatedPassword } = await preparePassword(
+          row.password,
+          { uid: row.empId, email: row.email }
+        );
 
         // Map userType to role
         const roleMapping = {
@@ -1351,10 +1144,11 @@ exports.bulkUploadEmployees = async (req, res) => {
               uid: row.empId,
               email: row.email,
               passwordHash: hashedPassword,
+              passwordChangedAt,
               role: role,
               status: 'active',
               // Tenant binding — required by protect() for non-superadmin users
-              universityId: req.tenantId || req.user?.universityId || null,
+              universityId: req.tenantId,
             },
           });
 
@@ -1406,6 +1200,7 @@ exports.bulkUploadEmployees = async (req, res) => {
 
         results.success.push({
           row: rowNumber,
+          generatedPassword,
           data: {
             empId: row.empId,
             name: `${row.firstName} ${row.lastName || ''}`.trim(),
@@ -1425,7 +1220,9 @@ exports.bulkUploadEmployees = async (req, res) => {
         });
 
         // Provide user-friendly error message
-        const userMessage = parseErrorWithContext(error, 'create employee', row);
+        const userMessage = error instanceof PasswordPolicyError || error.statusCode === 400
+          ? error.message
+          : parseErrorWithContext(error, 'create employee', row);
         results.failed.push({
           row: rowNumber,
           data: row,
@@ -1469,25 +1266,9 @@ exports.bulkUploadEmployees = async (req, res) => {
  */
 exports.bulkUploadStudents = async (req, res) => {
   try {
-    let parsedData;
-    if (req.file) {
-      parsedData = parseUploadedFile(req.file);
-    } else if (req.body.excelContent) {
-      // Handle base64 encoded Excel content if needed
-      parsedData = parseUploadedFile({
-        buffer: Buffer.from(req.body.excelContent, 'base64'),
-        originalname: 'upload.xlsx',
-        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-    } else {
-      return res.status(400).json({ success: false, message: 'Excel file is required' });
-    }
-
+    const parsedData = await loadUploadRows(req, res, { maxRows: MAX_ACCOUNT_UPLOAD_ROWS });
+    if (!parsedData) return;
     const { rows } = parsedData;
-    
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No data rows found in the uploaded file' });
-    }
 
     const results = { success: [], failed: [] };
 
@@ -1509,6 +1290,16 @@ exports.bulkUploadStudents = async (req, res) => {
             data: row,
             error: 'Missing required fields: studentId, firstName, email, or programCode',
           });
+          continue;
+        }
+
+        if (!isValidEmail(row.email)) {
+          results.failed.push({ row: rowNumber, data: row, error: `Invalid email address '${row.email}'` });
+          continue;
+        }
+        const contactError = validateContactFields(row, { phoneFields: ['phone'] });
+        if (contactError) {
+          results.failed.push({ row: rowNumber, data: row, error: contactError });
           continue;
         }
 
@@ -1565,9 +1356,11 @@ exports.bulkUploadStudents = async (req, res) => {
           }
         }
 
-        // Hash password
-        const password = row.password || 'Welcome@123';
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Password: the row's (policy-checked) or a generated one returned once in the response
+        const { passwordHash: hashedPassword, passwordChangedAt, generatedPassword } = await preparePassword(
+          row.password,
+          { uid: row.studentId, email: row.email }
+        );
 
         // Create user and student in transaction
         const result = await prisma.$transaction(async (tx) => {
@@ -1577,10 +1370,11 @@ exports.bulkUploadStudents = async (req, res) => {
               uid: row.studentId,
               email: row.email,
               passwordHash: hashedPassword,
+              passwordChangedAt,
               role: 'student',
               status: 'active',
               // Tenant binding — required by protect() for non-superadmin users
-              universityId: req.tenantId || req.user?.universityId || null,
+              universityId: req.tenantId,
             },
           });
 
@@ -1607,6 +1401,7 @@ exports.bulkUploadStudents = async (req, res) => {
 
         results.success.push({
           row: rowNumber,
+          generatedPassword,
           data: {
             studentId: row.studentId,
             name: `${row.firstName} ${row.lastName || ''}`.trim(),
@@ -1623,7 +1418,9 @@ exports.bulkUploadStudents = async (req, res) => {
         });
 
         // Provide user-friendly error message
-        const userMessage = parseErrorWithContext(error, 'create student', row);
+        const userMessage = error instanceof PasswordPolicyError
+          ? error.message
+          : parseErrorWithContext(error, 'create student', row);
         results.failed.push({
           row: rowNumber,
           data: row,
@@ -1665,7 +1462,15 @@ exports.previewExcelData = async (req, res) => {
     }
 
     // Parse the uploaded Excel file
-    const parsedData = parseUploadedFile(req.file);
+    let parsedData;
+    try {
+      parsedData = await readSpreadsheet(req.file);
+    } catch (error) {
+      if (error instanceof SpreadsheetError) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      throw error;
+    }
     const { headers, rows } = parsedData;
 
     if (rows.length === 0) {

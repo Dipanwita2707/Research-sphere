@@ -1,4 +1,5 @@
-﻿const { PrismaClient } = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client");
+const { tenantExtension } = require("../tenancy/tenantExtension");
 
 // Singleton pattern to prevent multiple Prisma Client instances
 let prisma;
@@ -96,8 +97,19 @@ prisma.$on('error', (e) => {
     // Prisma handles reconnection internally — no log needed
     return;
   }
-  log.error('Prisma runtime error:', { error: e.message, stack: e.stack });
-  if (connectionAttempts === 0) {
+  log.error('Prisma runtime error:', { error: e.message, target: e.target });
+  // Only a lost/unreachable database warrants an explicit reconnect. Query-level
+  // errors (P2025 not found, P2002 unique, validation...) must not trigger it:
+  // connectWithRetry exits the process after MAX_RETRIES failures.
+  const isConnectionError =
+    /\bP10(01|02|17)\b/.test(e.message || '') ||
+    msg.includes("can't reach database server") ||
+    msg.includes('server has closed the connection') ||
+    msg.includes('connection refused') ||
+    msg.includes('econnrefused') ||
+    msg.includes('connection terminated') ||
+    msg.includes('terminating connection');
+  if (isConnectionError && connectionAttempts === 0) {
     connectWithRetry();
   }
 });
@@ -119,20 +131,11 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Handle cleanup on application termination
-// AWS RDS is a persistent server — no keep-alive pings needed.
+// Disconnect on natural exit. Signal handling (SIGTERM/SIGINT) lives in server.js,
+// which drains HTTP and background work before disconnecting.
 process.on("beforeExit", async () => {
   await prisma.$disconnect();
 });
 
-process.on("SIGINT", async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-process.on("SIGTERM", async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-module.exports = prisma;
+// Every query goes through the tenant-isolation extension (see shared/tenancy).
+module.exports = prisma.$extends(tenantExtension);

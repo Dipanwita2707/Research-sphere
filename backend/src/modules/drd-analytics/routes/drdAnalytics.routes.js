@@ -1,9 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/drdAnalytics.controller');
-const { protect, checkPermission } = require('../../../shared/middleware/auth');
+const { protect, checkPermission: baseCheckPermission } = require('../../../shared/middleware/auth');
 
 router.use(protect);
+
+// Superadmin sees every university (or the one selected via X-University-Id; scoping is
+// done by the tenant extension) without holding tenant-level analytics permissions.
+const checkPermission = (permissionKey) => {
+  const check = baseCheckPermission(permissionKey);
+  return (req, res, next) => (req.user?.role === 'superadmin' ? next() : check(req, res, next));
+};
 
 // Helper middleware to allow users to view their own profile analytics/submissions
 const checkApplicantOrSelf = (req, res, next) => {

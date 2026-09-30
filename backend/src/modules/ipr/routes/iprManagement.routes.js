@@ -4,6 +4,20 @@ const { protect } = require('../../../shared/middleware/auth');
 
 const router = express.Router();
 
+// Legacy IPR register: admins/staff manage every item of their university; everyone else
+// only the items they created (or approved). Tenant isolation itself is automatic.
+const isLegacyIprManager = (user) => ['admin', 'staff', 'superadmin'].includes(user?.role);
+const canViewLegacyIpr = (user, item) =>
+  Boolean(item) && (isLegacyIprManager(user) || item.createdById === user?.id || item.approvedById === user?.id);
+const canEditLegacyIpr = (user, item) =>
+  Boolean(item) && (isLegacyIprManager(user) || item.createdById === user?.id);
+
+// Fields a client may change through PUT /:id (status, ownership and tenant are workflow-controlled)
+const EDITABLE_FIELDS = [
+  'title', 'description', 'type', 'applicant', 'coApplicants', 'department', 'researchArea', 'keywords',
+  'technicalSpecifications', 'estimatedValue', 'marketPotential', 'competitiveAdvantage', 'priority',
+];
+
 // Get all IPR items with filtering
 router.get('/', protect, async (req, res) => {
   try {
@@ -129,7 +143,6 @@ router.get('/', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch IPR items',
-      error: error.message
     });
   }
 });
@@ -170,7 +183,6 @@ router.get('/:id', protect, async (req, res) => {
             }
           }
         },
-        documents: true
       }
     });
 
@@ -181,10 +193,11 @@ router.get('/:id', protect, async (req, res) => {
       });
     }
 
-    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
-      return res.status(403).json({
+    // Tenant scoping is automatic; within the tenant only managers and the creator/approver may view
+    if (!canViewLegacyIpr(req.user, iprItem)) {
+      return res.status(404).json({
         success: false,
-        message: 'Access denied: This IPR item does not belong to your university.'
+        message: 'IPR item not found'
       });
     }
 
@@ -198,7 +211,6 @@ router.get('/:id', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch IPR item',
-      error: error.message
     });
   }
 });
@@ -313,7 +325,6 @@ router.post('/', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create IPR item',
-      error: error.message
     });
   }
 });
@@ -322,7 +333,9 @@ router.post('/', protect, async (req, res) => {
 router.put('/:id', protect, async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = Object.fromEntries(
+      Object.entries(req.body || {}).filter(([key]) => EDITABLE_FIELDS.includes(key))
+    );
 
     // Check if IPR item exists
     const existingItem = await prisma.iPR.findUnique({
@@ -336,10 +349,10 @@ router.put('/:id', protect, async (req, res) => {
       });
     }
 
-    if (req.tenantId && existingItem.universityId && existingItem.universityId !== req.tenantId) {
-      return res.status(403).json({
+    if (!canEditLegacyIpr(req.user, existingItem)) {
+      return res.status(404).json({
         success: false,
-        message: 'Access denied: This IPR item does not belong to your university.'
+        message: 'IPR item not found'
       });
     }
 
@@ -401,7 +414,6 @@ router.put('/:id', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update IPR item',
-      error: error.message
     });
   }
 });
@@ -422,10 +434,10 @@ router.post('/:id/submit', protect, async (req, res) => {
       });
     }
 
-    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
-      return res.status(403).json({
+    if (!canEditLegacyIpr(req.user, iprItem)) {
+      return res.status(404).json({
         success: false,
-        message: 'Access denied: This IPR item does not belong to your university.'
+        message: 'IPR item not found'
       });
     }
 
@@ -455,7 +467,6 @@ router.post('/:id/submit', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to submit IPR item',
-      error: error.message
     });
   }
 });
@@ -484,10 +495,16 @@ router.post('/:id/review', protect, async (req, res) => {
       });
     }
 
-    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
+    if (!isLegacyIprManager(req.user)) {
+      if (!canViewLegacyIpr(req.user, iprItem)) {
+        return res.status(404).json({
+          success: false,
+          message: 'IPR item not found'
+        });
+      }
       return res.status(403).json({
         success: false,
-        message: 'Access denied: This IPR item does not belong to your university.'
+        message: 'Insufficient permissions to review IPR items'
       });
     }
 
@@ -526,7 +543,6 @@ router.post('/:id/review', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to review IPR item',
-      error: error.message
     });
   }
 });
@@ -636,7 +652,6 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch IPR analytics',
-      error: error.message
     });
   }
 });
@@ -657,10 +672,10 @@ router.delete('/:id', protect, async (req, res) => {
       });
     }
 
-    if (req.tenantId && iprItem.universityId && iprItem.universityId !== req.tenantId) {
-      return res.status(403).json({
+    if (!canEditLegacyIpr(req.user, iprItem)) {
+      return res.status(404).json({
         success: false,
-        message: 'Access denied: This IPR item does not belong to your university.'
+        message: 'IPR item not found'
       });
     }
 
@@ -686,7 +701,6 @@ router.delete('/:id', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete IPR item',
-      error: error.message
     });
   }
 });

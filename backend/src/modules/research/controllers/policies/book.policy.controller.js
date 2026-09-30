@@ -41,7 +41,6 @@ exports.getAllBookPolicies = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch book policies',
-      error: error.message
     });
   }
 };
@@ -97,7 +96,6 @@ exports.getActivePolicyByType = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch policy',
-      error: error.message
     });
   }
 };
@@ -206,7 +204,6 @@ exports.createBookPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create book policy',
-      error: error.message
     });
   }
 };
@@ -290,7 +287,6 @@ exports.updateBookPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update book policy',
-      error: error.message
     });
   }
 };
@@ -342,7 +338,6 @@ exports.deleteBookPolicy = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete book policy',
-      error: error.message
     });
   }
 };
@@ -396,7 +391,6 @@ exports.getBookPolicyById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch policy',
-      error: error.message
     });
   }
 };

@@ -45,7 +45,6 @@ const getMyNotifications = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to get notifications",
-      error: error.message,
     });
   }
 };
@@ -88,7 +87,6 @@ const markAsRead = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to mark notification as read",
-      error: error.message,
     });
   }
 };
@@ -118,7 +116,6 @@ const markAllAsRead = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to mark all notifications as read",
-      error: error.message,
     });
   }
 };
@@ -153,7 +150,6 @@ const deleteNotification = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to delete notification",
-      error: error.message,
     });
   }
 };
@@ -186,7 +182,6 @@ const getUnreadCount = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to get unread count",
-      error: error.message,
     });
   }
 };

@@ -350,6 +350,7 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       description:
         "Can view DRD reviewer workload and performance analytics for assigned schools and departments.",
     },
+
   ],
 
   // Finance Department
@@ -832,3 +833,16 @@ module.exports = {
   getCentralDeptPermissions,
   getAllCentralDeptPermissions,
 };
+
+// ====================================
+// DPDP (Digital Personal Data Protection Act 2023) — appended block
+// Assign to the Data Protection Officer / privacy team. Tenant admins hold it implicitly.
+// ====================================
+CENTRAL_DEPARTMENT_PERMISSIONS.dpdp = [
+  {
+    key: 'dpdp_manage',
+    label: 'Manage Data Protection',
+    category: 'Data Protection (DPDP)',
+    description: 'Privacy notices, data principal requests, breach register, retention policies and DPO contact',
+  },
+];

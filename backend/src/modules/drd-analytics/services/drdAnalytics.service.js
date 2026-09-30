@@ -1,4 +1,5 @@
 const prisma = require('../../../shared/config/database');
+const tenantContext = require('../../../shared/tenancy/tenantContext');
 const cache = require('../../../shared/config/redis');
 const {
   getSupportedCentralDeptAnalyticsScopeFields,
@@ -540,8 +541,19 @@ function buildReviewerMonthlyTrend({
 const _accessResultCache = new Map(); // key → { value, expiresAt }
 const ACCESS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Tenant admins see every school/department of their own university; a superadmin sees
+ * the university selected via X-University-Id, or all universities without it. The
+ * university boundary itself is enforced by the Prisma tenant extension.
+ */
+function _hasUniversityWideAccess(user) {
+  return user?.role === 'admin' || user?.role === 'superadmin';
+}
+
 function _buildAccessCacheKey(userId, permissionKeys, schoolFields, departmentFields) {
-  return `${userId}|${[...permissionKeys].sort().join(',')}|${[...schoolFields].sort().join(',')}|${[...departmentFields].sort().join(',')}`;
+  // The resolved scope holds tenant-specific school/department ids; a superadmin can switch tenants.
+  const tenantKey = tenantContext.getTenantId() || 'global';
+  return `${tenantKey}|${userId}|${[...permissionKeys].sort().join(',')}|${[...schoolFields].sort().join(',')}|${[...departmentFields].sort().join(',')}`;
 }
 
 function _getAccessCached(key) {
@@ -612,7 +624,7 @@ class DrdAnalyticsService {
     // For admin users pre-fetch all schools + departments to avoid re-querying per category
     let adminDepts = null;
     let adminSchools = null;
-    if (user.role === 'admin') {
+    if (_hasUniversityWideAccess(user)) {
       [adminDepts, adminSchools] = await Promise.all([
         prisma.department.findMany({ where: { isActive: true }, select: { id: true } }),
         prisma.facultySchoolList.findMany({ where: { isActive: true }, select: { id: true } }),
@@ -644,7 +656,7 @@ class DrdAnalyticsService {
     const mergedCentralPerms = user.centralDeptPermissions || [];
     const mergedDepartmentPerms = user.schoolDeptPermissions || [];
     const canView =
-      user.role === 'admin' ||
+      _hasUniversityWideAccess(user) ||
       hasAnyPermission(mergedCentralPerms, permissionKeys) ||
       hasAnyPermission(mergedDepartmentPerms, permissionKeys) ||
       hasAnyPermission(directCentralPerms, permissionKeys) ||
@@ -656,7 +668,7 @@ class DrdAnalyticsService {
       throw error;
     }
 
-    if (user.role === 'admin') {
+    if (_hasUniversityWideAccess(user)) {
       // Use pre-fetched admin data when available
       const allDepartments = adminDepts || await prisma.department.findMany({
         where: { isActive: true },
@@ -779,7 +791,7 @@ class DrdAnalyticsService {
       allowedDepartmentIds: expandedDepartmentIds,
       scopeLevel,
       canViewAllReviewers:
-        user.role === 'admin' || hasAnyPermission(mergedCentralPerms, SUPERVISOR_PERMISSIONS),
+        _hasUniversityWideAccess(user) || hasAnyPermission(mergedCentralPerms, SUPERVISOR_PERMISSIONS),
     };
     _setAccessCached(cacheKey, nonAdminResult);
     return nonAdminResult;

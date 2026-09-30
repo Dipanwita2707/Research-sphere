@@ -7,6 +7,24 @@ const prisma = require('../../../shared/config/database');
 const screenshotService = require('./screenshot.service');
 const { logBugReportSubmission, logResolutionStatusChange } = require('../utils/securityLogger');
 
+/** Error whose message is meant for the client (validation / not found). */
+const clientError = (message, statusCode = 400) =>
+  Object.assign(new Error(message), { statusCode, isOperational: true });
+
+const BUG_REPORT_ADMIN_ROLES = new Set(['admin', 'superadmin']);
+
+/** Reporter or admin/superadmin (tenant scoping of the row itself is automatic). */
+const canAccessBugReport = (bugReport, user) =>
+  Boolean(user) && (bugReport.userId === user.id || BUG_REPORT_ADMIN_ROLES.has(user.role));
+
+/** Wrap an unexpected error without losing the original; its message stays server-side. */
+const internalError = (message, cause) => {
+  if (cause && cause.isOperational) return cause;
+  const err = new Error(`${message}: ${cause?.message}`);
+  err.cause = cause;
+  return err;
+};
+
 /**
  * Create a new bug report with optional screenshots
  * @param {Object} data - Bug report data
@@ -23,35 +41,35 @@ const { logBugReportSubmission, logResolutionStatusChange } = require('../utils/
 const createBugReport = async (data, files = []) => {
   // Validate required fields
   if (!data.userId) {
-    throw new Error('User ID is required');
+    throw clientError('User ID is required');
   }
   if (!data.userRole) {
-    throw new Error('User role is required');
+    throw clientError('User role is required');
   }
   if (!data.userIdentifier) {
-    throw new Error('User identifier is required');
+    throw clientError('User identifier is required');
   }
   if (!data.description) {
-    throw new Error('Description is required');
+    throw clientError('Description is required');
   }
   if (!data.pageUrl) {
-    throw new Error('Page URL is required');
+    throw clientError('Page URL is required');
   }
   if (!data.routePath) {
-    throw new Error('Route path is required');
+    throw clientError('Route path is required');
   }
 
   // Validate description length
   if (data.description.length < 10) {
-    throw new Error('Description must be at least 10 characters');
+    throw clientError('Description must be at least 10 characters');
   }
   if (data.description.length > 2000) {
-    throw new Error('Description must not exceed 2000 characters');
+    throw clientError('Description must not exceed 2000 characters');
   }
 
   // Validate screenshot count
   if (files && files.length > 5) {
-    throw new Error('Maximum 5 screenshots allowed per bug report');
+    throw clientError('Maximum 5 screenshots allowed per bug report');
   }
 
   try {
@@ -89,7 +107,8 @@ const createBugReport = async (data, files = []) => {
         files,
         bugReport.id,
         data.userId,
-        data.userIdentifier
+        data.userIdentifier,
+        bugReport.universityId
       );
     }
 
@@ -118,7 +137,7 @@ const createBugReport = async (data, files = []) => {
       success: false,
     });
     
-    throw new Error(`Failed to create bug report: ${error.message}`);
+    throw internalError('Failed to create bug report', error);
   }
 };
 
@@ -129,7 +148,7 @@ const createBugReport = async (data, files = []) => {
  */
 const getBugReportById = async (id) => {
   if (!id) {
-    throw new Error('Bug report ID is required');
+    throw clientError('Bug report ID is required');
   }
 
   try {
@@ -160,15 +179,12 @@ const getBugReportById = async (id) => {
     });
 
     if (!bugReport) {
-      throw new Error('Bug report not found');
+      throw clientError('Bug report not found', 404);
     }
 
     return bugReport;
   } catch (error) {
-    if (error.message === 'Bug report not found') {
-      throw error;
-    }
-    throw new Error(`Failed to retrieve bug report: ${error.message}`);
+    throw internalError('Failed to retrieve bug report', error);
   }
 };
 
@@ -271,6 +287,13 @@ const getAllBugReports = async (filters = {}) => {
       skip,
       take: limit,
       include: {
+        university: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
         user: {
           select: {
             id: true,
@@ -316,7 +339,7 @@ const getAllBugReports = async (filters = {}) => {
       },
     };
   } catch (error) {
-    throw new Error(`Failed to retrieve bug reports: ${error.message}`);
+    throw internalError('Failed to retrieve bug reports', error);
   }
 };
 
@@ -330,11 +353,11 @@ const getAllBugReports = async (filters = {}) => {
  */
 const updateResolutionStatus = async (id, status, resolvedBy, adminIdentifier = null) => {
   if (!id) {
-    throw new Error('Bug report ID is required');
+    throw clientError('Bug report ID is required');
   }
 
   if (!status || !['resolved', 'unresolved'].includes(status)) {
-    throw new Error('Status must be either "resolved" or "unresolved"');
+    throw clientError('Status must be either "resolved" or "unresolved"');
   }
 
   // Check if bug report exists
@@ -343,7 +366,7 @@ const updateResolutionStatus = async (id, status, resolvedBy, adminIdentifier = 
   });
 
   if (!existingReport) {
-    throw new Error('Bug report not found');
+    throw clientError('Bug report not found', 404);
   }
 
   // Store old status for logging
@@ -358,7 +381,7 @@ const updateResolutionStatus = async (id, status, resolvedBy, adminIdentifier = 
     if (status === 'resolved') {
       // When marking as resolved, record timestamp and admin ID
       if (!resolvedBy) {
-        throw new Error('Admin user ID is required when marking as resolved');
+        throw clientError('Admin user ID is required when marking as resolved');
       }
       updateData.resolvedAt = new Date();
       updateData.resolvedBy = resolvedBy;
@@ -404,10 +427,7 @@ const updateResolutionStatus = async (id, status, resolvedBy, adminIdentifier = 
 
     return updatedReport;
   } catch (error) {
-    if (error.message === 'Admin user ID is required when marking as resolved') {
-      throw error;
-    }
-    throw new Error(`Failed to update resolution status: ${error.message}`);
+    throw internalError('Failed to update resolution status', error);
   }
 };
 
@@ -416,9 +436,9 @@ const updateResolutionStatus = async (id, status, resolvedBy, adminIdentifier = 
  * @param {string} bugReportId - Bug report ID
  * @returns {Promise<Array>} - Array of screenshot records
  */
-const getScreenshots = async (bugReportId) => {
+const getScreenshots = async (bugReportId, requester = null) => {
   if (!bugReportId) {
-    throw new Error('Bug report ID is required');
+    throw clientError('Bug report ID is required');
   }
 
   try {
@@ -427,8 +447,9 @@ const getScreenshots = async (bugReportId) => {
       where: { id: bugReportId },
     });
 
-    if (!bugReport) {
-      throw new Error('Bug report not found');
+    // Only the reporter or an admin may see a report's screenshots (same 404 as "missing")
+    if (!bugReport || (requester && !canAccessBugReport(bugReport, requester))) {
+      throw clientError('Bug report not found', 404);
     }
 
     // Get screenshots using screenshot service
@@ -436,10 +457,7 @@ const getScreenshots = async (bugReportId) => {
 
     return screenshots;
   } catch (error) {
-    if (error.message === 'Bug report not found') {
-      throw error;
-    }
-    throw new Error(`Failed to retrieve screenshots: ${error.message}`);
+    throw internalError('Failed to retrieve screenshots', error);
   }
 };
 
@@ -449,4 +467,5 @@ module.exports = {
   getAllBugReports,
   updateResolutionStatus,
   getScreenshots,
+  canAccessBugReport,
 };

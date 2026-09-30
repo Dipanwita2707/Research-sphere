@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { logger } from '@/shared/utils/logger';
+import { emitAccessBlocked, emitSessionEnded, isAccessBlockedCode } from '@/shared/auth/sessionEvents';
 
 // Configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -92,21 +93,41 @@ const api: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor - add auth token and request metadata
+// Public auth endpoints whose 401/403 responses are handled by the calling page
+const AUTH_PUBLIC_ROUTES = ['/auth/login', '/auth/logout', '/auth/forgot-password', '/auth/reset-password'];
+const isAuthPublicRoute = (url?: string): boolean =>
+  !!url && AUTH_PUBLIC_ROUTES.some((route) => url.includes(route));
+
+/**
+ * Turn session/tenant failures into app-wide events (see AuthProvider):
+ * - 401 on any authenticated call: the session is over (expired, revoked by
+ *   logout-all / password change, account deactivated) -> sign out + login page.
+ * - 403 tenant codes / 503 LICENSE_INVALID: show a blocking screen, no redirect.
+ * Other 403s (e.g. CONSENT_REQUIRED, permission errors) are left to the caller.
+ * Returns true when the error must not be retried.
+ */
+const reportAuthFailure = (error: AxiosError, url?: string): boolean => {
+  const status = error.response?.status;
+  if (!status || isAuthPublicRoute(url)) return false;
+  const data = (error.response?.data ?? {}) as { code?: string; message?: string };
+
+  if (status === 401) {
+    emitSessionEnded({ code: data.code, message: data.message });
+    return true;
+  }
+  if ((status === 403 || status === 503) && isAccessBlockedCode(data.code)) {
+    emitAccessBlocked({ code: data.code, message: data.message });
+    return true;
+  }
+  return false;
+};
+
+// Request interceptor - add request metadata. Authentication rides on the
+// httpOnly `token` cookie (withCredentials); no token is readable by page scripts.
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Attach Bearer token so backend auth works (cross-origin cookies may not be sent)
     if (typeof window !== 'undefined') {
       try {
-        const raw = localStorage.getItem('auth-storage');
-        if (raw) {
-          const parsed = JSON.parse(raw) as { state?: { token?: string | null } };
-          const token = parsed?.state?.token;
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-        }
-        
         // Impersonation context for superadmin
         const impersonatedId = localStorage.getItem('superadmin-impersonate-university-id');
         if (impersonatedId) {
@@ -163,11 +184,13 @@ api.interceptors.response.use(
       });
     }
 
+    const isAuthFailure = reportAuthFailure(error, config.url);
+
     // Initialize retry count
     config._retryCount = config._retryCount || 0;
 
     // Check if we should retry
-    const shouldRetry = defaultRetryCondition(error) && config._retryCount < MAX_RETRIES;
+    const shouldRetry = !isAuthFailure && defaultRetryCondition(error) && config._retryCount < MAX_RETRIES;
 
     if (shouldRetry) {
       config._retryCount += 1;

@@ -39,6 +39,13 @@ function isContextValidationError(error) {
   return /departmentScope|departmentId|Department context/i.test(message);
 }
 
+// Messages thrown deliberately by reportingStructure.service that are safe to show to the client.
+const USER_FACING_ERROR_RE = /departmentScope|departmentId|Department context|cannot report to themselves|manager not found|circular reporting|manager chain array|hierarchy levels allowed|users in the chain do not exist/i;
+
+function isUserFacingError(error) {
+  return USER_FACING_ERROR_RE.test(error?.message || '');
+}
+
 /**
  * Get department options for reporting structure (school + central)
  *
@@ -120,7 +127,7 @@ exports.getDepartmentOptions = async (req, res) => {
     console.error('Get reporting department options error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error fetching department options',
+      message: isUserFacingError(error) ? error.message : 'Server error fetching department options',
     });
   }
 };
@@ -145,7 +152,7 @@ exports.getHierarchyTree = async (req, res) => {
     console.error('Get hierarchy tree error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error fetching hierarchy tree',
+      message: isUserFacingError(error) ? error.message : 'Server error fetching hierarchy tree',
     });
   }
 };
@@ -180,7 +187,7 @@ exports.getReportingChain = async (req, res) => {
     console.error('Get reporting chain error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error fetching reporting chain',
+      message: isUserFacingError(error) ? error.message : 'Server error fetching reporting chain',
     });
   }
 };
@@ -215,7 +222,7 @@ exports.getDirectManager = async (req, res) => {
     console.error('Get direct manager error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error fetching manager',
+      message: isUserFacingError(error) ? error.message : 'Server error fetching manager',
     });
   }
 };
@@ -292,7 +299,7 @@ exports.assignReportingManager = async (req, res) => {
 
     res.status(isValidationError ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error assigning reporting relationship',
+      message: isUserFacingError(error) ? error.message : 'Server error assigning reporting relationship',
     });
   }
 };
@@ -373,7 +380,7 @@ exports.assignManagerChain = async (req, res) => {
 
     res.status(isValidationError ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error assigning manager chain',
+      message: isUserFacingError(error) ? error.message : 'Server error assigning manager chain',
     });
   }
 };
@@ -410,7 +417,7 @@ exports.removeReportingRelationship = async (req, res) => {
 
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error removing reporting relationship',
+      message: isUserFacingError(error) ? error.message : 'Server error removing reporting relationship',
     });
   }
 };
@@ -452,7 +459,7 @@ exports.getSubordinates = async (req, res) => {
     console.error('Get subordinates error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error fetching subordinates',
+      message: isUserFacingError(error) ? error.message : 'Server error fetching subordinates',
     });
   }
 };
@@ -516,7 +523,7 @@ exports.bulkImportReportingStructure = async (req, res) => {
         await reportingStructureService.setReportingManager(userId, managerId, createdById, context);
         results.success.push(rel);
       } catch (error) {
-        results.failed.push({ ...rel, reason: error.message });
+        results.failed.push({ ...rel, reason: isUserFacingError(error) ? error.message : 'Failed to assign reporting manager' });
       }
     }
 
@@ -529,7 +536,7 @@ exports.bulkImportReportingStructure = async (req, res) => {
     console.error('Bulk import error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error during bulk import',
+      message: isUserFacingError(error) ? error.message : 'Server error during bulk import',
     });
   }
 };
@@ -575,7 +582,7 @@ exports.moveUser = async (req, res) => {
     console.error('Move user error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error moving user',
+      message: isUserFacingError(error) ? error.message : 'Server error moving user',
     });
   }
 };
@@ -610,7 +617,7 @@ exports.getBulkHierarchyInfo = async (req, res) => {
     console.error('Get bulk hierarchy info error:', error);
     res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Server error fetching hierarchy info',
+      message: isUserFacingError(error) ? error.message : 'Server error fetching hierarchy info',
     });
   }
 };

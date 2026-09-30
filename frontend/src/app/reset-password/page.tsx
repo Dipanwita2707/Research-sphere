@@ -48,8 +48,12 @@ function ResetPasswordForm() {
       setError('Passwords do not match.');
       return;
     }
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (newPassword.length < 10) {
+      setError('Password must be at least 10 characters.');
+      return;
+    }
+    if (!/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      setError('Password must contain at least one letter and one digit.');
       return;
     }
 
@@ -79,7 +83,7 @@ function ResetPasswordForm() {
 
   const strengthScore = (() => {
     let s = 0;
-    if (newPassword.length >= 8) s++;
+    if (newPassword.length >= 10) s++;
     if (/[A-Z]/.test(newPassword)) s++;
     if (/[0-9]/.test(newPassword)) s++;
     if (/[^A-Za-z0-9]/.test(newPassword)) s++;
@@ -136,7 +140,7 @@ function ResetPasswordForm() {
               type={showNew ? 'text' : 'password'}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Min. 8 characters"
+              placeholder="Min. 10 characters, letters and digits"
               required
               autoFocus
               disabled={isLoading}

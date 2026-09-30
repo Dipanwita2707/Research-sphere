@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const { bindMiddleware } = require('../../../shared/tenancy/tenantContext');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
@@ -102,7 +103,7 @@ router.get('/contribution/:contributionId/history', researchProgressTrackerContr
 // ===== FILE UPLOAD ROUTE =====
 
 // Upload attachments for status updates - saves to latest status history entry
-router.post('/:id/upload', upload.array('files', 5), async (req, res) => {
+router.post('/:id/upload', bindMiddleware(upload.array('files', 5)), async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -133,9 +134,9 @@ router.post('/:id/upload', upload.array('files', 5), async (req, res) => {
     }
 
     if (tracker.userId !== userId) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
-        message: 'You can only upload to your own trackers'
+        message: 'Tracker not found'
       });
     }
 
@@ -187,7 +188,6 @@ router.post('/:id/upload', upload.array('files', 5), async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to upload files',
-      error: error.message
     });
   }
 });

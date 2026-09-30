@@ -12,39 +12,52 @@
  * 8. ABDC Journals (SCOPUS/WOS) - Flat incentive
  * 9. SGTU In-House Journal - Flat incentive
  * 10. The Case Centre UK - Flat incentive
+ *
+ * Usage: npm run seed:research-policy -- --university SGT [--replace] [--force]
+ * Idempotent: does nothing when the university already has research paper policies,
+ * unless --replace is passed (then that university's research paper policies are recreated).
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+const tenantContext = require('../../../src/shared/tenancy/tenantContext');
+const {
+  assertNotProduction, requireUniversity, findTenantAdmin, hasFlag,
+} = require('../../../src/shared/database/seedUtils');
 
-async function main() {
-  console.log('🌱 Seeding research policy with 11-category structure...');
+const SCRIPT = 'seed:research-policy';
 
-  // Get an admin user to use as creator
-  const adminUser = await prisma.userLogin.findFirst({
-    where: {
-      role: { in: ['admin', 'superadmin'] }
-    }
+async function seedResearchPolicies(prisma) {
+  const university = await requireUniversity(prisma);
+  await tenantContext.runForTenant(university.id, () => createPolicies(prisma, university));
+}
+
+async function createPolicies(prisma, university) {
+  const universityId = university.id;
+  console.log(`Seeding research paper policies for ${university.code}...`);
+
+  const adminUser = await findTenantAdmin(prisma, universityId);
+  console.log(`Using admin user: ${adminUser.uid}`);
+
+  const existingCount = await prisma.researchIncentivePolicy.count({
+    where: { universityId, publicationType: 'research_paper' },
   });
-
-  if (!adminUser) {
-    console.error('❌ No admin user found. Please create an admin user first.');
-    process.exit(1);
+  if (existingCount > 0) {
+    if (!hasFlag('replace')) {
+      console.log(`${existingCount} research paper policies already exist; nothing changed (pass --replace to recreate them).`);
+      return;
+    }
+    // Scoped to this university by the explicit filter and the open tenant context
+    const deleted = await prisma.researchIncentivePolicy.deleteMany({
+      where: { universityId, publicationType: 'research_paper' },
+    });
+    console.log(`Deleted ${deleted.count} existing research paper policies (--replace)`);
   }
-
-  console.log(`✅ Using admin user: ${adminUser.email} (${adminUser.id})`);
-
-  // Delete existing research paper policies
-  const deletedPolicies = await prisma.researchIncentivePolicy.deleteMany({
-    where: {
-      publicationType: 'research_paper'
-    }
-  });
-  console.log(`✅ Deleted ${deletedPolicies.count} existing research paper policies`);
 
   // Create new research policy with 11-category structure
   const policy = await prisma.researchIncentivePolicy.create({
     data: {
+      universityId,
       publicationType: 'research_paper',
       policyName: 'Research Paper Policy 2026 - 11 Categories',
       baseIncentiveAmount: 0, // No base amount, everything comes from categories
@@ -64,8 +77,8 @@ async function main() {
         "6+": 0   // More than 5th gets 0%
       },
       indexingBonuses: {
-        // =================================        // FLAT CATEGORY BONUSES (no sub-fields)
-        // =================================        indexingCategoryBonuses: [
+        // FLAT CATEGORY BONUSES (no sub-fields)
+        indexingCategoryBonuses: [
           // 1. Nature/Science/Lancet/Cell/NEJM - Top tier
           { category: 'nature_science_lancet_cell_nejm', incentiveAmount: 200000, points: 100 },
           
@@ -88,8 +101,8 @@ async function main() {
           { category: 'conference_scopus', incentiveAmount: 7000, points: 7 }
         ],
         
-        // =================================        // QUARTILE-BASED INCENTIVES (for SCOPUS)
-        // =================================        quartileIncentives: [
+        // QUARTILE-BASED INCENTIVES (for SCOPUS)
+        quartileIncentives: [
           { quartile: 'Top 1%', incentiveAmount: 75000, points: 75 },
           { quartile: 'Top 5%', incentiveAmount: 60000, points: 60 },
           { quartile: 'Q1', incentiveAmount: 50000, points: 50 },
@@ -98,16 +111,16 @@ async function main() {
           { quartile: 'Q4', incentiveAmount: 5000, points: 5 }
         ],
         
-        // =================================        // SJR-BASED INCENTIVES (for SCIE/SCI WOS)
-        // =================================        sjrRanges: [
+        // SJR-BASED INCENTIVES (for SCIE/SCI WOS)
+        sjrRanges: [
           { minSJR: 2.0, maxSJR: 999, incentiveAmount: 50000, points: 50 },
           { minSJR: 1.0, maxSJR: 1.99, incentiveAmount: 30000, points: 30 },
           { minSJR: 0.5, maxSJR: 0.99, incentiveAmount: 15000, points: 15 },
           { minSJR: 0.0, maxSJR: 0.49, incentiveAmount: 5000, points: 5 }
         ],
         
-        // =================================        // NESTED CATEGORY INCENTIVES
-        // =================================        nestedCategoryIncentives: {
+        // NESTED CATEGORY INCENTIVES
+        nestedCategoryIncentives: {
           // 7. NAAS - Rating-based incentives (only NAAS uses nested structure)
           naasRatingIncentives: [
             { minRating: 10, maxRating: 20, incentiveAmount: 30000, points: 30 },
@@ -116,8 +129,8 @@ async function main() {
           ]
         },
         
-        // =================================        // DISTRIBUTION PERCENTAGES
-        // =================================        // Role percentages (for role-based distribution)
+        // DISTRIBUTION PERCENTAGES
+        // Role percentages (for role-based distribution)
         rolePercentages: [
           { role: 'first_author', percentage: 35 },
           { role: 'corresponding_author', percentage: 30 }
@@ -136,6 +149,7 @@ async function main() {
   // Also create a role-based policy for comparison
   const roleBasedPolicy = await prisma.researchIncentivePolicy.create({
     data: {
+      universityId,
       publicationType: 'research_paper',
       policyName: 'Research Paper Policy 2025 - Role Based (Legacy)',
       baseIncentiveAmount: 0,
@@ -215,11 +229,15 @@ async function main() {
   console.log('\n✅ Seeding complete!');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Error seeding database:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  assertNotProduction(SCRIPT);
+  const prisma = require('../../../src/shared/config/database');
+  seedResearchPolicies(prisma)
+    .catch((error) => {
+      console.error(`[${SCRIPT}] failed:`, error.message);
+      process.exitCode = 1;
+    })
+    .finally(() => prisma.$disconnect());
+}
+
+module.exports = { seedResearchPolicies };

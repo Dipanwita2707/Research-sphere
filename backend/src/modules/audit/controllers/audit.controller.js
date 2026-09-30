@@ -3,14 +3,23 @@
  * Handles API endpoints for audit log management
  */
 
-const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../services/audit.service');
+const {
+  auditService,
+  AuditActionType,
+  AuditModule,
+  AuditSeverity,
+  MIN_AUDIT_RETENTION_DAYS,
+  assertRetentionDays,
+} = require('../services/audit.service');
+const { neutralizeFormula } = require('../../core/utils/spreadsheet');
 const { excelExportService } = require('../../core/services/excelExport.service');
 const { auditReportScheduler } = require('../services/auditScheduler.service');
 const prisma = require('../../../shared/config/database');
 
 function toCsvValue(value) {
   if (value == null) return '';
-  const normalized = String(value).replace(/\r?\n|\r/g, ' ');
+  // Neutralise spreadsheet formulas (= + - @ tab CR) so opening the CSV cannot run one
+  const normalized = String(neutralizeFormula(String(value))).replace(/\r?\n|\r/g, ' ');
   return `"${normalized.replace(/"/g, '""')}"`;
 }
 
@@ -63,7 +72,6 @@ const getAuditLogs = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch audit logs',
-      error: error.message
     });
   }
 };
@@ -93,7 +101,6 @@ const getAuditStatistics = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch audit statistics',
-      error: error.message
     });
   }
 };
@@ -121,7 +128,6 @@ const getEntityAuditHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch entity audit history',
-      error: error.message
     });
   }
 };
@@ -208,13 +214,13 @@ const exportAuditLogs = async (req, res) => {
         log.createdAt?.toISOString?.() || log.createdAt,
         log.module || '',
         log.actionType || '',
-        log.entityId || log.targetId || '',
-        log.entityName || '',
-        log.performedByName || log.actor?.employeeDetails?.displayName || log.actor?.uid || 'SYSTEM',
-        log.performedByRole || log.actor?.role || 'SYSTEM',
+        log.details?.entityId || log.targetId || '',
+        log.details?.entityName || '',
+        log.details?.performedByName || log.actor?.employeeDetails?.displayName || log.actor?.uid || 'SYSTEM',
+        log.details?.performedByRole || log.actor?.role || 'SYSTEM',
         log.ipAddress || '',
-        log.status || (log.responseStatus >= 400 ? 'failed' : 'success'),
-        log.description || log.action || '',
+        log.details?.status || (log.responseStatus >= 400 ? 'failed' : 'success'),
+        log.details?.description || log.action || '',
         log.requestMethod || '',
         log.requestPath || ''
       ]);
@@ -275,7 +281,6 @@ const exportAuditLogs = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to export audit logs',
-      error: error.message
     });
   }
 };
@@ -302,9 +307,10 @@ const generateReport = async (req, res) => {
     });
 
     if (!result.success) {
+      console.error('On-demand audit report failed:', result.error);
       return res.status(500).json({
         success: false,
-        message: result.error
+        message: 'Failed to generate report'
       });
     }
 
@@ -327,7 +333,6 @@ const generateReport = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to generate report',
-      error: error.message
     });
   }
 };
@@ -355,7 +360,6 @@ const getReportHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch report history',
-      error: error.message
     });
   }
 };
@@ -378,7 +382,6 @@ const getReportRecipients = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch report recipients',
-      error: error.message
     });
   }
 };
@@ -466,7 +469,6 @@ const saveReportRecipient = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to save report recipient',
-      error: error.message
     });
   }
 };
@@ -515,7 +517,6 @@ const deleteReportRecipient = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete report recipient',
-      error: error.message
     });
   }
 };
@@ -525,7 +526,7 @@ const deleteReportRecipient = async (req, res) => {
  */
 const getFilterOptions = async (req, res) => {
   try {
-    const [modules, actionTypes, severities, statuses, performers] = await Promise.all([
+    const [modules, actionTypes, severities, performers] = await Promise.all([
       prisma.auditLog.findMany({
         select: { module: true },
         distinct: ['module'],
@@ -540,18 +541,17 @@ const getFilterOptions = async (req, res) => {
         distinct: ['severity']
       }),
       prisma.auditLog.findMany({
-        select: { status: true },
-        distinct: ['status'],
-        where: { status: { not: null } }
-      }),
-      prisma.auditLog.findMany({
-        select: { performedByName: true },
-        distinct: ['performedByName'],
-        where: { performedByName: { not: null } },
-        orderBy: { performedByName: 'asc' },
+        select: {
+          actor: {
+            select: { uid: true, employeeDetails: { select: { displayName: true } } }
+          }
+        },
+        distinct: ['actorId'],
+        where: { actorId: { not: null } },
         take: 100
       })
     ]);
+    const statuses = ['success', 'failed'];
 
     res.json({
       success: true,
@@ -559,8 +559,10 @@ const getFilterOptions = async (req, res) => {
         modules: modules.map(m => m.module).filter(Boolean),
         actionTypes: actionTypes.map(a => a.actionType),
         severities: severities.map(s => s.severity),
-        statuses: statuses.map(s => s.status).filter(Boolean),
-        performers: performers.map(p => p.performedByName).filter(Boolean)
+        statuses,
+        performers: [...new Set(performers
+          .map(p => p.actor?.employeeDetails?.displayName || p.actor?.uid)
+          .filter(Boolean))].sort((a, b) => a.localeCompare(b))
       }
     });
   } catch (error) {
@@ -568,7 +570,6 @@ const getFilterOptions = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch filter options',
-      error: error.message
     });
   }
 };
@@ -578,9 +579,27 @@ const getFilterOptions = async (req, res) => {
  */
 const triggerCleanup = async (req, res) => {
   try {
-    const { retentionDays = 365 } = req.body;
+    const { retentionDays = MIN_AUDIT_RETENTION_DAYS } = req.body || {};
 
-    const result = await auditReportScheduler.cleanupOldLogs(retentionDays);
+    // DPDP: processing logs must be kept for at least one year
+    let days;
+    try {
+      days = assertRetentionDays(retentionDays);
+    } catch (validationError) {
+      return res.status(400).json({ success: false, message: validationError.message });
+    }
+
+    const result = await auditService.cleanupOldLogs(days);
+
+    await auditService.log({
+      actorId: req.user?.id,
+      action: `Triggered audit log cleanup (retention ${days} days)`,
+      actionType: AuditActionType.DELETE,
+      module: AuditModule.SYSTEM,
+      category: 'maintenance',
+      severity: AuditSeverity.WARNING,
+      details: { retentionDays: days, deletedCount: result?.count || 0, scope: req.tenantId || 'all-tenants' }
+    });
 
     res.json({
       success: true,
@@ -592,7 +611,6 @@ const triggerCleanup = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to trigger cleanup',
-      error: error.message
     });
   }
 };
@@ -637,9 +655,10 @@ const sendManualReport = async (req, res) => {
         }
       });
     } else {
+      console.error('Manual audit report send failed:', result.error);
       res.status(500).json({
         success: false,
-        message: result.error || 'Failed to send report'
+        message: 'Failed to send report'
       });
     }
   } catch (error) {
@@ -647,7 +666,6 @@ const sendManualReport = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to send audit report',
-      error: error.message
     });
   }
 };

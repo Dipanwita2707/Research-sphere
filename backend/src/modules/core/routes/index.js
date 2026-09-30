@@ -43,6 +43,10 @@ const bugReportsModule = require('../../bug-reports');
 // MOUNT CORE ROUTES
 // =====================================
 router.use('/auth', authModule);
+// DPDP: consent/rights API, then the consent gate for every route mounted below it
+// (403 CONSENT_REQUIRED until the privacy notice is accepted; see dpdp/middleware/requireConsent.js)
+router.use('/dpdp', require('../../dpdp'));
+router.use(require('../../dpdp').consentGate);
 router.use('/dashboard', dashboardRoutes);
 router.use('/permissions', permissionRoutes);
 router.use('/permission-management', permissionManagementRoutes);
@@ -92,23 +96,66 @@ router.use('/google-docs', require('../../research/routes/googleDocs.routes'));
 
 router.use('/ipr-management', require('../../ipr/routes/iprManagement.routes'));
 
-router.post('/contact', async (req, res) => {
+// ── Public contact form ──────────────────────────────────────────────────────
+// Unauthenticated, so: dedicated rate limit, strict validation, honeypot field
+// (`website` — hidden in the form; bots fill it) and HTML-escaped email body.
+const contactLimiter = require('express-rate-limit')({
+  windowMs: 60 * 60 * 1000,
+  max: parseInt(process.env.CONTACT_RATE_LIMIT_PER_HOUR, 10) || 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many messages. Please try again later.' },
+});
+
+const escapeHtml = (value) =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const CONTACT_LIMITS = { name: 100, email: 254, subject: 200, message: 5000 };
+const CONTACT_EMAIL_RE = /^[^\s@<>()[\]\,;:"]+@[^\s@<>()[\]\,;:"]+\.[A-Za-z]{2,}$/;
+
+router.post('/contact', contactLimiter, async (req, res) => {
   try {
-    const { name, email, subject, message } = req.body;
-    if (!name || !email || !subject || !message) {
-      return res.status(400).json({ success: false, error: 'All fields are required' });
+    const body = req.body || {};
+
+    // Honeypot: pretend success so bots learn nothing
+    if (typeof body.website === 'string' && body.website.trim() !== '') {
+      return res.status(200).json({ success: true, message: 'Message sent successfully' });
     }
 
+    const fields = {};
+    for (const key of Object.keys(CONTACT_LIMITS)) {
+      const value = body[key];
+      if (typeof value !== 'string' || value.trim() === '') {
+        return res.status(400).json({ success: false, error: 'All fields are required' });
+      }
+      if (value.length > CONTACT_LIMITS[key]) {
+        return res.status(400).json({ success: false, error: `${key} must be at most ${CONTACT_LIMITS[key]} characters` });
+      }
+      fields[key] = value.trim();
+    }
+    // Header-bearing values must be single-line
+    fields.name = fields.name.replace(/[\r\n]+/g, ' ');
+    fields.subject = fields.subject.replace(/[\r\n]+/g, ' ');
+    if (!CONTACT_EMAIL_RE.test(fields.email)) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid email address' });
+    }
+
+    const { name, email, subject, message } = fields;
     const { emailService } = require('../services/email.service');
     const recipient = process.env.CONTACT_EMAIL || 'admin@researchsphere.com';
 
     const htmlContent = `
       <h3>New Contact Us Message</h3>
-      <p><strong>Name:</strong> ${name}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Subject:</strong> ${subject}</p>
+      <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+      <p><strong>Subject:</strong> ${escapeHtml(subject)}</p>
       <p><strong>Message:</strong></p>
-      <p>${message.replace(/\n/g, '<br>')}</p>
+      <p>${escapeHtml(message).replace(/\r?\n/g, '<br>')}</p>
     `;
 
     const emailResult = await emailService.sendEmail({
@@ -118,10 +165,15 @@ router.post('/contact', async (req, res) => {
       html: htmlContent
     });
 
-    console.log(`[Contact Form] Message sent successfully to ${recipient}`);
+    if (!emailResult || emailResult.success === false) {
+      console.error(`[Contact Form] Delivery failed: ${emailResult?.error || 'unknown error'}`);
+      return res.status(503).json({ success: false, error: 'Message could not be sent right now. Please try again later.' });
+    }
+
+    console.log('[Contact Form] Message delivered');
     return res.status(200).json({ success: true, message: 'Message sent successfully' });
   } catch (error) {
-    console.error('Error in contact endpoint:', error);
+    console.error('Error in contact endpoint:', error.message);
     return res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 });

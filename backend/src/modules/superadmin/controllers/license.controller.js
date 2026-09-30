@@ -35,7 +35,9 @@ const log = createModuleLogger('license');
  * This token is required by the client backend to authorize internal security and JWT operations.
  */
 function generateRuntimeSecret(licenseKey, hardwareId) {
-  const masterSalt = process.env.LICENSE_MASTER_SALT || process.env.LICENSE_SALT || 'LICENSE_SECURE_RUNTIME_SALT_2026';
+  const masterSalt = process.env.LICENSE_MASTER_SALT || process.env.LICENSE_SALT
+    || (process.env.NODE_ENV === 'production' ? null : 'LICENSE_SECURE_RUNTIME_SALT_2026');
+  if (!masterSalt) throw new Error('LICENSE_MASTER_SALT must be set in production');
   return crypto
     .createHmac('sha256', masterSalt)
     .update(`${licenseKey}:${hardwareId}:sgt_authorized_instance`)
@@ -194,7 +196,7 @@ exports.issueLicense = async (req, res) => {
       },
     });
 
-    log.info(`License issued to "${license.assignedTo}" — key: ${licenseKey}`);
+    log.info(`License issued to "${license.assignedTo}" — key: ${String(licenseKey).slice(0, 8)}…`);
 
     return res.status(201).json({
       success: true,

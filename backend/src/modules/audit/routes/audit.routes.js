@@ -8,17 +8,21 @@ const router = express.Router();
 const auditController = require('../controllers/audit.controller');
 const { protect, restrictTo } = require('../../../shared/middleware/auth');
 
-// All audit routes require authentication and admin/drd_staff role
-const adminOnly = [protect, restrictTo('admin', 'superadmin', 'drd_staff')];
+// Viewing audit logs: admins and DRD staff (tenant scoping is automatic)
+const viewers = [protect, restrictTo('admin', 'superadmin', 'drd_staff')];
+// Exports, reports and recipient config carry personal data (names, emails, IPs): admins only
+const adminOnly = [protect, restrictTo('admin', 'superadmin')];
+// Deleting logs is a platform operation
+const superadminOnly = [protect, restrictTo('superadmin')];
 
 // Audit Logs
-router.get('/logs', ...adminOnly, auditController.getAuditLogs);
+router.get('/logs', ...viewers, auditController.getAuditLogs);
 router.get('/logs/export', ...adminOnly, auditController.exportAuditLogs);
-router.get('/logs/filters', ...adminOnly, auditController.getFilterOptions);
-router.get('/logs/:targetTable/:targetId', ...adminOnly, auditController.getEntityAuditHistory);
+router.get('/logs/filters', ...viewers, auditController.getFilterOptions);
+router.get('/logs/:targetTable/:targetId', ...viewers, auditController.getEntityAuditHistory);
 
 // Statistics
-router.get('/statistics', ...adminOnly, auditController.getAuditStatistics);
+router.get('/statistics', ...viewers, auditController.getAuditStatistics);
 
 // Reports
 router.post('/reports/generate', ...adminOnly, auditController.generateReport);
@@ -31,7 +35,7 @@ router.post('/recipients', ...adminOnly, auditController.saveReportRecipient);
 router.put('/recipients/:id', ...adminOnly, auditController.saveReportRecipient);
 router.delete('/recipients/:id', ...adminOnly, auditController.deleteReportRecipient);
 
-// Maintenance
-router.post('/cleanup', ...adminOnly, auditController.triggerCleanup);
+// Maintenance (retention floor of 365 days enforced in the controller/service)
+router.post('/cleanup', ...superadminOnly, auditController.triggerCleanup);
 
 module.exports = router;

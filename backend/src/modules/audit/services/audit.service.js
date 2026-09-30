@@ -7,6 +7,28 @@ const prisma = require('../../../shared/config/database');
 
 const ALLOWED_PAGE_SIZES = new Set([25, 50, 100]);
 
+/**
+ * DPDP Rules 2025 require logs of personal-data processing to be kept for at least one
+ * year. Audit logs are therefore never deleted before this many days.
+ */
+const MIN_AUDIT_RETENTION_DAYS = 365;
+
+/** Validate a retention period; returns the integer number of days or throws (statusCode 400). */
+function assertRetentionDays(value) {
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < MIN_AUDIT_RETENTION_DAYS) {
+    const err = new Error(`retentionDays must be a whole number of at least ${MIN_AUDIT_RETENTION_DAYS} days`);
+    err.statusCode = 400;
+    err.isOperational = true;
+    throw err;
+  }
+  return days;
+}
+
+/** Filter on a string stored inside the details JSON (performedByName, status, ...). */
+const detailsEquals = (key, value) => ({ details: { path: [key], equals: value } });
+const detailsContains = (key, value) => ({ details: { path: [key], string_contains: value } });
+
 function isUuid(value) {
   if (!value || typeof value !== 'string') return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -31,9 +53,7 @@ function getSafeSort(sortBy, sortOrder) {
     'actionType',
     'module',
     'severity',
-    'status',
-    'performedByName',
-    'entityName'
+    'targetTable'
   ]);
   const safeSortBy = allowedSortBy.has(sortBy) ? sortBy : 'createdAt';
   const safeSortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
@@ -194,7 +214,6 @@ class AuditService {
     if (module) where.module = module;
     if (actionType) where.actionType = actionType;
     if (severity) where.severity = severity;
-    if (status) where.status = status;
     if (targetTable) where.targetTable = targetTable;
 
     if (startDate || endDate) {
@@ -203,21 +222,25 @@ class AuditService {
       if (endDate) where.createdAt.lte = new Date(endDate);
     }
 
+    // status / performedByName / description / entityName are snapshotted into the
+    // details JSON by log(); they are not columns.
     const andConditions = [];
+    if (status) {
+      andConditions.push(detailsEquals('status', String(status)));
+    }
     if (performedBy) {
-      andConditions.push({
-        performedByName: { contains: performedBy, mode: 'insensitive' }
-      });
+      andConditions.push(detailsContains('performedByName', String(performedBy)));
     }
 
     if (search) {
+      const term = String(search);
       andConditions.push({
         OR: [
-          { action: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { entityName: { contains: search, mode: 'insensitive' } },
-          { performedByName: { contains: search, mode: 'insensitive' } },
-          { errorMessage: { contains: search, mode: 'insensitive' } }
+          { action: { contains: term, mode: 'insensitive' } },
+          { errorMessage: { contains: term, mode: 'insensitive' } },
+          detailsContains('description', term),
+          detailsContains('entityName', term),
+          detailsContains('performedByName', term)
         ]
       });
     }
@@ -875,7 +898,8 @@ class AuditService {
    * NEVER deletes email sending logs for transparency
    * NEVER deletes ERROR or CRITICAL logs
    */
-  async cleanupOldLogs(retentionDays = 365) {
+  async cleanupOldLogs(retentionDays = MIN_AUDIT_RETENTION_DAYS) {
+    retentionDays = assertRetentionDays(retentionDays);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
@@ -915,6 +939,8 @@ class AuditService {
 const auditService = new AuditService();
 
 module.exports = {
+  MIN_AUDIT_RETENTION_DAYS,
+  assertRetentionDays,
   auditService,
   AuditActionType,
   AuditSeverity,

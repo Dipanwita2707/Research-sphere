@@ -1,5 +1,6 @@
 const prisma = require('../shared/config/database');
 const log = require('../shared/utils/logger');
+const { forEachTenant } = require('./jobRunner');
 
 const INTERVAL_MS = 60 * 60 * 1000;
 const STUCK_REVIEW_DAYS = Number(process.env.WORKFLOW_MONITOR_STUCK_REVIEW_DAYS || 7);
@@ -96,13 +97,17 @@ async function getHealthSnapshot() {
   };
 }
 
-function emitAlerts(snapshot) {
-  if (!snapshot.queues.email) {
+function emitQueueAlerts(queues) {
+  if (!queues.email) {
     log.warn('[WorkflowMonitor] Email queue running in sync fallback mode');
   }
-  if (!snapshot.queues.researchWorkflow) {
+  if (!queues.researchWorkflow) {
     log.warn('[WorkflowMonitor] Research workflow queue running in sync fallback mode');
   }
+}
+
+function emitAlerts(snapshot, universityId) {
+  const scope = universityId ? ` [university ${universityId}]` : '';
 
   const buckets = [
     ['research', snapshot.research],
@@ -112,22 +117,33 @@ function emitAlerts(snapshot) {
 
   buckets.forEach(([label, data]) => {
     if (data.stuckReview > 0) {
-      log.warn(`[WorkflowMonitor] ${label} has ${data.stuckReview} item(s) stuck in review for more than ${STUCK_REVIEW_DAYS} day(s)`);
+      log.warn(`[WorkflowMonitor]${scope} ${label} has ${data.stuckReview} item(s) stuck in review for more than ${STUCK_REVIEW_DAYS} day(s)`);
     }
     if (data.missingReviewer > 0) {
-      log.warn(`[WorkflowMonitor] ${label} has ${data.missingReviewer} under-review item(s) without a reviewer`);
+      log.warn(`[WorkflowMonitor]${scope} ${label} has ${data.missingReviewer} under-review item(s) without a reviewer`);
     }
     if (data.staleSubmitted > 0) {
-      log.warn(`[WorkflowMonitor] ${label} has ${data.staleSubmitted} submitted item(s) inactive for more than ${STUCK_SUBMISSION_DAYS} day(s)`);
+      log.warn(`[WorkflowMonitor]${scope} ${label} has ${data.staleSubmitted} submitted item(s) inactive for more than ${STUCK_SUBMISSION_DAYS} day(s)`);
     }
   });
 }
 
+/**
+ * Counts are taken per university (inside runForTenant) so alerts are
+ * attributable to a tenant and no query runs unscoped.
+ */
 async function runWorkflowHealthCheck() {
   try {
-    const snapshot = await getHealthSnapshot();
-    emitAlerts(snapshot);
-    return snapshot;
+    const perTenant = await forEachTenant(async (universityId) => {
+      const snapshot = await getHealthSnapshot();
+      emitAlerts(snapshot, universityId);
+      return snapshot;
+    }, { label: 'WorkflowMonitor' });
+    const researchWorkflowQueue = require('./researchWorkflowQueue');
+    const emailQueue = require('./emailQueue');
+    const queues = { email: emailQueue.isAvailable(), researchWorkflow: researchWorkflowQueue.isAvailable() };
+    emitQueueAlerts(queues);
+    return { queues, tenants: perTenant };
   } catch (error) {
     log.error('[WorkflowMonitor] Health check failed', error);
     return null;

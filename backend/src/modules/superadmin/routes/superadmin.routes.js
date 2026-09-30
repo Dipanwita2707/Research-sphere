@@ -3,10 +3,19 @@ const router = express.Router();
 const superadminController = require('../controllers/superadmin.controller');
 const licenseController = require('../controllers/license.controller');
 const { protect, restrictTo } = require('../../../shared/middleware/auth');
+const tenantContext = require('../../../shared/tenancy/tenantContext');
 
 // Protect all routes inside superadmin module
 router.use(protect);
 router.use(restrictTo('superadmin'));
+
+// Platform administration is cross-tenant by definition: ignore any X-University-Id the
+// superadmin UI may be sending (tenant impersonation) and run unscoped. Every tenant row
+// created here passes universityId explicitly.
+router.use((req, res, next) => tenantContext.run(
+  { ...(tenantContext.get() || {}), tenantId: null, system: true },
+  () => next()
+));
 
 // Universities CRUD
 router.get('/universities', superadminController.getAllUniversities);
@@ -17,6 +26,10 @@ router.put('/universities/:id', superadminController.updateUniversity);
 router.post('/universities/:id/suspend', superadminController.suspendUniversity);
 router.get('/universities/:id/admins', superadminController.getUniversityAdmins);
 router.post('/universities/:id/admins', superadminController.createUniversityAdmin);
+
+// Login accounts ↔ university
+router.get('/users', superadminController.listUsers);
+router.patch('/users/:id/university', superadminController.linkUserToUniversity);
 
 // SaaS Tiers CRUD
 router.get('/tiers', superadminController.getAllTiers);

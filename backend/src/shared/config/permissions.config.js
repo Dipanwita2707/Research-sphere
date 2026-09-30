@@ -1028,3 +1028,42 @@ module.exports = {
   hasPermissionAsync,
   ROUTE_PERMISSION_MAP,
 };
+
+// ====================================
+// DPDP (Digital Personal Data Protection Act 2023) Permissions
+// Appended block: extends the exports above without editing them.
+// Tenant `admin` and `superadmin` hold dpdp_manage implicitly.
+// ====================================
+const DPDP_PERMISSIONS = {
+  DPDP_CORE: {
+    category: 'Data Protection (DPDP)',
+    permissions: {
+      dpdp_manage: {
+        key: 'dpdp_manage',
+        label: 'Manage Data Protection',
+        description: 'Data Protection Officer tasks: privacy notices, data principal requests, breach register, retention policies and DPO contact',
+      },
+    },
+  },
+};
+const ALL_DPDP_PERMISSION_KEYS = Object.values(DPDP_PERMISSIONS).flatMap((category) => Object.keys(category.permissions));
+ALL_PERMISSION_KEYS.push(...ALL_DPDP_PERMISSION_KEYS);
+
+const _getPermissionsForUIBeforeDpdp = module.exports.getPermissionsForUI;
+const _getDefaultPermissionsBeforeDpdp = module.exports.getDefaultPermissions;
+Object.assign(module.exports, {
+  DPDP_PERMISSIONS,
+  ALL_DPDP_PERMISSION_KEYS,
+  getPermissionsForUI: () => [
+    ..._getPermissionsForUIBeforeDpdp(),
+    ...Object.entries(DPDP_PERMISSIONS).map(([groupKey, group]) => ({
+      groupKey,
+      category: group.category,
+      permissions: Object.values(group.permissions),
+    })),
+  ],
+  getDefaultPermissions: (role) => {
+    const defaults = _getDefaultPermissionsBeforeDpdp(role);
+    return role === 'admin' || role === 'superadmin' ? { ...defaults, dpdp_manage: true } : defaults;
+  },
+});
