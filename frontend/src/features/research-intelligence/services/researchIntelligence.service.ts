@@ -4,9 +4,10 @@ import type {
   ChatSession,
   PipelineRun,
   RipAccess,
+  RipAccessFilter,
   RipAccessOverview,
-  RipCandidate,
   RipPermissionKey,
+  RipUserPage,
   RipStatus,
   StreamEvent,
   UniversityModuleState,
@@ -31,15 +32,16 @@ function tenantHeaders(): Record<string, string> {
 export const researchIntelligenceService = {
   getStatus: () => unwrap<RipStatus>(api.get(`${BASE}/status`)),
 
-  // Access: own, university admin, platform superadmin
+  // Access: own, university admin (user-wise), platform superadmin
   getMyAccess: () => unwrap<RipAccess>(api.get(`${BASE}/access/me`)),
   getAccessOverview: () => unwrap<RipAccessOverview>(api.get(`${BASE}/access`)),
-  searchAccessCandidates: (q: string) => unwrap<RipCandidate[]>(api.get(`${BASE}/access/candidates`, { params: { q } })),
+  listAccessUsers: (params: { q?: string; role?: string; access?: RipAccessFilter; page?: number; pageSize?: number }) =>
+    unwrap<RipUserPage>(api.get(`${BASE}/access/users`, { params })),
   setUserAccess: (userId: string, body: { permissions: RipPermissionKey[]; expiresAt?: string | null; note?: string }) =>
-    unwrap<{ permissions: RipPermissionKey[] }>(api.put(`${BASE}/access/users/${userId}`, body)),
+    unwrap<{ userId: string; permissions: RipPermissionKey[]; expiresAt: string | null }>(api.put(`${BASE}/access/users/${userId}`, body)),
   removeUserAccess: (userId: string) => unwrap<{ removed: boolean }>(api.delete(`${BASE}/access/users/${userId}`)),
-  setRoleDefaults: (roleDefaults: Partial<Record<string, RipPermissionKey[]>>) =>
-    unwrap<{ roleDefaults: Record<string, RipPermissionKey[]> }>(api.put(`${BASE}/access/role-defaults`, { roleDefaults })),
+  bulkUpdateAccess: (body: { userIds: string[]; permissions: RipPermissionKey[]; mode: 'add' | 'remove' | 'replace'; expiresAt?: string | null }) =>
+    unwrap<{ updated: number; skipped: { userId: string; reason: string }[] }>(api.post(`${BASE}/access/bulk`, body)),
   listUniversityModules: () => unwrap<UniversityModuleState[]>(api.get(`${BASE}/platform/universities`)),
   setUniversityModule: (universityId: string, body: { enabled: boolean; notes?: string }) =>
     unwrap<{ enabled: boolean; enabledAt: string | null; disabledAt: string | null; notes: string | null }>(api.put(`${BASE}/platform/universities/${universityId}`, body)),

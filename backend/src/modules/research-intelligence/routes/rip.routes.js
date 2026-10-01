@@ -116,12 +116,12 @@ router.get('/search/entities', VIEW_OVERVIEW, h(ctrl.searchEntities));
 router.get('/pipeline/runs', MANAGE, h(ctrl.listPipelineRuns));
 router.post('/pipeline/runs', MANAGE, h(ctrl.startPipeline));
 
-// Access management (university admins)
-router.get('/access', MANAGE_ACCESS, h(accessCtrl.getAccessOverview));
-router.get('/access/candidates', MANAGE_ACCESS, h(accessCtrl.searchCandidates));
+// Access management (university admins): user-wise grants
+router.get('/access', MANAGE_ACCESS, h(accessCtrl.getOverview));
+router.get('/access/users', MANAGE_ACCESS, h(accessCtrl.listUsers));
+router.post('/access/bulk', MANAGE_ACCESS, h(accessCtrl.bulkUpdate));
 router.put('/access/users/:userId', MANAGE_ACCESS, validateIds, h(accessCtrl.setUserGrant));
 router.delete('/access/users/:userId', MANAGE_ACCESS, validateIds, h(accessCtrl.removeUserGrant));
-router.put('/access/role-defaults', MANAGE_ACCESS, h(accessCtrl.updateRoleDefaults));
 
 // AI research assistant
 router.get('/chat/sessions', CHAT, h(ctrl.listChatSessions));

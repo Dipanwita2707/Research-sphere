@@ -12,45 +12,61 @@ export type RipPermissionKey =
 export interface RipAccess {
   enabled: boolean;
   permissions: Record<RipPermissionKey, boolean>;
+  /** admin = administrator (everything), grant = individually granted, none = no access */
+  source: 'admin' | 'grant' | 'none';
 }
 
 export interface RipCapability {
   key: RipPermissionKey;
   label: string;
+  group: 'Use' | 'Manage';
   description: string;
-  roleDefaultable: boolean;
 }
 
-export interface RipGrant {
+export interface RipPreset {
+  key: string;
+  label: string;
+  description: string;
+  permissions: RipPermissionKey[];
+}
+
+export interface RipAccessOverview {
+  enabled: boolean;
+  enabledAt: string | null;
+  summary: { withAccess: number; expired: number; admins: number };
+  capabilities: RipCapability[];
+  presets: RipPreset[];
+  roles: string[];
+}
+
+export type RipAccessFilter = 'all' | 'with' | 'without' | 'expired';
+
+/** One row of the user-management table. */
+export interface RipUserRow {
   userId: string;
   name: string;
   uid: string;
   email: string | null;
   role: string;
   department: string | null;
+  designation: string | null;
+  isAdmin: boolean;
+  /** what the user can do right now (everything for admins, nothing once a grant has expired) */
   permissions: RipPermissionKey[];
+  /** what is stored on the grant, even if expired */
+  grantedPermissions: RipPermissionKey[];
   expiresAt: string | null;
   expired: boolean;
   note: string | null;
   grantedBy: string | null;
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
-export interface RipAccessOverview {
-  settings: { enabled: boolean; enabledAt: string | null; roleDefaults: Partial<Record<string, RipPermissionKey[]>> };
-  grants: RipGrant[];
-  capabilities: RipCapability[];
-  defaultableRoles: string[];
-}
-
-export interface RipCandidate {
-  userId: string;
-  name: string;
-  uid: string;
-  email: string | null;
-  role: string;
-  department: string | null;
-  currentPermissions: RipPermissionKey[];
+export interface RipUserPage {
+  items: RipUserRow[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface UniversityModuleState {

@@ -1,43 +1,48 @@
 /**
- * Research Intelligence permission keys.
+ * Research Intelligence permission keys and presets.
  *
- * Effective access = the university has the module enabled (superadmin switch, see
- * services/access.service.js) AND the user holds the key through any of: admin role, a direct
- * per-user grant, a DRD / role permission assignment, or the university's role defaults.
- * Keys match the reference implementation so existing assignments carry over.
+ * Access is user-wise: inside a university that has the module enabled, administrators have
+ * every capability and everyone else holds exactly the keys granted to them individually
+ * (see services/access.service.js). These keys are deliberately NOT part of the generic
+ * department/role permission system.
  */
 
 'use strict';
 
 const RIP_PERMISSION_DEFINITIONS = [
-  { key: 'rip_view_overview', label: 'Research Intelligence: Overview', type: 'view', description: 'View the institutional research intelligence dashboard (output, impact, domains, trends).' },
-  { key: 'rip_view_keyword_intelligence', label: 'Research Intelligence: Keywords & Trends', type: 'view', description: 'View research keywords, trending and emerging topics, and topic co-occurrence.' },
-  { key: 'rip_view_taxonomy', label: 'Research Intelligence: View Taxonomy', type: 'view', description: 'Browse the research taxonomy (domains, categories, specializations).' },
-  { key: 'rip_manage_taxonomy', label: 'Research Intelligence: Manage Taxonomy & Pipeline', type: 'action', description: 'Edit the taxonomy, review AI classifications, and run the intelligence pipeline.' },
-  { key: 'rip_view_knowledge_graph', label: 'Research Intelligence: Knowledge Graph & Experts', type: 'view', description: 'Explore collaboration and topic networks and find experts.' },
-  { key: 'rip_view_citation_analytics', label: 'Research Intelligence: Unit & Researcher Analytics', type: 'view', description: 'View analytics for any department, school or researcher.' },
-  { key: 'rip_manage_access', label: 'Research Intelligence: Manage User Access', type: 'action', description: 'Grant or revoke Research Intelligence capabilities for individual users and set role defaults.' },
-  { key: 'rip_access_research_gpt', label: 'Research Intelligence: AI Research Assistant', type: 'action', description: 'Use the AI research assistant to query institutional research.' },
+  { key: 'rip_access_research_gpt', label: 'AI Research Assistant', group: 'Use', description: 'Ask the AI assistant about publications, experts, topics and trends.' },
+  { key: 'rip_view_overview', label: 'Overview dashboard', group: 'Use', description: 'University-wide output, impact, domains and trends.' },
+  { key: 'rip_view_keyword_intelligence', label: 'Keywords & trends', group: 'Use', description: 'Research keywords, trending and emerging topics.' },
+  { key: 'rip_view_taxonomy', label: 'Research taxonomy', group: 'Use', description: 'Browse domains, categories and specializations.' },
+  { key: 'rip_view_knowledge_graph', label: 'Knowledge graph & experts', group: 'Use', description: 'Collaboration and topic networks; find experts.' },
+  { key: 'rip_view_citation_analytics', label: 'Department & researcher analytics', group: 'Use', description: 'Analytics for any department, school or researcher.' },
+  { key: 'rip_manage_taxonomy', label: 'Manage taxonomy & indexing', group: 'Manage', description: 'Edit the taxonomy, review AI classifications, run the index.' },
+  { key: 'rip_manage_access', label: 'Manage user access', group: 'Manage', description: 'Grant or remove Research Intelligence access for other users.' },
 ];
-
-const RIP_PERMISSIONS = {
-  RIP_CORE: {
-    category: 'Research Intelligence',
-    permissions: Object.fromEntries(RIP_PERMISSION_DEFINITIONS.map((p) => [p.key, { key: p.key, label: p.label, description: p.description }])),
-  },
-};
 
 const ALL_RIP_PERMISSION_KEYS = RIP_PERMISSION_DEFINITIONS.map((p) => p.key);
 
-const allTrue = Object.fromEntries(ALL_RIP_PERMISSION_KEYS.map((k) => [k, true]));
+/** Ready-made bundles shown in the access UI. Access management is never part of a preset. */
+const RIP_PRESETS = [
+  { key: 'assistant', label: 'Assistant', description: 'Can use the AI research assistant.', permissions: ['rip_access_research_gpt'] },
+  {
+    key: 'explorer',
+    label: 'Explorer',
+    description: 'Assistant plus topics, taxonomy, knowledge graph and experts.',
+    permissions: ['rip_access_research_gpt', 'rip_view_keyword_intelligence', 'rip_view_taxonomy', 'rip_view_knowledge_graph'],
+  },
+  {
+    key: 'analyst',
+    label: 'Analyst',
+    description: 'Explorer plus the overview dashboard and department/researcher analytics.',
+    permissions: ['rip_access_research_gpt', 'rip_view_keyword_intelligence', 'rip_view_taxonomy', 'rip_view_knowledge_graph', 'rip_view_overview', 'rip_view_citation_analytics'],
+  },
+  {
+    key: 'curator',
+    label: 'Curator',
+    description: 'Analyst plus managing the taxonomy and re-indexing.',
+    permissions: ['rip_access_research_gpt', 'rip_view_keyword_intelligence', 'rip_view_taxonomy', 'rip_view_knowledge_graph', 'rip_view_overview', 'rip_view_citation_analytics', 'rip_manage_taxonomy'],
+  },
+];
 
-/** Role defaults merged into getDefaultPermissions(). */
-const RIP_ROLE_DEFAULTS = { admin: allTrue, superadmin: allTrue };
-
-/** Keys a university can hand out through role defaults (access management stays explicit). */
-const RIP_ROLE_DEFAULTABLE_KEYS = ALL_RIP_PERMISSION_KEYS.filter((k) => k !== 'rip_manage_access');
-
-/** Entries for the central-department permission picker (DRD). */
-const RIP_DRD_PERMISSION_ENTRIES = RIP_PERMISSION_DEFINITIONS.map((p) => ({ ...p, category: 'Research Intelligence' }));
-
-module.exports = { RIP_PERMISSIONS, ALL_RIP_PERMISSION_KEYS, RIP_ROLE_DEFAULTABLE_KEYS, RIP_ROLE_DEFAULTS, RIP_DRD_PERMISSION_ENTRIES, RIP_PERMISSION_DEFINITIONS };
+module.exports = { RIP_PERMISSION_DEFINITIONS, ALL_RIP_PERMISSION_KEYS, RIP_PRESETS };

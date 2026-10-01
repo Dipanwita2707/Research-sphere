@@ -1,6 +1,6 @@
 /**
  * Research Intelligence access management.
- *   - University admins (rip_manage_access): per-user grants and role defaults.
+ *   - University admins (rip_manage_access): per-user grants, bulk changes.
  *   - Platform superadmin: enable/disable the module per university.
  */
 
@@ -9,43 +9,40 @@
 const access = require('../services/access.service');
 const auditLogger = require('../../../shared/utils/auditLogger');
 const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
-const { RIP_PERMISSION_DEFINITIONS, RIP_ROLE_DEFAULTABLE_KEYS } = require('../config/ripPermissions');
 
 const ok = (res, data, status = 200) => res.status(status).json({ success: true, data });
 
+const audit = (req, user, permissions, extra = {}) =>
+  auditLogger.logPermissionChange(user, { researchIntelligence: permissions, ...extra }, req.user.id, req).catch(() => {});
+
 /** The caller's own access; works even when the module is disabled (drives navigation). */
 const getMyAccess = async (req, res) => {
-  const { enabled, permissions } = await access.resolveAccess(req.user, req.tenantId);
-  ok(res, { enabled, permissions });
+  const { enabled, permissions, source } = await access.resolveAccess(req.user, req.tenantId);
+  ok(res, { enabled, permissions, source });
 };
 
-const getAccessOverview = async (req, res) => {
-  const [settings, grants] = await Promise.all([access.getSettings(req.tenantId), access.listGrants()]);
-  ok(res, {
-    settings,
-    grants,
-    capabilities: RIP_PERMISSION_DEFINITIONS.map(({ key, label, description }) => ({ key, label, description, roleDefaultable: RIP_ROLE_DEFAULTABLE_KEYS.includes(key) })),
-    defaultableRoles: access.DEFAULTABLE_ROLES,
-  });
-};
+const getOverview = async (req, res) => ok(res, await access.getOverview(req.tenantId));
 
-const searchCandidates = async (req, res) => ok(res, await access.searchCandidates(req.query.q));
+const listUsers = async (req, res) =>
+  ok(res, await access.listUsers({ q: req.query.q, role: req.query.role, access: req.query.access, page: req.query.page, pageSize: req.query.pageSize }));
 
 const setUserGrant = async (req, res) => {
   const result = await access.setGrant(req.user, req.params.userId, req.body || {});
-  auditLogger
-    .logPermissionChange(result.user, { researchIntelligence: result.permissions, expiresAt: result.expiresAt || null }, req.user.id, req)
-    .catch(() => {});
-  ok(res, result);
+  audit(req, result.user, result.permissions, { expiresAt: result.expiresAt || null });
+  ok(res, { userId: req.params.userId, permissions: result.permissions, expiresAt: result.expiresAt });
 };
 
 const removeUserGrant = async (req, res) => {
   const result = await access.setGrant(req.user, req.params.userId, { permissions: [] });
-  auditLogger.logPermissionChange(result.user, { researchIntelligence: [] }, req.user.id, req).catch(() => {});
+  audit(req, result.user, []);
   ok(res, { removed: true });
 };
 
-const updateRoleDefaults = async (req, res) => ok(res, await access.updateRoleDefaults(req.tenantId, req.body?.roleDefaults));
+const bulkUpdate = async (req, res) => {
+  const { updated, skipped } = await access.bulkSet(req.user, req.body || {});
+  updated.forEach((r) => audit(req, r.user, r.permissions, { expiresAt: r.expiresAt || null, bulk: true, mode: req.body?.mode || 'add' }));
+  ok(res, { updated: updated.length, skipped });
+};
 
 // ─── Platform (superadmin) ────────────────────────────────────────────────────
 
@@ -72,13 +69,4 @@ const setUniversityModule = async (req, res) => {
   ok(res, { universityId: university.id, enabled: module.enabled, enabledAt: module.enabledAt, disabledAt: module.disabledAt, notes: module.notes });
 };
 
-module.exports = {
-  getMyAccess,
-  getAccessOverview,
-  searchCandidates,
-  setUserGrant,
-  removeUserGrant,
-  updateRoleDefaults,
-  listUniversityModules,
-  setUniversityModule,
-};
+module.exports = { getMyAccess, getOverview, listUsers, setUserGrant, removeUserGrant, bulkUpdate, listUniversityModules, setUniversityModule };
