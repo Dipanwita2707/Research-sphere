@@ -104,6 +104,11 @@ Thumbs.db
 
 # Uploads (if storing locally)
 uploads/
+# backend/src/modules/uploads is source code (authenticated file serving): track it, but keep runtime data ignored
+!/backend/src/modules/uploads/
+/backend/src/modules/uploads/*
+!/backend/src/modules/uploads/index.js
+!/backend/src/modules/uploads/fileAccess.service.js
 public/uploads/
 
 # Cache
