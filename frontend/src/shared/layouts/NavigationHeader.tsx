@@ -12,6 +12,7 @@ import {
   useUnreadNotificationCount,
 } from '@/shared/hooks/useUserContextQueries';
 import Wordmark from '@/shared/components/brand/Wordmark';
+import { useRipAccess } from '@/features/research-intelligence/hooks/useRipAccess';
 
 interface DepartmentPermission {
   category: string;
@@ -143,6 +144,11 @@ export default function NavigationHeader() {
   const canApproveGrant = hasPermission(userPermissions, 'grant_approve');
   // DPDP: data protection console for admins, superadmin and dpdp_manage holders
   const canManageDpdp = isAdmin || hasPermission(userPermissions, 'dpdp_manage');
+  // Research Intelligence: AI research assistant
+  // (enabled per university by the platform; capabilities per user)
+  const { can: canRip } = useRipAccess({ enabled: !!user });
+  const canUseResearchAssistant = canRip('rip_access_research_gpt');
+  const canManageRipAccess = canRip('rip_manage_access');
 
   // fetchNotingAccess removed — now handled by useNotingPermissions hook above
 
@@ -373,6 +379,21 @@ export default function NavigationHeader() {
       name: 'Review & Approve',
       description: 'Pending items for review',
       children: reviewApprovalChildren,
+    });
+  }
+
+  if (canUseResearchAssistant) {
+    rndSubItems.push({
+      name: 'Research Assistant (AI)',
+      href: '/research/intelligence',
+      description: 'Ask about experts, publications, topics & trends',
+    });
+  }
+  if (canManageRipAccess) {
+    rndSubItems.push({
+      name: 'Research Intelligence Access',
+      href: '/research/intelligence/access',
+      description: 'Choose who can use Research Intelligence',
     });
   }
 

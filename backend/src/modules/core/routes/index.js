@@ -71,6 +71,7 @@ router.use('/file-upload', require('./fileUpload.routes'));
 // MOUNT DOMAIN MODULES
 // =====================================
 router.use('/research', researchModule);
+router.use('/research-intelligence', require('../../research-intelligence'));
 router.use('/grants', grantsModule);
 router.use('/ipr', iprModule);
 router.use('/finance', financeModule);

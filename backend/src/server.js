@@ -381,6 +381,11 @@ const startServer = async () => {
     const researchWorkflowQueue = require('./jobs/researchWorkflowQueue');
     await researchWorkflowQueue.init();
 
+    // Research intelligence queue: worker on every instance; it schedules its
+    // own nightly refresh only on PM2 instance 0 (RIP_PIPELINE_ENABLED/CRON)
+    const researchIntelligenceQueue = require('./jobs/researchIntelligenceQueue');
+    researchIntelligenceQueue.start();
+
     const runJobs = isJobsInstance();
     if (runJobs) {
       await startScheduledJobs();
@@ -433,7 +438,7 @@ function gracefulShutdown(signal, exitCode = 0) {
     try { stopScheduledJobs(); } catch (e) { log.error(`Stopping schedulers failed: ${e.message}`); }
 
     // 3. Drain queues / workers
-    const queueModules = ['./jobs/emailQueue', './jobs/researchWorkflowQueue'];
+    const queueModules = ['./jobs/emailQueue', './jobs/researchWorkflowQueue', './jobs/researchIntelligenceQueue'];
     await Promise.allSettled(queueModules.map(async (m) => {
       try {
         await require(m).shutdown();

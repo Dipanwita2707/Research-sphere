@@ -108,6 +108,20 @@ model University {
   dataBreachIncidents                   DataBreachIncident[]
   dataRetentionPolicies                 DataRetentionPolicy[]
   nominees                              DataPrincipalNominee[]
+  ripKeywords                           RipResearchKeyword[]                   @relation("RipResearchKeywordUniversity")
+  ripContributionKeywords               RipContributionKeyword[]               @relation("RipContributionKeywordUniversity")
+  ripTaxonomyDomains                    RipTaxonomyDomain[]                    @relation("RipTaxonomyDomainUniversity")
+  ripTaxonomyCategories                 RipTaxonomyCategory[]                  @relation("RipTaxonomyCategoryUniversity")
+  ripTaxonomySpecializations            RipTaxonomySpecialization[]            @relation("RipTaxonomySpecializationUniversity")
+  ripKeywordTaxonomyMappings            RipKeywordTaxonomyMapping[]            @relation("RipKeywordTaxonomyMappingUniversity")
+  ripResearcherTopicScores              RipResearcherTopicScore[]              @relation("RipResearcherTopicScoreUniversity")
+  ripExpertiseProfiles                  RipResearcherExpertiseProfile[]        @relation("RipResearcherExpertiseProfileUniversity")
+  ripAiCache                            RipAiCache[]                           @relation("RipAiCacheUniversity")
+  ripChatSessions                       RipChatSession[]                       @relation("RipChatSessionUniversity")
+  ripChatMessages                       RipChatMessage[]                       @relation("RipChatMessageUniversity")
+  ripPipelineRuns                       RipPipelineRun[]                       @relation("RipPipelineRunUniversity")
+  ripUserAccess                         RipUserAccess[]                        @relation("RipUserAccessUniversity")
+  modules                               UniversityModule[]                     @relation("UniversityModuleUniversity")
 
   @@map("universities")
 }
@@ -271,6 +285,10 @@ model UserLogin {
   handledDataPrincipalRequests DataPrincipalRequest[]         @relation("DataPrincipalRequestHandler")
   reportedBreaches             DataBreachIncident[]           @relation("DataBreachReporter")
   nominee                      DataPrincipalNominee?          @relation("DataPrincipalNomineeUser")
+  ripChatSessions              RipChatSession[]               @relation("RipChatSessions")
+  ripExpertiseProfile          RipResearcherExpertiseProfile? @relation("RipExpertiseProfile")
+  ripTopicScores               RipResearcherTopicScore[]      @relation("RipTopicScores")
+  ripAccess                    RipUserAccess?                 @relation("RipUserAccess")
 
   @@index([universityId])
   @@map("user_login")
@@ -1365,6 +1383,7 @@ model ResearchContribution {
   reviews                    ResearchContributionReview[]
   statusHistory              ResearchContributionStatusHistory[]
   progressTracker            ResearchProgressTracker?              @relation("TrackerToContribution")
+  ripKeywords                RipContributionKeyword[]              @relation("RipContributionKeywords")
 
   @@index([applicantUserId])
   @@index([status])
@@ -2629,4 +2648,341 @@ model DataRetentionPolicy {
 
   @@unique([universityId, category])
   @@map("data_retention_policies")
+}
+
+// ============================================================================
+// Research Intelligence (RIP)
+// Tenant-owned: every model carries universityId and is scoped by tenantExtension.
+// ============================================================================
+
+model RipResearchKeyword {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId      String    @map("university_id") @db.Uuid
+  canonicalName     String    @map("canonical_name") @db.VarChar(256)
+  slug              String    @db.VarChar(256)
+  aliases           String[]  @default([])
+  publicationCount  Int       @default(0) @map("publication_count")
+  researcherCount   Int       @default(0) @map("researcher_count")
+  totalCitations    Int       @default(0) @map("total_citations")
+  yearlyVolume      Json      @default("{}") @map("yearly_volume")
+  growthRate        Decimal?  @map("growth_rate") @db.Decimal(10, 4)
+  momentum          Decimal?  @db.Decimal(10, 4)
+  citationInfluence Decimal?  @map("citation_influence") @db.Decimal(12, 4)
+  schoolCount       Int       @default(0) @map("school_count")
+  departmentCount   Int       @default(0) @map("department_count")
+  firstSeenYear     Int?      @map("first_seen_year")
+  lastComputedAt    DateTime? @map("last_computed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university           University                  @relation("RipResearchKeywordUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  contributionKeywords RipContributionKeyword[]
+  taxonomyMappings     RipKeywordTaxonomyMapping[]
+
+  @@unique([universityId, slug])
+  @@index([universityId, publicationCount])
+  @@index([universityId, momentum])
+  @@map("rip_research_keyword")
+}
+
+model RipContributionKeyword {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String   @map("university_id") @db.Uuid
+  contributionId   String   @map("contribution_id") @db.Uuid
+  keywordId        String   @map("keyword_id") @db.Uuid
+  rawTerm          String?  @map("raw_term") @db.VarChar(256)
+  extractionSource String   @map("extraction_source") @db.VarChar(32)
+  confidenceScore  Decimal  @default(1.0) @map("confidence_score") @db.Decimal(5, 4)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  university   University           @relation("RipContributionKeywordUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  contribution ResearchContribution @relation("RipContributionKeywords", fields: [contributionId], references: [id], onDelete: Cascade)
+  keyword      RipResearchKeyword   @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@unique([contributionId, keywordId])
+  @@index([keywordId])
+  @@index([universityId])
+  @@map("rip_contribution_keyword")
+}
+
+model RipTaxonomyDomain {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String   @map("university_id") @db.Uuid
+  name             String   @db.VarChar(128)
+  slug             String   @db.VarChar(128)
+  description      String?  @db.VarChar(512)
+  aliases          String[] @default([])
+  iconCode         String?  @map("icon_code") @db.VarChar(64)
+  colorHex         String?  @map("color_hex") @db.VarChar(16)
+  /// active | proposed (AI-suggested, awaiting review) | retired
+  status           String   @default("active") @db.VarChar(16)
+  /// manual | ai
+  origin           String   @default("manual") @db.VarChar(16)
+  publicationCount Int      @default(0) @map("publication_count")
+  researcherCount  Int      @default(0) @map("researcher_count")
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university University            @relation("RipTaxonomyDomainUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  categories RipTaxonomyCategory[]
+
+  @@unique([universityId, slug])
+  @@index([universityId, status])
+  @@map("rip_taxonomy_domain")
+}
+
+model RipTaxonomyCategory {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId         String   @map("university_id") @db.Uuid
+  domainId             String   @map("domain_id") @db.Uuid
+  name                 String   @db.VarChar(128)
+  slug                 String   @db.VarChar(128)
+  description          String?  @db.VarChar(512)
+  aliases              String[] @default([])
+  status               String   @default("active") @db.VarChar(16)
+  origin               String   @default("manual") @db.VarChar(16)
+  mergedIntoCategoryId String?  @map("merged_into_category_id") @db.Uuid
+  publicationCount     Int      @default(0) @map("publication_count")
+  researcherCount      Int      @default(0) @map("researcher_count")
+  sortOrder            Int      @default(0) @map("sort_order")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university      University                  @relation("RipTaxonomyCategoryUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  domain          RipTaxonomyDomain           @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  specializations RipTaxonomySpecialization[]
+  keywordMappings RipKeywordTaxonomyMapping[]
+  topicScores     RipResearcherTopicScore[]
+
+  @@unique([domainId, slug])
+  @@index([universityId, status])
+  @@map("rip_taxonomy_category")
+}
+
+model RipTaxonomySpecialization {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String   @map("university_id") @db.Uuid
+  categoryId       String   @map("category_id") @db.Uuid
+  name             String   @db.VarChar(128)
+  slug             String   @db.VarChar(128)
+  description      String?  @db.VarChar(512)
+  aliases          String[] @default([])
+  status           String   @default("active") @db.VarChar(16)
+  origin           String   @default("manual") @db.VarChar(16)
+  publicationCount Int      @default(0) @map("publication_count")
+  researcherCount  Int      @default(0) @map("researcher_count")
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university      University                  @relation("RipTaxonomySpecializationUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  category        RipTaxonomyCategory         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  keywordMappings RipKeywordTaxonomyMapping[]
+
+  @@unique([categoryId, slug])
+  @@index([universityId])
+  @@map("rip_taxonomy_specialization")
+}
+
+model RipKeywordTaxonomyMapping {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String   @map("university_id") @db.Uuid
+  keywordId        String   @map("keyword_id") @db.Uuid
+  categoryId       String   @map("category_id") @db.Uuid
+  /// Optional level-3 placement within the category
+  specializationId String?  @map("specialization_id") @db.Uuid
+  /// ai | manual
+  source           String   @default("ai") @db.VarChar(16)
+  confidenceScore  Decimal  @default(1.0) @map("confidence_score") @db.Decimal(5, 4)
+  isPrimary        Boolean  @default(false) @map("is_primary")
+  /// approved | pending_review (low-confidence AI output)
+  status           String   @default("approved") @db.VarChar(16)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  university     University                 @relation("RipKeywordTaxonomyMappingUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  keyword        RipResearchKeyword         @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  category       RipTaxonomyCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  specialization RipTaxonomySpecialization? @relation(fields: [specializationId], references: [id], onDelete: SetNull)
+
+  @@unique([keywordId, categoryId])
+  @@index([specializationId])
+  @@index([categoryId])
+  @@index([universityId, status])
+  @@map("rip_keyword_taxonomy_mapping")
+}
+
+/// Per researcher x category expertise, normalised within the tenant so scores compare across people.
+model RipResearcherTopicScore {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId   String   @map("university_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  categoryId     String   @map("category_id") @db.Uuid
+  score          Decimal  @db.Decimal(8, 4)
+  pubCount       Int      @default(0) @map("pub_count")
+  citationCount  Int      @default(0) @map("citation_count")
+  recentPubCount Int      @default(0) @map("recent_pub_count")
+  firstYear      Int?     @map("first_year")
+  lastYear       Int?     @map("last_year")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university University          @relation("RipResearcherTopicScoreUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  user       UserLogin           @relation("RipTopicScores", fields: [userId], references: [id], onDelete: Cascade)
+  category   RipTaxonomyCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId])
+  @@index([universityId, categoryId, score])
+  @@map("rip_researcher_topic_score")
+}
+
+model RipResearcherExpertiseProfile {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId      String    @map("university_id") @db.Uuid
+  userId            String    @unique @map("user_id") @db.Uuid
+  primaryCategoryId String?   @map("primary_category_id") @db.Uuid
+  totalPubs         Int       @default(0) @map("total_pubs")
+  totalCitations    Int       @default(0) @map("total_citations")
+  hIndex            Int       @default(0) @map("h_index")
+  recentPubs        Int       @default(0) @map("recent_pubs")
+  collaboratorCount Int       @default(0) @map("collaborator_count")
+  externalCollabs   Int       @default(0) @map("external_collabs")
+  activeYears       Int       @default(0) @map("active_years")
+  topKeywordIds     String[]  @default([]) @map("top_keyword_ids") @db.Uuid
+  lastComputedAt    DateTime? @map("last_computed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university University @relation("RipResearcherExpertiseProfileUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  user       UserLogin  @relation("RipExpertiseProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([universityId, primaryCategoryId])
+  @@map("rip_researcher_expertise_profile")
+}
+
+model RipAiCache {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String    @map("university_id") @db.Uuid
+  cacheKey     String    @map("cache_key") @db.VarChar(64)
+  context      String?   @db.VarChar(64)
+  provider     String?   @db.VarChar(32)
+  response     Json
+  hitCount     Int       @default(0) @map("hit_count")
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  university University @relation("RipAiCacheUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([universityId, cacheKey])
+  @@index([expiresAt])
+  @@map("rip_ai_cache")
+}
+
+model RipChatSession {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String   @map("university_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  title        String?  @db.VarChar(256)
+  pinned       Boolean  @default(false)
+  messageCount Int      @default(0) @map("message_count")
+  lastActiveAt DateTime @default(now()) @map("last_active_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  university University       @relation("RipChatSessionUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  user       UserLogin        @relation("RipChatSessions", fields: [userId], references: [id], onDelete: Cascade)
+  messages   RipChatMessage[]
+
+  @@index([universityId, userId, lastActiveAt])
+  @@map("rip_chat_session")
+}
+
+model RipChatMessage {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId   String   @map("university_id") @db.Uuid
+  sessionId      String   @map("session_id") @db.Uuid
+  /// user | assistant
+  role           String   @db.VarChar(16)
+  content        String
+  /// [{ tool, args, summary }]: the retrieval steps behind an assistant answer
+  toolTrace      Json     @default("[]") @map("tool_trace")
+  /// [{ ref, id, title, journal, year, doi }]: records the answer may cite as [ref]
+  sources        Json     @default("[]")
+  provider       String?  @db.VarChar(32)
+  model          String?  @db.VarChar(96)
+  inputTokens    Int?     @map("input_tokens")
+  outputTokens   Int?     @map("output_tokens")
+  responseTimeMs Int?     @map("response_time_ms")
+  /// 1 = helpful, -1 = not helpful
+  feedback       Int?     @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  university University     @relation("RipChatMessageUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  session    RipChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([universityId])
+  @@map("rip_chat_message")
+}
+
+/// One run of the intelligence pipeline (keywords, metrics, taxonomy, expertise) for a tenant.
+model RipPipelineRun {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId  String    @map("university_id") @db.Uuid
+  triggeredById String?   @map("triggered_by_id") @db.Uuid
+  /// queued | running | completed | failed
+  status        String    @default("queued") @db.VarChar(16)
+  stage         String?   @db.VarChar(32)
+  progress      Int       @default(0)
+  options       Json      @default("{}")
+  stats         Json      @default("{}")
+  error         String?
+  startedAt     DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt    DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  university University @relation("RipPipelineRunUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@index([universityId, createdAt])
+  @@map("rip_pipeline_run")
+}
+
+/// Per-university switch for an optional product module (e.g. "research_intelligence").
+/// Granted by the platform superadmin, independent of the subscription plan.
+model UniversityModule {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String    @map("university_id") @db.Uuid
+  moduleKey    String    @map("module_key") @db.VarChar(64)
+  enabled      Boolean   @default(false)
+  /// Module-specific settings, e.g. { roleDefaults: { faculty: ["rip_access_research_gpt"] } }
+  settings     Json      @default("{}")
+  notes        String?   @db.VarChar(512)
+  enabledById  String?   @map("enabled_by_id") @db.Uuid
+  enabledAt    DateTime? @map("enabled_at") @db.Timestamptz(6)
+  disabledAt   DateTime? @map("disabled_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university University @relation("UniversityModuleUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([universityId, moduleKey])
+  @@map("university_module")
+}
+
+/// Direct, per-user Research Intelligence grants made by a university admin.
+model RipUserAccess {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String    @map("university_id") @db.Uuid
+  userId       String    @unique @map("user_id") @db.Uuid
+  /// rip_* permission keys granted to this user
+  permissions  String[]  @default([])
+  grantedById  String?   @map("granted_by_id") @db.Uuid
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  note         String?   @db.VarChar(256)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  university University @relation("RipUserAccessUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  user       UserLogin  @relation("RipUserAccess", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([universityId])
+  @@map("rip_user_access")
 }

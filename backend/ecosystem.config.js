@@ -2,7 +2,7 @@
  * PM2 config.
  *
  * Schedulers / cron jobs (audit reports, publication sync, workflow monitor,
- * API usage aggregation, DB keep-alive) run
+ * API usage aggregation, DB keep-alive, research-intelligence nightly run) run
  * only on instance 0 (PM2 sets NODE_APP_INSTANCE) and only when RUN_JOBS is not
  * "false" — see src/jobs/jobRunner.js. Queue workers run on every instance.
  * On extra hosts/containers running this same file, set RUN_JOBS=false.

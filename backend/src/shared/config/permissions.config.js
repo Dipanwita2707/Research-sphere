@@ -3,6 +3,9 @@
  * Simplified to 4 core IPR permissions + 4 Research permissions
  */
 
+// Research Intelligence keys live with their module.
+const { RIP_PERMISSIONS, ALL_RIP_PERMISSION_KEYS, RIP_ROLE_DEFAULTS } = require('../../modules/research-intelligence/config/ripPermissions');
+
 const IPR_PERMISSIONS = {
   // Core IPR Permissions - Only 4 checkboxes
   IPR_CORE: {
@@ -525,7 +528,8 @@ const ALL_PERMISSION_KEYS = [
   ...ALL_NOTING_PERMISSION_KEYS,
   ...ALL_EVENT_PERMISSION_KEYS,
   ...ALL_REPORTING_STRUCTURE_PERMISSION_KEYS,
-  ...ALL_TMS_PERMISSION_KEYS
+  ...ALL_TMS_PERMISSION_KEYS,
+  ...ALL_RIP_PERMISSION_KEYS
 ];
 
 // Get all permissions as flat array for API response
@@ -615,7 +619,12 @@ const getPermissionsForUI = () => {
     ...notingPerms,
     ...eventPerms,
     ...reportingStructurePerms,
-    ...tmsPerms
+    ...tmsPerms,
+    ...Object.entries(RIP_PERMISSIONS).map(([groupKey, group]) => ({
+      groupKey,
+      category: group.category,
+      permissions: Object.values(group.permissions),
+    })),
   ];
 };
 
@@ -740,7 +749,7 @@ const getDefaultPermissions = (role) => {
     },
   };
 
-  return defaults[role] || {};
+  return { ...(defaults[role] || {}), ...(RIP_ROLE_DEFAULTS[role] || {}) };
 };
 
 // Permission mapping for route protection

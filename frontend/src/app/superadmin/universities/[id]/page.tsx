@@ -24,6 +24,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
+import { UniversityModulesCard } from '@/features/research-intelligence/components/admin/UniversityModulesCard';
 
 export default function UniversityDetails() {
   const { id } = useParams() as { id: string };
@@ -397,6 +398,9 @@ export default function UniversityDetails() {
               <p className="text-sm text-gray-500 italic">No subscription found for this university.</p>
             )}
           </div>
+
+          {/* Optional modules (independent of the subscription plan) */}
+          <UniversityModulesCard universityId={id} />
         </div>
 
         {/* Right Column: Settings & Admins */}
