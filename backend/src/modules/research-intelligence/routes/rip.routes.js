@@ -63,12 +63,15 @@ const VIEW_ANALYTICS = perm('rip_view_citation_analytics');
 const CHAT = perm('rip_access_research_gpt');
 const MANAGE_ACCESS = perm('rip_manage_access');
 
-router.use(protect, requireTenant);
+router.use(protect);
 // Query-string ids are checked for every route; path ids per route (params exist only after matching).
 router.use(validateIds);
 
 // Own access — answers even when the module is disabled, so the UI can explain why.
 router.get('/access/me', h(accessCtrl.getMyAccess));
+
+// Everything below needs a university (superadmins pick one with x-university-id).
+router.use(requireTenant);
 
 // Everything below needs the module enabled for the university.
 router.use(requireModule);

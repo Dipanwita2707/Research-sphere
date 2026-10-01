@@ -60,6 +60,8 @@ const ripKeysOf = (perms) => trueKeys(perms).filter((k) => RIP_KEYS.has(k));
  * @returns {Promise<{ enabled: boolean, permissions: Record<string, boolean>, source: 'admin'|'role'|'grant'|'none', roles: string[] }>}
  */
 async function resolveAccess(user, universityId) {
+  // No university in context (e.g. a superadmin who has not picked one): nothing to grant.
+  if (!universityId) return { enabled: false, permissions: noAccess(), source: 'none', roles: [] };
   const mod = await getModuleState(universityId);
   if (!mod.enabled) return { enabled: false, permissions: noAccess(), source: 'none', roles: [] };
   if (ADMIN_ROLES.has(user.role)) return { enabled: true, permissions: allAccess(), source: 'admin', roles: [] };

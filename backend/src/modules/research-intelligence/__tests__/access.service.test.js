@@ -87,6 +87,14 @@ describe('university switch', () => {
   });
 });
 
+describe('no university in context', () => {
+  it('answers "no access" instead of failing (e.g. a superadmin who has not picked a university)', async () => {
+    const r = await access.resolveAccess({ id: 'sa1', role: 'superadmin' }, null);
+    expect(r.enabled).toBe(false);
+    expect(Object.values(r.permissions).every((v) => v === false)).toBe(true);
+  });
+});
+
 describe('who has access', () => {
   beforeEach(enable);
 
