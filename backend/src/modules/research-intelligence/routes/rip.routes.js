@@ -21,7 +21,7 @@ const router = express.Router();
 const h = asyncHandler;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const UUID_QUERY_KEYS = ['userId', 'departmentId', 'schoolId', 'categoryId', 'domainId', 'specializationId', 'authorId'];
+const UUID_QUERY_KEYS = ['roleId', 'userId', 'departmentId', 'schoolId', 'categoryId', 'domainId', 'specializationId', 'authorId'];
 
 const requireTenant = (req, res, next) => {
   if (!req.tenantId) {
@@ -116,10 +116,12 @@ router.get('/search/entities', VIEW_OVERVIEW, h(ctrl.searchEntities));
 router.get('/pipeline/runs', MANAGE, h(ctrl.listPipelineRuns));
 router.post('/pipeline/runs', MANAGE, h(ctrl.startPipeline));
 
-// Access management (university admins): user-wise grants
+// Access management (university admins): role templates assigned to people, plus individual extras
 router.get('/access', MANAGE_ACCESS, h(accessCtrl.getOverview));
 router.get('/access/users', MANAGE_ACCESS, h(accessCtrl.listUsers));
-router.post('/access/bulk', MANAGE_ACCESS, h(accessCtrl.bulkUpdate));
+router.post('/access/roles/from-template', MANAGE_ACCESS, h(accessCtrl.createRoleFromTemplate));
+router.post('/access/bulk-roles', MANAGE_ACCESS, h(accessCtrl.bulkRoles));
+router.put('/access/users/:userId/roles', MANAGE_ACCESS, validateIds, h(accessCtrl.setUserRoles));
 router.put('/access/users/:userId', MANAGE_ACCESS, validateIds, h(accessCtrl.setUserGrant));
 router.delete('/access/users/:userId', MANAGE_ACCESS, validateIds, h(accessCtrl.removeUserGrant));
 

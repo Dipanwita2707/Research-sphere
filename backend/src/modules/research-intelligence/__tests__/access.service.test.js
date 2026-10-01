@@ -1,13 +1,11 @@
 /**
- * Research Intelligence access rules (user-wise).
- * Prisma is mocked: these tests pin the decision logic, not the database.
+ * Research Intelligence access rules: module switch, role templates assigned to people,
+ * individual extra grants. Prisma is mocked: these tests pin the decision logic.
  */
 
-const mockDb = {
-  modules: [],
-  grants: [],
-  users: [],
-};
+const mockDb = { modules: [], grants: [], users: [], roles: [] };
+
+jest.mock('../../../shared/config/redis', () => ({ invalidateUser: jest.fn(async () => {}) }));
 
 jest.mock('../../../shared/config/database', () => ({
   universityModule: {
@@ -21,6 +19,11 @@ jest.mock('../../../shared/config/database', () => ({
     }),
   },
   university: { findFirst: jest.fn(async ({ where }) => (where.id === 'U1' ? { id: 'U1', name: 'Uni One' } : null)) },
+  role: {
+    findMany: jest.fn(async () => mockDb.roles.filter((r) => r.isActive)),
+    findFirst: jest.fn(async ({ where }) => mockDb.roles.find((r) => where.OR.some((c) => (c.roleCode && r.roleCode === c.roleCode) || (c.name && r.name === c.name))) || null),
+    create: jest.fn(async ({ data }) => { const r = { id: `r${mockDb.roles.length + 1}`, isActive: true, ...data }; mockDb.roles.push(r); return r; }),
+  },
   ripUserAccess: {
     findFirst: jest.fn(async ({ where }) => mockDb.grants.find((g) => g.userId === where.userId) || null),
     create: jest.fn(async ({ data }) => { const g = { id: `g${mockDb.grants.length}`, ...data }; mockDb.grants.push(g); return g; }),
@@ -30,31 +33,34 @@ jest.mock('../../../shared/config/database', () => ({
   },
   userLogin: {
     findFirst: jest.fn(async ({ where }) => mockDb.users.find((u) => u.id === where.id) || null),
-    findMany: jest.fn(async ({ where }) => {
-      if (where?.id?.in) return mockDb.users.filter((u) => where.id.in.includes(u.id)).map((u) => ({ ...u, ripAccess: mockDb.grants.find((g) => g.userId === u.id) || null }));
-      return [];
-    }),
+    update: jest.fn(async ({ where, data }) => Object.assign(mockDb.users.find((u) => u.id === where.id), data)),
+    findMany: jest.fn(async () => []),
     count: jest.fn(async () => 0),
   },
 }));
 
 const access = require('../services/access.service');
-const { RIP_PRESETS, ALL_RIP_PERMISSION_KEYS } = require('../config/ripPermissions');
+const { RIP_TEMPLATES, ALL_RIP_PERMISSION_KEYS } = require('../config/ripPermissions');
 
 const admin = { id: 'a1', role: 'admin' };
-const faculty = { id: 'f1', role: 'faculty', centralDeptPermissions: [{ permissions: { rip_view_overview: true } }] };
-const can = async (user, key) => (await access.resolveAccess(user, 'U1')).permissions[key];
-
 const enable = () => access.setUniversityModule({ id: 'sa' }, 'U1', { enabled: true });
+const can = async (user, key) => (await access.resolveAccess(user, 'U1')).permissions[key];
+const role = (id, name, central, school = {}) => ({ id, name, roleCode: name.toUpperCase(), isActive: true, permissions: { centralDeptPermissions: central, schoolDeptPermissions: school } });
+const holder = (id, roleName, keys) => ({ id, role: 'faculty', centralDeptPermissions: [{ permissions: Object.fromEntries(keys.map((k) => [k, true])), fromRole: !!roleName, roleName }], schoolDeptPermissions: [] });
 
 beforeEach(() => {
   mockDb.modules = [];
   mockDb.grants = [];
   mockDb.users = [
-    { id: 'f1', uid: 'F1', email: 'f1@x', role: 'faculty' },
-    { id: 'f2', uid: 'F2', email: 'f2@x', role: 'faculty' },
-    { id: 's1', uid: 'S1', email: 's1@x', role: 'student' },
-    { id: 'a1', uid: 'A1', email: 'a1@x', role: 'admin' },
+    { id: 'f1', uid: 'F1', email: 'f1@x', role: 'faculty', assignedRoleIds: [] },
+    { id: 'f2', uid: 'F2', email: 'f2@x', role: 'faculty', assignedRoleIds: ['other'] },
+    { id: 'a1', uid: 'A1', email: 'a1@x', role: 'admin', assignedRoleIds: [] },
+  ];
+  mockDb.roles = [
+    role('r-assist', 'RI Assistant', { rip_access_research_gpt: true }),
+    role('r-analyst', 'RI Analyst', { rip_access_research_gpt: true, rip_view_overview: true }),
+    role('r-mixed', 'DRD Reviewer + RI', { rip_access_research_gpt: true, research_review: true }),
+    role('other', 'Finance Clerk', { fee_collect: true }),
   ];
   access.invalidate('U1');
 });
@@ -66,12 +72,12 @@ describe('university switch', () => {
     expect(Object.values(r.permissions).every((v) => v === false)).toBe(true);
   });
 
-  it('turning it off revokes everything immediately', async () => {
+  it('turning it off revokes role-based access immediately', async () => {
     await enable();
-    await access.setGrant(admin, 'f1', { permissions: ['rip_access_research_gpt'] });
-    expect(await can(faculty, 'rip_access_research_gpt')).toBe(true);
+    const u = holder('f1', 'RI Assistant', ['rip_access_research_gpt']);
+    expect(await can(u, 'rip_access_research_gpt')).toBe(true);
     await access.setUniversityModule({ id: 'sa' }, 'U1', { enabled: false });
-    expect(await can(faculty, 'rip_access_research_gpt')).toBe(false);
+    expect(await can(u, 'rip_access_research_gpt')).toBe(false);
     expect(await can(admin, 'rip_manage_access')).toBe(false);
   });
 
@@ -81,7 +87,7 @@ describe('university switch', () => {
   });
 });
 
-describe('user-wise access', () => {
+describe('who has access', () => {
   beforeEach(enable);
 
   it('administrators hold every capability', async () => {
@@ -90,72 +96,129 @@ describe('user-wise access', () => {
     expect(ALL_RIP_PERMISSION_KEYS.every((k) => r.permissions[k])).toBe(true);
   });
 
-  it('a user holds exactly what was granted to them', async () => {
-    await access.setGrant(admin, 'f1', { permissions: ['rip_access_research_gpt', 'rip_view_knowledge_graph'] });
-    expect(await can(faculty, 'rip_access_research_gpt')).toBe(true);
-    expect(await can(faculty, 'rip_view_knowledge_graph')).toBe(true);
-    expect(await can(faculty, 'rip_manage_taxonomy')).toBe(false);
+  it('a role assigned to the employee grants exactly its Research Intelligence keys', async () => {
+    const u = holder('f1', 'RI Analyst', ['rip_access_research_gpt', 'rip_view_overview', 'research_review']);
+    const r = await access.resolveAccess(u, 'U1');
+    expect(r.source).toBe('role');
+    expect(r.roles).toEqual(['RI Analyst']);
+    expect(r.permissions.rip_view_overview).toBe(true);
+    expect(r.permissions.rip_manage_taxonomy).toBe(false);
   });
 
-  it('department or role permissions never grant access (even rip_* keys in them)', async () => {
-    expect(await can(faculty, 'rip_view_overview')).toBe(false);
-    expect((await access.resolveAccess(faculty, 'U1')).source).toBe('none');
+  it('keys held through a direct department assignment count as well', async () => {
+    const u = { id: 'f1', role: 'staff', centralDeptPermissions: [{ permissions: { rip_view_taxonomy: true } }], schoolDeptPermissions: [] };
+    expect(await can(u, 'rip_view_taxonomy')).toBe(true);
   });
 
-  it('an expired grant stops counting', async () => {
-    await access.setGrant(admin, 'f1', { permissions: ['rip_access_research_gpt'] });
+  it('people without any Research Intelligence key have no access', async () => {
+    const u = holder('f2', 'Finance Clerk', ['fee_collect']);
+    expect((await access.resolveAccess(u, 'U1')).source).toBe('none');
+  });
+
+  it('an individual extra grant adds to the role; an expired one stops counting', async () => {
+    const u = holder('f1', 'RI Assistant', ['rip_access_research_gpt']);
+    await access.setGrant(admin, 'f1', { permissions: ['rip_view_knowledge_graph'] });
+    expect(await can(u, 'rip_view_knowledge_graph')).toBe(true);
     mockDb.grants[0].expiresAt = new Date(Date.now() - 1000);
-    expect(await can(faculty, 'rip_access_research_gpt')).toBe(false);
+    expect(await can(u, 'rip_view_knowledge_graph')).toBe(false);
+    expect(await can(u, 'rip_access_research_gpt')).toBe(true);
+  });
+});
+
+describe('role templates', () => {
+  beforeEach(enable);
+
+  it('classifies roles: only Research-Intelligence-only roles are assignable', async () => {
+    const roles = await access.loadRipRoles();
+    const byName = Object.fromEntries(roles.map((r) => [r.name, r]));
+    expect(byName['RI Assistant'].assignable).toBe(true);
+    expect(byName['DRD Reviewer + RI'].assignable).toBe(false);
+    expect(byName['DRD Reviewer + RI'].otherPermissionCount).toBe(1);
+    expect(byName['Finance Clerk']).toBeUndefined();
   });
 
-  it('only administrators can hand out access management', async () => {
-    await expect(access.setGrant({ id: 'f2', role: 'faculty' }, 's1', { permissions: ['rip_manage_access'] })).rejects.toThrow(/administrators/);
-    await expect(access.setGrant(admin, 's1', { permissions: ['rip_manage_access'] })).resolves.toBeTruthy();
+  it('only administrators create roles; an identical role is reused, not duplicated', async () => {
+    await expect(access.createRoleFromTemplate({ id: 'f1', role: 'faculty' }, 'assistant')).rejects.toThrow(/Only administrators/);
+    const again = await access.createRoleFromTemplate(admin, 'assistant');
+    expect(again.created).toBe(false);
+    expect(again.role.id).toBe('r-assist');
+    expect(mockDb.roles).toHaveLength(4);
   });
 
-  it('validates keys, end dates and targets', async () => {
+  it('creates a real, editable role with the template permissions', async () => {
+    const r = await access.createRoleFromTemplate(admin, 'explorer');
+    expect(r.created).toBe(true);
+    const saved = mockDb.roles.find((x) => x.id === r.role.id);
+    expect(Object.keys(saved.permissions.centralDeptPermissions).sort()).toEqual([...RIP_TEMPLATES.find((t) => t.key === 'explorer').permissions].sort());
+    expect(saved.requiresDepartmentAssignment).toBe(false);
+    await expect(access.createRoleFromTemplate(admin, 'nope')).rejects.toThrow(/Unknown template/);
+  });
+});
+
+describe('assigning roles to people', () => {
+  beforeEach(enable);
+
+  it("replaces the person's Research Intelligence roles and never touches their other roles", async () => {
+    const r = await access.setUserRoles('f2', ['r-assist']);
+    expect(r.roleIds).toEqual(['r-assist']);
+    expect(mockDb.users.find((u) => u.id === 'f2').assignedRoleIds.sort()).toEqual(['other', 'r-assist']);
+    await access.setUserRoles('f2', []);
+    expect(mockDb.users.find((u) => u.id === 'f2').assignedRoleIds).toEqual(['other']);
+  });
+
+  it('refuses roles that carry other privileges, unknown roles, administrators and unknown users', async () => {
+    await expect(access.setUserRoles('f1', ['r-mixed'])).rejects.toThrow(/nothing else/);
+    await expect(access.setUserRoles('f1', ['other'])).rejects.toThrow(/nothing else/);
+    await expect(access.setUserRoles('f1', ['ghost'])).rejects.toThrow(/nothing else/);
+    await expect(access.setUserRoles('a1', ['r-assist'])).rejects.toThrow(/Administrator/);
+    await expect(access.setUserRoles('nope', ['r-assist'])).rejects.toThrow(/not found/);
+  });
+
+  it('does not write when nothing changes', async () => {
+    const db = require('../../../shared/config/database');
+    db.userLogin.update.mockClear();
+    await access.setUserRoles('f1', []);
+    expect(db.userLogin.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('bulk role changes', () => {
+  beforeEach(enable);
+
+  it('adds or removes one role for many people, skipping administrators and unknown users', async () => {
+    const r = await access.bulkRole({ userIds: ['f1', 'f2', 'a1', 'ghost'], roleId: 'r-analyst', mode: 'add' });
+    expect(r.updated).toHaveLength(2);
+    expect(r.skipped.map((s) => s.userId).sort()).toEqual(['a1', 'ghost']);
+    expect(mockDb.users.find((u) => u.id === 'f2').assignedRoleIds.sort()).toEqual(['other', 'r-analyst']);
+
+    await access.bulkRole({ userIds: ['f1', 'f2'], roleId: 'r-analyst', mode: 'remove' });
+    expect(mockDb.users.find((u) => u.id === 'f1').assignedRoleIds).toEqual([]);
+    expect(mockDb.users.find((u) => u.id === 'f2').assignedRoleIds).toEqual(['other']);
+  });
+
+  it('enforces limits, mode and assignable roles', async () => {
+    await expect(access.bulkRole({ userIds: [], roleId: 'r-assist' })).rejects.toThrow(/at least one/);
+    await expect(access.bulkRole({ userIds: Array.from({ length: 201 }, (_, i) => `u${i}`), roleId: 'r-assist' })).rejects.toThrow(/at most 200/);
+    await expect(access.bulkRole({ userIds: ['f1'], roleId: 'r-assist', mode: 'wipe' })).rejects.toThrow(/mode/);
+    await expect(access.bulkRole({ userIds: ['f1'], roleId: 'r-mixed' })).rejects.toThrow(/nothing else/);
+  });
+});
+
+describe('individual extra grants', () => {
+  beforeEach(enable);
+
+  it('validates keys, end dates and targets; only admins grant access management', async () => {
     await expect(access.setGrant(admin, 'f1', { permissions: ['rip_everything'] })).rejects.toThrow(/Unknown/);
     await expect(access.setGrant(admin, 'f1', { permissions: ['rip_view_overview'], expiresAt: '2001-01-01' })).rejects.toThrow(/future/);
     await expect(access.setGrant(admin, 'nope', { permissions: ['rip_view_overview'] })).rejects.toThrow(/not found/);
     await expect(access.setGrant(admin, 'a1', { permissions: ['rip_view_overview'] })).rejects.toThrow(/Administrators already/);
+    await expect(access.setGrant({ id: 'f2', role: 'faculty' }, 'f1', { permissions: ['rip_manage_access'] })).rejects.toThrow(/administrators/);
   });
 
-  it('an empty permission list removes the grant', async () => {
+  it('an empty list removes the grant', async () => {
     await access.setGrant(admin, 'f1', { permissions: ['rip_view_overview'] });
     await access.setGrant(admin, 'f1', { permissions: [] });
     expect(mockDb.grants).toHaveLength(0);
-  });
-});
-
-describe('bulk changes', () => {
-  beforeEach(enable);
-  const ids = ['f1', 'f2', 's1'];
-
-  it('add merges with existing access; remove subtracts; replace overwrites', async () => {
-    await access.setGrant(admin, 'f1', { permissions: ['rip_view_overview'] });
-    await access.bulkSet(admin, { userIds: ids, permissions: ['rip_access_research_gpt'], mode: 'add' });
-    expect(mockDb.grants.find((g) => g.userId === 'f1').permissions.sort()).toEqual(['rip_access_research_gpt', 'rip_view_overview']);
-    expect(mockDb.grants.find((g) => g.userId === 's1').permissions).toEqual(['rip_access_research_gpt']);
-
-    await access.bulkSet(admin, { userIds: ids, permissions: ['rip_access_research_gpt'], mode: 'remove' });
-    expect(mockDb.grants.find((g) => g.userId === 'f1').permissions).toEqual(['rip_view_overview']);
-    expect(mockDb.grants.find((g) => g.userId === 's1')).toBeUndefined(); // nothing left, so the grant is deleted
-
-    await access.bulkSet(admin, { userIds: ['f1'], permissions: ['rip_view_taxonomy'], mode: 'replace' });
-    expect(mockDb.grants.find((g) => g.userId === 'f1').permissions).toEqual(['rip_view_taxonomy']);
-  });
-
-  it('skips administrators and unknown users but still applies the rest', async () => {
-    const r = await access.bulkSet(admin, { userIds: ['f1', 'a1', 'ghost'], permissions: ['rip_view_overview'], mode: 'add' });
-    expect(r.updated).toHaveLength(1);
-    expect(r.skipped.map((s) => s.userId).sort()).toEqual(['a1', 'ghost']);
-  });
-
-  it('enforces limits and the access-management rule', async () => {
-    await expect(access.bulkSet(admin, { userIds: [], permissions: ['rip_view_overview'] })).rejects.toThrow(/at least one user/);
-    await expect(access.bulkSet(admin, { userIds: Array.from({ length: 201 }, (_, i) => `u${i}`), permissions: ['rip_view_overview'] })).rejects.toThrow(/at most 200/);
-    await expect(access.bulkSet({ id: 'f2', role: 'faculty' }, { userIds: ids, permissions: ['rip_manage_access'], mode: 'add' })).rejects.toThrow(/administrators/);
-    await expect(access.bulkSet(admin, { userIds: ids, permissions: ['rip_view_overview'], mode: 'wipe' })).rejects.toThrow(/mode/);
   });
 });
 
@@ -166,27 +229,25 @@ describe('middleware', () => {
   });
 
   it('403 RIP_MODULE_DISABLED, then 403 RIP_PERMISSION_REQUIRED, then pass', async () => {
-    const req = { user: faculty, tenantId: 'U1' };
+    const user = holder('f1', 'RI Assistant', ['rip_access_research_gpt']);
+    const req = { user, tenantId: 'U1' };
     expect((await run(access.requireModule, req)).body.code).toBe('RIP_MODULE_DISABLED');
     await enable();
     access.invalidate('U1');
     expect((await run(access.requireModule, req)).next).toBe(true);
     expect((await run(access.requireCapability('rip_manage_taxonomy'), req)).body.code).toBe('RIP_PERMISSION_REQUIRED');
-    await access.setGrant(admin, 'f1', { permissions: ['rip_access_research_gpt'] });
-    const req2 = { user: faculty, tenantId: 'U1' };
-    await run(access.requireModule, req2);
-    expect((await run(access.requireCapability('rip_access_research_gpt'), req2)).next).toBe(true);
+    expect((await run(access.requireCapability('rip_access_research_gpt'), req)).next).toBe(true);
   });
 });
 
-describe('presets', () => {
+describe('templates', () => {
   it('only contain real keys, are nested, and never include access management', () => {
-    for (const p of RIP_PRESETS) {
-      expect(p.permissions.every((k) => ALL_RIP_PERMISSION_KEYS.includes(k))).toBe(true);
-      expect(p.permissions).not.toContain('rip_manage_access');
+    for (const t of RIP_TEMPLATES) {
+      expect(t.permissions.every((k) => ALL_RIP_PERMISSION_KEYS.includes(k))).toBe(true);
+      expect(t.permissions).not.toContain('rip_manage_access');
     }
-    for (let i = 1; i < RIP_PRESETS.length; i++) {
-      expect(RIP_PRESETS[i - 1].permissions.every((k) => RIP_PRESETS[i].permissions.includes(k))).toBe(true);
+    for (let i = 1; i < RIP_TEMPLATES.length; i++) {
+      expect(RIP_TEMPLATES[i - 1].permissions.every((k) => RIP_TEMPLATES[i].permissions.includes(k))).toBe(true);
     }
   });
 });

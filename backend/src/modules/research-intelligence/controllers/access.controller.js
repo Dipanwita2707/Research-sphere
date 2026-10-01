@@ -1,6 +1,6 @@
 /**
  * Research Intelligence access management.
- *   - University admins (rip_manage_access): per-user grants, bulk changes.
+ *   - University admins (rip_manage_access): role templates, assigning roles to people, extra grants.
  *   - Platform superadmin: enable/disable the module per university.
  */
 
@@ -17,14 +17,14 @@ const audit = (req, user, permissions, extra = {}) =>
 
 /** The caller's own access; works even when the module is disabled (drives navigation). */
 const getMyAccess = async (req, res) => {
-  const { enabled, permissions, source } = await access.resolveAccess(req.user, req.tenantId);
-  ok(res, { enabled, permissions, source });
+  const { enabled, permissions, source, roles } = await access.resolveAccess(req.user, req.tenantId);
+  ok(res, { enabled, permissions, source, roles });
 };
 
 const getOverview = async (req, res) => ok(res, await access.getOverview(req.tenantId));
 
 const listUsers = async (req, res) =>
-  ok(res, await access.listUsers({ q: req.query.q, role: req.query.role, access: req.query.access, page: req.query.page, pageSize: req.query.pageSize }));
+  ok(res, await access.listUsers({ q: req.query.q, role: req.query.role, roleId: req.query.roleId, access: req.query.access, page: req.query.page, pageSize: req.query.pageSize }));
 
 const setUserGrant = async (req, res) => {
   const result = await access.setGrant(req.user, req.params.userId, req.body || {});
@@ -38,9 +38,22 @@ const removeUserGrant = async (req, res) => {
   ok(res, { removed: true });
 };
 
-const bulkUpdate = async (req, res) => {
-  const { updated, skipped } = await access.bulkSet(req.user, req.body || {});
-  updated.forEach((r) => audit(req, r.user, r.permissions, { expiresAt: r.expiresAt || null, bulk: true, mode: req.body?.mode || 'add' }));
+const auditRoles = (req, r, extra = {}) => auditLogger.logPermissionChange(r.user, { type: 'role_assignment', roleIds: r.roleIds, roleNames: r.roleNames, scope: 'research-intelligence', ...extra }, req.user.id, req).catch(() => {});
+
+const createRoleFromTemplate = async (req, res) => {
+  const { role, created } = await access.createRoleFromTemplate(req.user, req.body?.template);
+  ok(res, { role, created }, created ? 201 : 200);
+};
+
+const setUserRoles = async (req, res) => {
+  const r = await access.setUserRoles(req.params.userId, req.body?.roleIds);
+  if (!r.unchanged) auditRoles(req, r);
+  ok(res, { userId: req.params.userId, roleIds: r.roleIds });
+};
+
+const bulkRoles = async (req, res) => {
+  const { updated, skipped } = await access.bulkRole(req.body || {});
+  updated.filter((r) => !r.unchanged).forEach((r) => auditRoles(req, r, { bulk: true, mode: req.body?.mode }));
   ok(res, { updated: updated.length, skipped });
 };
 
@@ -69,4 +82,4 @@ const setUniversityModule = async (req, res) => {
   ok(res, { universityId: university.id, enabled: module.enabled, enabledAt: module.enabledAt, disabledAt: module.disabledAt, notes: module.notes });
 };
 
-module.exports = { getMyAccess, getOverview, listUsers, setUserGrant, removeUserGrant, bulkUpdate, listUniversityModules, setUniversityModule };
+module.exports = { getMyAccess, getOverview, listUsers, createRoleFromTemplate, setUserRoles, bulkRoles, setUserGrant, removeUserGrant, listUniversityModules, setUniversityModule };

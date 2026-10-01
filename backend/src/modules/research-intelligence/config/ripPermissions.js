@@ -1,10 +1,10 @@
 /**
- * Research Intelligence permission keys and presets.
+ * Research Intelligence permission keys and role templates.
  *
- * Access is user-wise: inside a university that has the module enabled, administrators have
- * every capability and everyone else holds exactly the keys granted to them individually
- * (see services/access.service.js). These keys are deliberately NOT part of the generic
- * department/role permission system.
+ * Access model (see services/access.service.js): inside a university that has the module enabled,
+ * administrators have every capability; everyone else gets them from ROLES (the university's
+ * reusable permission templates, assigned to employees) plus optional individual extra grants.
+ * The keys appear in the Roles editor under the "Research Intelligence" category.
  */
 
 'use strict';
@@ -17,13 +17,16 @@ const RIP_PERMISSION_DEFINITIONS = [
   { key: 'rip_view_knowledge_graph', label: 'Knowledge graph & experts', group: 'Use', description: 'Collaboration and topic networks; find experts.' },
   { key: 'rip_view_citation_analytics', label: 'Department & researcher analytics', group: 'Use', description: 'Analytics for any department, school or researcher.' },
   { key: 'rip_manage_taxonomy', label: 'Manage taxonomy & indexing', group: 'Manage', description: 'Edit the taxonomy, review AI classifications, run the index.' },
-  { key: 'rip_manage_access', label: 'Manage user access', group: 'Manage', description: 'Grant or remove Research Intelligence access for other users.' },
+  { key: 'rip_manage_access', label: 'Manage user access', group: 'Manage', description: 'Assign Research Intelligence roles and extra access to other users.' },
 ];
 
 const ALL_RIP_PERMISSION_KEYS = RIP_PERMISSION_DEFINITIONS.map((p) => p.key);
 
-/** Ready-made bundles shown in the access UI. Access management is never part of a preset. */
-const RIP_PRESETS = [
+/**
+ * Starting points for creating a real Role in the university (editable afterwards on the Roles page).
+ * Access management is never part of a template.
+ */
+const RIP_TEMPLATES = [
   { key: 'assistant', label: 'Assistant', description: 'Can use the AI research assistant.', permissions: ['rip_access_research_gpt'] },
   {
     key: 'explorer',
@@ -45,4 +48,13 @@ const RIP_PRESETS = [
   },
 ];
 
-module.exports = { RIP_PERMISSION_DEFINITIONS, ALL_RIP_PERMISSION_KEYS, RIP_PRESETS };
+/** Entries for the Roles editor (DRD central-department permission list). */
+const RIP_DRD_PERMISSION_ENTRIES = RIP_PERMISSION_DEFINITIONS.map((p) => ({
+  key: p.key,
+  label: `Research Intelligence: ${p.label}`,
+  category: 'Research Intelligence',
+  type: p.group === 'Manage' ? 'action' : 'view',
+  description: p.description,
+}));
+
+module.exports = { RIP_PERMISSION_DEFINITIONS, ALL_RIP_PERMISSION_KEYS, RIP_TEMPLATES, RIP_DRD_PERMISSION_ENTRIES };

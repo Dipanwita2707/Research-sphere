@@ -350,6 +350,9 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       description:
         "Can view DRD reviewer workload and performance analytics for assigned schools and departments.",
     },
+
+    // ========== Research Intelligence (assign through Roles; see research-intelligence/services/access.service.js) ===
+    ...require('../../research-intelligence/config/ripPermissions').RIP_DRD_PERMISSION_ENTRIES,
   ],
 
   // Finance Department

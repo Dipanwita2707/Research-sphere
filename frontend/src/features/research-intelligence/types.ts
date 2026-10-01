@@ -12,8 +12,9 @@ export type RipPermissionKey =
 export interface RipAccess {
   enabled: boolean;
   permissions: Record<RipPermissionKey, boolean>;
-  /** admin = administrator (everything), grant = individually granted, none = no access */
-  source: 'admin' | 'grant' | 'none';
+  /** admin = administrator, role = via an assigned role, grant = individual extra, none = no access */
+  source: 'admin' | 'role' | 'grant' | 'none';
+  roles?: string[];
 }
 
 export interface RipCapability {
@@ -23,25 +24,50 @@ export interface RipCapability {
   description: string;
 }
 
-export interface RipPreset {
+/** A role (reusable permission template) that grants Research Intelligence capabilities. */
+export interface RipRole {
+  id: string;
+  name: string;
+  roleCode: string;
+  description: string | null;
+  permissions: RipPermissionKey[];
+  /** permissions in the role outside Research Intelligence; such roles are managed on the Roles page only */
+  otherPermissionCount: number;
+  /** Research-Intelligence-only: safe to assign from this screen */
+  assignable: boolean;
+  assignedCount: number;
+}
+
+export interface RipTemplate {
   key: string;
   label: string;
   description: string;
   permissions: RipPermissionKey[];
+  existingRoleId: string | null;
 }
 
 export interface RipAccessOverview {
   enabled: boolean;
   enabledAt: string | null;
-  summary: { withAccess: number; expired: number; admins: number };
+  summary: { extraGrants: number; extraExpired: number; admins: number; assigned: number };
   capabilities: RipCapability[];
-  presets: RipPreset[];
-  roles: string[];
+  templates: RipTemplate[];
+  roles: RipRole[];
+  filterRoles: string[];
 }
 
 export type RipAccessFilter = 'all' | 'with' | 'without' | 'expired';
 
-/** One row of the user-management table. */
+export interface RipExtraGrant {
+  permissions: RipPermissionKey[];
+  expiresAt: string | null;
+  expired: boolean;
+  note: string | null;
+  grantedBy: string | null;
+  updatedAt: string | null;
+}
+
+/** One row of the people table. */
 export interface RipUserRow {
   userId: string;
   name: string;
@@ -51,15 +77,10 @@ export interface RipUserRow {
   department: string | null;
   designation: string | null;
   isAdmin: boolean;
-  /** what the user can do right now (everything for admins, nothing once a grant has expired) */
+  roles: { id: string; name: string; assignable: boolean }[];
+  /** effective capabilities right now (roles + active extra grant; everything for admins) */
   permissions: RipPermissionKey[];
-  /** what is stored on the grant, even if expired */
-  grantedPermissions: RipPermissionKey[];
-  expiresAt: string | null;
-  expired: boolean;
-  note: string | null;
-  grantedBy: string | null;
-  updatedAt: string | null;
+  extra: RipExtraGrant | null;
 }
 
 export interface RipUserPage {

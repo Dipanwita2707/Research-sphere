@@ -7,6 +7,7 @@ import type {
   RipAccessFilter,
   RipAccessOverview,
   RipPermissionKey,
+  RipRole,
   RipUserPage,
   RipStatus,
   StreamEvent,
@@ -32,16 +33,18 @@ function tenantHeaders(): Record<string, string> {
 export const researchIntelligenceService = {
   getStatus: () => unwrap<RipStatus>(api.get(`${BASE}/status`)),
 
-  // Access: own, university admin (user-wise), platform superadmin
+  // Access: own, university admin (roles assigned to people + extras), platform superadmin
   getMyAccess: () => unwrap<RipAccess>(api.get(`${BASE}/access/me`)),
   getAccessOverview: () => unwrap<RipAccessOverview>(api.get(`${BASE}/access`)),
-  listAccessUsers: (params: { q?: string; role?: string; access?: RipAccessFilter; page?: number; pageSize?: number }) =>
+  listAccessUsers: (params: { q?: string; role?: string; roleId?: string; access?: RipAccessFilter; page?: number; pageSize?: number }) =>
     unwrap<RipUserPage>(api.get(`${BASE}/access/users`, { params })),
+  createRoleFromTemplate: (template: string) => unwrap<{ role: RipRole; created: boolean }>(api.post(`${BASE}/access/roles/from-template`, { template })),
+  setUserRoles: (userId: string, roleIds: string[]) => unwrap<{ userId: string; roleIds: string[] }>(api.put(`${BASE}/access/users/${userId}/roles`, { roleIds })),
+  bulkRoles: (body: { userIds: string[]; roleId: string; mode: 'add' | 'remove' }) =>
+    unwrap<{ updated: number; skipped: { userId: string; reason: string }[] }>(api.post(`${BASE}/access/bulk-roles`, body)),
   setUserAccess: (userId: string, body: { permissions: RipPermissionKey[]; expiresAt?: string | null; note?: string }) =>
     unwrap<{ userId: string; permissions: RipPermissionKey[]; expiresAt: string | null }>(api.put(`${BASE}/access/users/${userId}`, body)),
   removeUserAccess: (userId: string) => unwrap<{ removed: boolean }>(api.delete(`${BASE}/access/users/${userId}`)),
-  bulkUpdateAccess: (body: { userIds: string[]; permissions: RipPermissionKey[]; mode: 'add' | 'remove' | 'replace'; expiresAt?: string | null }) =>
-    unwrap<{ updated: number; skipped: { userId: string; reason: string }[] }>(api.post(`${BASE}/access/bulk`, body)),
   listUniversityModules: () => unwrap<UniversityModuleState[]>(api.get(`${BASE}/platform/universities`)),
   setUniversityModule: (universityId: string, body: { enabled: boolean; notes?: string }) =>
     unwrap<{ enabled: boolean; enabledAt: string | null; disabledAt: string | null; notes: string | null }>(api.put(`${BASE}/platform/universities/${universityId}`, body)),
