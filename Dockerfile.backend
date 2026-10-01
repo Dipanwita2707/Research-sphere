@@ -1,5 +1,6 @@
 # Multi-stage build for Node.js backend — optimized for a small production image
-FROM node:18-alpine AS base
+# Node 24 (LTS): required by Prisma 7, Next 16 and the current dependency set (Node 18 is end-of-life)
+FROM node:24-alpine AS base
 RUN apk add --no-cache openssl libc6-compat
 
 # ---------- Dependencies (prod only, cached layer) ----------

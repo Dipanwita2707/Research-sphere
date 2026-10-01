@@ -10,10 +10,10 @@
  * Validates: Requirements 6.1-6.13, 10.1-10.14, 17.1-17.8, 19.1-19.11
  */
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../../../../shared/config/prismaClientFactory');
 const { randomUUID: uuidv4 } = require('crypto');
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 describe('Bug Report Database Integration Tests', () => {
   let testUserId;

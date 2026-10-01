@@ -1,7 +1,8 @@
 # Multi-stage build for Next.js frontend — standalone output keeps the
 # production image small (only the traced node_modules subset is copied,
 # not the full ~1GB+ node_modules tree).
-FROM node:18-alpine AS base
+# Node 24 (LTS): required by Next 16 and the current dependency set (Node 18 is end-of-life)
+FROM node:24-alpine AS base
 RUN apk add --no-cache libc6-compat
 
 # ---------- Dependencies ----------

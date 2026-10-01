@@ -26,11 +26,15 @@
   ],
   "author": "SGT University",
   "license": "PROPRIETARY",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1144.0",
     "@aws-sdk/lib-storage": "^3.1144.0",
     "@aws-sdk/s3-request-presigner": "^3.1144.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@sendgrid/helpers": "^8.0.0",
     "@sendgrid/mail": "^8.1.6",
     "@socket.io/redis-adapter": "^8.3.0",
@@ -67,7 +71,7 @@
     "javascript-obfuscator": "^5.8.1",
     "jest": "^30.5.2",
     "nodemon": "^3.1.14",
-    "prisma": "^5.19.0"
+    "prisma": "^7.10.0"
   },
   "overrides": {
     "test-exclude": "^8",
@@ -78,6 +82,8 @@
     },
     "archiver-utils": {
       "glob": "^13"
-    }
+    },
+    "deepmerge-ts": "^8",
+    "mysql2": "^3.23.1"
   }
 }

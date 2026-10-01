@@ -1,6 +1,6 @@
 require('dotenv').config({ quiet: true });
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createPrismaClient } = require('../src/shared/config/prismaClientFactory');
+const prisma = createPrismaClient();
 
 async function main() {
   console.log('--- Measuring Database Query Latency ---');

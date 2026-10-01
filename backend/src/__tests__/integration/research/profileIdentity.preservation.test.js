@@ -12,9 +12,9 @@
 
 const request = require('supertest');
 const app = require('../../../server');
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../../../shared/config/prismaClientFactory');
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 describe('Property 2: Preservation - Non-ORCID Changes Should Not Trigger Sync', () => {
   let testUser;

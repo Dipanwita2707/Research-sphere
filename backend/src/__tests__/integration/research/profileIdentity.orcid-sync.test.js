@@ -13,9 +13,9 @@
 
 const request = require('supertest');
 const app = require('../../../server');
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../../../shared/config/prismaClientFactory');
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 describe('Property 1: ORCID Save Should Trigger Automatic Sync', () => {
   let testUser;

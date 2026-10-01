@@ -1,54 +1,31 @@
-const { PrismaClient } = require("@prisma/client");
+const { createPrismaClient } = require("./prismaClientFactory");
 const { tenantExtension } = require("../tenancy/tenantExtension");
 
 // Singleton pattern to prevent multiple Prisma Client instances
 let prisma;
 
-// Build database URL safely — DATABASE_URL already contains query params
-// (sslmode, connection_limit, etc.) so we append with '&', not a second '?'
-const buildDbUrl = (extraParams = {}) => {
-  const base = process.env.DATABASE_URL || '';
-  const separator = base.includes('?') ? '&' : '?';
-  const extras = Object.entries(extraParams)
-    .map(([k, v]) => `${k}=${v}`)
-    .join('&');
-  return extras ? base + separator + extras : base;
+const TRANSACTION_OPTIONS = {
+  maxWait: 5000,
+  timeout: 10000,
+  isolationLevel: "ReadCommitted",
 };
 
-// Connection pool size: reduced per-worker to accommodate PM2 cluster mode.
-const POOL_SIZE = parseInt(process.env.DB_POOL_SIZE, 10) || 12;
-const POOL_TIMEOUT = parseInt(process.env.DB_POOL_TIMEOUT, 10) || 30;
-
-if (process.env.NODE_ENV === 'production') {
-  // Production: single instance with tuned pool, emit events for error handling
-  prisma = new PrismaClient({
-    log: [{ level: 'error', emit: 'event' }],
-    datasources: {
-      db: { url: buildDbUrl({ connection_limit: POOL_SIZE, pool_timeout: POOL_TIMEOUT, connect_timeout: 15 }) },
-    },
-    transactionOptions: {
-      maxWait: 5000,
-      timeout: 10000,
-      isolationLevel: 'ReadCommitted',
-    },
+if (process.env.NODE_ENV === "production") {
+  // Production: single instance, emit events for error handling
+  prisma = createPrismaClient({
+    log: [{ level: "error", emit: "event" }],
+    transactionOptions: TRANSACTION_OPTIONS,
   });
 } else {
   // Development: global singleton to survive HMR
   if (!global.prisma) {
-    global.prisma = new PrismaClient({
+    global.prisma = createPrismaClient({
       log: [
-        'warn',
-        'error',
-        { level: 'query', emit: 'event' }, // For slow query logging
+        "warn",
+        "error",
+        { level: "query", emit: "event" }, // For slow query logging
       ],
-      datasources: {
-        db: { url: buildDbUrl({ connection_limit: POOL_SIZE, pool_timeout: POOL_TIMEOUT, connect_timeout: 15 }) },
-      },
-      transactionOptions: {
-        maxWait: 5000,
-        timeout: 10000,
-        isolationLevel: 'ReadCommitted',
-      },
+      transactionOptions: TRANSACTION_OPTIONS,
     });
   }
   prisma = global.prisma;

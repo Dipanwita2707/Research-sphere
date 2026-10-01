@@ -17,6 +17,7 @@
  */
 const { Prisma } = require('@prisma/client');
 const tenantContext = require('./tenantContext');
+const { relationFromFields } = require('./schemaRelations');
 
 const TENANT_FIELD = 'universityId';
 
@@ -41,8 +42,10 @@ for (const model of Prisma.dmmf.datamodel.models) {
     if (f.name === TENANT_FIELD && f.kind === 'scalar') hasTenantField = true;
     if (f.kind !== 'object') continue;
     relations.set(f.name, { type: f.type });
-    for (const fk of f.relationFromFields || []) fkScalars.add(fk);
-    if ((f.relationFromFields || []).includes(TENANT_FIELD)) tenantRel = f.name;
+    // Prisma 5 exposes relationFromFields in the DMMF; Prisma 7 does not, so fall back to the schema.
+    const fromFields = f.relationFromFields || relationFromFields(model.name, f.name);
+    for (const fk of fromFields) fkScalars.add(fk);
+    if (fromFields.includes(TENANT_FIELD)) tenantRel = f.name;
   }
   MODELS.set(model.name, { tenant: hasTenantField, tenantRel, relations, fkScalars });
 }
