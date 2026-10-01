@@ -249,6 +249,16 @@ exports.createDepartment = async (req, res) => {
       metadata,
     } = req.body;
 
+    if (!facultyId || !departmentCode || !departmentName) {
+      return res.status(400).json({
+        success: false,
+        message: 'School, department code and department name are required',
+      });
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(facultyId))) {
+      return res.status(400).json({ success: false, message: 'Invalid school id' });
+    }
+
     // Check if school exists
     const school = await prisma.facultySchoolList.findUnique({
       where: { id: facultyId },

@@ -86,6 +86,13 @@ class ContributionService {
     const errors = [];
     const categories = data.indexingCategories || [];
 
+    // Basic required fields (otherwise the insert fails in the database with a 500).
+    const { ResearchPublicationTypeEnum } = require('@prisma/client');
+    if (!data.title || !String(data.title).trim()) errors.push('Title is required');
+    if (!Object.values(ResearchPublicationTypeEnum).includes(data.publicationType)) {
+      errors.push(`Publication type must be one of: ${Object.values(ResearchPublicationTypeEnum).join(', ')}`);
+    }
+
     if (categories.includes('scopus')) {
       if (!data.quartile) errors.push('Quartile is required when SCOPUS category is selected');
       if (!data.sjr) errors.push('SJR is required when SCOPUS category is selected');
@@ -244,8 +251,9 @@ class ContributionService {
     });
 
     if (!activePolicy?.first_author_percentage || !activePolicy?.corresponding_author_percentage) {
+      // Missing setup, not a server fault: 409 tells the client an admin must configure a policy first.
       const err = new Error('No active research policy configured. Please configure policy in admin panel.');
-      err.statusCode = 500;
+      err.statusCode = 409;
       throw err;
     }
 
@@ -1278,7 +1286,7 @@ class ContributionService {
   }
 
   async getIncentivePolicies() {
-    return this.prisma.researchIncentivePolicy.findMany({ orderBy: [{ publicationType: 'asc' }, { authorType: 'asc' }] });
+    return this.prisma.researchIncentivePolicy.findMany({ orderBy: [{ publicationType: 'asc' }, { effectiveFrom: 'desc' }] });
   }
 
   // ─── Document upload ────────────────────────────────────────────────────

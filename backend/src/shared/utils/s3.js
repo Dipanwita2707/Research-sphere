@@ -168,7 +168,10 @@ const getS3FileMetadata = async (key) => {
     };
   } catch (error) {
     console.error('S3 metadata error:', error);
-    if (error.name === 'NoSuchKey' || error.name === 'NotFound') {
+    // HEAD on a missing key returns 404, or 403 when the credentials lack s3:ListBucket
+    // (the SDK then reports a bodiless "UnknownError"). Either way the file is not available.
+    const httpStatus = error.$metadata?.httpStatusCode;
+    if (error.name === 'NoSuchKey' || error.name === 'NotFound' || httpStatus === 404 || httpStatus === 403) {
       throw new Error('File not found in S3');
     }
     throw new Error(`Failed to get file metadata from S3: ${error.message}`);

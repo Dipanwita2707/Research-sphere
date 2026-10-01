@@ -142,6 +142,7 @@ function mapProgramType(value) {
 exports.getAllPrograms = async (req, res) => {
   try {
     const tenantId = req.tenantId || null;
+    const { isActive, departmentId, schoolId, programType } = req.query;
 
     const where = {};
     if (tenantId) {

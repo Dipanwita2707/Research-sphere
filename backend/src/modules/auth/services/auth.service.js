@@ -405,8 +405,11 @@ const getSettings = async (userId) => {
   });
 
   if (!settings) {
-    settings = await prisma.userSettings.create({
-      data: {
+    // Upsert so concurrent first requests do not race on the unique userId.
+    settings = await prisma.userSettings.upsert({
+      where: { userId },
+      update: {},
+      create: {
         userId,
         emailNotifications: true,
         pushNotifications: true,
@@ -443,10 +446,6 @@ const updateSettings = async (userId, fields) => {
     affiliationOverride,
   } = fields;
 
-  let settings = await prisma.userSettings.findUnique({
-    where: { userId }
-  });
-
   const updateData = {};
   if (emailNotifications !== undefined) updateData.emailNotifications = emailNotifications;
   if (pushNotifications !== undefined) updateData.pushNotifications = pushNotifications;
@@ -466,21 +465,12 @@ const updateSettings = async (userId, fields) => {
       : String(affiliationOverride).slice(0, 256);
   }
 
-  if (settings) {
-    settings = await prisma.userSettings.update({
-      where: { userId },
-      data: updateData
-    });
-  } else {
-    settings = await prisma.userSettings.create({
-      data: {
-        userId,
-        ...updateData
-      }
-    });
-  }
-
-  return settings;
+  // Upsert: a concurrent GET /settings may create the row between the lookup and this write.
+  return prisma.userSettings.upsert({
+    where: { userId },
+    update: updateData,
+    create: { userId, ...updateData }
+  });
 };
 
 module.exports = {

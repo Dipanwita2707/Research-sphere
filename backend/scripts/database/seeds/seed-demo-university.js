@@ -34,6 +34,8 @@ const taxonomy = require('../../../src/modules/research-intelligence/services/ta
 const expertise = require('../../../src/modules/research-intelligence/services/expertise.service');
 const access = require('../../../src/modules/research-intelligence/services/access.service');
 const { toSlug } = require('../../../src/modules/research-intelligence/services/researchData');
+const { seedResearchPolicies } = require('./seed-research-policy-updated');
+const { seedConferencePolicies } = require('./seed-conference-policy-not-indexed');
 
 const DEMO_CODE = 'DEMO';
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Demo@2026-ResearchSphere';
@@ -398,6 +400,15 @@ async function main() {
     await sys(async () => prisma.researchContribution.createMany({ data: contributions }));
     await sys(async () => prisma.researchContributionAuthor.createMany({ data: authors }));
     console.log(`✓ ${contributions.length} publications, ${authors.length} author links`);
+  }
+
+  // ── Incentive policies (filing a paper needs an active research policy) ────────
+  const hasPolicy = await sys(async () => prisma.researchIncentivePolicy.count({ where: { universityId: U, isActive: true } }));
+  if (!hasPolicy) {
+    process.argv.push('--university', DEMO_CODE);
+    await seedResearchPolicies(prisma);
+    await seedConferencePolicies(prisma);
+    console.log('✓ Research and conference incentive policies created');
   }
 
   // ── Research Intelligence ───────────────────────────────────────────────────

@@ -52,13 +52,15 @@ class IprRepository {
     const {
       where = {},
       include = {},
+      select,
       orderBy = { createdAt: 'desc' },
       skip,
       take,
     } = filters;
     return this.prisma.iprApplication.findMany({
       where,
-      ...(Object.keys(include).length > 0 && { include }),
+      // select and include are mutually exclusive in Prisma; select wins when given
+      ...(select ? { select } : Object.keys(include).length > 0 && { include }),
       orderBy,
       ...(skip !== undefined && { skip }),
       ...(take !== undefined && { take }),

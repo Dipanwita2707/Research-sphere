@@ -16,6 +16,9 @@ const { excelExportService } = require('../../core/services/excelExport.service'
 const { auditReportScheduler } = require('../services/auditScheduler.service');
 const prisma = require('../../../shared/config/database');
 
+/** Exports load every row into memory to build the file, so cap them; narrow the filters for more. */
+const MAX_EXPORT_ROWS = Number(process.env.AUDIT_EXPORT_MAX_ROWS) || 10000;
+
 function toCsvValue(value) {
   if (value == null) return '';
   // Neutralise spreadsheet formulas (= + - @ tab CR) so opening the CSV cannot run one
@@ -164,9 +167,11 @@ const exportAuditLogs = async (req, res) => {
       search
     });
 
-    const logs = await prisma.auditLog.findMany({
+    // Newest rows first so a capped export keeps the most recent activity, then back to chronological.
+    const newest = await prisma.auditLog.findMany({
       where,
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
+      take: MAX_EXPORT_ROWS + 1,
       include: {
         actor: {
           select: {
@@ -184,6 +189,11 @@ const exportAuditLogs = async (req, res) => {
         }
       }
     });
+
+    const truncated = newest.length > MAX_EXPORT_ROWS;
+    const logs = newest.slice(0, MAX_EXPORT_ROWS).reverse();
+    res.setHeader('X-Export-Row-Limit', String(MAX_EXPORT_ROWS));
+    res.setHeader('X-Export-Truncated', String(truncated));
 
     const statisticsStartDate = startDate || logs[0]?.createdAt || new Date();
     const statisticsEndDate = endDate || logs[logs.length - 1]?.createdAt || new Date();
@@ -621,7 +631,10 @@ const triggerCleanup = async (req, res) => {
  */
 const sendManualReport = async (req, res) => {
   try {
-    const { reportType = 'monthly' } = req.body;
+    const { reportType = 'monthly' } = req.body || {};
+    if (!['daily', 'weekly', 'monthly'].includes(reportType)) {
+      return res.status(400).json({ success: false, message: 'reportType must be daily, weekly or monthly' });
+    }
 
     console.log(`📧 Manual report send triggered by ${req.user?.email || 'admin'}`);
     
@@ -656,9 +669,11 @@ const sendManualReport = async (req, res) => {
       });
     } else {
       console.error('Manual audit report send failed:', result.error);
-      res.status(500).json({
+      // Missing configuration is the caller's to fix, not a server fault.
+      const misconfigured = /no recipients/i.test(String(result.error || ''));
+      res.status(misconfigured ? 400 : 500).json({
         success: false,
-        message: 'Failed to send report'
+        message: misconfigured ? `${result.error}. Add report recipients in the audit report settings first.` : 'Failed to send report'
       });
     }
   } catch (error) {

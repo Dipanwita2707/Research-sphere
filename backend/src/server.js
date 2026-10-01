@@ -86,7 +86,7 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    exposedHeaders: ["X-Request-Id"],
+    exposedHeaders: ["X-Request-Id", "X-Export-Row-Limit", "X-Export-Truncated"],
   })
 );
 

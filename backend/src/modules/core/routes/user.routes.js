@@ -7,11 +7,6 @@ const userController = require('../controllers/user.controller');
 // TODO: Transfer to HR module when implemented
 router.get('/', protect, restrictTo('admin', 'superadmin'), userController.getAllUsers);
 
-// Test route to check if routing works
-router.get('/test', (req, res) => {
-  res.json({ success: true, message: 'User routes working!' });
-});
-
 // Search users by partial UID for suggestions (available to all authenticated users)
 router.get('/suggestions/:query', protect, userController.searchUsersByPartialUid);
 

@@ -272,6 +272,10 @@ const auditMiddleware = (options = {}) => {
 
     // Log after response is finished
     res.on('finish', async () => {
+      // Rejected as unauthenticated: there is no actor to attribute, nothing happened, and writing
+      // a row per request would let anonymous traffic exhaust the database pool. Failed logins
+      // are recorded by the login handler; 403s (signed in but refused) are still audited.
+      if (res.statusCode === 401) return;
       try {
         const duration = Date.now() - startTime;
         const routeContext = getRouteContext(originalPath);

@@ -2354,6 +2354,8 @@ enum ResearchPublicationTypeEnum {
 
 enum ResearchContributionStatusEnum {
   draft
+  /// student work waiting for the mentor before it reaches DRD
+  pending_mentor_approval
   submitted
   under_review
   changes_required

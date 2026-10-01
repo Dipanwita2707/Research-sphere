@@ -336,6 +336,25 @@ class IprService {
       annexureFilePath, supportingDocsFilePaths, sourceProvisionalId, prototypeFilePath,
     } = data;
 
+    // Reject incomplete or invalid input up front (400) instead of failing in the database (500).
+    const { ApplicantTypeEnum, IprTypeEnum, ProjectTypeEnum, IprFilingTypeEnum } = require('@prisma/client');
+    const problems = [];
+    if (!title || !String(title).trim()) problems.push('title is required');
+    if (!description || !String(description).trim()) problems.push('description is required');
+    for (const [field, value, allowed] of [
+      ['applicantType', applicantType, ApplicantTypeEnum],
+      ['iprType', iprType, IprTypeEnum],
+      ['projectType', projectType, ProjectTypeEnum],
+      ['filingType', filingType, IprFilingTypeEnum],
+    ]) {
+      if (!Object.values(allowed).includes(value)) problems.push(`${field} must be one of: ${Object.values(allowed).join(', ')}`);
+    }
+    if (problems.length) {
+      const err = new Error(`Invalid IPR application: ${problems.join('; ')}`);
+      err.statusCode = 400;
+      throw err;
+    }
+
     const { resolvedSchoolId, resolvedDepartmentId } = await this.resolveSchoolDepartment(userId, schoolId, departmentId);
 
     // Validate conversion from provisional
@@ -862,7 +881,7 @@ class IprService {
 
     const provisionals = await this.repo.findAll({
       where: { applicantUserId: userId, filingType: 'provisional', status: 'published' },
-      include: select,
+      select,
       orderBy: { completedAt: 'desc' },
     });
 
