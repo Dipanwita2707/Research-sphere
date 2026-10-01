@@ -27,8 +27,37 @@ const crypto = require('crypto');
 const { randomUUID: uuidv4 } = require('crypto');
 const prisma = require('../../../shared/config/database');
 const { createModuleLogger } = require('../../../shared/utils/logger');
+const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
 
 const log = createModuleLogger('license');
+
+/**
+ * Record a license action in the audit log (who, what, when, from where). Licenses are
+ * platform-level, so these entries have no university. A snapshot of the license is kept so
+ * a deleted license can still be identified later.
+ */
+const auditLicense = (req, verb, license, severity = AuditSeverity.INFO) =>
+  auditService
+    .log({
+      actorId: req.user?.id,
+      action: `License ${verb} for "${license.assignedTo}"`,
+      actionType: verb === 'deleted' ? AuditActionType.DELETE : verb === 'issued' ? AuditActionType.CREATE : AuditActionType.UPDATE,
+      module: AuditModule.SYSTEM,
+      category: 'license',
+      severity,
+      targetTable: 'licenses',
+      targetId: license.id,
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+      details: {
+        assignedTo: license.assignedTo,
+        keyPrefix: String(license.licenseKey || '').slice(0, 8),
+        hardwareId: license.hardwareId ? String(license.hardwareId).slice(0, 12) : null,
+        wasActive: license.isActive,
+        createdAt: license.createdAt,
+      },
+    })
+    .catch(() => {});
 
 /**
  * Generates an unforgeable, HMAC-SHA256 signed runtime secret token.
@@ -197,6 +226,7 @@ exports.issueLicense = async (req, res) => {
     });
 
     log.info(`License issued to "${license.assignedTo}" — key: ${String(licenseKey).slice(0, 8)}…`);
+    auditLicense(req, 'issued', license);
 
     return res.status(201).json({
       success: true,
@@ -297,6 +327,7 @@ exports.approveHardware = async (req, res) => {
     });
 
     log.info(`✅ Hardware APPROVED for license "${license.assignedTo}" (${approvedHardwareId.substring(0, 12)}...)`);
+    auditLicense(req, 'hardware approved', license);
 
     return res.status(200).json({
       success: true,
@@ -347,6 +378,7 @@ exports.authorizeHardware = async (req, res) => {
     });
 
     log.info(`✅ Hardware explicitly AUTHORIZED for license "${license.assignedTo}"`);
+    auditLicense(req, 'hardware authorized', license);
 
     return res.status(200).json({
       success: true,
@@ -385,6 +417,7 @@ exports.revokeLicense = async (req, res) => {
     });
 
     log.warn(`🔴 License REVOKED for "${license.assignedTo}"`);
+    auditLicense(req, 'revoked', license, AuditSeverity.WARNING);
 
     return res.status(200).json({
       success: true,
@@ -415,6 +448,7 @@ exports.reactivateLicense = async (req, res) => {
     });
 
     log.info(`🟢 License REACTIVATED for "${license.assignedTo}"`);
+    auditLicense(req, 'reactivated', license);
 
     return res.status(200).json({
       success: true,
@@ -445,6 +479,7 @@ exports.resetHardware = async (req, res) => {
     });
 
     log.info(`Hardware reset for license "${license.assignedTo}" — ready for re-authorization`);
+    auditLicense(req, 'hardware reset', license, AuditSeverity.WARNING);
 
     return res.status(200).json({
       success: true,
@@ -472,6 +507,7 @@ exports.deleteLicense = async (req, res) => {
     await prisma.license.delete({ where: { id } });
 
     log.warn(`License DELETED for "${license.assignedTo}"`);
+    auditLicense(req, 'deleted', license, AuditSeverity.WARNING);
 
     return res.status(200).json({
       success: true,

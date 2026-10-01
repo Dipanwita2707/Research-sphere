@@ -248,6 +248,25 @@ describe('middleware', () => {
   });
 });
 
+describe('shared read features', () => {
+  const run = (mw, req) => new Promise((resolve) => {
+    const res = { status: (c) => ({ json: (b) => resolve({ code: c, body: b }) }) };
+    mw(req, res, () => resolve({ next: true }));
+  });
+  const ANY = access.requireAnyCapability(['rip_view_overview', 'rip_access_research_gpt', 'rip_view_knowledge_graph']);
+
+  it('open to anyone with at least one of the capabilities (e.g. the Explorer role has no overview)', async () => {
+    expect((await run(ANY, { ripAccess: { permissions: { rip_view_knowledge_graph: true } } })).next).toBe(true);
+    expect((await run(ANY, { ripAccess: { permissions: { rip_access_research_gpt: true } } })).next).toBe(true);
+  });
+
+  it('closed to everyone else', async () => {
+    const r = await run(ANY, { ripAccess: { permissions: { rip_manage_taxonomy: true } } });
+    expect(r.body.code).toBe('RIP_PERMISSION_REQUIRED');
+    expect((await run(ANY, {})).code).toBe(403);
+  });
+});
+
 describe('templates', () => {
   it('only contain real keys, are nested, and never include access management', () => {
     for (const t of RIP_TEMPLATES) {

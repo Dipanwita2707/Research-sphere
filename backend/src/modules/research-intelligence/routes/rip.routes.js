@@ -15,7 +15,7 @@ const { protect } = require('../../../shared/middleware/auth');
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ctrl = require('../controllers/rip.controller');
 const accessCtrl = require('../controllers/access.controller');
-const { requireModule, requireCapability } = require('../services/access.service');
+const { requireModule, requireCapability, requireAnyCapability } = require('../services/access.service');
 
 const router = express.Router();
 const h = asyncHandler;
@@ -62,6 +62,8 @@ const VIEW_GRAPH = perm('rip_view_knowledge_graph');
 const VIEW_ANALYTICS = perm('rip_view_citation_analytics');
 const CHAT = perm('rip_access_research_gpt');
 const MANAGE_ACCESS = perm('rip_manage_access');
+// Publication search and entity lookup are shared building blocks: any "use" capability opens them.
+const ANY_USE = requireAnyCapability(['rip_view_overview', 'rip_access_research_gpt', 'rip_view_knowledge_graph', 'rip_view_keyword_intelligence', 'rip_view_taxonomy', 'rip_view_citation_analytics']);
 
 router.use(protect);
 // Query-string ids are checked for every route; path ids per route (params exist only after matching).
@@ -112,8 +114,8 @@ router.get('/graph/collaboration', VIEW_GRAPH, h(ctrl.getCollaborationNetwork));
 router.get('/graph/keywords', VIEW_GRAPH, h(ctrl.getKeywordNetwork));
 router.get('/graph/experts', VIEW_GRAPH, h(ctrl.findExperts));
 router.get('/graph/domain-map', VIEW_GRAPH, h(ctrl.getDomainMap));
-router.get('/search/publications', VIEW_OVERVIEW, h(ctrl.searchPublications));
-router.get('/search/entities', VIEW_OVERVIEW, h(ctrl.searchEntities));
+router.get('/search/publications', ANY_USE, h(ctrl.searchPublications));
+router.get('/search/entities', ANY_USE, h(ctrl.searchEntities));
 
 // Pipeline
 router.get('/pipeline/runs', MANAGE, h(ctrl.listPipelineRuns));

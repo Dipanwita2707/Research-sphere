@@ -93,7 +93,10 @@ export const useAuthStore = create<AuthState>()(
           });
           logger.debug('AuthStore - state after login:', get());
         } catch (error) {
-          logger.error('AuthStore - login error:', error);
+          // Rejected credentials / blocked accounts are shown on the form; only log real faults loudly.
+          const status = (error as any)?.response?.status;
+          const rejected = status === 400 || status === 401 || status === 403 || status === 423 || status === 429;
+          (rejected ? logger.debug : logger.error).call(logger, 'AuthStore - login error:', error);
           set({ ...clearedAuthState });
           throw error;
         }
@@ -169,8 +172,11 @@ export const useAuthStore = create<AuthState>()(
               sessionExpiresAt: getSessionExpiry(timestamp),
             });
           } catch (error: any) {
-            logger.error('AuthStore - checkAuth error:', error);
-            logger.error('AuthStore - Error details:', {
+            // 401 just means "not signed in": normal on first load, so not an error.
+            const notSignedIn = error?.response?.status === 401;
+            const report = (notSignedIn ? logger.debug : logger.error).bind(logger);
+            report('AuthStore - checkAuth error:', error);
+            report('AuthStore - Error details:', {
               message: error.message,
               status: error.response?.status,
               statusText: error.response?.statusText,

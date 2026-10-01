@@ -14,6 +14,17 @@ const SLOW_REQUEST_THRESHOLD_MS = 1200;
 // Optional endpoints that may not exist until a module is deployed
 const OPTIONAL_404_ROUTES = ['/events/volunteers/my'];
 
+/**
+ * Failures that are a normal part of using the app, not faults: no session yet (401 on /auth/me),
+ * and rejected sign-ins, which the login form already shows to the user. They are logged at debug
+ * level so that red [ERROR] lines in the console mean something is actually wrong.
+ */
+const isExpectedAuthOutcome = (url: string | undefined, status: number | undefined) =>
+  !!url && (
+    (url.includes('/auth/me') && status === 401) ||
+    (url.includes('/auth/login') && (status === 400 || status === 401 || status === 403 || status === 423 || status === 429))
+  );
+
 // Helper to get host URL (without /api/v1)
 export const getHostUrl = (): string => {
   if (/^https?:\/\//i.test(API_URL)) {
@@ -176,7 +187,8 @@ api.interceptors.response.use(
     if (error.response?.status ===
    401 || error.response?.status ===
    403) {
-      logger.error(`[API] ${error.response.status} - ${config.url}`, {
+      const logAuth = isExpectedAuthOutcome(config.url, error.response.status) ? logger.debug.bind(logger) : logger.error.bind(logger);
+      logAuth(`[API] ${error.response.status} - ${config.url}`, {
         status: error.response.status,
         statusText: error.response.statusText,
         message: (error.response.data as any)?.message,
@@ -214,7 +226,7 @@ api.interceptors.response.use(
       const msg = (error.response?.data as any)?.message || error.message;
       const url = config.url || '';
       const isOptional404 = status === 404 && OPTIONAL_404_ROUTES.some((route) => url.includes(route));
-      const logFn = isOptional404 ? logger.debug.bind(logger) : logger.error.bind(logger);
+      const logFn = isOptional404 || isExpectedAuthOutcome(url, error.response?.status) ? logger.debug.bind(logger) : logger.error.bind(logger);
       logFn(`[API] Request failed: ${config.method?.toUpperCase()} ${url} - ${status}`, { message: msg, code: (error as any).code });
     }
     

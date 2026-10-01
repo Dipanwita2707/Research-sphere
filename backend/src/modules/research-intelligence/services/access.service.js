@@ -116,6 +116,17 @@ const requireCapability = (key) => (req, res, next) => {
   });
 };
 
+/** Pass when the caller holds at least one of the given capabilities (for shared read features such as search). */
+const requireAnyCapability = (keys) => (req, res, next) => {
+  if (keys.some((k) => req.ripAccess?.permissions?.[k])) return next();
+  return res.status(403).json({
+    success: false,
+    code: 'RIP_PERMISSION_REQUIRED',
+    requiredPermission: keys,
+    message: 'You do not have access to this part of Research Intelligence. Ask your university administrator to grant it.',
+  });
+};
+
 // ─── Roles (the reusable templates) ───────────────────────────────────────────
 
 /**
@@ -444,6 +455,7 @@ module.exports = {
   getModuleState,
   requireModule,
   requireCapability,
+  requireAnyCapability,
   getOverview,
   loadRipRoles,
   createRoleFromTemplate,
