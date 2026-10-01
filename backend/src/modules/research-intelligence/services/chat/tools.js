@@ -387,9 +387,11 @@ const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 const declarations = () => TOOLS.map(({ name, description, parameters }) => ({ name, description, parameters }));
 
 /** Execute a tool call, never throwing: errors become a result the model can react to. */
-async function execute(name, args, ctx) {
+async function execute(name, rawArgs, ctx) {
   const tool = TOOL_BY_NAME.get(name);
   if (!tool) return { result: { error: `Unknown tool ${name}` }, summary: 'Unknown tool', label: name };
+  // Models may send null for an optional argument they mean to leave out.
+  const args = Object.fromEntries(Object.entries(rawArgs || {}).filter(([, v]) => v !== null));
   const label = tool.label(args || {});
   try {
     const result = await tool.run(args || {}, ctx);

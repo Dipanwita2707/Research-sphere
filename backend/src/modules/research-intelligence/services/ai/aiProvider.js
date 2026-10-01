@@ -12,7 +12,7 @@
  *   { role: 'assistant', content, toolCalls: [{ id, name, args }], _geminiParts? }
  *   { role: 'tool', toolCallId, name, content }   // content: JSON string
  *
- * Env: GEMINI_API_KEY, GROQ_API_KEY, RIP_GEMINI_MODEL, RIP_GROQ_MODEL,
+ * Env: GEMINI_API_KEY, GROQ_API_KEY, RIP_GEMINI_MODEL, RIP_GROQ_MODEL, RIP_GROQ_REASONING_EFFORT,
  *      RIP_GEMINI_THINKING_BUDGET (optional), RIP_AI_TIMEOUT_MS
  */
 
@@ -29,7 +29,7 @@ const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 
 const geminiModel = () => process.env.RIP_GEMINI_MODEL || 'gemini-2.5-flash';
-const groqModel = () => process.env.RIP_GROQ_MODEL || 'llama-3.3-70b-versatile';
+const groqModel = () => process.env.RIP_GROQ_MODEL || 'openai/gpt-oss-120b';
 const timeoutMs = () => Number(process.env.RIP_AI_TIMEOUT_MS) || 90000;
 
 class AiUnavailableError extends Error {
@@ -59,6 +59,21 @@ const withTimeout = (signal) => {
 const retryable = (status) => status === 429 || status >= 500;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * How long to wait before retrying. Uses the retry-after header, else the wait Groq states in its
+ * rate-limit message ("Please try again in 6.48s" / "in 850ms"), capped at 20 s; else a short backoff.
+ */
+const retryDelayMs = (res, text, attempt) => {
+  const header = Number(res.headers.get('retry-after'));
+  if (Number.isFinite(header) && header > 0) return Math.min(header, 20) * 1000;
+  const m = /try again in (?:(\d+)m)?(\d+(?:\.\d+)?)(ms|s)/i.exec(text);
+  if (m) {
+    const ms = (Number(m[1] || 0) * 60 + (m[3] === 'ms' ? Number(m[2]) / 1000 : Number(m[2]))) * 1000;
+    return Math.min(Math.ceil(ms) + 250, 20000);
+  }
+  return (attempt + 1) * 2000;
+};
+
 /** POST with up to 2 retries on 429/5xx. */
 async function post(url, headers, body, signal) {
   let lastErr;
@@ -73,8 +88,7 @@ async function post(url, headers, body, signal) {
     const text = await res.text().catch(() => '');
     lastErr = Object.assign(new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`), { status: res.status });
     if (!retryable(res.status) || attempt === 2) break;
-    const retryAfter = Number(res.headers.get('retry-after'));
-    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 10) * 1000 : (attempt + 1) * 2000);
+    await sleep(retryDelayMs(res, text, attempt));
   }
   throw lastErr;
 }
@@ -211,6 +225,16 @@ async function geminiChatTurn({ system, messages, tools, maxTokens, onText, sign
 
 const groqHeaders = () => ({ Authorization: `Bearer ${process.env.GROQ_API_KEY}` });
 
+/**
+ * gpt-oss models reason before answering, and those tokens count toward max_tokens.
+ * Keep the effort low (RIP_GROQ_REASONING_EFFORT: low | medium | high) and never return the
+ * reasoning text, so short calls still produce an answer and nothing internal reaches users.
+ */
+const withReasoningOptions = (body) => {
+  if (!/gpt-oss/i.test(body.model)) return body;
+  return { ...body, reasoning_effort: process.env.RIP_GROQ_REASONING_EFFORT || 'low', include_reasoning: false };
+};
+
 const toOpenAiMessages = (system, messages) => {
   const out = [{ role: 'system', content: system }];
   for (const m of messages) {
@@ -241,7 +265,7 @@ async function groqComplete({ system, prompt, maxTokens, json, temperature }) {
     max_tokens: maxTokens || 4096,
   };
   if (json) body.response_format = { type: 'json_object' };
-  const res = await post(`${GROQ_BASE}/chat/completions`, groqHeaders(), body);
+  const res = await post(`${GROQ_BASE}/chat/completions`, groqHeaders(), withReasoningOptions(body));
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content || '';
   if (!text) throw new Error('Groq returned no text');
@@ -254,7 +278,41 @@ async function groqComplete({ system, prompt, maxTokens, json, temperature }) {
   };
 }
 
-async function groqChatTurn({ system, messages, tools, maxTokens, onText, signal }) {
+/**
+ * Groq validates tool arguments against the schema and rejects the whole turn on a mismatch.
+ * Models often send null for an optional argument, so optional properties also accept null.
+ */
+const nullableOptional = (schema) => {
+  if (!schema || schema.type !== 'object' || !schema.properties) return schema;
+  const required = new Set(schema.required || []);
+  const properties = {};
+  for (const [key, prop] of Object.entries(schema.properties)) {
+    if (required.has(key) || typeof prop.type !== 'string') {
+      properties[key] = prop;
+      continue;
+    }
+    properties[key] = { ...prop, type: [prop.type, 'null'], ...(Array.isArray(prop.enum) ? { enum: [...prop.enum, null] } : {}) };
+  }
+  return { ...schema, properties };
+};
+
+/** One retry when Groq rejects the model's tool call (tool_use_failed); generations vary between attempts. */
+async function groqChatTurn(opts) {
+  let emitted = false;
+  const onText = (t) => {
+    emitted = true;
+    opts.onText?.(t);
+  };
+  try {
+    return await groqChatTurnOnce({ ...opts, onText });
+  } catch (err) {
+    if (err.code !== 'tool_use_failed' || emitted || opts.signal?.aborted) throw err;
+    log.warn('Groq rejected a tool call; retrying once', { error: err.message });
+    return groqChatTurnOnce({ ...opts, onText });
+  }
+}
+
+async function groqChatTurnOnce({ system, messages, tools, maxTokens, onText, signal }) {
   const model = groqModel();
   const body = {
     model,
@@ -264,16 +322,17 @@ async function groqChatTurn({ system, messages, tools, maxTokens, onText, signal
     stream: true,
   };
   if (tools?.length) {
-    body.tools = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }));
+    body.tools = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: nullableOptional(t.parameters) } }));
     body.tool_choice = 'auto';
   }
-  const res = await post(`${GROQ_BASE}/chat/completions`, groqHeaders(), body, signal);
+  const res = await post(`${GROQ_BASE}/chat/completions`, groqHeaders(), withReasoningOptions(body), signal);
 
   let text = '';
   let emitted = false;
   const partial = new Map(); // index → { id, name, args }
   let usage = {};
   for await (const evt of sseEvents(res)) {
+    if (evt.error) throw Object.assign(new Error(`Groq stream error: ${evt.error.message || evt.error.code}`), { code: evt.error.code });
     const u = evt.usage || evt.x_groq?.usage;
     if (u) usage = u;
     const delta = evt?.choices?.[0]?.delta;

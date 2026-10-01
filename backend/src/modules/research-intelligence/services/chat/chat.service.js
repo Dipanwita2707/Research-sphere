@@ -44,6 +44,7 @@ How to work:
 Citations:
 - Tool results label publications and researchers with "ref" numbers. Cite them inline as [n] right after the claim they support, e.g. "Dr. Rao leads the work on federated learning [3], including a 2024 Q1 paper [7]."
 - Only cite ref numbers that appear in tool results from this turn.
+- Every paper or researcher you mention from a tool result gets its [n], including inside tables (put it next to the title or name). Use plain square brackets only.
 
 Style:
 - Lead with the direct answer, then the supporting detail. Be concise; use short paragraphs, bullet lists and markdown tables where they help (tables suit comparisons and rankings).
@@ -127,6 +128,9 @@ async function loadHistory(sessionId) {
   });
 }
 
+/** gpt-oss cites as 【6】; the UI and citedRefs expect [6]. Per-character, so it is safe on stream chunks. */
+const normalizeCitations = (text) => String(text).replace(/【/g, '[').replace(/】/g, ']');
+
 const citedRefs = (text) => {
   const refs = new Set();
   for (const m of String(text).matchAll(/\[(\d+(?:\s*,\s*\d+)*)\]/g)) m[1].split(',').forEach((n) => refs.add(Number(n.trim())));
@@ -198,7 +202,8 @@ async function streamReply({ sessionId, user, tenantId, message, emit, signal })
         maxTokens: 3072,
         signal,
         preferProvider: usage.provider || undefined,
-        onText: (t) => {
+        onText: (raw) => {
+          const t = normalizeCitations(raw);
           if (!roundText) emit('status', { phase: 'answering' });
           roundText += t;
           emit('delta', { text: t });
@@ -208,7 +213,7 @@ async function streamReply({ sessionId, user, tenantId, message, emit, signal })
       usage.output += turn.outputTokens;
       usage.provider = turn.provider;
       usage.model = turn.model;
-      answer += turn.text;
+      answer += normalizeCitations(turn.text);
 
       if (!turn.toolCalls.length) break;
 
@@ -240,7 +245,12 @@ async function streamReply({ sessionId, user, tenantId, message, emit, signal })
     } else {
       log.warn('Chat turn failed', { error: err.message, sessionId });
       if (!answer.trim()) {
-        emit('error', { message: err.name === 'AiUnavailableError' ? 'The AI service is unavailable right now. Please try again shortly.' : 'Something went wrong while answering. Please try again.' });
+        const rateLimited = /HTTP 429/.test(err.message);
+        emit('error', {
+          message: rateLimited
+            ? 'The AI service is at its usage limit right now. Please try again in a minute.'
+            : err.name === 'AiUnavailableError' ? 'The AI service is unavailable right now. Please try again shortly.' : 'Something went wrong while answering. Please try again.',
+        });
         return null;
       }
       answer += '\n\n_(The answer was cut short by an error.)_';
@@ -279,4 +289,4 @@ async function streamReply({ sessionId, user, tenantId, message, emit, signal })
   return saved;
 }
 
-module.exports = { createSession, listSessions, getMessages, updateSession, deleteSession, setFeedback, streamReply, _internals: { systemPrompt, citedRefs } };
+module.exports = { createSession, listSessions, getMessages, updateSession, deleteSession, setFeedback, streamReply, _internals: { systemPrompt, citedRefs, normalizeCitations } };
