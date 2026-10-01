@@ -99,7 +99,7 @@ function ReviewerPieChart({ approved, rejected, revisions, pending, height = 130
             {slices.map((entry, i) => <Cell key={i} fill={entry.color} />)}
           </Pie>
           <Tooltip contentStyle={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
-            formatter={(v?: number, name?: string) => [v ?? 0, name ?? '']} />
+            formatter={(v, name) => [v ?? 0, name ?? ''] as [number | string, string]} />
         </PieChart>
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -449,7 +449,7 @@ export default function DrdMemberAnalyticsPage() {
                                 {overallPieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                               </Pie>
                               <Tooltip contentStyle={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
-                                formatter={(v?: number, name?: string) => [v ?? 0, name ?? '']} />
+                                formatter={(v, name) => [v ?? 0, name ?? ''] as [number | string, string]} />
                               <Legend iconType="circle" iconSize={8}
                                 formatter={(value) => <span style={{ fontSize: 11, color: '#64748b' }}>{value}</span>} />
                             </PieChart>

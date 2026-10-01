@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, type JSX } from 'react';
 import dynamic from 'next/dynamic';
 import * as THREE from 'three';
 

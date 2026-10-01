@@ -1,7 +1,8 @@
 ﻿'use client';
 
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Instagram, ExternalLink, Calendar } from 'lucide-react';
+import { Heart, MessageCircle, ExternalLink, Calendar } from 'lucide-react';
+import { Instagram } from '@/shared/components/icons/BrandIcons';
 import Image from 'next/image';
 import { EXTERNAL_URLS } from '@/shared/constants';
 

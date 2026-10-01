@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
 import { Inter } from 'next/font/google';
 import AuthProvider from '@/shared/providers/AuthProvider';
 import QueryProvider from '@/shared/providers/QueryProvider';
@@ -8,12 +7,8 @@ import ErrorBoundary from '@/shared/providers/ErrorBoundary';
 import { ToastProvider } from '@/shared/ui-components/Toast';
 import { ConfirmModalProvider } from '@/shared/ui-components/ConfirmModal';
 import ConsentGate from '@/features/dpdp/components/ConsentGate';
+import NavigationProgress from '@/shared/components/common/NavigationProgressLoader';
 import '@/styles/globals.css';
-
-const NavigationProgress = dynamic(
-  () => import('@/shared/components/common/NavigationProgress').then(mod => mod.NavigationProgress),
-  { ssr: false }
-);
 
 const inter = Inter({ subsets: ['latin'] });
 

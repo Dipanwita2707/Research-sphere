@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { iprService, fileUploadService } from '@/features/ipr-management/services/ipr.service';
 import { 
   ArrowLeft, 
@@ -68,11 +68,9 @@ const SDG_OPTIONS = [
   { code: '17', title: 'Partnerships for the Goals' },
 ];
 
-interface EditApplicationPageProps {
-  params: { id: string };
-}
-
-export default function EditApplicationPage({ params }: EditApplicationPageProps) {
+export default function EditApplicationPage() {
+  // Next 15+: page params are a Promise, so read the route param on the client instead.
+  const params = useParams() as { id: string };
   const router = useRouter();
   const { user } = useAuthStore();
   const { toast } = useToast();

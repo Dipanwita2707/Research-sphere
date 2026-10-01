@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   description: 'How your university processes personal data under the Digital Personal Data Protection Act, 2023.',
 };
 
-export default function PrivacyNoticePage({ params }: { params: { universitySlug: string } }) {
-  return <PublicPrivacyPage universitySlug={decodeURIComponent(params.universitySlug)} />;
+export default async function PrivacyNoticePage({ params }: { params: Promise<{ universitySlug: string }> }) {
+  const { universitySlug } = await params;
+  return <PublicPrivacyPage universitySlug={decodeURIComponent(universitySlug)} />;
 }

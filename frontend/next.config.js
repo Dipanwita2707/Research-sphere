@@ -1,9 +1,13 @@
+const path = require('path');
+
 const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5001';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The repo root also has a package-lock.json; pin Turbopack to this app so it does not guess.
+  turbopack: { root: path.join(__dirname) },
+
   reactStrictMode: false, // Disabled: StrictMode double-invokes effects in dev, causing duplicate API calls
-  swcMinify: true,
 
   // Standalone output produces a minimal, self-contained server bundle
   // (only the node_modules actually needed at runtime) — required for a
@@ -11,15 +15,6 @@ const nextConfig = {
   // `.next/standalone` copy step has nothing to copy.
   output: 'standalone',
 
-  // Disable ESLint during production builds (for Render deployment)
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
-  // Configure for containerized environments
-  experimental: {
-  },
-  
   // Proxy API requests to backend
   async rewrites() {
     return [

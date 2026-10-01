@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   referrer: 'no-referrer',
 };
 
-export default function GuardianConsentRoute({ params }: { params: { token: string } }) {
-  return <GuardianConsentPage token={decodeURIComponent(params.token)} />;
+export default async function GuardianConsentRoute({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  return <GuardianConsentPage token={decodeURIComponent(token)} />;
 }

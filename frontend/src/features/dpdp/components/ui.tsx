@@ -95,7 +95,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-function useDialogBehaviour(open: boolean, onClose: (() => void) | undefined, containerRef: React.RefObject<HTMLDivElement>) {
+function useDialogBehaviour(open: boolean, onClose: (() => void) | undefined, containerRef: React.RefObject<HTMLDivElement | null>) {
   // Keep the latest onClose without re-running the effect (which would steal focus on every render).
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;

@@ -1,3 +1,6 @@
+/**
+ * @jest-environment-options {"url": "http://localhost:3000/test-page"}
+ */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -80,9 +83,8 @@ describe('BugReportForm', () => {
     (useBugReport as jest.Mock).mockReturnValue(defaultUseBugReportReturn);
     (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: defaultAuthUser });
     
-    // Mock window.location - delete first then redefine
-    delete (window as any).location;
-    (window as any).location = { href: 'http://localhost:3000/test-page' };
+    // window.location is the real (unforgeable) location in jsdom 27+; the page URL comes from the
+    // @jest-environment-options docblock at the top of this file.
   });
 
   describe('Rendering', () => {

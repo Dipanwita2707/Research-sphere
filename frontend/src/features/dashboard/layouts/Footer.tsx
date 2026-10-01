@@ -7,12 +7,9 @@ import {
   Mail,
   Phone,
   MapPin,
-  Facebook,
-  Twitter,
-  Linkedin,
-  Github,
   ChevronRight,
 } from 'lucide-react';
+import { Facebook, Twitter, Linkedin, Github } from '@/shared/components/icons/BrandIcons';
 import { BRAND } from '@/shared/config/brand';
 
 const Footer = () => {
