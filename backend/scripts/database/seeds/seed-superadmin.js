@@ -12,7 +12,7 @@
  * - uid / email default to SUPERADMIN_UID / SUPERADMIN_EMAIL, then SUPER001 / none.
  */
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env'), quiet: true });
 const bcrypt = require('bcryptjs');
 const {
   getArg, assertNotProduction, resolvePassword, printCredentials,

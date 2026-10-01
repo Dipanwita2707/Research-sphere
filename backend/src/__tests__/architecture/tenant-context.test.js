@@ -37,7 +37,7 @@ describe('architecture: tenant context across upload middleware', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('bindMiddleware keeps the tenant context through multer (and plain multer loses it)', async () => {
+  it('bindMiddleware keeps the tenant context through multer', async () => {
     const upload = multer({ storage: multer.memoryStorage() });
     const app = express();
     const seen = {};
@@ -67,7 +67,7 @@ describe('architecture: tenant context across upload middleware', () => {
       server.close();
     }
     expect(seen.bound).toBe('tenant-1');
-    // documents why the wrapper exists; if multer ever preserves context this can be relaxed
-    expect(seen.plain).not.toBe('tenant-1');
+    // Older multer dropped the context (why the wrapper exists); multer >= 2.4 preserves it, so
+    // plain multer is no longer asserted either way. The wrapper stays as a guard.
   });
 });

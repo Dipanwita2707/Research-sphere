@@ -21,7 +21,7 @@
  * Every tenant-owned row is written with an explicit universityId (no tenant context
  * is open, so the tenant extension does not scope these queries).
  */
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const bcrypt = require('bcryptjs');
 const {
   getArg, assertNotProduction, resolvePassword, printCredentials,

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const express = require('express');
 const { createServer } = require('http');
 const cors = require('cors');
@@ -145,7 +145,7 @@ const apiLimiter = rateLimit({
 });
 
 // Apply strict rate limit to login
-app.use("/api/*/auth/login", loginLimiter);
+app.use("/api/:version/auth/login", loginLimiter);
 
 // Apply general rate limit to all API routes and file downloads
 app.use("/api/", apiLimiter);
@@ -154,6 +154,11 @@ app.use("/uploads", apiLimiter);
 // Body parsing: JSON/urlencoded bodies are small; file uploads go through multer
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+// Express 5 leaves req.body undefined when there is no body; handlers rely on an object.
+app.use((req, _res, next) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
 app.use(cookieParser());
 
 // Compression for responses (reduces bandwidth for 25k users)
@@ -239,7 +244,7 @@ app.use(`${API_PREFIX}/audit`, auditModule);
 app.use(`${API_PREFIX}/superadmin`, superadminModule);
 
 // 404 handler (before the error handler so unmatched routes are not treated as errors)
-app.use("*", (req, res) => {
+app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found", requestId: req.id });
 });
 

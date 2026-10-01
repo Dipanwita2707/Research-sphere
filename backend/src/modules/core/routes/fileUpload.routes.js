@@ -20,7 +20,15 @@ router.post('/upload-prototype', withTenantContext(s3FileService.uploadPrototype
 router.get(/^\/download\/(.*)/, s3FileService.downloadFile);
 
 // Get file info
-router.get('/info/*', s3FileService.getFileInfo);
+// (Express 5 captures a wildcard as an array of segments; handlers expect one string.)
+router.get(
+  '/info/*filePath',
+  (req, _res, next) => {
+    if (Array.isArray(req.params.filePath)) req.params.filePath = req.params.filePath.join('/');
+    next();
+  },
+  s3FileService.getFileInfo
+);
 
 // Delete file
 router.delete('/file', s3FileService.deleteFile);

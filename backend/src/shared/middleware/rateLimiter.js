@@ -4,6 +4,7 @@
  */
 
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 const { logRateLimitViolation } = require('../../modules/bug-reports/utils/securityLogger');
 
 /**
@@ -22,7 +23,7 @@ const bugReportSubmissionLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   keyGenerator: (req) => {
     // Use user ID as key for authenticated users
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req.ip);
   },
   handler: (req, res) => {
     // Log rate limit violation
@@ -60,7 +61,7 @@ const screenshotUploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req.ip);
   },
   handler: (req, res) => {
     console.warn(`Rate limit exceeded for screenshot upload - User: ${req.user?.id || req.ip}`);
@@ -97,7 +98,7 @@ const adminDashboardLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req.ip);
   },
   handler: (req, res) => {
     console.warn(`Rate limit exceeded for admin dashboard - Admin: ${req.user?.id || req.ip}`);
@@ -134,7 +135,7 @@ const searchQueryLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.user?.id || req.ip;
+    return req.user?.id || ipKeyGenerator(req.ip);
   },
   handler: (req, res) => {
     console.warn(`Rate limit exceeded for search query - User: ${req.user?.id || req.ip}`);
@@ -206,7 +207,7 @@ const forgotPasswordEmailLimiter = passwordRecoveryLimiter({
   windowLabel: '1 hour',
   keyGenerator: (req) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    return email ? `forgot-email:${email}` : `forgot-ip:${req.ip}`;
+    return email ? `forgot-email:${email}` : `forgot-ip:${ipKeyGenerator(req.ip)}`;
   },
   message: 'Too many password reset requests for this email. Please try again later.',
 });

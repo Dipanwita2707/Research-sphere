@@ -73,7 +73,8 @@ function validateRequest({ body, params, query } = {}) {
       }
 
       if (query) {
-        req.query = query.parse(deepNormalizeStrings(req.query || {}));
+        // req.query is a read-only getter in Express 5: shadow it with the parsed value.
+        Object.defineProperty(req, 'query', { value: query.parse(deepNormalizeStrings(req.query || {})), writable: true, configurable: true, enumerable: true });
       }
 
       if (body) {

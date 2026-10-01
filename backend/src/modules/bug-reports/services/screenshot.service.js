@@ -6,7 +6,7 @@
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const sharp = require('sharp');
 const prisma = require('../../../shared/config/database');
 const { logScreenshotUpload } = require('../utils/securityLogger');
