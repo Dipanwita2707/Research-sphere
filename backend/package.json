@@ -68,5 +68,16 @@
     "jest": "^30.5.2",
     "nodemon": "^3.1.14",
     "prisma": "^5.19.0"
+  },
+  "overrides": {
+    "test-exclude": "^8",
+    "exceljs": {
+      "fast-csv": "^5",
+      "unzipper": "^0.12",
+      "uuid": "^11"
+    },
+    "archiver-utils": {
+      "glob": "^13"
+    }
   }
 }
