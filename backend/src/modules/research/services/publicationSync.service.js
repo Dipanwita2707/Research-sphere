@@ -1,3 +1,4 @@
+const { keysFor, findActiveClaims, normalizeDoi } = require('./duplicateClaim.service');
 const { createModuleLogger } = require('../../../shared/utils/logger');
 const { isAffiliationMatch } = require('../../../shared/utils/affiliationEngine');
 const affiliationService = require('../../core/services/affiliation.service');
@@ -9,17 +10,53 @@ const DEFAULT_ORCID_BASE_URL = process.env.ORCID_API_BASE_URL || 'https://pub.or
 const DEFAULT_SCOPUS_BASE_URL = process.env.SCOPUS_API_BASE_URL || 'https://api.elsevier.com/content';
 const DEFAULT_OPENALEX_BASE_URL = process.env.OPENALEX_API_BASE_URL || 'https://api.openalex.org';
 
-// Legacy SGT-specific Scopus Affiliation IDs. Scopus affiliation IDs are
-// opaque numeric identifiers assigned by Elsevier per-institution — they
-// cannot be derived algorithmically from a university's name, so this
-// data-only fallback is retained and gated to tenants whose University.code
-// is "SGT" (see _isSgtTenant()). Other universities simply won't have any
-// afid fallback until/unless their own IDs are added here.
-const SGT_SCOPUS_AFFIL_IDS = new Set([
-  '60113772',  // Shree Guru Gobind Singh Tricentenary University, Gurugram
-  '124037491', // SGT University Gurugram
-  '123581218', // SGT University
-  '133421016', // Shree Guru Gobind Singh Tricentenary (SGT) University
+const numberEnv = (name, fallback) => {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+};
+
+/** Per-request timeout for external registries (ms). */
+const httpTimeoutMs = () => numberEnv('PUBLICATION_SYNC_HTTP_TIMEOUT_MS', 20000);
+/** Retries after the first attempt for timeouts, network errors, 429 and 5xx. */
+const httpRetries = () => numberEnv('PUBLICATION_SYNC_HTTP_RETRIES', 2);
+/** Hours until the next attempt when a source failed during a sync. */
+const retryHours = () => numberEnv('PUBLICATION_SYNC_RETRY_HOURS', 6);
+/** Parallel per-paper lookups (Scopus abstract / OpenAlex by DOI / ORCID work detail). */
+const lookupConcurrency = () => Math.max(1, numberEnv('PUBLICATION_SYNC_LOOKUP_CONCURRENCY', 4));
+
+const MAX_RETRY_AFTER_MS = 60000;
+
+// Process-wide knowledge about the Scopus key's entitlements (the same key is used
+// for every tenant), plus a small cache of per-paper author lists.
+const scopusState = { completeViewDenied: false, abstractDenied: false };
+const scopusAuthorCache = new Map();
+const SCOPUS_AUTHOR_CACHE_MAX = 5000;
+
+const cacheScopusAuthors = (scopusId, authors) => {
+  if (!scopusId) return;
+  if (scopusAuthorCache.size >= SCOPUS_AUTHOR_CACHE_MAX) {
+    scopusAuthorCache.delete(scopusAuthorCache.keys().next().value);
+  }
+  scopusAuthorCache.set(scopusId, authors);
+};
+
+const toArray = (value) => {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+const DATE_PRECISION_RANK = { year: 1, month: 2, day: 3 };
+
+// Missing values that are enrichment gaps (no source supplies them), not reasons to hold
+// an imported work for special review.
+const ENRICHMENT_ONLY_FIELDS = new Set(['quartile', 'sjr']);
+
+// Nature / Science / The Lancet / Cell / NEJM as whole journal titles (incentive category
+// "nature_science_lancet_cell_nejm"). Sister journals are classified by their own indexing.
+const FLAGSHIP_JOURNAL_RE = /^(the\s+)?(nature|science|lancet|cell|nejm|new\s+england\s+journal\s+of\s+medicine)\.?$/i;
+
+const NAME_TITLES = new Set([
+  'dr', 'prof', 'professor', 'mr', 'mrs', 'ms', 'miss', 'er', 'smt', 'sir', 'phd', 'md', 'jr', 'sr', 'ii', 'iii',
 ]);
 
 class PublicationSyncService {
@@ -28,30 +65,117 @@ class PublicationSyncService {
     this.contributionService = contributionService;
     // Per-sync-run affiliation context, populated by _loadAffiliationContext().
     this._affiliationVariants = [];
+    this._ownerAffiliationVariants = [];
+    this._affiliationOptions = {};
+    this._scopusAffiliationIds = new Set();
     this._canonicalUniversityName = 'University';
     this._universityCode = null;
+    this._homeCountry = 'india';
+  }
+
+  /** Overridable in tests. */
+  _sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
-   * Load the tenant's dynamically-generated affiliation variants + canonical
-   * name for the duration of a sync/import run, replacing the old hardcoded
-   * SGT-only variant list. Must be called before any code path that relies
-   * on this._isAffiliationMatch() / this._canonicalUniversityName.
+   * fetch() with a timeout and bounded retries. Retries network errors, timeouts,
+   * 429 and 5xx (honouring Retry-After); returns any other response to the caller.
+   * Throws when every attempt failed.
    */
-  async _loadAffiliationContext(user) {
-    const { canonicalName, variants } = await affiliationService.getUniversityAffiliationVariants(
-      user?.universityId
-    );
-    this._affiliationVariants = variants;
-    this._canonicalUniversityName = canonicalName || 'University';
-    this._universityCode = user?.university?.code || null;
-    if (!this._universityCode && user?.universityId) {
-      const uni = await this.prisma.university.findUnique({
-        where: { id: user.universityId },
-        select: { code: true },
-      });
-      this._universityCode = uni?.code || null;
+  async _fetchWithRetry(url, init = {}, { source = 'external', timeoutMs = httpTimeoutMs(), retries = httpRetries() } = {}) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+      let response;
+      try {
+        response = await fetch(url, { ...init, ...(controller ? { signal: controller.signal } : {}) });
+      } catch (error) {
+        lastError = error?.name === 'AbortError'
+          ? new Error(`${source} request timed out after ${timeoutMs}ms`)
+          : new Error(`${source} request failed: ${error.message}`);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+
+      if (response) {
+        const status = response.status;
+        const retryable = status === 429 || (status >= 500 && status <= 599);
+        if (!retryable || attempt === retries) return response;
+        lastError = new Error(`${source} responded ${status}`);
+        const retryAfter = this._retryAfterMs(response);
+        if (retryAfter !== null) {
+          await this._sleep(Math.min(retryAfter, MAX_RETRY_AFTER_MS));
+          continue;
+        }
+      }
+
+      if (attempt < retries) {
+        await this._sleep(Math.min(1000 * 2 ** attempt + Math.floor(Math.random() * 250), MAX_RETRY_AFTER_MS));
+      }
     }
+    throw lastError || new Error(`${source} request failed`);
+  }
+
+  _retryAfterMs(response) {
+    const header = response?.headers?.get ? response.headers.get('retry-after') : null;
+    if (!header) return null;
+    const seconds = Number(header);
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+    const at = Date.parse(header);
+    return Number.isFinite(at) ? Math.max(0, at - Date.now()) : null;
+  }
+
+  /** Run fn over items with at most `limit` in flight; results keep input order. */
+  async _mapLimit(items, limit, fn) {
+    const results = new Array(items.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await fn(items[index], index);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return results;
+  }
+
+  /**
+   * Load the tenant's affiliation matcher context (name variants, city/state,
+   * Scopus affiliation ids) plus the user's own aliases for the duration of a
+   * sync/import run. Must be called before any code path that relies on
+   * this._isSgtAffiliation() / this._canonicalUniversityName.
+   */
+  async _loadAffiliationContext(user, identity = null) {
+    const context = await affiliationService.getUniversityAffiliationVariants(user?.universityId);
+    const { canonicalName, variants = [], locations = [], country = null, scopusAffiliationIds = [] } = context || {};
+    this._affiliationVariants = variants;
+    this._affiliationOptions = { locations, country: country || 'India' };
+    this._homeCountry = String(country || 'India').toLowerCase();
+    this._scopusAffiliationIds = new Set((scopusAffiliationIds || []).map(String));
+    this._canonicalUniversityName = canonicalName || 'University';
+    this._universityCode = user?.university?.code || context?.code || null;
+
+    // The user's Settings override and research-identity aliases count for the
+    // user's own author entry only (never for classifying co-authors).
+    let affiliationOverride = null;
+    try {
+      const settings = this.prisma.userSettings?.findUnique
+        ? await this.prisma.userSettings.findUnique({ where: { userId: user.id }, select: { affiliationOverride: true } })
+        : null;
+      affiliationOverride = settings?.affiliationOverride || null;
+    } catch (error) {
+      log.warn('Could not load affiliation override', { userId: user?.id, error: error.message });
+    }
+    const personal = typeof affiliationService.personalAffiliationAliases === 'function'
+      ? affiliationService.personalAffiliationAliases({
+        affiliationOverride,
+        identityAliases: (identity || user?.researchProfileIdentity)?.affiliationAliases,
+        locations,
+      })
+      : [];
+    this._ownerAffiliationVariants = personal.length > 0 ? [...variants, ...personal] : variants;
   }
 
   /**
@@ -87,11 +211,6 @@ class PublicationSyncService {
     return tenantId ? tenantContext.runForTenant(tenantId, () => fn(runner)) : fn(runner);
   }
 
-  /** Whether the current tenant is the legacy SGT University (for Scopus afid fallback only). */
-  _isSgtTenant() {
-    return this._universityCode === 'SGT';
-  }
-
   async getProfileIdentity(userId) {
     const identity = await this.prisma.researchProfileIdentity.findUnique({
       where: { userId },
@@ -120,6 +239,8 @@ class PublicationSyncService {
       syncStatus: 'never_synced',
       syncError: null,
       lastSyncedAt: null,
+      nextSyncAt: null,
+      identityVerification: null,
       importRuns: [],
     };
   }
@@ -159,13 +280,13 @@ class PublicationSyncService {
       throw error;
     }
 
-    // --- Genuine Identity Verification Check ---
     const user = await this.prisma.userLogin.findUnique({
       where: { id: userId },
       include: {
         employeeDetails: { select: { displayName: true } },
-        studentLogin: { select: { displayName: true } }
-      }
+        studentLogin: { select: { displayName: true } },
+        researchProfileIdentity: true,
+      },
     });
 
     // The lookup is tenant-scoped: never create an identity for a user of another university
@@ -175,58 +296,32 @@ class PublicationSyncService {
       throw error;
     }
 
-    const userDisplayName = user?.employeeDetails?.displayName || user?.studentLogin?.displayName || user?.uid;
+    const current = user.researchProfileIdentity || null;
+    const userDisplayName = user?.employeeDetails?.displayName || user?.studentLogin?.displayName || null;
 
-    if (userDisplayName) {
-      // 1. Verify Scopus ID against OpenAlex
-      if (data.scopusAuthorId) {
-        try {
-          const response = await fetch(`https://api.openalex.org/authors?filter=ids.scopus:${data.scopusAuthorId}`);
-          if (response.ok) {
-            const result = await response.json();
-            const author = result.results?.[0];
-            if (author) {
-              const authorName = author.display_name;
-              const alternatives = author.display_name_alternatives || [];
-              const allNames = [authorName, ...alternatives];
-              const nameMatches = allNames.some(name => this._isSamePersonName(name, userDisplayName));
-              if (!nameMatches) {
-                const error = new Error(`Scopus ID verification failed. The ID belongs to "${authorName}", which does not match your name "${userDisplayName}".`);
-                error.statusCode = 400;
-                throw error;
-              }
-            }
-          }
-        } catch (err) {
-          log.error('Failed to verify Scopus Author ID on identity update:', err);
-          if (err.statusCode === 400) throw err;
-        }
-      }
+    // Verify ids that are new or changed. A registry that cannot be reached does not
+    // block the save: the id is stored and marked unverified. A clear name mismatch or
+    // an id the registry does not know is rejected.
+    const verification = { ...this._asObject(current?.identityVerification) };
+    let verificationChanged = false;
+    if (data.orcid !== undefined && data.orcid !== (current?.orcid || null)) {
+      verificationChanged = true;
+      if (data.orcid) verification.orcid = await this._verifyOrcid(data.orcid, userDisplayName);
+      else delete verification.orcid;
+    }
+    if (data.scopusAuthorId !== undefined && data.scopusAuthorId !== (current?.scopusAuthorId || null)) {
+      verificationChanged = true;
+      if (data.scopusAuthorId) verification.scopus = await this._verifyScopusAuthor(data.scopusAuthorId, userDisplayName);
+      else delete verification.scopus;
+    }
+    if (verificationChanged) {
+      data.identityVerification = verification;
+      // The OpenAlex author was resolved from the old ids.
+      data.openAlexAuthorId = null;
+    }
 
-      // 2. Verify ORCID against OpenAlex
-      if (data.orcid) {
-        try {
-          const response = await fetch(`https://api.openalex.org/authors?filter=orcid:${data.orcid}`);
-          if (response.ok) {
-            const result = await response.json();
-            const author = result.results?.[0];
-            if (author) {
-              const authorName = author.display_name;
-              const alternatives = author.display_name_alternatives || [];
-              const allNames = [authorName, ...alternatives];
-              const nameMatches = allNames.some(name => this._isSamePersonName(name, userDisplayName));
-              if (!nameMatches) {
-                const error = new Error(`ORCID verification failed. The ID belongs to "${authorName}", which does not match your name "${userDisplayName}".`);
-                error.statusCode = 400;
-                throw error;
-              }
-            }
-          }
-        } catch (err) {
-          log.error('Failed to verify ORCID on identity update:', err);
-          if (err.statusCode === 400) throw err;
-        }
-      }
+    if (data.syncFrequencyDays !== undefined && current?.lastSyncedAt) {
+      data.nextSyncAt = new Date(new Date(current.lastSyncedAt).getTime() + data.syncFrequencyDays * 86400000);
     }
 
     return this.prisma.researchProfileIdentity.upsert({
@@ -237,6 +332,148 @@ class PublicationSyncService {
         ...this._stripUndefined(data),
       },
     });
+  }
+
+  _orcidHeaders() {
+    return {
+      Accept: 'application/json',
+      ...(process.env.ORCID_ACCESS_TOKEN ? { Authorization: `Bearer ${process.env.ORCID_ACCESS_TOKEN}` } : {}),
+    };
+  }
+
+  _scopusHeaders() {
+    return { 'X-ELS-APIKey': process.env.SCOPUS_API_KEY, Accept: 'application/json' };
+  }
+
+  _verificationResult(status, extra = {}) {
+    return { status, checkedAt: new Date().toISOString(), ...extra };
+  }
+
+  _rejectIdentity(message) {
+    const error = new Error(message);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  _anyNameMatches(names, personName) {
+    return names.some((name) => this._personNameMatches(name, personName) || this._isSamePersonName(name, personName));
+  }
+
+  /** Check an ORCID iD against the ORCID public registry. */
+  async _verifyOrcid(orcid, userDisplayName) {
+    let response;
+    try {
+      response = await this._fetchWithRetry(`${DEFAULT_ORCID_BASE_URL}/${encodeURIComponent(orcid)}/person`, {
+        headers: this._orcidHeaders(),
+      }, { source: 'ORCID', retries: 1 });
+    } catch (error) {
+      log.warn('ORCID verification lookup failed; saving as unverified', { orcid, error: error.message });
+      return this._verificationResult('unverified', { reason: `ORCID registry unreachable: ${error.message}` });
+    }
+    if (response.status === 404) {
+      this._rejectIdentity(`ORCID iD ${orcid} does not exist in the ORCID registry.`);
+    }
+    if (!response.ok) {
+      return this._verificationResult('unverified', { reason: `ORCID registry responded ${response.status}` });
+    }
+    let person;
+    try {
+      person = await response.json();
+    } catch {
+      return this._verificationResult('unverified', { reason: 'ORCID registry returned an unreadable response' });
+    }
+    const nameBlock = person?.name || {};
+    const fullName = [nameBlock?.['given-names']?.value, nameBlock?.['family-name']?.value].filter(Boolean).join(' ');
+    const names = [
+      nameBlock?.['credit-name']?.value,
+      fullName,
+      ...toArray(person?.['other-names']?.['other-name']).map((item) => item?.content),
+    ].filter(Boolean);
+    const registeredName = nameBlock?.['credit-name']?.value || fullName || null;
+
+    if (names.length === 0) {
+      return this._verificationResult('unverified', { reason: 'The ORCID record does not make its name public' });
+    }
+    if (!userDisplayName) {
+      return this._verificationResult('unverified', { name: registeredName, reason: 'No employee name to compare with' });
+    }
+    if (!this._anyNameMatches(names, userDisplayName)) {
+      this._rejectIdentity(`ORCID verification failed. The ID belongs to "${registeredName}", which does not match your name "${userDisplayName}".`);
+    }
+    return this._verificationResult('verified', { name: registeredName, via: 'orcid' });
+  }
+
+  /** Check a Scopus author id via the Scopus Author API, falling back to OpenAlex. */
+  async _verifyScopusAuthor(scopusAuthorId, userDisplayName) {
+    let names = null;
+    let via = null;
+    let reason = null;
+
+    if (process.env.SCOPUS_API_KEY) {
+      try {
+        const response = await this._fetchWithRetry(
+          `${DEFAULT_SCOPUS_BASE_URL}/author/author_id/${encodeURIComponent(scopusAuthorId)}?view=LIGHT`,
+          { headers: this._scopusHeaders() },
+          { source: 'Scopus', retries: 1 }
+        );
+        if (response.status === 404) {
+          this._rejectIdentity(`Scopus author id ${scopusAuthorId} does not exist in Scopus.`);
+        }
+        if (response.ok) {
+          const json = await response.json();
+          const record = toArray(json?.['author-retrieval-response'])[0];
+          if (record && record['@status'] !== 'not_found') {
+            names = [record['preferred-name'], ...toArray(record['name-variants'] || record['name-variant'])]
+              .filter(Boolean)
+              .map((n) => [n['given-name'], n.surname].filter(Boolean).join(' '))
+              .filter(Boolean);
+            via = 'scopus';
+          } else if (record) {
+            this._rejectIdentity(`Scopus author id ${scopusAuthorId} does not exist in Scopus.`);
+          }
+        } else {
+          reason = `Scopus Author API responded ${response.status}`;
+        }
+      } catch (error) {
+        if (error.statusCode === 400) throw error;
+        reason = `Scopus Author API unreachable: ${error.message}`;
+      }
+    }
+
+    if (!names) {
+      try {
+        const response = await this._fetchWithRetry(
+          `${DEFAULT_OPENALEX_BASE_URL}/authors?filter=scopus:${encodeURIComponent(scopusAuthorId)}`,
+          { headers: this._openAlexHeaders() },
+          { source: 'OpenAlex', retries: 1 }
+        );
+        if (response.ok) {
+          const author = (await response.json())?.results?.[0];
+          if (author) {
+            names = [author.display_name, ...(author.display_name_alternatives || [])].filter(Boolean);
+            via = 'openalex';
+          } else {
+            reason = reason || 'Scopus id not found in OpenAlex and Scopus not available';
+          }
+        } else {
+          reason = reason || `OpenAlex responded ${response.status}`;
+        }
+      } catch (error) {
+        reason = reason || `OpenAlex unreachable: ${error.message}`;
+      }
+    }
+
+    if (!names || names.length === 0) {
+      log.warn('Scopus author id could not be verified; saving as unverified', { scopusAuthorId, reason });
+      return this._verificationResult('unverified', { reason: reason || 'No registry returned a name for this id' });
+    }
+    if (!userDisplayName) {
+      return this._verificationResult('unverified', { name: names[0], reason: 'No employee name to compare with' });
+    }
+    if (!this._anyNameMatches(names, userDisplayName)) {
+      this._rejectIdentity(`Scopus ID verification failed. The ID belongs to "${names[0]}", which does not match your name "${userDisplayName}".`);
+    }
+    return this._verificationResult('verified', { name: names[0], via });
   }
 
   async listImportRuns({ userId, limit = 20 } = {}) {
@@ -291,11 +528,12 @@ class PublicationSyncService {
   }
 
   async _importManualPublications(userId, options = {}) {
+    this._authorMatchCache = new Map();
+    this._surnameCandidateCache = new Map();
     const {
       publications = [],
       importFormat = 'manual',
       triggeredById = null,
-      actor = { id: userId, role: 'faculty' },
     } = options;
 
     if (!Array.isArray(publications) || publications.length === 0) {
@@ -439,6 +677,9 @@ class PublicationSyncService {
       });
 
       throw error;
+    } finally {
+      this._authorMatchCache = null;
+      this._surnameCandidateCache = null;
     }
   }
 
@@ -454,7 +695,8 @@ class PublicationSyncService {
 
   async _syncFacultyPublications(userId, options = {}) {
     this._authorMatchCache = new Map();
-    this._openAlexInstCache = null;
+    this._surnameCandidateCache = new Map();
+    this._openAlexInstCache = undefined;
     const {
       triggeredById = null,
       triggerType = 'manual',
@@ -480,8 +722,6 @@ class PublicationSyncService {
       throw error;
     }
 
-    await this._loadAffiliationContext(user);
-
     let identity = user.researchProfileIdentity;
     if (!identity) {
       identity = await this.prisma.researchProfileIdentity.upsert({
@@ -492,6 +732,8 @@ class PublicationSyncService {
         },
       });
     }
+
+    await this._loadAffiliationContext(user, identity);
 
     const sourceSystems = this._determineSourceSystems(identity, sourcePreference);
     if (sourceSystems.length === 0) {
@@ -551,11 +793,16 @@ class PublicationSyncService {
       specialReviewCount: 0,
       errors: [],
       contributions: [],
+      sourceSkips: [],
     };
+    let sourceFailures = 0;
 
     try {
-      const { candidates, sourceErrors } = await this._discoverCandidates(user, identity, run.sourceSystems);
+      const { candidates, sourceErrors, sourceSkips = [], stats = {} } =
+        await this._discoverCandidates(user, identity, run.sourceSystems);
       summary.discoveredCount = candidates.length;
+      summary.sourceSkips = sourceSkips;
+      sourceFailures = sourceErrors.length;
       if (sourceErrors.length > 0) {
         summary.failedCount += sourceErrors.length;
         summary.errors.push(...sourceErrors.map((item) => ({
@@ -563,6 +810,12 @@ class PublicationSyncService {
           message: item.message,
         })));
       }
+      // A source that was deliberately not queried is reported, not counted as a failure.
+      summary.errors.push(...sourceSkips.map((item) => ({
+        title: `${String(item.source || 'external').toUpperCase()} skipped`,
+        message: item.reason,
+        skipped: true,
+      })));
 
       for (const candidate of candidates) {
         try {
@@ -596,24 +849,22 @@ class PublicationSyncService {
           specialReviewCount: summary.specialReviewCount,
           finishedAt: new Date(),
           errorSummary: summary.errors,
+          metadata: { sourceSkips, sourceFailures, ...stats },
         },
       });
 
-      await this.prisma.researchProfileIdentity.update({
-        where: { id: identity.id },
-        data: {
-          syncStatus: summary.failedCount > 0 ? 'failed' : 'success',
-          syncError: summary.failedCount > 0 ? `${summary.failedCount} issue(s) encountered during sync` : null,
-          lastSyncedAt: new Date(),
-        },
+      await this._recordSyncOutcome(identity, {
+        ok: summary.failedCount === 0,
+        error: summary.failedCount > 0
+          ? (sourceFailures > 0
+            ? `${sourceFailures} source(s) failed; retrying in ${retryHours()} hour(s)`
+            : `${summary.failedCount} publication(s) failed to import; retrying in ${retryHours()} hour(s)`)
+          : null,
+        partial: summary.failedCount > 0,
       });
 
-      this._authorMatchCache = null;
-      this._openAlexInstCache = null;
       return { runId: run.id, ...summary };
     } catch (error) {
-      this._authorMatchCache = null;
-      this._openAlexInstCache = null;
       await this.prisma.publicationImportRun.update({
         where: { id: run.id },
         data: {
@@ -629,55 +880,111 @@ class PublicationSyncService {
         },
       });
 
-      await this.prisma.researchProfileIdentity.update({
-        where: { id: identity.id },
-        data: {
-          syncStatus: 'failed',
-          syncError: error.message,
-          lastSyncedAt: new Date(),
-        },
-      });
+      await this._recordSyncOutcome(identity, { ok: false, error: error.message, partial: false });
 
       throw error;
+    } finally {
+      this._authorMatchCache = null;
+      this._surnameCandidateCache = null;
+      this._openAlexInstCache = undefined;
     }
   }
 
   /**
+   * After a clean run the profile is synced and comes due again after
+   * syncFrequencyDays. When a source (or the run) failed it is NOT marked synced:
+   * lastSyncedAt keeps the last clean run and the next attempt is a few hours away.
+   */
+  async _recordSyncOutcome(identity, { ok, error = null, partial = false }) {
+    const now = new Date();
+    const frequencyDays = Math.max(1, Number(identity.syncFrequencyDays) || 1);
+    const data = ok
+      ? {
+        syncStatus: 'success',
+        syncError: null,
+        lastSyncedAt: now,
+        nextSyncAt: new Date(now.getTime() + frequencyDays * 86400000),
+      }
+      : {
+        syncStatus: partial ? 'partial_success' : 'failed',
+        syncError: this._cleanString(error, 1000),
+        nextSyncAt: new Date(now.getTime() + retryHours() * 3600000),
+      };
+    await this.prisma.researchProfileIdentity.update({ where: { id: identity.id }, data });
+  }
+
+  /**
    * Sync every profile that is due.
-   * @param {{ universityId?: string }} [options]
+   *
+   * Due profiles are selected in the database (nextSyncAt reached, or never
+   * scheduled), oldest first, in batches, so nobody starves behind a large
+   * tenant. Up to `concurrency` profiles sync at once and no new profile starts
+   * after `deadline`.
+   *
+   * @param {{ universityId?: string, now?: Date, batchSize?: number, concurrency?: number, deadline?: number }} [options]
    *   universityId: process only this university (runs inside runForTenant when no tenant
    *   context is active). Without it and without a tenant context, profiles of every
    *   university are read explicitly (runAsSystem) and each is synced inside its own
    *   university's context.
    * @returns {Promise<Array<{ userId, status, result?, error? }>>}
    */
-  async runScheduledSync({ universityId } = {}) {
+  async runScheduledSync(options = {}) {
+    const { universityId } = options;
     const current = tenantContext.getTenantId();
     if (universityId && current !== universityId) {
       if (current) throw new Error('runScheduledSync: universityId does not match the active tenant');
-      return tenantContext.runForTenant(universityId, () => this.runScheduledSync({ universityId }));
+      return tenantContext.runForTenant(universityId, () => this.runScheduledSync(options));
     }
 
-    const now = new Date();
+    const now = options.now || new Date();
+    const batchSize = Math.max(1, Number(options.batchSize) || numberEnv('PUBLICATION_SYNC_BATCH_SIZE', 50));
+    const concurrency = Math.max(1, Number(options.concurrency) || numberEnv('PUBLICATION_SYNC_CONCURRENCY', 3));
+    const deadline = options.deadline || (Date.now() + numberEnv('PUBLICATION_SYNC_MAX_RUN_MS', 45 * 60 * 1000));
     const scoped = Boolean(current);
-    const loadIdentities = () => this.prisma.researchProfileIdentity.findMany({
+    const asScope = (fn) => (scoped ? fn() : tenantContext.runAsSystem(fn));
+
+    const identities = await asScope(() => this.prisma.researchProfileIdentity.findMany({
       where: {
         autoSyncEnabled: true,
+        OR: [{ nextSyncAt: null }, { nextSyncAt: { lte: now } }],
       },
       select: {
+        id: true,
         userId: true,
         universityId: true,
         lastSyncedAt: true,
         syncFrequencyDays: true,
+        nextSyncAt: true,
       },
-      take: 500,
-    });
-    const identities = scoped ? await loadIdentities() : await tenantContext.runAsSystem(loadIdentities);
+      orderBy: [
+        { nextSyncAt: { sort: 'asc', nulls: 'first' } },
+        { lastSyncedAt: { sort: 'asc', nulls: 'first' } },
+      ],
+      take: batchSize,
+    }));
+
+    // Rows without a schedule that were synced recently: schedule them instead of syncing.
+    const due = [];
+    for (const identity of identities) {
+      if (identity.nextSyncAt || this._isSyncDue(identity, now)) {
+        due.push(identity);
+        continue;
+      }
+      const frequencyDays = Math.max(1, Number(identity.syncFrequencyDays) || 1);
+      const nextSyncAt = new Date(new Date(identity.lastSyncedAt).getTime() + frequencyDays * 86400000);
+      try {
+        await asScope(() => this.prisma.researchProfileIdentity.update({ where: { id: identity.id }, data: { nextSyncAt } }));
+      } catch (error) {
+        log.warn('Could not schedule research profile', { identityId: identity.id, error: error.message });
+      }
+    }
 
     const results = [];
-    const dueIdentities = identities.filter((identity) => this._isSyncDue(identity, now));
-
-    for (const identity of dueIdentities) {
+    await this._mapLimit(due, concurrency, async (identity) => {
+      if (Date.now() > deadline) {
+        results.push({ userId: identity.userId, status: 'deferred' });
+        return;
+      }
       try {
         const run = () => this.syncFacultyPublications(identity.userId, {
           triggerType: 'scheduled',
@@ -689,16 +996,16 @@ class PublicationSyncService {
       } catch (error) {
         results.push({ userId: identity.userId, status: 'failed', error: error.message });
       }
-    }
+    });
 
     return results;
   }
 
   async _upsertCandidate(user, identity, candidate) {
-    // When "Filter SGT / home-university publications only" is enabled, import
-    // ONLY if the paper is home-institution affiliated. Scopus search payloads
-    // often omit author/affiliation fields even for AF-ID-filtered results, so
-    // we also honor trustedHomeInstitutionQuery set during discovery.
+    // "Only import publications affiliated with my university": import ONLY if the
+    // owner's author entry on the paper is home-affiliated (Scopus AF-ID, or the
+    // university's / the user's own affiliation names). An AF-ID constrained Scopus
+    // query is trusted as such.
     if (identity.filterSgtOnly) {
       const ownerAuthor = this._matchOwningFaculty(candidate.authors || [], user, identity);
       const isHome = this._isHomeInstitutionAuthor(ownerAuthor, candidate)
@@ -721,6 +1028,12 @@ class PublicationSyncService {
       };
     }
 
+    // A co-author at this university already claimed this work: don't create a second claim.
+    const colleagueClaims = await findActiveClaims(keysFor(payload));
+    if (colleagueClaims.some((c) => c.applicantUserId !== user.id)) {
+      return { outcome: 'skippedCount', contributionId: colleagueClaims[0].id, specialReviewRequired: false, duplicateOfClaim: true };
+    }
+
     const created = await this.contributionService.createContribution(payload, {});
     await this._ensureContributionAuthors(created.id, payload);
     await this._upsertImportLinks(identity.id, created.id, candidate);
@@ -728,7 +1041,9 @@ class PublicationSyncService {
       await this.contributionService.submitContribution(created.id, user.id, null);
     } catch (submitErr) {
       // Ignore if a concurrent import already advanced the status beyond draft
-      if (submitErr.statusCode !== 400 || !submitErr.message.startsWith('Cannot submit contribution in status')) {
+      // Duplicate of a claim made meanwhile: leave this one as a draft for the author to resolve.
+      const alreadyAdvanced = submitErr.statusCode === 400 && submitErr.message.startsWith('Cannot submit contribution in status');
+      if (!alreadyAdvanced && submitErr.code !== 'DUPLICATE_CLAIM') {
         throw submitErr;
       }
     }
@@ -747,13 +1062,8 @@ class PublicationSyncService {
     // ── 1. Try publicationImport index (fastest — direct FK lookup) ────────
     for (const [sourceSystem, externalId] of Object.entries(candidate.externalIds || {})) {
       if (!externalId) continue;
-      const publicationImport = await this.prisma.publicationImport.findUnique({
-        where: {
-          sourceSystem_externalId: {
-            sourceSystem,
-            externalId: String(externalId),
-          },
-        },
+      const publicationImport = await this.prisma.publicationImport.findFirst({
+        where: { sourceSystem, externalId: String(externalId) },
         include: {
           researchContribution: true,
         },
@@ -763,12 +1073,16 @@ class PublicationSyncService {
       }
     }
 
-    // ── 2. Fallback: search by DOI field ──────────────────────────────────
-    if (candidate.doi) {
+    // ── 2. Fallback: search by DOI (normalised; stored rows may carry a URL prefix or other case)
+    const doi = normalizeDoi(candidate.doi);
+    if (doi) {
       const byDoi = await this.prisma.researchContribution.findFirst({
         where: {
           applicantUserId: userId,
-          doi: candidate.doi,
+          OR: [
+            { doi: { equals: doi, mode: 'insensitive' } },
+            { doi: { endsWith: `/${doi}`, mode: 'insensitive' } },
+          ],
         },
       });
       if (byDoi) return byDoi;
@@ -872,59 +1186,84 @@ class PublicationSyncService {
       }
 
       if (field === 'indexingDetails') {
-        if (JSON.stringify(currentValue) !== JSON.stringify(nextValue)) {
+        if (!this._deepEqual(currentValue, nextValue)) {
           patch[field] = nextValue;
         }
       } else if (field === 'publicationDate') {
         // Allow overwriting year-only defaults (YYYY-01-01) with more precise dates
-        const isCurrentYearOnly = currentValue && String(currentValue).includes('T') && new Date(currentValue).getDate() === 1 && new Date(currentValue).getMonth() === 0;
-        const isCurrentMonthFirst = currentValue && String(currentValue).includes('T') && new Date(currentValue).getDate() === 1;
+        const isCurrentYearOnly = currentValue && new Date(currentValue).getUTCDate() === 1 && new Date(currentValue).getUTCMonth() === 0;
+        const isCurrentMonthFirst = currentValue && new Date(currentValue).getUTCDate() === 1;
         const newDate = nextValue ? new Date(nextValue) : null;
-        const currentDate = currentValue ? new Date(currentValue) : null;
-        // Replace if: no current value, or current is year-only (Jan 1st) and new date is more specific
-        if (!currentValue || (isCurrentYearOnly && newDate && newDate.getDate() !== 1)) {
+        const sameDay = newDate && currentValue && newDate.getTime() === new Date(currentValue).getTime();
+        if (sameDay) continue;
+        if (!currentValue && newDate) {
           patch[field] = newDate;
-        } else if (isCurrentMonthFirst && newDate && !(newDate.getDate() === 1 && newDate.getMonth() === 0)) {
-          // Current is month-first (day=1) and new has actual day
+        } else if (isCurrentYearOnly && newDate && !(newDate.getUTCDate() === 1 && newDate.getUTCMonth() === 0)
+          && newDate.getUTCFullYear() === new Date(currentValue).getUTCFullYear()) {
           patch[field] = newDate;
+        } else if (isCurrentMonthFirst && newDate && newDate.getUTCDate() !== 1
+          && newDate.getUTCFullYear() === new Date(currentValue).getUTCFullYear()
+          && newDate.getUTCMonth() === new Date(currentValue).getUTCMonth()) {
+          // Current is month-first (day=1) and new has the actual day
+          patch[field] = newDate;
+        }
+      } else if (field === 'doi') {
+        if (this._shouldApplyAutoValue(currentValue, nextValue) && normalizeDoi(currentValue) !== normalizeDoi(nextValue)) {
+          patch[field] = nextValue;
         }
       } else if (this._shouldApplyAutoValue(currentValue, nextValue)) {
         patch[field] = nextValue;
       }
     }
 
-    patch.lastSyncedAt = new Date();
-    patch.importMetadata = {
-      ...currentImportMetadata,
-      ...this._asObject(payload.importMetadata),
-      lastSeenCandidate: {
-        title: candidate.title,
-        publicationDate: candidate.publicationDate || null,
+    const mergedSources = Array.from(new Set([...(existing.sourceSystems || []), ...(payload.sourceSystems || [])]));
+    if (mergedSources.length !== (existing.sourceSystems || []).length) {
+      patch.sourceSystems = mergedSources;
+    }
+
+    // Authors are refreshed when the stored list is shorter / lacks Scopus ids.
+    const authorsReplaced = await this._ensureContributionAuthors(existing.id, payload);
+
+    // Bookkeeping (lastSyncedAt / importMetadata) is not a change: a re-sync that only
+    // touches those reports "skipped".
+    const changed = Object.keys(patch).filter((key) => key !== 'lastSyncedAt' && key !== 'importMetadata');
+    const bookkeeping = {
+      lastSyncedAt: new Date(),
+      importMetadata: {
+        ...currentImportMetadata,
+        ...this._asObject(payload.importMetadata),
+        lastSeenCandidate: {
+          title: candidate.title,
+          publicationDate: candidate.publicationDate || null,
+        },
       },
     };
-    patch.sourceSystems = Array.from(new Set([...(existing.sourceSystems || []), ...(payload.sourceSystems || [])]));
 
-    if (Object.keys(patch).length === 2 && patch.lastSyncedAt && patch.importMetadata) {
+    if (changed.length === 0 && !authorsReplaced) {
+      await this.prisma.researchContribution.update({ where: { id: existing.id }, data: bookkeeping });
       return { ...existing, _outcome: 'skippedCount' };
     }
 
     const updated = await this.prisma.researchContribution.update({
       where: { id: existing.id },
-      data: patch,
+      data: { ...patch, ...bookkeeping },
     });
 
-    await this._ensureContributionAuthors(existing.id, payload);
-
     if (existing.status === 'draft' && existing.sourceType === 'auto_import') {
-      await this.contributionService.submitContribution(existing.id, existing.applicantUserId, null);
+      try {
+        await this.contributionService.submitContribution(existing.id, existing.applicantUserId, null);
+      } catch (submitErr) {
+        if (submitErr.code !== 'DUPLICATE_CLAIM') throw submitErr;
+      }
     }
 
     return { ...updated, _outcome: 'updatedCount' };
   }
 
+  /** @returns {Promise<boolean>} true when the stored author list was replaced */
   async _ensureContributionAuthors(contributionId, payload) {
     const expected = Array.isArray(payload.authors) ? payload.authors.length : 0;
-    if (expected <= 1) return;
+    if (expected <= 1) return false;
 
     const existingCount = await this.prisma.researchContributionAuthor.count({
       where: { researchContributionId: contributionId },
@@ -945,26 +1284,22 @@ class PublicationSyncService {
       existingCount < expected
       || (payloadHasScopusIds && storedScopusCount === 0 && existingCount >= expected);
 
-    if (!shouldReplace) return;
+    if (!shouldReplace) return false;
 
     await this.contributionService.replaceImportedAuthors(contributionId, payload);
+    return true;
   }
 
   async _upsertImportLinks(researchProfileId, contributionId, candidate) {
     const entries = Object.entries(candidate.externalIds || {}).filter(([, value]) => value);
 
     for (const [sourceSystem, externalId] of entries) {
-      const existingImport = await this.prisma.publicationImport.findUnique({
-        where: {
-          sourceSystem_externalId: {
-            sourceSystem,
-            externalId: String(externalId),
-          },
-        },
+      const existingImport = await this.prisma.publicationImport.findFirst({
+        where: { sourceSystem, externalId: String(externalId) },
       });
 
       const sharedData = {
-        doi: this._cleanString(candidate.doi, 256),
+        doi: this._cleanString(normalizeDoi(candidate.doi), 256),
         publishedYear: candidate.publicationDate ? new Date(candidate.publicationDate).getFullYear() : null,
         normalizedTitle: this._cleanString(this._normalizeTitle(candidate.title), 512),
         lastSeenAt: new Date(),
@@ -988,8 +1323,8 @@ class PublicationSyncService {
         } catch (createErr) {
           // P2002 = unique constraint — a concurrent sync inserted the same row
           if (createErr.code !== 'P2002') throw createErr;
-          const concurrent = await this.prisma.publicationImport.findUnique({
-            where: { sourceSystem_externalId: { sourceSystem, externalId: String(externalId) } },
+          const concurrent = await this.prisma.publicationImport.findFirst({
+            where: { sourceSystem, externalId: String(externalId) },
           });
           if (concurrent && concurrent.researchProfileId === researchProfileId) {
             await this.prisma.publicationImport.update({
@@ -1020,10 +1355,18 @@ class PublicationSyncService {
     const publicationType = this._inferPublicationType(candidate);
     const indexingCategories = this._deriveIndexingCategories(candidate);
     const missingFields = this._collectMissingFields(publicationType, candidate, indexingCategories, mapped);
-    const specialReviewRequired = missingFields.length > 0 || mapped.hasAmbiguousInternalMatches;
+    const reviewReasons = missingFields.filter((field) => !ENRICHMENT_ONLY_FIELDS.has(field));
+    const specialReviewRequired = reviewReasons.length > 0;
     const importConfidence = this._calculateConfidence(missingFields, mapped);
     const fieldProvenance = {};
     const autoCalculatedFields = [];
+    const doi = normalizeDoi(candidate.doi);
+    const existingDetails = this._asObject(existing?.indexingDetails);
+    // Citation counts from different sources/runs: keep the highest seen.
+    const citationCount = Math.max(
+      Number(candidate.citationCount) || 0,
+      Number(existingDetails.citationCount) || 0
+    );
 
     const payload = {
       userId: user.id,
@@ -1041,7 +1384,7 @@ class PublicationSyncService {
       journalName: candidate.journalName || candidate.venue || null,
       issue: candidate.issue || null,
       pageNumbers: candidate.pageNumbers || null,
-      doi: candidate.doi || null,
+      doi: doi || null,
       issn: candidate.issn || null,
       publisherName: candidate.publisherName || null,
       isbn: candidate.isbn || null,
@@ -1050,7 +1393,7 @@ class PublicationSyncService {
       bookTitle: candidate.bookTitle || null,
       editors: candidate.editors || null,
       publisherLocation: candidate.publisherLocation || null,
-      conferenceName: candidate.conferenceName || null,
+      conferenceName: candidate.conferenceName || (publicationType === 'conference_paper' ? (candidate.venue || candidate.journalName || null) : null),
       conferenceLocation: candidate.conferenceLocation || null,
       conferenceDate: candidate.conferenceDate || null,
       proceedingsTitle: candidate.proceedingsTitle || null,
@@ -1087,15 +1430,18 @@ class PublicationSyncService {
         sourceSystems: candidate.sourceSystems || [],
         rawExternalIds: candidate.externalIds || {},
         specialReviewRequired,
+        specialReviewReasons: reviewReasons,
         importConfidence,
         missingFields,
+        ownerFoundInAuthorList: mapped.ownerFound,
+        authorsSource: candidate.authorsSource || null,
       },
       indexingDetails: {
-        ...(this._asObject(existing?.indexingDetails)),
+        ...existingDetails,
         sourceSystems: candidate.sourceSystems || [],
         specialReviewRequired,
         importConfidence,
-        citationCount: candidate.citationCount !== undefined ? candidate.citationCount : (this._asObject(existing?.indexingDetails)?.citationCount || 0),
+        citationCount,
         // Store affiliation summary for each source system
         affiliationSummary: this._buildAffiliationSummary(candidate.authors || [], mapped.sgtAffiliatedAuthors),
       },
@@ -1125,54 +1471,59 @@ class PublicationSyncService {
     return payload;
   }
 
+  /**
+   * Map a work's author list onto internal/external authors. The owner is matched to
+   * their own entry (ids first, then name + home affiliation) and that entry is marked;
+   * the owner is never invented — when they cannot be found, `ownerFound` is false and
+   * the work goes to special review.
+   */
   async _resolveAuthors(authors, user, identity) {
+    const authorList = Array.isArray(authors) ? authors : [];
+    const ownerIndex = this._findOwnerIndex(authorList, user, identity);
+    const matches = await this._matchInternalAuthors(authorList, ownerIndex);
+
     const resolvedAuthors = [];
-    const ownerAuthor = this._matchOwningFaculty(authors, user, identity);
     const seenKeys = new Set();
-    // Track matched internal user DB IDs to prevent the same person appearing twice
-    // under different name representations (e.g. "Prateek Agrawal" vs "Agrawal P.")
-    const seenUserIds = new Set([user.id]);
+    // The same person may appear under different name forms ("Prateek Agrawal" / "Agrawal P.").
+    const seenUserIds = new Set();
     let sgtAffiliatedAuthors = 0;
     let internalCoAuthors = 0;
     let foreignCollaborationsCount = 0;
     let internationalAuthor = false;
     let hasAmbiguousInternalMatches = false;
 
-    const ownerPayload = await this._buildInternalAuthor(user, ownerAuthor || {
-      name: user.employeeDetails?.displayName || user.uid,
-      email: user.email,
-      affiliation: user.employeeDetails?.primarySchool?.facultyName || this._canonicalUniversityName,
-      isCorresponding: Boolean(ownerAuthor?.isCorresponding),
-      authorOrder: 1,
-    }, 1);
-
-    resolvedAuthors.push(ownerPayload);
-    seenKeys.add(this._authorDedupKey(ownerPayload));
-    sgtAffiliatedAuthors += 1;
-
-    for (const [index, author] of authors.entries()) {
-      const matched = await this._matchInternalAuthor(author);
-      const isSgtAffiliation = author.isSgtByAfid || this._isSgtAffiliation(author.affiliation);
+    for (const [index, author] of authorList.entries()) {
       const order = Number(author.authorOrder || index + 1);
+
+      if (index === ownerIndex) {
+        const ownerPayload = await this._buildInternalAuthor(user, author, order);
+        resolvedAuthors.push(ownerPayload);
+        seenUserIds.add(user.id);
+        seenKeys.add(this._authorDedupKey({ userId: user.id, email: author.email, name: author.name }));
+        sgtAffiliatedAuthors += 1;
+        continue;
+      }
+
+      const matched = matches[index];
       const authorKey = this._authorDedupKey({
         userId: matched?.user?.id,
         email: author.email,
         name: author.name,
       });
-
-      // Skip if already seen by dedup key OR if the matched user is the owner / already added
       if (seenKeys.has(authorKey) || (matched?.user && seenUserIds.has(matched.user.id))) {
         continue;
       }
+      if (matched?.ambiguous) hasAmbiguousInternalMatches = true;
 
+      const isHome = this._isAuthorHomeAffiliated(author);
       let finalAuthor;
-      if (matched?.user) {
+      if (matched?.user && matched.user.id !== user.id) {
         seenUserIds.add(matched.user.id);
         finalAuthor = await this._buildInternalAuthor(matched.user, author, order);
         sgtAffiliatedAuthors += 1;
-        if (order > 1) internalCoAuthors += 1;
+        internalCoAuthors += 1;
       } else {
-        const normalizedType = isSgtAffiliation ? 'internal_faculty' : 'external_academic';
+        const isForeign = this._isForeignCountry(author.country);
         finalAuthor = {
           uid: null,
           registrationNumber: null,
@@ -1187,16 +1538,17 @@ class PublicationSyncService {
           authorPosition: order,
           isCorresponding: Boolean(author.isCorresponding),
           authorRole: this._deriveAuthorRole(order, Boolean(author.isCorresponding)),
-          authorType: normalizedType,
-          isInternational: !isSgtAffiliation,
+          authorType: isHome ? 'internal_faculty' : 'external_academic',
+          isInternational: !isHome && isForeign,
           scopusAuthorId: this._normalizeScopusAuthorId(author.scopusAuthorId),
         };
 
-        if (isSgtAffiliation) {
+        if (isHome) {
+          // Home-affiliated but not linked to an account: someone must map it.
           sgtAffiliatedAuthors += 1;
-          if (order > 1) internalCoAuthors += 1;
+          internalCoAuthors += 1;
           hasAmbiguousInternalMatches = true;
-        } else {
+        } else if (isForeign) {
           foreignCollaborationsCount += 1;
           internationalAuthor = true;
         }
@@ -1213,38 +1565,63 @@ class PublicationSyncService {
       foreignCollaborationsCount,
       internationalAuthor,
       hasAmbiguousInternalMatches,
+      ownerFound: ownerIndex !== -1,
     };
   }
 
+  /** The owner's entry in a work's author list, or null. */
   _matchOwningFaculty(authors, user, identity) {
     const authorList = Array.isArray(authors) ? authors : [];
-    const normalizedName = this._normalizeName(user.employeeDetails?.displayName || user.uid);
+    const index = this._findOwnerIndex(authorList, user, identity);
+    return index === -1 ? null : authorList[index];
+  }
 
-    // Strongest signal: the user's registered Scopus Author ID matches the paper's author authid
+  _findOwnerIndex(authorList, user, identity) {
+    if (!Array.isArray(authorList) || authorList.length === 0) return -1;
+
+    // Strongest signals: registry ids.
     const userScopusId = this._normalizeScopusAuthorId(identity?.scopusAuthorId);
     if (userScopusId) {
-      const byScopusId = authorList.find(
-        (author) => this._normalizeScopusAuthorId(author.scopusAuthorId) === userScopusId
-      );
-      if (byScopusId) return byScopusId;
+      const i = authorList.findIndex((a) => this._normalizeScopusAuthorId(a.scopusAuthorId) === userScopusId);
+      if (i !== -1) return i;
+    }
+    const userOrcid = this._normalizeOrcid(identity?.orcid);
+    if (userOrcid) {
+      const i = authorList.findIndex((a) => this._normalizeOrcid(this._stripOrcidUrl(a.orcid)) === userOrcid);
+      if (i !== -1) return i;
+    }
+    const openAlexIds = this._openAlexIdList(identity?.openAlexAuthorId);
+    if (openAlexIds.length > 0) {
+      const i = authorList.findIndex((a) => a.openAlexAuthorId && openAlexIds.includes(this._toOpenAlexFilterId(a.openAlexAuthorId)));
+      if (i !== -1) return i;
+    }
+    if (user?.email) {
+      const email = user.email.toLowerCase();
+      const i = authorList.findIndex((a) => a.email && a.email.toLowerCase() === email);
+      if (i !== -1) return i;
     }
 
-    const byEmail = authorList.find((author) =>
-      author.email && user.email && author.email.toLowerCase() === user.email.toLowerCase()
+    // Name match: accepted only when that entry is not clearly at another institution.
+    const ownerName = user?.employeeDetails?.displayName || null;
+    if (!ownerName) return -1;
+    const byName = authorList
+      .map((author, index) => ({ author, index }))
+      .filter(({ author }) => this._personNameMatches(author.name, ownerName));
+    if (byName.length === 0) return -1;
+
+    const home = byName.filter(({ author }) => this._isHomeInstitutionAuthor(author, null, { owner: true }));
+    if (home.length === 1) return home[0].index;
+    if (home.length > 1) return -1;
+
+    const unknownAffiliation = byName.filter(({ author }) => !this._hasAffiliationData(author));
+    return unknownAffiliation.length === 1 && byName.length === 1 ? unknownAffiliation[0].index : -1;
+  }
+
+  _hasAffiliationData(author) {
+    return Boolean(
+      (author?.affiliation && String(author.affiliation).trim())
+      || (Array.isArray(author?.scopusAfids) && author.scopusAfids.length > 0)
     );
-    if (byEmail) {
-      return byEmail;
-    }
-
-    const byNameAndAffiliation = authorList.find((author) =>
-      this._normalizeName(author.name) === normalizedName && (author.isSgtByAfid || this._isSgtAffiliation(author.affiliation))
-    );
-    if (byNameAndAffiliation) {
-      return byNameAndAffiliation;
-    }
-
-    const sameNameAuthors = authorList.filter((author) => this._normalizeName(author.name) === normalizedName);
-    return sameNameAuthors.length === 1 ? sameNameAuthors[0] : null;
   }
 
   _isSyncDue(identity, now = new Date()) {
@@ -1257,81 +1634,135 @@ class PublicationSyncService {
     return new Date(identity.lastSyncedAt).getTime() <= threshold;
   }
 
-  async _matchInternalAuthor(author) {
-    const email = this._cleanString(author.email, 256);
-    const uid = this._cleanString(author.uid || author.registrationNumber, 64);
-    const scopusAuthorId = this._normalizeScopusAuthorId(author.scopusAuthorId);
-    const normalizedName = this._normalizeName(author.name);
+  /**
+   * Resolve every author of one paper to internal users with a handful of batched
+   * queries (ids, emails, uids, then surnames for home-affiliated names) instead of
+   * several queries per author. Returns an array aligned with `authorList`:
+   * { user, confidence } | { ambiguous: true } | null.
+   */
+  async _matchInternalAuthors(authorList, skipIndex = -1) {
+    const results = new Array(authorList.length).fill(null);
+    if (!this._authorMatchCache) this._authorMatchCache = new Map();
+    if (!this._surnameCandidateCache) this._surnameCandidateCache = new Map();
+    const userInclude = {
+      employeeDetails: true,
+      studentLogin: true,
+      researchProfileIdentity: { select: { scopusAuthorId: true, orcid: true } },
+    };
 
-    // Create a unique lookup key for this author
-    const cacheKey = `${scopusAuthorId || ''}|${email || ''}|${uid || ''}|${normalizedName || ''}`;
-    if (this._authorMatchCache && this._authorMatchCache.has(cacheKey)) {
-      return this._authorMatchCache.get(cacheKey);
+    const pending = [];
+    authorList.forEach((author, index) => {
+      if (index === skipIndex) return;
+      const key = this._authorMatchKey(author);
+      if (this._authorMatchCache.has(key)) {
+        results[index] = this._authorMatchCache.get(key);
+      } else {
+        pending.push({ author, index, key });
+      }
+    });
+    if (pending.length === 0) return results;
+
+    const scopusIds = [...new Set(pending.map(({ author }) => this._normalizeScopusAuthorId(author.scopusAuthorId)).filter(Boolean))];
+    const orcids = [...new Set(pending.map(({ author }) => this._normalizeOrcid(this._stripOrcidUrl(author.orcid))).filter(Boolean))];
+    const emails = [...new Set(pending.map(({ author }) => this._cleanString(author.email, 256)).filter(Boolean))];
+    const uids = [...new Set(pending.map(({ author }) => this._cleanString(author.uid || author.registrationNumber, 64)).filter(Boolean))];
+
+    const safe = (promise) => Promise.resolve(promise).catch((error) => {
+      log.warn('Internal author lookup failed', { error: error.message });
+      return [];
+    });
+
+    const [profiles, byEmail, byUid] = await Promise.all([
+      scopusIds.length || orcids.length
+        ? safe(this.prisma.researchProfileIdentity.findMany({
+          where: {
+            OR: [
+              ...(scopusIds.length ? [{ scopusAuthorId: { in: scopusIds } }] : []),
+              ...(orcids.length ? [{ orcid: { in: orcids } }] : []),
+            ],
+          },
+          include: { user: { include: userInclude } },
+        }))
+        : [],
+      emails.length ? safe(this.prisma.userLogin.findMany({ where: { email: { in: emails } }, include: userInclude })) : [],
+      uids.length ? safe(this.prisma.userLogin.findMany({ where: { uid: { in: uids } }, include: userInclude })) : [],
+    ]);
+
+    // Name candidates only for home-affiliated authors, fetched once per surname per run.
+    const namePending = pending.filter(({ author }) => author.name && this._isAuthorHomeAffiliated(author));
+    const surnames = [...new Set(namePending.flatMap(({ author }) => this._surnameCandidates(author.name)))]
+      .filter((s) => !this._surnameCandidateCache.has(s));
+    if (surnames.length > 0) {
+      const rows = await safe(this.prisma.userLogin.findMany({
+        where: {
+          OR: surnames.map((surname) => ({ employeeDetails: { displayName: { contains: surname, mode: 'insensitive' } } })),
+        },
+        include: userInclude,
+        take: 500,
+      }));
+      for (const surname of surnames) {
+        this._surnameCandidateCache.set(surname, rows.filter((row) =>
+          this._nameParts(row.employeeDetails?.displayName).includes(surname)));
+      }
     }
 
-    const performMatch = async () => {
-      // Highest-confidence match: Scopus Author ID stored in the user's research profile
-      if (scopusAuthorId) {
-        const byProfile = await this.prisma.researchProfileIdentity.findFirst({
-          where: { scopusAuthorId },
-          include: {
-            user: { include: { employeeDetails: true, studentLogin: true } },
-          },
-        }).catch(() => null);
-        if (byProfile?.user) return { user: byProfile.user, confidence: 1 };
+    for (const { author, index, key } of pending) {
+      let match = null;
+      const scopusId = this._normalizeScopusAuthorId(author.scopusAuthorId);
+      const orcid = this._normalizeOrcid(this._stripOrcidUrl(author.orcid));
+      const profile = profiles.find((p) => (scopusId && p.scopusAuthorId === scopusId) || (orcid && p.orcid === orcid));
+      if (profile?.user) match = { user: profile.user, confidence: 1 };
+
+      const email = this._cleanString(author.email, 256);
+      if (!match && email) {
+        const found = byEmail.find((u) => u.email && u.email.toLowerCase() === email.toLowerCase());
+        if (found) match = { user: found, confidence: 1 };
+      }
+      const uid = this._cleanString(author.uid || author.registrationNumber, 64);
+      if (!match && uid) {
+        const found = byUid.find((u) => u.uid === uid);
+        if (found) match = { user: found, confidence: 1 };
       }
 
-      if (email) {
-        const byEmail = await this.prisma.userLogin.findUnique({
-          where: { email },
-          include: { employeeDetails: true, studentLogin: true },
-        }).catch(() => null);
-        if (byEmail) return { user: byEmail, confidence: 1 };
-      }
-
-      if (uid) {
-        const byUid = await this.prisma.userLogin.findUnique({
-          where: { uid },
-          include: { employeeDetails: true, studentLogin: true },
-        }).catch(() => null);
-        if (byUid) return { user: byUid, confidence: 1 };
-      }
-
-      const candidates = await this.prisma.userLogin.findMany({
-        where: {
-          employeeDetails: {
-            displayName: {
-              equals: author.name,
-              mode: 'insensitive',
-            },
-          },
-        },
-        include: {
-          employeeDetails: true,
-          studentLogin: true,
-        },
-        take: 3,
-      });
-
-      if (candidates.length === 1 && (author.isSgtByAfid || this._isSgtAffiliation(author.affiliation))) {
-        return { user: candidates[0], confidence: 0.7 };
-      }
-
-      if (candidates.length > 1 && (author.isSgtByAfid || this._isSgtAffiliation(author.affiliation))) {
-        const exact = candidates.find((item) => this._normalizeName(item.employeeDetails?.displayName || '') === normalizedName);
-        if (exact) {
-          return { user: exact, confidence: 0.55 };
+      // Name matches need a home affiliation on this paper; another institution's
+      // affiliation never links an author to one of our users.
+      if (!match && author.name && this._isAuthorHomeAffiliated(author)) {
+        const pool = new Map();
+        this._surnameCandidates(author.name).forEach((surname) => {
+          (this._surnameCandidateCache.get(surname) || []).forEach((row) => pool.set(row.id, row));
+        });
+        const named = [...pool.values()].filter((row) =>
+          this._personNameMatches(author.name, row.employeeDetails?.displayName));
+        if (named.length === 1) {
+          match = { user: named[0], confidence: 0.7 };
+        } else if (named.length > 1) {
+          const exact = named.filter((row) =>
+            this._normalizeName(row.employeeDetails?.displayName) === this._normalizeName(this._stripTitles(author.name)));
+          match = exact.length === 1 ? { user: exact[0], confidence: 0.55 } : { ambiguous: true };
         }
       }
 
-      return null;
-    };
-
-    const result = await performMatch();
-    if (this._authorMatchCache) {
-      this._authorMatchCache.set(cacheKey, result);
+      this._authorMatchCache.set(key, match);
+      results[index] = match;
     }
-    return result;
+    return results;
+  }
+
+  /** Single-author convenience wrapper (kept for callers/tests). */
+  async _matchInternalAuthor(author) {
+    const [match] = await this._matchInternalAuthors([author]);
+    return match && match.user ? match : null;
+  }
+
+  _authorMatchKey(author) {
+    return [
+      this._normalizeScopusAuthorId(author.scopusAuthorId) || '',
+      this._normalizeOrcid(this._stripOrcidUrl(author.orcid)) || '',
+      String(author.email || '').toLowerCase(),
+      author.uid || author.registrationNumber || '',
+      this._normalizeName(author.name),
+      this._isAuthorHomeAffiliated(author) ? 'home' : 'away',
+    ].join('|');
   }
 
   async _buildInternalAuthor(user, author, order) {
@@ -1343,7 +1774,11 @@ class PublicationSyncService {
       name: this._cleanString(author.name || user.employeeDetails?.displayName || user.uid, 256),
       email: this._cleanString(author.email || user.email, 256),
       phone: this._cleanString(author.phone || user.employeeDetails?.phoneNumber, 20),
-      affiliation: this._cleanString(author.affiliation || user.employeeDetails?.primarySchool?.facultyName || this._canonicalUniversityName, 256),
+      // An author entry taken from a source keeps the source's affiliation (possibly none):
+      // a 2008 paper must not be stamped with the user's current school.
+      affiliation: author.affiliation !== undefined
+        ? this._cleanString(author.affiliation, 256)
+        : this._cleanString(user.employeeDetails?.primarySchool?.facultyName || this._canonicalUniversityName, 256),
       department: this._cleanString(author.department || user.employeeDetails?.primaryDepartment?.departmentName, 256),
       designation: this._cleanString(author.designation || user.employeeDetails?.designation, 256),
       orderNumber: order,
@@ -1361,6 +1796,8 @@ class PublicationSyncService {
   async _discoverCandidates(user, identity, sourceSystems) {
     const byKey = new Map();
     const sourceErrors = [];
+    const sourceSkips = [];
+    const stats = {};
 
     const mergeWorks = (works) => {
       for (const work of works) {
@@ -1376,7 +1813,14 @@ class PublicationSyncService {
       }
 
       try {
-        mergeWorks(await fetcher());
+        const out = await fetcher();
+        const works = Array.isArray(out) ? out : (out?.works || []);
+        if (out && !Array.isArray(out)) {
+          if (out.skipped) sourceSkips.push({ source, reason: out.skipped });
+          if (Array.isArray(out.warnings)) out.warnings.forEach((message) => sourceErrors.push({ source, message }));
+          if (out.stats) stats[source] = out.stats;
+        }
+        mergeWorks(works);
       } catch (error) {
         sourceErrors.push({ source, message: error.message });
         log.warn('Skipping source after fetch failure', {
@@ -1400,22 +1844,32 @@ class PublicationSyncService {
     );
 
     const values = Array.from(byKey.values()).filter((item) => item.title);
+
+    // Works still without an author list (e.g. ORCID records without contributors):
+    // take the list from OpenAlex by DOI.
+    const authorless = values.filter((item) => (!item.authors || item.authors.length === 0) && item.doi);
+    if (authorless.length > 0) {
+      await this._mapLimit(authorless, lookupConcurrency(), async (item) => {
+        const authors = await this._fetchOpenAlexAuthorsByDoi(item.doi).catch(() => null);
+        if (authors && authors.length > 0) {
+          item.authors = authors;
+          item.authorsSource = 'openalex_doi';
+          item.homeInstitutionOnPaper = Boolean(item.homeInstitutionOnPaper || authors.some((a) => this._isAuthorHomeAffiliated(a)));
+        }
+      });
+    }
+
     values.sort((left, right) => new Date(right.publicationDate || 0).getTime() - new Date(left.publicationDate || 0).getTime());
-    return { candidates: values, sourceErrors };
+    return { candidates: values, sourceErrors, sourceSkips, stats };
   }
 
   async _fetchOrcidWorks(orcid) {
-    const headers = {
-      Accept: 'application/json',
-      ...(process.env.ORCID_ACCESS_TOKEN ? { Authorization: `Bearer ${process.env.ORCID_ACCESS_TOKEN}` } : {}),
-    };
+    const headers = this._orcidHeaders();
 
-    let worksResponse;
-    try {
-      worksResponse = await fetch(`${DEFAULT_ORCID_BASE_URL}/${encodeURIComponent(orcid)}/works`, { headers });
-    } catch (error) {
-      throw new Error(`ORCID works fetch failed: ${error.message}`);
-    }
+    const worksResponse = await this._fetchWithRetry(`${DEFAULT_ORCID_BASE_URL}/${encodeURIComponent(orcid)}/works`, { headers }, { source: 'ORCID works' })
+      .catch((error) => {
+        throw new Error(`ORCID works fetch failed: ${error.message}`);
+      });
 
     if (!worksResponse || !worksResponse.ok) {
       throw new Error(`ORCID works fetch failed (${worksResponse?.status || 'no response'})`);
@@ -1423,47 +1877,52 @@ class PublicationSyncService {
 
     const worksJson = await worksResponse.json();
     const groups = Array.isArray(worksJson.group) ? worksJson.group : [];
-    const works = [];
+    const summaries = groups.flatMap((group) => (Array.isArray(group['work-summary']) ? group['work-summary'] : []));
+    let detailFailures = 0;
 
-    for (const group of groups) {
-      const summaries = Array.isArray(group['work-summary']) ? group['work-summary'] : [];
-      for (const summary of summaries) {
-        const putCode = summary['put-code'];
-        let detail = null;
-
-        if (putCode !== undefined && putCode !== null) {
-          try {
-            const detailResponse = await fetch(`${DEFAULT_ORCID_BASE_URL}/${encodeURIComponent(orcid)}/work/${putCode}`, { headers });
-            if (detailResponse && detailResponse.ok) {
-              detail = await detailResponse.json();
-            }
-          } catch (error) {
-            log.warn('Skipping ORCID detail fetch failure', { orcid, putCode, error: error.message });
+    const works = await this._mapLimit(summaries, lookupConcurrency(), async (summary) => {
+      const putCode = summary['put-code'];
+      let detail = null;
+      if (putCode !== undefined && putCode !== null) {
+        try {
+          const detailResponse = await this._fetchWithRetry(
+            `${DEFAULT_ORCID_BASE_URL}/${encodeURIComponent(orcid)}/work/${putCode}`,
+            { headers },
+            { source: 'ORCID work' }
+          );
+          if (detailResponse && detailResponse.ok) {
+            detail = await detailResponse.json();
+          } else if (detailResponse?.status !== 404) {
+            detailFailures += 1;
           }
+        } catch (error) {
+          detailFailures += 1;
+          log.warn('ORCID detail fetch failure', { orcid, putCode, error: error.message });
         }
-
-        works.push(this._mapOrcidWork(summary, detail));
       }
-    }
+      return this._mapOrcidWork(summary, detail, orcid);
+    });
 
-    return works;
+    return {
+      works,
+      warnings: detailFailures > 0 ? [`${detailFailures} ORCID work detail(s) could not be fetched`] : [],
+      stats: { works: works.length, detailFailures },
+    };
   }
 
   async _fetchScopusWorks(scopusAuthorId, options = {}) {
     if (!process.env.SCOPUS_API_KEY) {
       log.warn('SCOPUS_API_KEY is not configured; skipping Scopus enrichment');
-      return [];
+      return { works: [], skipped: 'Scopus API key is not configured' };
     }
 
     const { filterSgtOnly = false } = options;
-    const useAfidFilter = filterSgtOnly && this._isSgtTenant() && SGT_SCOPUS_AFFIL_IDS.size > 0;
+    const affiliationIds = Array.from(this._scopusAffiliationIds || []);
+    const useAfidFilter = filterSgtOnly && affiliationIds.length > 0;
     let query = `AU-ID(${scopusAuthorId})`;
-    // When home-university filter is on for the SGT tenant, constrain Scopus at
-    // the API level using known SGT affiliation IDs.
+    // "My university only": constrain Scopus with this university's affiliation ids.
     if (useAfidFilter) {
-      const afidClause = Array.from(SGT_SCOPUS_AFFIL_IDS)
-        .map((id) => `AF-ID(${id})`)
-        .join(' OR ');
+      const afidClause = affiliationIds.map((id) => `AF-ID(${id})`).join(' OR ');
       query = `AU-ID(${scopusAuthorId}) AND (${afidClause})`;
     }
 
@@ -1475,26 +1934,28 @@ class PublicationSyncService {
       25
     );
     let totalResults = 0;
+    // COMPLETE carries author[] with afids; keys without that entitlement get 401/403.
+    let view = scopusState.completeViewDenied ? 'STANDARD' : 'COMPLETE';
 
-    do {
-      // Avoid restrictive `field=` projection — it often strips author/affiliation
-      // arrays from search results, which breaks affiliation filtering.
+    for (;;) {
       const params = new URLSearchParams({
         query,
         count: String(count),
         start: String(start),
+        view,
       });
 
-      let response;
-      try {
-        response = await fetch(`${DEFAULT_SCOPUS_BASE_URL}/search/scopus?${params.toString()}`, {
-          headers: {
-            'X-ELS-APIKey': process.env.SCOPUS_API_KEY,
-            Accept: 'application/json',
-          },
-        });
-      } catch (error) {
+      const response = await this._fetchWithRetry(`${DEFAULT_SCOPUS_BASE_URL}/search/scopus?${params.toString()}`, {
+        headers: this._scopusHeaders(),
+      }, { source: 'Scopus search' }).catch((error) => {
         throw new Error(`Scopus search failed: ${error.message}`);
+      });
+
+      if (view === 'COMPLETE' && (response?.status === 401 || response?.status === 403)) {
+        scopusState.completeViewDenied = true;
+        view = 'STANDARD';
+        log.info('Scopus COMPLETE view not permitted for this key; using STANDARD + abstract lookups');
+        continue;
       }
 
       if (!response || !response.ok) {
@@ -1531,56 +1992,151 @@ class PublicationSyncService {
       if (start >= totalResults || start >= 1000) {
         break;
       }
-    } while (start < totalResults);
+    }
 
-    return allEntries.map((entry) => {
+    const works = allEntries.map((entry) => {
       const mapped = this._mapScopusWork(entry);
-      // AF-ID constrained query already guarantees home-institution papers.
-      // Search payloads frequently omit author rows — mark as trusted so the
-      // local filter does not drop every result.
       if (useAfidFilter) {
         mapped.trustedHomeInstitutionQuery = true;
         mapped.homeInstitutionOnPaper = true;
       }
       return mapped;
     });
+
+    const stats = await this._enrichScopusAuthors(works);
+    return { works, stats: { works: works.length, view, ...stats } };
   }
 
+  /**
+   * Fill author lists for Scopus works whose search entry carried none: Abstract
+   * Retrieval API first (cached per paper), then OpenAlex by DOI. Works that still
+   * have no authors keep an empty list (and are reviewed for it).
+   */
+  async _enrichScopusAuthors(works) {
+    const stats = { authorsFromSearch: 0, authorsFromAbstract: 0, authorsFromOpenAlex: 0, authorsMissing: 0 };
+    const missing = [];
+    for (const work of works) {
+      if (Array.isArray(work.authors) && work.authors.length > 0) {
+        work.authorsSource = work.authorsSource || 'scopus_search';
+        stats.authorsFromSearch += 1;
+      } else {
+        missing.push(work);
+      }
+    }
+
+    await this._mapLimit(missing, lookupConcurrency(), async (work) => {
+      const scopusId = this._scopusNumericId(work.externalIds?.scopus);
+      let authors = scopusId && scopusAuthorCache.has(scopusId) ? scopusAuthorCache.get(scopusId) : null;
+      let via = authors ? 'scopus_abstract' : null;
+
+      if (!authors && scopusId && !scopusState.abstractDenied) {
+        authors = await this._fetchScopusAbstractAuthors(scopusId).catch(() => null);
+        if (authors && authors.length > 0) {
+          via = 'scopus_abstract';
+          cacheScopusAuthors(scopusId, authors);
+        }
+      }
+      if ((!authors || authors.length === 0) && work.doi) {
+        authors = await this._fetchOpenAlexAuthorsByDoi(work.doi).catch(() => null);
+        if (authors && authors.length > 0) via = 'openalex_doi';
+      }
+
+      if (authors && authors.length > 0) {
+        work.authors = authors;
+        work.authorsSource = via;
+        work.homeInstitutionOnPaper = Boolean(work.homeInstitutionOnPaper || authors.some((a) => this._isAuthorHomeAffiliated(a)));
+        if (via === 'scopus_abstract') stats.authorsFromAbstract += 1;
+        else stats.authorsFromOpenAlex += 1;
+      } else {
+        stats.authorsMissing += 1;
+      }
+    });
+    return stats;
+  }
+
+  async _fetchScopusAbstractAuthors(scopusId) {
+    for (const view of ['FULL', 'META_ABS']) {
+      const response = await this._fetchWithRetry(
+        `${DEFAULT_SCOPUS_BASE_URL}/abstract/scopus_id/${encodeURIComponent(scopusId)}?view=${view}`,
+        { headers: this._scopusHeaders() },
+        { source: 'Scopus abstract' }
+      );
+      if (response.status === 401 || response.status === 403) {
+        if (view === 'META_ABS') scopusState.abstractDenied = true;
+        continue;
+      }
+      if (!response.ok) return null;
+      const json = await response.json();
+      const authors = this._parseScopusAbstractAuthors(json);
+      if (authors.length > 0) return authors;
+    }
+    return null;
+  }
+
+  _parseScopusAbstractAuthors(json) {
+    const root = json?.['abstracts-retrieval-response'];
+    const authors = this._normalizeScopusAuthorField(root?.authors?.author);
+    if (authors.length === 0) return [];
+    const entryAffiliations = toArray(root?.affiliation).map((aff) => ({
+      afid: aff?.['@id'],
+      affilname: aff?.affilname,
+      'affiliation-city': aff?.['affiliation-city'],
+      'affiliation-country': aff?.['affiliation-country'],
+    }));
+    const seen = new Set();
+    const shaped = [];
+    for (const author of authors) {
+      const seq = author?.['@seq'];
+      if (seq && seen.has(seq)) continue;
+      if (seq) seen.add(seq);
+      shaped.push({
+        '@seq': seq,
+        authid: author?.['@auid'],
+        authname: author?.['ce:indexed-name'] || author?.['preferred-name']?.['ce:indexed-name'],
+        'given-name': author?.['ce:given-name'] || author?.['preferred-name']?.['ce:given-name'],
+        surname: author?.['ce:surname'] || author?.['preferred-name']?.['ce:surname'],
+        orcid: author?.['@orcid'] || author?.orcid,
+        afid: toArray(author?.affiliation).map((aff) => ({ $: aff?.['@id'] })).filter((a) => a.$),
+      });
+    }
+    return this._parseScopusAuthors(shaped, entryAffiliations);
+  }
+
+  async _fetchOpenAlexAuthorsByDoi(doi) {
+    const clean = normalizeDoi(doi);
+    if (!clean) return null;
+    const response = await this._fetchWithRetry(`${DEFAULT_OPENALEX_BASE_URL}/works/doi:${clean}`, {
+      headers: this._openAlexHeaders(),
+    }, { source: 'OpenAlex work' });
+    if (!response.ok) return null;
+    const work = await response.json();
+    return this._parseOpenAlexAuthors(work?.authorships);
+  }
+
+  /**
+   * OpenAlex works are fetched only for an author resolved from a strong identifier
+   * (stored OpenAlex id, ORCID, or Scopus id) — never from the name alone, which
+   * imported a namesake's papers. Without one, OpenAlex is skipped for the user.
+   */
   async _fetchOpenAlexWorks(user, identity, options = {}) {
     const { filterSgtOnly = false } = options;
-    const rawName = this._cleanString(user.employeeDetails?.displayName || user.uid, 256);
-    if (!rawName) {
-      return [];
-    }
-    // Strip common academic title prefixes/suffixes so OpenAlex can match cleanly
-    const authorName = rawName
-      .replace(/^(Prof\.?|Dr\.?|Mr\.?|Mrs\.?|Ms\.?)\s+/i, '')
-      .replace(/\s*,?\s*(Ph\.?D\.?|M\.?D\.?|M\.?B\.?A\.?|M\.?Tech\.?|B\.?Tech\.?|MBA|PhD|MD|MS|MSc|BSc)(\.?\s*,?\s*(Ph\.?D\.?|M\.?D\.?|MBA|PhD|MD))*\s*$/i, '')
-      .trim();
-    if (!authorName) {
-      return [];
+    const resolution = await this._resolveOpenAlexAuthorIds(user, identity);
+    if (!resolution.ids.length) {
+      log.info('OpenAlex skipped: no author resolved from a strong identifier', { userId: user.id, reason: resolution.reason });
+      return { works: [], skipped: resolution.reason };
     }
 
-    const institutionId = await this._findOpenAlexInstitutionId(identity, user);
-    const authorId = await this._findBestOpenAlexAuthorId(authorName, institutionId, identity, {
-      requireInstitution: filterSgtOnly,
-    });
-    if (!authorId) {
-      log.warn('No OpenAlex author match found', { userId: user.id, authorName });
-      return [];
-    }
-
-    const normalizedAuthorId = this._toOpenAlexFilterId(authorId);
-    const normalizedInstitutionId = this._toOpenAlexFilterId(institutionId);
+    const institutionId = filterSgtOnly ? await this._findOpenAlexInstitutionId(identity, user) : null;
+    const authorFilter = resolution.ids.join('|');
     const allResults = [];
     let page = 1;
     const perPage = 100;
     let totalCount = 0;
 
-    do {
-      const filterParts = [`author.id:${normalizedAuthorId}`];
-      if (filterSgtOnly && normalizedInstitutionId) {
-        filterParts.push(`institutions.id:${normalizedInstitutionId}`);
+    for (;;) {
+      const filterParts = [`author.id:${authorFilter}`];
+      if (filterSgtOnly && institutionId) {
+        filterParts.push(`institutions.id:${this._toOpenAlexFilterId(institutionId)}`);
       }
       const params = new URLSearchParams({
         filter: filterParts.join(','),
@@ -1589,14 +2145,11 @@ class PublicationSyncService {
         page: String(page),
       });
 
-      let response;
-      try {
-        response = await fetch(`${DEFAULT_OPENALEX_BASE_URL}/works?${params.toString()}`, {
-          headers: this._openAlexHeaders(),
-        });
-      } catch (error) {
+      const response = await this._fetchWithRetry(`${DEFAULT_OPENALEX_BASE_URL}/works?${params.toString()}`, {
+        headers: this._openAlexHeaders(),
+      }, { source: 'OpenAlex works' }).catch((error) => {
         throw new Error(`OpenAlex works fetch failed: ${error.message}`);
-      }
+      });
 
       if (!response || !response.ok) {
         throw new Error(`OpenAlex works fetch failed (${response?.status || 'no response'})`);
@@ -1616,165 +2169,181 @@ class PublicationSyncService {
       }
 
       page += 1;
-    } while (allResults.length < totalCount);
+    }
 
-    return allResults.map((work) => this._mapOpenAlexWork(work));
+    // Every imported work must list the resolved author (by OpenAlex id or ORCID).
+    const idSet = new Set(resolution.ids);
+    const orcid = this._normalizeOrcid(identity?.orcid);
+    const verified = allResults.filter((work) => (Array.isArray(work?.authorships) ? work.authorships : []).some((a) =>
+      idSet.has(this._toOpenAlexFilterId(a?.author?.id))
+      || (orcid && this._normalizeOrcid(this._stripOrcidUrl(a?.author?.orcid)) === orcid)));
+
+    return {
+      works: verified.map((work) => this._mapOpenAlexWork(work)),
+      stats: { resolvedVia: resolution.via, authorIds: resolution.ids, works: verified.length, droppedNotListingAuthor: allResults.length - verified.length },
+    };
   }
 
-  async _findOpenAlexInstitutionId(identity, user) {
-    if (this._openAlexInstCache) {
+  /**
+   * @returns {Promise<{ ids: string[], via: string|null, reason: string|null }>}
+   */
+  async _resolveOpenAlexAuthorIds(user, identity) {
+    const orcid = this._normalizeOrcid(identity?.orcid);
+    const scopusId = this._normalizeScopusAuthorId(identity?.scopusAuthorId);
+    // A stored id is reused while the ORCID/Scopus id it was resolved from is unchanged
+    // (ids can be edited elsewhere, e.g. employee bulk upload); an id stored without a
+    // source (set by an administrator) is always trusted.
+    const stored = this._openAlexIdList(identity?.openAlexAuthorId);
+    const resolvedFrom = this._asObject(this._asObject(identity?.identityVerification).openalex).resolvedFrom;
+    const storedStillValid = !resolvedFrom
+      || (orcid && resolvedFrom === `orcid:${orcid}`)
+      || (scopusId && resolvedFrom === `scopus:${scopusId}`);
+    if (stored.length > 0 && storedStillValid) return { ids: stored, via: 'stored', reason: null };
+
+    const employeeName = user?.employeeDetails?.displayName || null;
+    const attempts = [];
+    if (orcid) attempts.push({ via: 'orcid', filter: `orcid:${orcid}`, check: (a) => this._normalizeOrcid(this._stripOrcidUrl(a?.orcid)) === orcid });
+    if (scopusId) attempts.push({ via: 'scopus', filter: `scopus:${scopusId}`, check: () => true });
+
+    if (attempts.length === 0) {
+      return { ids: [], via: null, reason: 'No ORCID, Scopus or OpenAlex author id on the research profile; OpenAlex is not searched by name.' };
+    }
+
+    const reasons = [];
+    for (const attempt of attempts) {
+      const params = new URLSearchParams({ filter: attempt.filter, 'per-page': '25' });
+      const response = await this._fetchWithRetry(`${DEFAULT_OPENALEX_BASE_URL}/authors?${params.toString()}`, {
+        headers: this._openAlexHeaders(),
+      }, { source: 'OpenAlex authors' }).catch((error) => {
+        throw new Error(`OpenAlex author lookup failed: ${error.message}`);
+      });
+      if (!response.ok) {
+        throw new Error(`OpenAlex author lookup failed (${response.status})`);
+      }
+      const json = await response.json();
+      const found = (Array.isArray(json?.results) ? json.results : []).filter((a) => a?.id && attempt.check(a));
+      if (found.length === 0) {
+        reasons.push(`no OpenAlex author has this ${attempt.via === 'orcid' ? 'ORCID' : 'Scopus id'}`);
+        continue;
+      }
+
+      let chosen = found;
+      if (found.length > 1) {
+        // Several OpenAlex profiles claim the id: keep those that are this person.
+        chosen = employeeName
+          ? found.filter((a) => this._anyNameMatches([a.display_name, ...(a.display_name_alternatives || [])].filter(Boolean), employeeName))
+          : [];
+        if (chosen.length === 0) {
+          reasons.push(`${found.length} OpenAlex authors share this ${attempt.via === 'orcid' ? 'ORCID' : 'Scopus id'} and none matches the employee name`);
+          continue;
+        }
+      }
+      const ids = chosen.slice(0, 5).map((a) => this._toOpenAlexFilterId(a.id));
+      if (identity?.id && this.prisma.researchProfileIdentity?.update) {
+        const source = attempt.via === 'orcid' ? `orcid:${orcid}` : `scopus:${scopusId}`;
+        await this.prisma.researchProfileIdentity.update({
+          where: { id: identity.id },
+          data: {
+            openAlexAuthorId: ids.join('|'),
+            identityVerification: {
+              ...this._asObject(identity.identityVerification),
+              openalex: { resolvedFrom: source, ids, checkedAt: new Date().toISOString() },
+            },
+          },
+        }).catch((error) => log.warn('Could not store OpenAlex author id', { error: error.message }));
+      }
+      return { ids, via: attempt.via, reason: null };
+    }
+
+    return { ids: [], via: null, reason: `OpenAlex author not resolved: ${reasons.join('; ')}.` };
+  }
+
+  /**
+   * The tenant's OpenAlex institution id, only when a search result's name is an
+   * exact/high-similarity match for the university (never the first search hit).
+   */
+  async _findOpenAlexInstitutionId() {
+    if (this._openAlexInstCache !== undefined) {
       return this._openAlexInstCache;
     }
-
-    // Build the OpenAlex institution search candidate list from the tenant's
-    // dynamically-generated affiliation variants (favouring longer/more
-    // specific variants first, since OpenAlex's fuzzy search performs best
-    // with fuller names) plus any per-user aliases and their school name.
-    const sortedVariants = [...this._affiliationVariants].sort((a, b) => b.length - a.length);
-    const candidates = [
-      this._canonicalUniversityName,
-      ...(Array.isArray(identity?.affiliationAliases) ? identity.affiliationAliases : []),
-      user?.employeeDetails?.primarySchool?.facultyName,
-      ...sortedVariants,
-    ]
-      .map((item) => this._cleanString(item, 256))
-      .filter(Boolean);
-
-    for (const name of candidates) {
-      const params = new URLSearchParams({
-        search: name,
-        'per-page': '5',
-      });
-
-      let response;
-      try {
-        response = await fetch(`${DEFAULT_OPENALEX_BASE_URL}/institutions?${params.toString()}`, {
-          headers: this._openAlexHeaders(),
-        });
-      } catch (error) {
-        log.warn('OpenAlex institution search failed', { name, error: error.message });
-        continue;
-      }
-
-      if (!response || !response.ok) {
-        continue;
-      }
-
-      const json = await response.json();
-      const institutions = Array.isArray(json?.results) ? json.results : [];
-      const match = institutions.find((institution) =>
-        this._normalizeName(institution?.display_name).includes(this._normalizeName(name))
-      ) || institutions[0];
-
-      if (match?.id) {
-        this._openAlexInstCache = match.id;
-        return match.id;
-      }
+    this._openAlexInstCache = null;
+    const params = new URLSearchParams({ search: this._canonicalUniversityName, 'per-page': '10' });
+    let response;
+    try {
+      response = await this._fetchWithRetry(`${DEFAULT_OPENALEX_BASE_URL}/institutions?${params.toString()}`, {
+        headers: this._openAlexHeaders(),
+      }, { source: 'OpenAlex institutions', retries: 1 });
+    } catch (error) {
+      log.warn('OpenAlex institution search failed', { error: error.message });
+      return null;
     }
-
-    return null;
+    if (!response || !response.ok) return null;
+    const json = await response.json();
+    const institutions = Array.isArray(json?.results) ? json.results : [];
+    const match = institutions.find((institution) =>
+      [institution?.display_name, ...(institution?.display_name_alternatives || []), ...(institution?.display_name_acronyms || [])]
+        .filter(Boolean)
+        .some((name) => this._isSgtAffiliation(name)));
+    this._openAlexInstCache = match?.id || null;
+    return this._openAlexInstCache;
   }
 
-  async _findBestOpenAlexAuthorId(authorName, institutionId, identity, options = {}) {
-    const { requireInstitution = false } = options;
-    const normalizedInstitutionId = this._toOpenAlexFilterId(institutionId);
-    const attemptParams = [
-      this._stripUndefined({
-        search: authorName,
-        'per-page': '10',
-        filter: normalizedInstitutionId ? `last_known_institutions.id:${normalizedInstitutionId}` : undefined,
-      }),
-    ];
-
-    // Only fall back to an unfiltered name search when the home-university
-    // filter is OFF — otherwise we pick authors from other institutions.
-    if (!requireInstitution || !normalizedInstitutionId) {
-      attemptParams.push({
-        search: authorName,
-        'per-page': '10',
-      });
-    }
-
-    let lastError = null;
-
-    for (const paramsObject of attemptParams) {
-      const params = new URLSearchParams(paramsObject);
-      
-      let response;
-      try {
-        response = await fetch(`${DEFAULT_OPENALEX_BASE_URL}/authors?${params.toString()}`, {
-          headers: this._openAlexHeaders(),
-        });
-      } catch (error) {
-        lastError = new Error(`OpenAlex author search failed: ${error.message}`);
-        log.warn('OpenAlex author search request failed', {
-          error: error.message,
-          params: params.toString(),
-        });
-        continue;
-      }
-
-      if (!response || !response.ok) {
-        lastError = new Error(`OpenAlex author search failed (${response?.status || 'no response'})`);
-        log.warn('OpenAlex author search request failed', {
-          status: response?.status || 'no response',
-          params: params.toString(),
-        });
-        continue;
-      }
-
-      const json = await response.json();
-      const authors = Array.isArray(json?.results) ? json.results : [];
-      if (authors.length === 0) {
-        continue;
-      }
-
-      const scored = this._scoreOpenAlexAuthors(authors, authorName, identity);
-      if (scored.length > 0) {
-        return scored[0].id;
-      }
-    }
-
-    if (lastError) {
-      throw lastError;
-    }
-
-    return null;
-  }
-
-  _mapOrcidWork(summary, detail) {
+  _mapOrcidWork(summary, detail, ownerOrcid = null) {
     const title = detail?.title?.title?.value || summary?.title?.title?.value || null;
-    const journalTitle = detail?.['journal-title']?.value || null;
-    const publicationDate = this._orcidDate(detail?.['publication-date'] || summary?.['publication-date']);
-    const externalIds = this._extractOrcidExternalIds(detail?.['external-ids'] || summary?.['external-ids']);
-    const doi = externalIds.doi || null;
+    const bibtexRaw = detail?.citation?.['citation-type'] === 'bibtex' ? detail?.citation?.['citation-value'] : null;
+    const journalTitle = detail?.['journal-title']?.value || summary?.['journal-title']?.value
+      || this._bibtexField(bibtexRaw, 'journal') || null;
+    const { date: publicationDate, precision: datePrecision } = this._orcidDateInfo(detail?.['publication-date'] || summary?.['publication-date']);
+    const ids = this._extractOrcidExternalIds(detail?.['external-ids'] || summary?.['external-ids']);
+    const doi = normalizeDoi(ids.doi);
     const workType = detail?.type || summary?.type || null;
-    const contributors = Array.isArray(detail?.contributors?.contributor)
-      ? detail.contributors.contributor.map((item, index) => ({
+    const bibtex = bibtexRaw;
+    const normalizedOwnerOrcid = this._normalizeOrcid(ownerOrcid);
+
+    const contributors = toArray(detail?.contributors?.contributor)
+      .filter((item) => {
+        const role = String(item?.['contributor-attributes']?.['contributor-role'] || 'author').toLowerCase();
+        return role === 'author' || role === 'co-investigator' || role === 'principal-investigator' || role === '';
+      })
+      .map((item, index) => {
+        const contributorOrcid = this._normalizeOrcid(item?.['contributor-orcid']?.path);
+        return {
           name: item?.['credit-name']?.value || `Author ${index + 1}`,
           email: null,
-          affiliation: item?.['contributor-attributes']?.['contributor-role'] || null,
+          // ORCID contributor records carry no affiliation.
+          affiliation: null,
+          orcid: contributorOrcid,
           department: null,
           designation: null,
           isCorresponding: false,
           authorOrder: index + 1,
-        }))
-      : [];
+          isOrcidOwner: Boolean(normalizedOwnerOrcid && contributorOrcid === normalizedOwnerOrcid),
+        };
+      });
+    const editors = toArray(detail?.contributors?.contributor)
+      .filter((item) => String(item?.['contributor-attributes']?.['contributor-role'] || '').toLowerCase() === 'editor')
+      .map((item) => item?.['credit-name']?.value)
+      .filter(Boolean);
+
+    const url = detail?.url?.value || summary?.url?.value || null;
 
     return this._stripUndefined({
       title,
-      abstract: detail?.shortDescription || null,
-      keywords: Array.isArray(detail?.subject) ? detail.subject.map((item) => item?.value).filter(Boolean) : [],
+      abstract: detail?.['short-description'] || null,
+      keywords: [],
       doi,
       journalName: journalTitle,
       publicationDate,
-      issn: detail?.isbn?.value || null,
+      datePrecision,
+      issn: this._cleanString(ids.issn, 32),
+      isbn: this._cleanString(ids.isbn, 32),
       publisherName: detail?.publisher?.name || null,
-      volume: detail?.citation?.['citation-value'] || null,
-      issue: null,
-      pageNumbers: null,
-      weblink: doi ? `https://doi.org/${doi}` : (detail?.url?.value || null),
+      volume: this._cleanString(detail?.['journal-volume']?.value || this._bibtexField(bibtex, 'volume'), 64),
+      issue: this._cleanString(detail?.['journal-issue']?.value || this._bibtexField(bibtex, 'number'), 64),
+      pageNumbers: this._cleanString(this._bibtexField(bibtex, 'pages'), 64),
+      weblink: doi ? `https://doi.org/${doi}` : this._cleanString(url, 512),
       authors: contributors,
+      editors: editors.length > 0 ? editors.join(', ') : undefined,
       venue: journalTitle,
       publicationStatus: 'published',
       sourceSystems: ['orcid'],
@@ -1786,34 +2355,44 @@ class PublicationSyncService {
     });
   }
 
+  /** A single field of a BibTeX record, e.g. volume={9} / volume = "9". */
+  _bibtexField(bibtex, field) {
+    if (!bibtex || typeof bibtex !== 'string') return null;
+    const match = bibtex.match(new RegExp(`(?:^|[,\\s])${field}\\s*=\\s*(?:\\{([^{}]*)\\}|"([^"]*)"|(\\d+))`, 'i'));
+    if (!match) return null;
+    const value = (match[1] ?? match[2] ?? match[3] ?? '').trim();
+    return value || null;
+  }
+
   _mapScopusWork(entry) {
-    const doi = this._cleanString(entry?.['prism:doi'], 256);
+    const doi = normalizeDoi(entry?.['prism:doi']);
     const publicationDate = entry?.['prism:coverDate'] || null;
     const subtype = this._cleanString(entry?.subtypeDescription, 128);
+    const aggregationType = this._cleanString(entry?.['prism:aggregationType'], 64);
     // Pass the entry-level affiliation array so authors get their country resolved
-    const entryAffiliations = Array.isArray(entry?.affiliation) ? entry.affiliation
-      : (entry?.affiliation ? [entry.affiliation] : []);
+    const entryAffiliations = toArray(entry?.affiliation);
     const authorNames = this._parseScopusAuthors(entry?.author, entryAffiliations);
     const citationCount = entry?.['citedby-count'] ? parseInt(entry['citedby-count'], 10) : 0;
 
-    // Paper-level home-institution signal (Scopus search payloads often omit
-    // per-author afid/affiliation even when the document is AF-ID matched).
+    // Paper-level home-institution signal: one of this university's Scopus
+    // affiliation ids, or an affiliation name that matches it.
     const homeInstitutionOnPaper = entryAffiliations.some((afil) => {
-      const afid = String(afil?.['@id'] || afil?.afid || afil?.['afid'] || '');
-      if (this._isSgtTenant() && afid && SGT_SCOPUS_AFFIL_IDS.has(afid)) return true;
-      const name = afil?.affilname || afil?.['affilname'] || '';
-      return this._isSgtAffiliation(name);
+      const afid = String(afil?.['@id'] || afil?.afid || '');
+      if (afid && this._scopusAffiliationIds.has(afid)) return true;
+      return this._isSgtAffiliation(afil?.affilname || '');
     });
 
     return this._stripUndefined({
       title: this._cleanString(entry?.['dc:title'], 512),
       doi,
       journalName: this._cleanString(entry?.['prism:publicationName'], 512),
-      issn: this._cleanString(entry?.['prism:issn'], 32),
+      issn: this._cleanString(entry?.['prism:issn'] || entry?.['prism:eIssn'], 32),
+      isbn: this._cleanString(toArray(entry?.['prism:isbn'])[0]?.$ || toArray(entry?.['prism:isbn'])[0], 32),
       volume: this._cleanString(entry?.['prism:volume'], 64),
       issue: this._cleanString(entry?.['prism:issueIdentifier'], 64),
       pageNumbers: this._cleanString(entry?.['prism:pageRange'], 64),
       publicationDate,
+      datePrecision: publicationDate ? 'day' : undefined,
       weblink: this._cleanString(this._resolveScopusLink(entry), 512),
       authors: authorNames,
       venue: this._cleanString(entry?.['prism:publicationName'], 512),
@@ -1825,8 +2404,9 @@ class PublicationSyncService {
       },
       indexedIn: 'scopus',
       quartile: this._inferQuartileFromTitle(entry?.['prism:publicationName']),
-      rawType: subtype,
-      abstract: null,
+      rawType: subtype || aggregationType,
+      aggregationType,
+      abstract: this._cleanString(entry?.['dc:description'], 8000),
       keywords: this._parseKeywordList(entry?.authkeywords),
       citationCount,
       homeInstitutionOnPaper,
@@ -1834,7 +2414,7 @@ class PublicationSyncService {
   }
 
   _mapOpenAlexWork(work) {
-    const doi = this._normalizeOpenAlexDoi(work?.doi || work?.ids?.doi);
+    const doi = normalizeDoi(work?.doi || work?.ids?.doi);
     const journalName = this._cleanString(
       work?.primary_location?.source?.display_name || work?.host_venue?.display_name,
       512
@@ -1847,9 +2427,10 @@ class PublicationSyncService {
         ? work.concepts.map((item) => item?.display_name).filter(Boolean).slice(0, 10)
         : [];
     const citationCount = work?.cited_by_count ? parseInt(work.cited_by_count, 10) : 0;
+    const authors = this._parseOpenAlexAuthors(work?.authorships);
 
     return this._stripUndefined({
-      title: this._cleanString(work?.display_name, 512),
+      title: this._cleanString(work?.display_name || work?.title, 512),
       doi,
       journalName,
       issn: this._cleanString(
@@ -1861,8 +2442,10 @@ class PublicationSyncService {
       issue: this._cleanString(work?.biblio?.issue, 64),
       pageNumbers: this._formatPageRange(work?.biblio?.first_page, work?.biblio?.last_page),
       publicationDate,
+      datePrecision: work?.publication_date ? 'day' : (work?.publication_year ? 'year' : undefined),
       weblink: doi ? `https://doi.org/${doi}` : this._cleanString(work?.id, 512),
-      authors: this._parseOpenAlexAuthors(work?.authorships),
+      authors,
+      authorsSource: 'openalex',
       venue: journalName,
       publicationStatus: 'published',
       sourceSystems: ['openalex'],
@@ -1870,19 +2453,18 @@ class PublicationSyncService {
         openalex: this._cleanString(work?.id, 191),
         ...(doi ? { doi } : {}),
       },
-      rawType: this._cleanString(work?.type, 128),
+      rawType: this._cleanString(work?.type_crossref || work?.type, 128),
+      sourceKind: this._cleanString(work?.primary_location?.source?.type, 64),
       abstract: this._reconstructOpenAlexAbstract(work?.abstract_inverted_index),
       keywords,
       publisherName: this._cleanString(work?.primary_location?.source?.host_organization_name, 256),
       citationCount,
-      homeInstitutionOnPaper: (Array.isArray(work?.authorships) ? work.authorships : []).some((authorship) =>
-        (authorship?.institutions || []).some((inst) => this._isSgtAffiliation(inst?.display_name))
-      ),
+      homeInstitutionOnPaper: authors.some((author) => author.isSgtByAfid),
     });
   }
 
   _mergeCandidate(base, incoming) {
-    return {
+    const merged = {
       ...base,
       ...Object.fromEntries(Object.entries(incoming).filter(([, value]) => value !== null && value !== undefined && value !== '')),
       sourceSystems: Array.from(new Set([...(base.sourceSystems || []), ...(incoming.sourceSystems || [])])),
@@ -1891,10 +2473,30 @@ class PublicationSyncService {
         ...(incoming.externalIds || {}),
       },
       authors: (base.authors && base.authors.length > 0) ? base.authors : incoming.authors,
+      authorsSource: (base.authors && base.authors.length > 0) ? base.authorsSource : incoming.authorsSource,
       keywords: (base.keywords && base.keywords.length > 0) ? base.keywords : incoming.keywords,
       homeInstitutionOnPaper: Boolean(base.homeInstitutionOnPaper || incoming.homeInstitutionOnPaper),
       trustedHomeInstitutionQuery: Boolean(base.trustedHomeInstitutionQuery || incoming.trustedHomeInstitutionQuery),
+      // Citation counts differ per source: keep the highest, not the last one seen.
+      citationCount: Math.max(Number(base.citationCount) || 0, Number(incoming.citationCount) || 0),
     };
+
+    // Keep the most precise publication date (a full date beats a year-only one).
+    const baseRank = DATE_PRECISION_RANK[base.datePrecision] || (base.publicationDate ? 2 : 0);
+    const incomingRank = DATE_PRECISION_RANK[incoming.datePrecision] || (incoming.publicationDate ? 2 : 0);
+    if (base.publicationDate && baseRank >= incomingRank) {
+      merged.publicationDate = base.publicationDate;
+      merged.datePrecision = base.datePrecision;
+    }
+
+    // Prefer an author list that carries affiliations over one that doesn't.
+    const hasAffiliations = (list) => Array.isArray(list) && list.some((a) => a.affiliation || (a.scopusAfids || []).length);
+    if (!hasAffiliations(merged.authors) && hasAffiliations(incoming.authors)) {
+      merged.authors = incoming.authors;
+      merged.authorsSource = incoming.authorsSource;
+    }
+
+    return merged;
   }
 
   _deriveIndexingCategories(candidate) {
@@ -1911,7 +2513,9 @@ class PublicationSyncService {
     if (candidate.impactFactor && Number(candidate.impactFactor) > 20) {
       categories.add('subsidiary_if_above_20');
     }
-    if (candidate.journalName && /(nature|science|lancet|cell|nejm)/i.test(candidate.journalName)) {
+    // Only the flagship journals themselves: a substring test also caught "Pertanika Journal of
+    // Science & Technology", "Applied Sciences", "Cell Reports", "Nature-Inspired Computing", ...
+    if (candidate.journalName && FLAGSHIP_JOURNAL_RE.test(String(candidate.journalName).trim())) {
       categories.add('nature_science_lancet_cell_nejm');
     }
     if (candidate.journalName && /(abdc)/i.test(candidate.journalName)) {
@@ -1921,10 +2525,12 @@ class PublicationSyncService {
   }
 
   _inferPublicationType(candidate) {
-    const rawType = String(candidate.rawType || '').toLowerCase();
-    if (rawType.includes('conference')) return 'conference_paper';
-    if (rawType.includes('book chapter') || rawType.includes('chapter')) return 'book_chapter';
+    const rawType = String(candidate.rawType || '').toLowerCase().replace(/_/g, '-');
+    const aggregation = String(candidate.aggregationType || candidate.sourceKind || '').toLowerCase();
+    if (rawType.includes('conference') || rawType.includes('proceedings')) return 'conference_paper';
+    if (rawType.includes('book chapter') || rawType.includes('book-chapter') || rawType.includes('chapter')) return 'book_chapter';
     if (rawType.includes('book')) return 'book';
+    if (aggregation.includes('conference') || aggregation.includes('proceedings')) return 'conference_paper';
     return 'research_paper';
   }
 
@@ -1933,18 +2539,19 @@ class PublicationSyncService {
     if (!candidate.title) missing.push('title');
     if (!candidate.publicationDate) missing.push('publicationDate');
     if (!candidate.authors || candidate.authors.length === 0) missing.push('authors');
+    else if (mapped && mapped.ownerFound === false) missing.push('ownerNotInAuthorList');
     if (publicationType === 'research_paper') {
       if (!candidate.journalName) missing.push('journalName');
       if (indexingCategories.includes('scopus') && !candidate.quartile) missing.push('quartile');
       if (indexingCategories.includes('scopus') && !candidate.sjr) missing.push('sjr');
     }
-    if (publicationType === 'conference_paper' && !candidate.conferenceName) {
+    if (publicationType === 'conference_paper' && !candidate.conferenceName && !candidate.venue && !candidate.journalName) {
       missing.push('conferenceName');
     }
     if ((publicationType === 'book' || publicationType === 'book_chapter') && !candidate.publisherName) {
       missing.push('publisherName');
     }
-    if (mapped.hasAmbiguousInternalMatches) {
+    if (mapped?.hasAmbiguousInternalMatches) {
       missing.push('internalAuthorMapping');
     }
     return missing;
@@ -1963,7 +2570,8 @@ class PublicationSyncService {
     if (nextValue === undefined || nextValue === null || nextValue === '') return false;
     if (currentValue === undefined || currentValue === null || currentValue === '') return true;
     if (Array.isArray(nextValue) && nextValue.length > 0 && Array.isArray(currentValue) && currentValue.length === 0) return true;
-    if (typeof nextValue === 'object' && !Array.isArray(nextValue) && Object.keys(nextValue).length > 0 && (!currentValue || Object.keys(this._asObject(currentValue)).length === 0)) {
+    if (typeof nextValue === 'object' && !Array.isArray(nextValue) && !(nextValue instanceof Date)
+      && Object.keys(nextValue).length > 0 && (!currentValue || Object.keys(this._asObject(currentValue)).length === 0)) {
       return true;
     }
     return false;
@@ -1981,15 +2589,14 @@ class PublicationSyncService {
     if (authorList.length === 0) return [];
 
     // Build a lookup from afid -> { name, city, country } using the entry-level affiliation array.
-    // The Search API returns per-paper affiliation details at entry level (with city, country),
-    // and each author's afid[] array links them to their institution(s).
+    // Each author's afid[] array links them to their institution(s).
     const affilMap = {};
     if (Array.isArray(entryAffiliations)) {
       for (const afil of entryAffiliations) {
-        const afid = afil?.['@id'] || afil?.afid || afil?.['afid'];
+        const afid = afil?.['@id'] || afil?.afid;
         if (afid) {
           affilMap[String(afid)] = {
-            name: this._cleanString(afil?.affilname || afil?.['affilname'], 256),
+            name: this._cleanString(afil?.affilname, 256),
             city: this._cleanString(afil?.['affiliation-city'] || afil?.city, 128),
             country: this._cleanString(afil?.['affiliation-country'] || afil?.country, 64),
           };
@@ -1997,7 +2604,7 @@ class PublicationSyncService {
       }
     }
 
-    // Helper: extract all afids from an author (afid can be a string, object, or array of objects)
+    // afid can be a string, object, or array of objects
     const extractAfids = (author) => {
       const raw = author?.afid;
       if (!raw) return [];
@@ -2008,33 +2615,35 @@ class PublicationSyncService {
     };
 
     return authorList.map((author, index) => {
-      const afids = extractAfids(author);
-      const resolvedAffils = afids.map((afid) => affilMap[String(afid)]).filter(Boolean);
+      const afids = extractAfids(author).map(String);
+      const resolvedAffils = afids.map((afid) => affilMap[afid]).filter(Boolean);
 
-      // Legacy SGT-specific fast-path: author is home-institution-affiliated if
-      // ANY of their afids is a known SGT Scopus institution ID. Scopus afids
-      // can't be derived from a name algorithmically, so this only applies
-      // when the current tenant IS SGT (see _isSgtTenant()); other tenants
-      // rely purely on the name-based isAffiliationMatch() check below.
-      const isSgtByAfid = this._isSgtTenant() && afids.some((afid) => SGT_SCOPUS_AFFIL_IDS.has(String(afid)));
+      // Home-affiliated when any afid is one of this university's Scopus affiliation ids.
+      const isSgtByAfid = afids.some((afid) => this._scopusAffiliationIds.has(afid));
       const primaryAfil = resolvedAffils[0] || null;
       const affiliationName = resolvedAffils.map((a) => a.name).filter(Boolean).join('; ')
         || this._cleanString(author?.affilname, 256)
         || null;
       const country = primaryAfil?.country || this._cleanString(author?.['affiliation-country'], 64) || null;
+      const given = this._cleanString(author?.['given-name'], 128);
+      const surname = this._cleanString(author?.surname, 128);
 
       return {
-        name: this._cleanString(author?.authname || author?.ce?.['indexed-name'] || author?.['given-name'] || author?.surname, 256) || `Author ${index + 1}`,
+        name: (given && surname ? `${given} ${surname}` : null)
+          || this._cleanString(author?.authname || author?.ce?.['indexed-name'] || surname, 256)
+          || `Author ${index + 1}`,
+        indexedName: this._cleanString(author?.authname, 256),
         email: null,
         affiliation: affiliationName,
         country,
         city: primaryAfil?.city || null,
-        isSgtByAfid,   // fast flag — true if afid directly matched an SGT Scopus institution
-        scopusAfids: afids, // store all afids for future use / debugging
+        isSgtByAfid,
+        scopusAfids: afids,
         department: null,
         designation: null,
         isCorresponding: false,
         authorOrder: Number(author?.['@seq'] || index + 1),
+        orcid: this._normalizeOrcid(this._stripOrcidUrl(author?.orcid)),
         // authid is the Scopus Author ID — used for definitive internal-user matching
         scopusAuthorId: this._normalizeScopusAuthorId(author?.authid || author?.['@auid']),
       };
@@ -2046,23 +2655,25 @@ class PublicationSyncService {
     return authorships.map((authorship, index) => {
       const institutions = Array.isArray(authorship?.institutions) ? authorship.institutions : [];
       const primaryInstitution = institutions[0];
-      const country = this._cleanString(
-        primaryInstitution?.country_code || primaryInstitution?.country || null,
-        64
-      );
+      const countryCode = primaryInstitution?.country_code || (authorship?.countries || [])[0] || null;
       const affiliationNames = institutions.map((i) => i?.display_name).filter(Boolean);
-      const affiliation = this._cleanString(affiliationNames.join(', '), 256) || null;
-      const isSgtByAfid = affiliationNames.some((name) => this._isSgtAffiliation(name));
+      const rawAffiliations = (authorship?.raw_affiliation_strings || []).filter(Boolean);
+      const affiliation = this._cleanString(affiliationNames.join('; '), 256)
+        || this._cleanString(rawAffiliations.join('; '), 256)
+        || null;
+      const isSgtByAfid = [...affiliationNames, ...rawAffiliations].some((name) => this._isSgtAffiliation(name));
       return {
-        name: this._cleanString(authorship?.author?.display_name, 256) || `Author ${index + 1}`,
+        name: this._cleanString(authorship?.author?.display_name || authorship?.raw_author_name, 256) || `Author ${index + 1}`,
         email: null,
         affiliation,
-        country,
+        country: this._cleanString(countryCode, 64),
         department: null,
         designation: null,
         isCorresponding: Boolean(authorship?.is_corresponding),
         authorOrder: index + 1,
         isSgtByAfid,
+        openAlexAuthorId: this._toOpenAlexFilterId(authorship?.author?.id),
+        orcid: this._normalizeOrcid(this._stripOrcidUrl(authorship?.author?.orcid)),
       };
     });
   }
@@ -2071,19 +2682,19 @@ class PublicationSyncService {
    * Build a compact affiliation summary for a candidate's author list.
    * Stored in indexingDetails so the frontend can display it without re-resolving authors.
    */
-  _buildAffiliationSummary(candidateAuthors, sgtAffiliatedCount) {
+  _buildAffiliationSummary(candidateAuthors) {
     if (!Array.isArray(candidateAuthors) || candidateAuthors.length === 0) {
       return null;
     }
     const authorDetails = candidateAuthors.map((author) => {
-      const isSgt = author.isSgtByAfid || this._isSgtAffiliation(author.affiliation);
+      const isSgt = this._isAuthorHomeAffiliated(author);
       return {
         name: author.name || null,
         affiliation: author.affiliation || null,
         country: author.country || null,
         scopusAuthorId: this._normalizeScopusAuthorId(author.scopusAuthorId) || null,
         isSgtAffiliated: isSgt,
-        isInternational: !isSgt && Boolean(author.country && author.country.toLowerCase() !== 'india'),
+        isInternational: !isSgt && this._isForeignCountry(author.country),
       };
     });
     const sgtCount = authorDetails.filter((a) => a.isSgtAffiliated).length;
@@ -2099,6 +2710,14 @@ class PublicationSyncService {
     };
   }
 
+  _isForeignCountry(country) {
+    const value = String(country || '').trim().toLowerCase();
+    if (!value) return false;
+    const home = this._homeCountry || 'india';
+    const homeCodes = home === 'india' ? ['in', 'ind', 'india', 'bharat'] : [home];
+    return !homeCodes.includes(value);
+  }
+
   _parseKeywordList(value) {
     if (!value) return [];
     if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
@@ -2112,10 +2731,12 @@ class PublicationSyncService {
     const entries = Array.isArray(externalIds?.['external-id']) ? externalIds['external-id'] : [];
     return entries.reduce((acc, item) => {
       const type = String(item?.['external-id-type'] || '').toLowerCase();
-      const value = this._cleanString(item?.['external-id-value'], 191);
+      const value = this._cleanString(item?.['external-id-value'] || item?.['external-id-normalized']?.value, 191);
       if (!type || !value) return acc;
-      if (type.includes('doi')) acc.doi = value;
-      else if (type.includes('eid') || type.includes('scopus')) acc.scopus = value;
+      if (type === 'doi') acc.doi = value;
+      else if (type === 'eid') acc.scopus = value;
+      else if (type === 'issn') acc.issn = acc.issn || value;
+      else if (type === 'isbn') acc.isbn = acc.isbn || value;
       else acc[type] = value;
       return acc;
     }, {});
@@ -2151,7 +2772,7 @@ class PublicationSyncService {
       keywords: Array.isArray(publication?.keywords)
         ? publication.keywords.map((keyword) => this._cleanString(keyword, 128)).filter(Boolean)
         : [],
-      doi: this._cleanString(publication?.doi, 256),
+      doi: normalizeDoi(publication?.doi),
       volume: this._cleanString(publication?.volume, 64),
       issue: this._cleanString(publication?.issue, 64),
       pageNumbers: this._cleanString(publication?.pages || publication?.pageNumbers, 64),
@@ -2160,19 +2781,22 @@ class PublicationSyncService {
       conferenceName: publicationType === 'conference_paper' ? this._cleanString(publication?.venue || publication?.conferenceName, 512) : null,
       bookTitle: publicationType === 'book_chapter' ? this._cleanString(publication?.venue || publication?.bookTitle, 512) : null,
       publicationDate: `${normalizedYear}-01-01T00:00:00.000Z`,
+      datePrecision: 'year',
       publicationStatus: 'published',
       publicationType: ['research_paper', 'conference_paper', 'book', 'book_chapter'].includes(publicationType)
         ? publicationType
         : 'research_paper',
+      rawType: publicationType,
       venue: this._cleanString(publication?.venue, 512),
       citationCount: Number(publication?.citationCount) || 0,
       sourceSystems: [sourceSystem],
       externalIds: {
         [sourceSystem]: this._cleanString(
-          publication?.externalId || publication?.doi || `${user.id}-${normalizedYear}-${index}-${normalizedTitle}`,
+          publication?.externalId || normalizeDoi(publication?.doi) || `${user.id}-${normalizedYear}-${index}-${normalizedTitle}`,
           191
         ),
       },
+      // The uploader is an author of what they upload; without a list, they are the list.
       authors: authorList.length > 0 ? authorList : [{
         name: user.employeeDetails?.displayName || user.uid,
         email: user.email,
@@ -2191,12 +2815,21 @@ class PublicationSyncService {
     return headers;
   }
 
-  _orcidDate(publicationDate) {
+  /** ORCID dates keep their precision; missing month/day default to 01. */
+  _orcidDateInfo(publicationDate) {
     const year = publicationDate?.year?.value;
-    const month = publicationDate?.month?.value || '01';
-    const day = publicationDate?.day?.value || '01';
-    if (!year) return null;
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (!year) return { date: null, precision: null };
+    const month = publicationDate?.month?.value;
+    const day = publicationDate?.day?.value;
+    const precision = month && day ? 'day' : (month ? 'month' : 'year');
+    return {
+      date: `${year}-${String(month || '01').padStart(2, '0')}-${String(day || '01').padStart(2, '0')}`,
+      precision,
+    };
+  }
+
+  _orcidDate(publicationDate) {
+    return this._orcidDateInfo(publicationDate).date;
   }
 
   _determineSourceSystems(identity, sourcePreference) {
@@ -2214,8 +2847,8 @@ class PublicationSyncService {
   }
 
   _candidateKey(candidate) {
-    const doi = this._cleanString(candidate.doi, 256);
-    if (doi) return `doi:${doi.toLowerCase()}`;
+    const doi = normalizeDoi(candidate.doi);
+    if (doi) return `doi:${doi}`;
     const external = Object.values(candidate.externalIds || {}).find(Boolean);
     if (external) return `external:${String(external).toLowerCase()}`;
     return `title:${this._normalizeTitle(candidate.title)}:${candidate.publicationDate ? new Date(candidate.publicationDate).getFullYear() : 'na'}`;
@@ -2233,48 +2866,42 @@ class PublicationSyncService {
   }
 
   /**
-   * Tenant-agnostic affiliation check — despite the legacy name (kept to
-   * minimize call-site churn), this now delegates to the dynamic affiliation
-   * engine using whatever variants were loaded for the current tenant via
-   * _loadAffiliationContext(), instead of a hardcoded SGT-only list.
+   * Does `value` name this university? (The name is legacy; it is tenant-agnostic
+   * and uses the variants loaded by _loadAffiliationContext().)
    */
   _isSgtAffiliation(value) {
-    return isAffiliationMatch(value, this._affiliationVariants);
+    return isAffiliationMatch(value, this._affiliationVariants, this._affiliationOptions);
+  }
+
+  /** Home affiliation for a co-author: this university's AF-IDs or name variants only. */
+  _isAuthorHomeAffiliated(author) {
+    if (!author) return false;
+    if (author.isSgtByAfid) return true;
+    if (Array.isArray(author.scopusAfids) && author.scopusAfids.some((afid) => this._scopusAffiliationIds.has(String(afid)))) {
+      return true;
+    }
+    return Boolean(author.affiliation) && this._isSgtAffiliation(author.affiliation);
   }
 
   /**
-   * True when the owning faculty author on a paper is affiliated with the
-   * current tenant (Scopus AFID hit and/or affiliation-name match).
-   * Falls back to paper-level homeInstitutionOnPaper when author rows from
-   * Scopus search omit afid/affiliation text.
+   * True when the owner's entry on a paper is affiliated with this university:
+   * AF-ID hit, or an affiliation segment naming the university (or one of the
+   * user's own aliases). The whole affiliation string is evaluated per segment
+   * group — never per comma token, so "Amity University, Gurugram" does not
+   * match through "Gurugram". Falls back to the paper-level signal only when the
+   * author row carries no affiliation data at all.
    */
-  _isHomeInstitutionAuthor(author, candidate = null) {
+  _isHomeInstitutionAuthor(author, candidate = null, { owner = true } = {}) {
     if (author?.isSgtByAfid) return true;
-
-    const segments = [];
-    const pushAffil = (value) => {
-      String(value || '')
-        .split(/[;,]/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .forEach((part) => segments.push(part));
-    };
-
-    if (author) {
-      pushAffil(author.affiliation);
-      if (Array.isArray(author.scopusAfids) && this._isSgtTenant()) {
-        if (author.scopusAfids.some((afid) => SGT_SCOPUS_AFFIL_IDS.has(String(afid)))) {
-          return true;
-        }
-      }
+    if (author && Array.isArray(author.scopusAfids)
+      && author.scopusAfids.some((afid) => this._scopusAffiliationIds.has(String(afid)))) {
+      return true;
     }
-
-    if (segments.length > 0) {
-      return segments.some((segment) => this._isSgtAffiliation(segment));
+    if (author?.affiliation && String(author.affiliation).trim()) {
+      const variants = owner ? this._ownerAffiliationVariants : this._affiliationVariants;
+      return isAffiliationMatch(author.affiliation, variants && variants.length ? variants : this._affiliationVariants, this._affiliationOptions);
     }
-
-    // Thin Scopus/OpenAlex payloads: accept document-level home affiliation
-    // when we could not evaluate the author row directly.
+    if (author && Array.isArray(author.scopusAfids) && author.scopusAfids.length > 0) return false;
     return Boolean(candidate?.homeInstitutionOnPaper);
   }
 
@@ -2290,13 +2917,24 @@ class PublicationSyncService {
   }
 
   _normalizeOrcid(orcid) {
-    const clean = this._cleanString(orcid, 32);
+    const clean = this._cleanString(orcid, 64);
     if (!clean) return null;
-    return /^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(clean) ? clean.toUpperCase() : null;
+    const bare = this._stripOrcidUrl(clean);
+    return /^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(bare) ? bare.toUpperCase() : null;
+  }
+
+  _stripOrcidUrl(value) {
+    if (!value) return value;
+    return String(value).trim().replace(/^https?:\/\/(www\.)?orcid\.org\//i, '');
+  }
+
+  _scopusNumericId(value) {
+    const match = String(value || '').match(/(\d{6,})/);
+    return match ? match[1] : null;
   }
 
   _resolveScopusLink(entry) {
-    const doi = this._cleanString(entry?.['prism:doi'], 256);
+    const doi = normalizeDoi(entry?.['prism:doi']);
     if (doi) {
       return `https://doi.org/${doi}`;
     }
@@ -2340,10 +2978,95 @@ class PublicationSyncService {
       .trim();
   }
 
+  _stripTitles(value) {
+    return this._nameParts(value).join(' ');
+  }
+
+  /**
+   * Name tokens: diacritics removed, "Last, First" reordered, titles (Dr., Prof.,
+   * Mr., …) and degree suffixes dropped, initials split ("T.P." -> t, p).
+   */
+  _nameParts(value) {
+    let text = String(value || '')
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .trim();
+    if (!text) return [];
+    const commaParts = text.split(',').map((part) => part.trim()).filter(Boolean);
+    if (commaParts.length === 2 && !/^(ph\.?\s?d|m\.?\s?d|jr|sr)\.?$/i.test(commaParts[1])) {
+      text = `${commaParts[1]} ${commaParts[0]}`;
+    }
+    return text
+      .toLowerCase()
+      .replace(/[^a-z\s.\-]/g, ' ')
+      .split(/[\s.\-]+/)
+      .filter(Boolean)
+      .filter((token) => !NAME_TITLES.has(token));
+  }
+
+  _surnameCandidates(name) {
+    return this._nameParts(name).filter((token) => token.length > 2);
+  }
+
+  /**
+   * Same person? Tolerates initials ("R. Das", "Das R."), "Last, First", titles and
+   * small typos in long name parts. Requires a shared surname-like token plus
+   * compatible given names; a lone shared surname is not enough.
+   */
+  _personNameMatches(nameA, nameB) {
+    const a = this._nameParts(nameA);
+    const b = this._nameParts(nameB);
+    if (a.length === 0 || b.length === 0) return false;
+
+    const tokenEq = (x, y) => {
+      if (x === y) return true;
+      if (x.length >= 6 && y.length >= 6) {
+        return this._editDistance(x, y) <= 1;
+      }
+      return false;
+    };
+    const compatible = (x, y) => tokenEq(x, y)
+      || (x.length === 1 && y.startsWith(x))
+      || (y.length === 1 && x.startsWith(y));
+
+    for (const surname of b.filter((t) => t.length > 1)) {
+      const ia = a.findIndex((t) => t.length > 1 && tokenEq(t, surname));
+      if (ia === -1) continue;
+      const restA = a.filter((_, k) => k !== ia);
+      const ib = b.indexOf(surname);
+      const restB = b.filter((_, k) => k !== ib);
+      if (restA.length === 0 && restB.length === 0) return true;
+      if (restA.length === 0 || restB.length === 0) continue;
+      const [shorter, longer] = restA.length <= restB.length ? [restA, restB] : [restB, restA];
+      const used = new Set();
+      const allMatch = shorter.every((token) => {
+        const j = longer.findIndex((other, k) => !used.has(k) && compatible(token, other));
+        if (j === -1) return false;
+        used.add(j);
+        return true;
+      });
+      if (allMatch) return true;
+    }
+    return false;
+  }
+
+  _editDistance(s1, s2) {
+    const m = s1.length;
+    const n = s2.length;
+    const d = Array.from({ length: m + 1 }, (_, i) => [i, ...new Array(n).fill(0)]);
+    for (let j = 0; j <= n; j++) d[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (s1[i - 1] === s2[j - 1] ? 0 : 1));
+      }
+    }
+    return d[m][n];
+  }
+
   _isSamePersonName(nameA, nameB) {
     if (!nameA || !nameB) return false;
-    
-    const normalize = (n) => String(n).toLowerCase()
+
+    const normalize = (n) => this._nameParts(n).join(' ')
       .replace(/[^a-z\s]/g, '')
       .replace(/aa+/g, 'a')
       .replace(/ee+/g, 'e')
@@ -2353,38 +3076,16 @@ class PublicationSyncService {
 
     const normA = normalize(nameA);
     const normB = normalize(nameB);
-    
+
     if (normA.length === 0 || normB.length === 0) return false;
 
     if (normA.join(' ') === normB.join(' ')) return true;
-
-    const getEditDistance = (s1, s2) => {
-      if (s1.length === 0) return s2.length;
-      if (s2.length === 0) return s1.length;
-      const matrix = [];
-      for (let i = 0; i <= s2.length; i++) matrix[i] = [i];
-      for (let j = 0; j <= s1.length; j++) matrix[0][j] = j;
-      for (let i = 1; i <= s2.length; i++) {
-        for (let j = 1; j <= s1.length; j++) {
-          if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
-            matrix[i][j] = matrix[i - 1][j - 1];
-          } else {
-            matrix[i][j] = Math.min(
-              matrix[i - 1][j - 1] + 1,
-              matrix[i][j - 1] + 1,
-              matrix[i - 1][j] + 1
-            );
-          }
-        }
-      }
-      return matrix[s2.length][s1.length];
-    };
 
     const isSimilarWord = (w1, w2) => {
       if (w1 === w2) return true;
       if (w1.length === 1 && w2.startsWith(w1)) return true;
       if (w2.length === 1 && w1.startsWith(w2)) return true;
-      const dist = getEditDistance(w1, w2);
+      const dist = this._editDistance(w1, w2);
       const maxLen = Math.max(w1.length, w2.length);
       if (maxLen >= 5 && dist <= 2) return true;
       return false;
@@ -2392,11 +3093,13 @@ class PublicationSyncService {
 
     const shorter = normA.length < normB.length ? normA : normB;
     const longer = normA.length < normB.length ? normB : normA;
-    
+    // A single shared word ("Das") is not a person match.
+    if (shorter.length < 2) return false;
+
     let matchedParts = 0;
     const usedIndices = new Set();
-    
-    shorter.forEach(sPart => {
+
+    shorter.forEach((sPart) => {
       const matchedIdx = longer.findIndex((lPart, idx) => {
         if (usedIndices.has(idx)) return false;
         return isSimilarWord(sPart, lPart);
@@ -2406,7 +3109,7 @@ class PublicationSyncService {
         usedIndices.add(matchedIdx);
       }
     });
-    
+
     return matchedParts === shorter.length;
   }
 
@@ -2417,9 +3120,7 @@ class PublicationSyncService {
   }
 
   _normalizeOpenAlexDoi(value) {
-    const clean = this._cleanString(value, 256);
-    if (!clean) return null;
-    return clean.replace(/^https?:\/\/doi\.org\//i, '');
+    return normalizeDoi(value);
   }
 
   _toOpenAlexFilterId(value) {
@@ -2429,53 +3130,11 @@ class PublicationSyncService {
     return match ? match[1].toUpperCase() : clean;
   }
 
-  _extractOpenAlexInstitutionNames(author) {
-    const institutions = Array.isArray(author?.last_known_institutions) && author.last_known_institutions.length > 0
-      ? author.last_known_institutions
-      : [author?.last_known_institution].filter(Boolean);
-
-    return institutions
-      .map((institution) => this._normalizeName(institution?.display_name || ''))
-      .filter(Boolean);
-  }
-
-  _scoreOpenAlexAuthors(authors, authorName, identity) {
-    const normalizedTarget = this._normalizeName(authorName);
-    const aliases = new Set([
-      ...(Array.isArray(identity?.affiliationAliases) ? identity.affiliationAliases : []),
-      this._canonicalUniversityName,
-      ...this._affiliationVariants,
-    ].map((item) => this._normalizeName(item)).filter(Boolean));
-
-    return authors.map((author) => {
-      const normalizedNames = [
-        author?.display_name,
-        ...(Array.isArray(author?.display_name_alternatives) ? author.display_name_alternatives : []),
-      ]
-        .map((value) => this._normalizeName(value))
-        .filter(Boolean);
-      const institutionNames = this._extractOpenAlexInstitutionNames(author);
-      let score = 0;
-
-      if (normalizedNames.includes(normalizedTarget)) score += 100;
-      else if (normalizedNames.some((name) => name.includes(normalizedTarget) || normalizedTarget.includes(name))) score += 50;
-
-      for (const institutionName of institutionNames) {
-        if (aliases.has(institutionName)) {
-          score += 40;
-          break;
-        }
-        if ([...aliases].some((alias) => institutionName.includes(alias) || alias.includes(institutionName))) {
-          score += 20;
-          break;
-        }
-      }
-
-      score += Number(author?.works_count || 0) / 1000;
-      return { id: author?.id, score };
-    })
-      .filter((item) => item.id)
-      .sort((left, right) => right.score - left.score);
+  _openAlexIdList(value) {
+    return String(value || '')
+      .split(/[|,\s]+/)
+      .map((item) => this._toOpenAlexFilterId(item))
+      .filter((item) => item && /^A\d+$/.test(item));
   }
 
   _formatPageRange(firstPage, lastPage) {
@@ -2502,6 +3161,21 @@ class PublicationSyncService {
     return abstract || null;
   }
 
+  _deepEqual(a, b) {
+    const stable = (value) => {
+      if (value instanceof Date) return value.toISOString();
+      if (Array.isArray(value)) return value.map(stable);
+      if (value && typeof value === 'object') {
+        return Object.keys(value).sort().reduce((acc, key) => {
+          if (value[key] !== undefined) acc[key] = stable(value[key]);
+          return acc;
+        }, {});
+      }
+      return value;
+    };
+    return JSON.stringify(stable(a ?? null)) === JSON.stringify(stable(b ?? null));
+  }
+
   _stripUndefined(obj) {
     return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined));
   }
@@ -2513,5 +3187,8 @@ class PublicationSyncService {
     return {};
   }
 }
+
+PublicationSyncService._scopusState = scopusState;
+PublicationSyncService._scopusAuthorCache = scopusAuthorCache;
 
 module.exports = PublicationSyncService;

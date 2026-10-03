@@ -11,6 +11,51 @@ const {
   withSupportedAnalyticsScopeFields,
   pickSupportedAnalyticsScopeFields,
 } = require('../../../shared/utils/centralDeptAnalyticsScopeSupport');
+const { findTenantOwnershipError } = require('../../../shared/tenancy/assertTenantOwned');
+
+/**
+ * Ownership checks for the school/department id arrays a central-dept grant can carry
+ * (assigned*SchoolIds → FacultySchoolList, assigned*DepartmentIds → Department).
+ */
+function collectScopeIdChecks(body) {
+  const checks = [];
+  for (const [field, value] of Object.entries(body || {})) {
+    if (!/^assigned\w*(SchoolIds|DepartmentIds)$/.test(field)) continue;
+    if (!Array.isArray(value) || value.length === 0) continue;
+    const isSchool = field.endsWith('SchoolIds');
+    checks.push({
+      model: isSchool ? 'facultySchoolList' : 'department',
+      ids: value,
+      message: isSchool ? 'One or more schools not found' : 'One or more departments not found',
+    });
+  }
+  return checks;
+}
+
+/**
+ * Shared guard for the assign*MemberSchools endpoints: holders of *_assign_school may not
+ * assign (and thereby grant review rights) to themselves, and the target user and schools
+ * must belong to the caller's university. Returns true when a response has been sent.
+ */
+async function rejectInvalidMemberSchoolAssignment(req, res, userId, schoolIds) {
+  const isPrivileged = req.user.role === 'admin' || req.user.role === 'superadmin';
+  if (!isPrivileged && userId === req.user.id) {
+    res.status(403).json({
+      success: false,
+      message: 'You cannot assign schools or review permissions to yourself',
+    });
+    return true;
+  }
+  const notFound = await findTenantOwnershipError(prisma, [
+    { model: 'userLogin', ids: userId, message: 'User not found' },
+    { model: 'facultySchoolList', ids: schoolIds, message: 'One or more schools not found' },
+  ]);
+  if (notFound) {
+    res.status(404).json({ success: false, message: notFound });
+    return true;
+  }
+  return false;
+}
 
 function formatCentralDeptPermission(permission) {
   if (!permission) return permission;
@@ -288,6 +333,12 @@ exports.grantSchoolDeptPermissions = async (req, res) => {
       });
     }
 
+    const notFound = await findTenantOwnershipError(prisma, [
+      { model: 'userLogin', ids: userId, message: 'User not found' },
+      { model: 'department', ids: departmentId, message: 'Department not found' },
+    ]);
+    if (notFound) return res.status(404).json({ success: false, message: notFound });
+
     // If setting as primary, unset other primary flags for this user
     if (isPrimary) {
       await prisma.departmentPermission.updateMany({
@@ -430,6 +481,13 @@ exports.grantCentralDeptPermissions = async (req, res) => {
         message: 'Not authorized to grant permissions',
       });
     }
+
+    const notFound = await findTenantOwnershipError(prisma, [
+      { model: 'userLogin', ids: userId, message: 'User not found' },
+      { model: 'centralDepartment', ids: centralDeptId, message: 'Central department not found' },
+      ...collectScopeIdChecks(req.body),
+    ]);
+    if (notFound) return res.status(404).json({ success: false, message: notFound });
 
     // If setting as primary, unset other primary flags for this user
     if (isPrimary) {
@@ -956,6 +1014,8 @@ exports.assignDrdMemberSchools = async (req, res) => {
       });
     }
 
+    if (await rejectInvalidMemberSchoolAssignment(req, res, userId, schoolIds)) return;
+
     // Find the DRD department (search by code, name, or shortName)
     const drdDept = await prisma.centralDepartment.findFirst({
       where: {
@@ -1034,6 +1094,9 @@ exports.assignDrdMemberSchools = async (req, res) => {
         },
       });
     }
+
+    // School assignments drive review/analytics scope: drop cached scope for this user now
+    await cache.invalidateUser(userId);
 
     // Create audit log
     await prisma.auditLog.create({
@@ -1534,6 +1597,8 @@ exports.assignResearchMemberSchools = async (req, res) => {
       });
     }
 
+    if (await rejectInvalidMemberSchoolAssignment(req, res, userId, schoolIds)) return;
+
     // Find the DRD department
     const drdDept = await prisma.centralDepartment.findFirst({
       where: {
@@ -1612,6 +1677,9 @@ exports.assignResearchMemberSchools = async (req, res) => {
         },
       });
     }
+
+    // School assignments drive review/analytics scope: drop cached scope for this user now
+    await cache.invalidateUser(userId);
 
     // Create audit log
     await prisma.auditLog.create({
@@ -1969,6 +2037,8 @@ exports.assignBookMemberSchools = async (req, res) => {
       });
     }
 
+    if (await rejectInvalidMemberSchoolAssignment(req, res, userId, schoolIds)) return;
+
     // Find the DRD department
     const drdDept = await prisma.centralDepartment.findFirst({
       where: {
@@ -2047,6 +2117,9 @@ exports.assignBookMemberSchools = async (req, res) => {
         },
       });
     }
+
+    // School assignments drive review/analytics scope: drop cached scope for this user now
+    await cache.invalidateUser(userId);
 
     // Create audit log
     await prisma.auditLog.create({
@@ -2413,6 +2486,8 @@ exports.assignConferenceMemberSchools = async (req, res) => {
       });
     }
 
+    if (await rejectInvalidMemberSchoolAssignment(req, res, userId, schoolIds)) return;
+
     // Find the DRD department
     const drdDept = await prisma.centralDepartment.findFirst({
       where: {
@@ -2491,6 +2566,9 @@ exports.assignConferenceMemberSchools = async (req, res) => {
         },
       });
     }
+
+    // School assignments drive review/analytics scope: drop cached scope for this user now
+    await cache.invalidateUser(userId);
 
     // Create audit log
     await prisma.auditLog.create({
@@ -2856,6 +2934,8 @@ exports.assignGrantMemberSchools = async (req, res) => {
       });
     }
 
+    if (await rejectInvalidMemberSchoolAssignment(req, res, userId, schoolIds)) return;
+
     // Find the DRD department
     const drdDept = await prisma.centralDepartment.findFirst({
       where: {
@@ -2934,6 +3014,9 @@ exports.assignGrantMemberSchools = async (req, res) => {
         },
       });
     }
+
+    // School assignments drive review/analytics scope: drop cached scope for this user now
+    await cache.invalidateUser(userId);
 
     // Create audit log
     await prisma.auditLog.create({
@@ -3291,7 +3374,12 @@ exports.assignRolesToUser = async (req, res) => {
       });
     }
 
-    // Verify all roles exist
+    const userNotFound = await findTenantOwnershipError(prisma, [
+      { model: 'userLogin', ids: userId, message: 'User not found' },
+    ]);
+    if (userNotFound) return res.status(404).json({ success: false, message: userNotFound });
+
+    // Verify all roles exist (tenant extension limits this to the caller's + global roles)
     const roles = await prisma.role.findMany({
       where: { id: { in: roleIds } },
     });

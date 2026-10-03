@@ -100,13 +100,13 @@ const createDomain = (body) =>
 async function updateDomain(id, body) {
   const data = cleanNodeInput(body, { requireName: false });
   const r = await prisma.ripTaxonomyDomain.updateMany({ where: { id }, data }).catch((e) => rethrowUnique(e, 'domain'));
-  if (!r.count) throw new NotFoundError('Domain not found');
+  if (!r.count) throw new NotFoundError('Domain');
   return prisma.ripTaxonomyDomain.findFirst({ where: { id } });
 }
 
 async function createCategory(body) {
   const domain = await prisma.ripTaxonomyDomain.findFirst({ where: { id: body?.domainId }, select: { id: true } });
-  if (!domain) throw new NotFoundError('Domain not found');
+  if (!domain) throw new NotFoundError('Domain');
   return prisma.ripTaxonomyCategory
     .create({ data: { ...cleanNodeInput(body), domainId: domain.id } })
     .catch((e) => rethrowUnique(e, 'category'));
@@ -116,17 +116,17 @@ async function updateCategory(id, body) {
   const data = cleanNodeInput(body, { requireName: false });
   if (body?.domainId) {
     const domain = await prisma.ripTaxonomyDomain.findFirst({ where: { id: body.domainId }, select: { id: true } });
-    if (!domain) throw new NotFoundError('Domain not found');
+    if (!domain) throw new NotFoundError('Domain');
     data.domainId = domain.id;
   }
   const r = await prisma.ripTaxonomyCategory.updateMany({ where: { id }, data }).catch((e) => rethrowUnique(e, 'category'));
-  if (!r.count) throw new NotFoundError('Category not found');
+  if (!r.count) throw new NotFoundError('Category');
   return prisma.ripTaxonomyCategory.findFirst({ where: { id } });
 }
 
 async function createSpecialization(body) {
   const category = await prisma.ripTaxonomyCategory.findFirst({ where: { id: body?.categoryId }, select: { id: true } });
-  if (!category) throw new NotFoundError('Category not found');
+  if (!category) throw new NotFoundError('Category');
   const data = cleanNodeInput(body);
   delete data.iconCode;
   delete data.colorHex;
@@ -142,7 +142,7 @@ async function mergeCategories(fromId, intoId) {
     prisma.ripTaxonomyCategory.findFirst({ where: { id: fromId } }),
     prisma.ripTaxonomyCategory.findFirst({ where: { id: intoId } }),
   ]);
-  if (!from || !into) throw new NotFoundError('Category not found');
+  if (!from || !into) throw new NotFoundError('Category');
 
   const moved = await prisma.$transaction(async (tx) => {
     const mappings = await tx.ripKeywordTaxonomyMapping.findMany({ where: { categoryId: fromId } });
@@ -171,8 +171,8 @@ async function assignKeyword(keywordId, categoryId, { isPrimary = true, speciali
     prisma.ripTaxonomyCategory.findFirst({ where: { id: categoryId }, select: { id: true } }),
     specializationId ? prisma.ripTaxonomySpecialization.findFirst({ where: { id: specializationId }, select: { id: true, categoryId: true } }) : null,
   ]);
-  if (!kw) throw new NotFoundError('Keyword not found');
-  if (!cat) throw new NotFoundError('Category not found');
+  if (!kw) throw new NotFoundError('Keyword');
+  if (!cat) throw new NotFoundError('Category');
   if (specializationId && (!spec || spec.categoryId !== categoryId)) throw new ValidationError('Specialization does not belong to this category');
   if (isPrimary) await prisma.ripKeywordTaxonomyMapping.updateMany({ where: { keywordId, isPrimary: true }, data: { isPrimary: false } });
   const found = await prisma.ripKeywordTaxonomyMapping.findFirst({ where: { keywordId, categoryId } });
@@ -294,45 +294,141 @@ async function ensureSpecialization(category, name, specsByCat, stats) {
   return spec;
 }
 
+/** Keywords per classification prompt (RIP_CLASSIFY_BATCH_SIZE, default 25). */
+const classifyBatchSize = () => Math.max(5, Math.min(Number(process.env.RIP_CLASSIFY_BATCH_SIZE) || 25, 80));
+/** Output budget for a batch: ~120 tokens per keyword (JSON + brief reasoning), 1000 overhead, max 6000. */
+const classifyMaxTokens = (n) => Math.min(6000, 1000 + n * 120);
+
+/** Current taxonomy (active + proposed) with lookup maps used to apply a classification batch. */
+async function loadClassificationTree() {
+  const domains = await prisma.ripTaxonomyDomain.findMany({
+    where: { status: { in: ['active', 'proposed'] } },
+    include: {
+      categories: {
+        where: { status: { in: ['active', 'proposed'] } },
+        select: {
+          id: true, slug: true, name: true, status: true,
+          specializations: { where: { status: { in: ['active', 'proposed'] } }, select: { id: true, slug: true, name: true, status: true }, orderBy: { publicationCount: 'desc' } },
+        },
+      },
+    },
+    orderBy: { sortOrder: 'asc' },
+  });
+  const catById = new Map();
+  const specsByCat = new Map();
+  const domainBySlug = new Map(domains.map((d) => [d.slug, d]));
+  for (const d of domains) {
+    for (const c of d.categories) {
+      catById.set(`${d.slug}/${c.slug}`, { ...c, domainStatus: d.status });
+      specsByCat.set(c.id, new Map(c.specializations.map((sp) => [sp.slug, sp])));
+    }
+  }
+  return { domains, catById, specsByCat, domainBySlug };
+}
+
+/** Classify one batch of keywords and store the mappings. Throws when the AI call fails. */
+async function classifyBatch(batch, tree, stats, allowProposals) {
+  const { domains, catById, specsByCat, domainBySlug } = tree;
+  const { data } = await ai.completeJson({
+    system: CLASSIFIER_SYSTEM,
+    prompt: `TAXONOMY:\n${treeContext(domains)}\n\nKEYWORDS:\n${batch.map((k) => `- ${k.canonicalName}`).join('\n')}`,
+    maxTokens: classifyMaxTokens(batch.length),
+    cacheContext: 'taxonomy_classify',
+  });
+
+  // Materialise proposals as "proposed" nodes.
+  if (allowProposals) {
+    for (const p of Array.isArray(data?.proposals) ? data.proposals : []) {
+      const [dSlugRaw, cSlugRaw] = String(p?.id || '').split('/');
+      const dSlug = toSlug(dSlugRaw || p?.domainName || '', 128);
+      const cSlug = toSlug(cSlugRaw || p?.categoryName || '', 128);
+      if (!dSlug || !cSlug || catById.has(`${dSlug}/${cSlug}`)) continue;
+      let domain = domainBySlug.get(dSlug);
+      if (!domain) {
+        if (!p.domainName) continue;
+        domain = await prisma.ripTaxonomyDomain
+          .create({ data: { name: String(p.domainName).slice(0, 128), slug: dSlug, status: 'proposed', origin: 'ai', sortOrder: 999 } })
+          .catch(() => prisma.ripTaxonomyDomain.findFirst({ where: { slug: dSlug } }));
+        if (!domain) continue;
+        domain.categories = [];
+        domainBySlug.set(dSlug, domain);
+        stats.proposedDomains++;
+      }
+      const category = await prisma.ripTaxonomyCategory
+        .create({
+          data: {
+            domainId: domain.id,
+            name: String(p.categoryName || cSlugRaw).slice(0, 128),
+            slug: cSlug,
+            description: p.description ? String(p.description).slice(0, 512) : null,
+            status: 'proposed',
+            origin: 'ai',
+          },
+        })
+        .catch(() => prisma.ripTaxonomyCategory.findFirst({ where: { domainId: domain.id, slug: cSlug } }));
+      if (!category) continue;
+      catById.set(`${dSlug}/${cSlug}`, { ...category, domainStatus: domain.status });
+      stats.proposedCategories++;
+    }
+  }
+
+  const byName = new Map(batch.map((k) => [k.canonicalName.toLowerCase(), k.id]));
+  const rows = [];
+  for (const c of Array.isArray(data?.classifications) ? data.classifications : []) {
+    const keywordId = byName.get(String(c?.keyword || '').toLowerCase());
+    if (!keywordId) continue;
+    if (!c.primary) {
+      stats.unclassified++;
+      continue;
+    }
+    const targets = [{ id: c.primary, confidence: Number(c.confidence) || 0.5, isPrimary: true }];
+    for (const s of Array.isArray(c.secondary) ? c.secondary.slice(0, 2) : []) targets.push({ id: s?.category, confidence: Number(s?.confidence) || 0.5, isPrimary: false });
+    const seen = new Set();
+    for (const t of targets) {
+      const cat = catById.get(String(t.id || '').toLowerCase());
+      if (!cat || seen.has(cat.id)) continue;
+      seen.add(cat.id);
+      const confidence = Math.max(0, Math.min(1, t.confidence));
+      const approved = confidence >= AUTO_APPROVE_CONFIDENCE && cat.status === 'active' && cat.domainStatus === 'active';
+      let specializationId = null;
+      if (t.isPrimary) {
+        const existing = c.specialization ? specsByCat.get(cat.id)?.get(toSlug(c.specialization, 128)) : null;
+        const spec = existing || (c.new_specialization ? await ensureSpecialization(cat, c.new_specialization, specsByCat, stats) : null);
+        specializationId = spec?.id || null;
+        if (specializationId) stats.specialized = (stats.specialized || 0) + 1;
+      }
+      rows.push({ keywordId, categoryId: cat.id, specializationId, source: 'ai', confidenceScore: confidence, isPrimary: t.isPrimary, status: approved ? 'approved' : 'pending_review' });
+      if (approved) stats.mapped++;
+      else stats.pending++;
+    }
+  }
+  if (rows.length) await prisma.ripKeywordTaxonomyMapping.createMany({ data: rows, skipDuplicates: true });
+}
+
 /**
  * Classify unmapped keywords with the AI.
+ *
+ * Batches run one at a time, and the AI provider throttles to its tokens-per-minute budget
+ * (RIP_GROQ_TPM). A batch that fails is kept and retried once after the others, so a
+ * transient rate limit does not silently drop its keywords from the run.
+ *
  * @param {object} opts
  * @param {number} [opts.maxKeywords=1500]
- * @param {number} [opts.batchSize=40]
+ * @param {number} [opts.batchSize] keywords per prompt (default RIP_CLASSIFY_BATCH_SIZE or 25)
  * @param {boolean} [opts.allowProposals=true]
  * @param {(pct:number)=>void} [opts.onProgress]
  */
-async function classifyKeywords({ maxKeywords = 1500, batchSize = 40, allowProposals = true, onProgress } = {}) {
+async function classifyKeywords({ maxKeywords = 1500, batchSize = classifyBatchSize(), allowProposals = true, onProgress } = {}) {
   if (!ai.isConfigured()) return { skipped: true, reason: 'No AI provider configured' };
   await ensureSeeded();
 
-  const stats = { processed: 0, mapped: 0, pending: 0, unclassified: 0, proposedCategories: 0, proposedDomains: 0, failedBatches: 0 };
+  const stats = { processed: 0, mapped: 0, pending: 0, unclassified: 0, proposedCategories: 0, proposedDomains: 0, failedBatches: 0, retriedBatches: 0, recoveredBatches: 0 };
   const attempted = new Set();
+  const failed = [];
+  let consecutiveUnavailable = 0;
 
   while (stats.processed < maxKeywords) {
-    const domains = await prisma.ripTaxonomyDomain.findMany({
-      where: { status: { in: ['active', 'proposed'] } },
-      include: {
-        categories: {
-          where: { status: { in: ['active', 'proposed'] } },
-          select: {
-            id: true, slug: true, name: true, status: true,
-            specializations: { where: { status: { in: ['active', 'proposed'] } }, select: { id: true, slug: true, name: true, status: true }, orderBy: { publicationCount: 'desc' } },
-          },
-        },
-      },
-      orderBy: { sortOrder: 'asc' },
-    });
-    const catById = new Map();
-    const specsByCat = new Map();
-    const domainBySlug = new Map(domains.map((d) => [d.slug, d]));
-    for (const d of domains) {
-      for (const c of d.categories) {
-        catById.set(`${d.slug}/${c.slug}`, { ...c, domainStatus: d.status });
-        specsByCat.set(c.id, new Map(c.specializations.map((sp) => [sp.slug, sp])));
-      }
-    }
-
+    const tree = await loadClassificationTree();
     const batch = await prisma.ripResearchKeyword.findMany({
       where: { id: { notIn: [...attempted] }, publicationCount: { gt: 0 }, taxonomyMappings: { none: {} } },
       select: { id: true, canonicalName: true },
@@ -343,89 +439,36 @@ async function classifyKeywords({ maxKeywords = 1500, batchSize = 40, allowPropo
     batch.forEach((k) => attempted.add(k.id));
     stats.processed += batch.length;
 
-    let data;
     try {
-      ({ data } = await ai.completeJson({
-        system: CLASSIFIER_SYSTEM,
-        prompt: `TAXONOMY:\n${treeContext(domains)}\n\nKEYWORDS:\n${batch.map((k) => `- ${k.canonicalName}`).join('\n')}`,
-        maxTokens: 6000,
-        cacheContext: 'taxonomy_classify',
-      }));
+      await classifyBatch(batch, tree, stats, allowProposals);
+      consecutiveUnavailable = 0;
     } catch (err) {
-      stats.failedBatches++;
-      log.warn('Taxonomy classification batch failed', { error: err.message });
-      if (err.name === 'AiUnavailableError' && stats.failedBatches >= 3) break;
+      failed.push(batch);
+      log.warn('Taxonomy classification batch failed; will retry at the end', { error: err.message, keywords: batch.length });
+      consecutiveUnavailable = err.name === 'AiUnavailableError' ? consecutiveUnavailable + 1 : 0;
+      if (consecutiveUnavailable >= 3) break;
+    }
+    onProgress?.(Math.round((stats.processed / maxKeywords) * 100));
+  }
+
+  // Retry each failed batch once; keywords mapped meanwhile are skipped.
+  for (const batch of failed) {
+    stats.retriedBatches++;
+    const stillUnmapped = await prisma.ripResearchKeyword.findMany({
+      where: { id: { in: batch.map((k) => k.id) }, taxonomyMappings: { none: {} } },
+      select: { id: true, canonicalName: true },
+    });
+    if (!stillUnmapped.length) {
+      stats.recoveredBatches++;
       continue;
     }
-
-    // Materialise proposals as "proposed" nodes.
-    if (allowProposals) {
-      for (const p of Array.isArray(data?.proposals) ? data.proposals : []) {
-        const [dSlugRaw, cSlugRaw] = String(p?.id || '').split('/');
-        const dSlug = toSlug(dSlugRaw || p?.domainName || '', 128);
-        const cSlug = toSlug(cSlugRaw || p?.categoryName || '', 128);
-        if (!dSlug || !cSlug || catById.has(`${dSlug}/${cSlug}`)) continue;
-        let domain = domainBySlug.get(dSlug);
-        if (!domain) {
-          if (!p.domainName) continue;
-          domain = await prisma.ripTaxonomyDomain
-            .create({ data: { name: String(p.domainName).slice(0, 128), slug: dSlug, status: 'proposed', origin: 'ai', sortOrder: 999 } })
-            .catch(() => prisma.ripTaxonomyDomain.findFirst({ where: { slug: dSlug } }));
-          if (!domain) continue;
-          domain.categories = [];
-          domainBySlug.set(dSlug, domain);
-          stats.proposedDomains++;
-        }
-        const category = await prisma.ripTaxonomyCategory
-          .create({
-            data: {
-              domainId: domain.id,
-              name: String(p.categoryName || cSlugRaw).slice(0, 128),
-              slug: cSlug,
-              description: p.description ? String(p.description).slice(0, 512) : null,
-              status: 'proposed',
-              origin: 'ai',
-            },
-          })
-          .catch(() => prisma.ripTaxonomyCategory.findFirst({ where: { domainId: domain.id, slug: cSlug } }));
-        if (!category) continue;
-        catById.set(`${dSlug}/${cSlug}`, { ...category, domainStatus: domain.status });
-        stats.proposedCategories++;
-      }
+    try {
+      await classifyBatch(stillUnmapped, await loadClassificationTree(), stats, allowProposals);
+      stats.recoveredBatches++;
+    } catch (err) {
+      stats.failedBatches++;
+      log.warn('Taxonomy classification batch failed again; its keywords stay unclassified until the next run', { error: err.message, keywords: stillUnmapped.length });
     }
-
-    const byName = new Map(batch.map((k) => [k.canonicalName.toLowerCase(), k.id]));
-    const rows = [];
-    for (const c of Array.isArray(data?.classifications) ? data.classifications : []) {
-      const keywordId = byName.get(String(c?.keyword || '').toLowerCase());
-      if (!keywordId) continue;
-      if (!c.primary) {
-        stats.unclassified++;
-        continue;
-      }
-      const targets = [{ id: c.primary, confidence: Number(c.confidence) || 0.5, isPrimary: true }];
-      for (const s of Array.isArray(c.secondary) ? c.secondary.slice(0, 2) : []) targets.push({ id: s?.category, confidence: Number(s?.confidence) || 0.5, isPrimary: false });
-      const seen = new Set();
-      for (const t of targets) {
-        const cat = catById.get(String(t.id || '').toLowerCase());
-        if (!cat || seen.has(cat.id)) continue;
-        seen.add(cat.id);
-        const confidence = Math.max(0, Math.min(1, t.confidence));
-        const approved = confidence >= AUTO_APPROVE_CONFIDENCE && cat.status === 'active' && cat.domainStatus === 'active';
-        let specializationId = null;
-        if (t.isPrimary) {
-          const existing = c.specialization ? specsByCat.get(cat.id)?.get(toSlug(c.specialization, 128)) : null;
-          const spec = existing || (c.new_specialization ? await ensureSpecialization(cat, c.new_specialization, specsByCat, stats) : null);
-          specializationId = spec?.id || null;
-          if (specializationId) stats.specialized = (stats.specialized || 0) + 1;
-        }
-        rows.push({ keywordId, categoryId: cat.id, specializationId, source: 'ai', confidenceScore: confidence, isPrimary: t.isPrimary, status: approved ? 'approved' : 'pending_review' });
-        if (approved) stats.mapped++;
-        else stats.pending++;
-      }
-    }
-    if (rows.length) await prisma.ripKeywordTaxonomyMapping.createMany({ data: rows, skipDuplicates: true });
-    onProgress?.(Math.round((stats.processed / maxKeywords) * 100));
   }
 
   log.info('Taxonomy classification complete', stats);
@@ -564,7 +607,7 @@ async function recomputeTaxonomyStats(tenantId) {
 
 async function deleteKeyword(keywordId) {
   const r = await prisma.ripResearchKeyword.deleteMany({ where: { id: keywordId } });
-  if (!r.count) throw new NotFoundError('Keyword not found');
+  if (!r.count) throw new NotFoundError('Keyword');
 }
 
 module.exports = {

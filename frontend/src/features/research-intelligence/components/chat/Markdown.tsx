@@ -38,14 +38,17 @@ function Citation({ refs, sources }: { refs: number[]; sources: SourceMap }) {
 
 function parseInline(text: string, sources: SourceMap): React.ReactNode[] {
   const out: React.ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|\[\d+(?:\s*,\s*\d+)*\]|(?<![*\w])\*[^*\s][^*]*\*(?!\*))/g;
+  // <br> is how models break lines inside a markdown table cell; render it, never show the tag.
+  const re = /(<br\s*\/?>|\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|\[\d+(?:\s*,\s*\d+)*\]|(?<![*\w])\*[^*\s][^*]*\*(?!\*))/gi;
   let last = 0;
   let k = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const tok = m[0];
-    if (tok.startsWith('**')) {
+    if (/^<br/i.test(tok)) {
+      out.push(<br key={k++} />);
+    } else if (tok.startsWith('**')) {
       out.push(<strong key={k++} className="font-semibold text-slate-900 dark:text-white">{tok.slice(2, -2)}</strong>);
     } else if (tok.startsWith('`')) {
       out.push(<code key={k++} className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 font-mono text-[12.5px]">{tok.slice(1, -1)}</code>);

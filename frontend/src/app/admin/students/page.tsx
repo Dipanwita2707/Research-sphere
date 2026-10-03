@@ -17,6 +17,7 @@ interface Program {
   id: string;
   programName: string;
   programCode: string;
+  programType?: string;
   department?: {
     departmentName: string;
     faculty?: {
@@ -57,6 +58,9 @@ interface Student {
   parentContact: string | null;
   emergencyContact: string | null;
   address: string | null;
+  phdRegistrationDate?: string | null;
+  phdAwardedAt?: string | null;
+  thesisTitle?: string | null;
   mentorId?: string | null;
   mentor?: {
     id: string;
@@ -109,6 +113,9 @@ export default function StudentManagement() {
     parentContact: '',
     emergencyContact: '',
     address: '',
+    phdRegistrationDate: '',
+    phdAwardedAt: '',
+    thesisTitle: '',
   });
   const [mentors, setMentors] = useState<FacultyOption[]>([]);
   const [mentorError, setMentorError] = useState('');
@@ -211,6 +218,9 @@ export default function StudentManagement() {
       parentContact: '',
       emergencyContact: '',
       address: '',
+      phdRegistrationDate: '',
+      phdAwardedAt: '',
+      thesisTitle: '',
     });
     setEditingStudent(null);
     setSections([]);
@@ -245,6 +255,9 @@ export default function StudentManagement() {
       parentContact: student.parentContact || '',
       emergencyContact: student.emergencyContact || '',
       address: student.address || '',
+      phdRegistrationDate: student.phdRegistrationDate ? student.phdRegistrationDate.split('T')[0] : '',
+      phdAwardedAt: student.phdAwardedAt ? student.phdAwardedAt.split('T')[0] : '',
+      thesisTitle: student.thesisTitle || '',
     });
     if (student.program?.id) {
       fetchSections(student.program.id);
@@ -255,6 +268,8 @@ export default function StudentManagement() {
     setMentorError('');
     setShowModal(true);
   };
+
+  const isDoctoralProgram = programs.find((p) => p.id === formData.programId)?.programType === 'doctoral';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,7 +297,16 @@ export default function StudentManagement() {
       parentContact: formData.parentContact || '',
       emergencyContact: formData.emergencyContact || '',
       address: formData.address || '',
+      phdRegistrationDate: formData.phdRegistrationDate || '',
+      phdAwardedAt: formData.phdAwardedAt || '',
+      thesisTitle: formData.thesisTitle || '',
     };
+    // PhD details apply to doctoral programmes only
+    if (!isDoctoralProgram) {
+      delete (dataToValidate as Partial<typeof dataToValidate>).phdRegistrationDate;
+      delete (dataToValidate as Partial<typeof dataToValidate>).phdAwardedAt;
+      delete (dataToValidate as Partial<typeof dataToValidate>).thesisTitle;
+    }
 
     // Validate using Zod schema
     const validation = editingStudent
@@ -923,6 +947,72 @@ export default function StudentManagement() {
                     </div>
                   </div>
                 </div>
+
+                {/* PhD details (doctoral programmes only; NIRF PhD registered / awarded) */}
+                {isDoctoralProgram && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">PhD Details</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="phdRegistrationDate" className="block text-sm font-medium text-gray-700 mb-1">PhD Registration Date</label>
+                        <input
+                          id="phdRegistrationDate"
+                          type="date"
+                          max={new Date().toISOString().slice(0, 10)}
+                          value={formData.phdRegistrationDate}
+                          onChange={(e) => setFormData({ ...formData, phdRegistrationDate: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                            formErrors.phdRegistrationDate ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                          }`}
+                        />
+                        {formErrors.phdRegistrationDate && (
+                          <div className="flex items-center mt-1 text-red-600 text-xs">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            {formErrors.phdRegistrationDate}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label htmlFor="phdAwardedAt" className="block text-sm font-medium text-gray-700 mb-1">PhD Awarded Date</label>
+                        <input
+                          id="phdAwardedAt"
+                          type="date"
+                          max={new Date().toISOString().slice(0, 10)}
+                          value={formData.phdAwardedAt}
+                          onChange={(e) => setFormData({ ...formData, phdAwardedAt: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                            formErrors.phdAwardedAt ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                          }`}
+                        />
+                        {formErrors.phdAwardedAt && (
+                          <div className="flex items-center mt-1 text-red-600 text-xs">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            {formErrors.phdAwardedAt}
+                          </div>
+                        )}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label htmlFor="thesisTitle" className="block text-sm font-medium text-gray-700 mb-1">Thesis Title</label>
+                        <input
+                          id="thesisTitle"
+                          type="text"
+                          maxLength={512}
+                          value={formData.thesisTitle}
+                          onChange={(e) => setFormData({ ...formData, thesisTitle: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                            formErrors.thesisTitle ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                          }`}
+                        />
+                        {formErrors.thesisTitle && (
+                          <div className="flex items-center mt-1 text-red-600 text-xs">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            {formErrors.thesisTitle}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Personal Info */}
                 <div>

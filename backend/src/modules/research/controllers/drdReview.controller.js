@@ -1,6 +1,60 @@
 const prisma = require('../../../shared/config/database');
 const { logIprStatusChange, logIprUpdate } = require('../../../shared/utils/auditLogger');
 const { canViewIpr, IPR_ACCESS_INCLUDE } = require('../utils/objectAccess');
+const reviewScope = require('../services/reviewScope');
+const { IPR_EDITABLE_FIELDS, pickAllowed } = require('../utils/editableFields');
+const { IPR_CREDITED_STATUSES, resolveIprPolicy, resolveIprInventors, createIprPayoutLines } = require('../utils/iprIncentive');
+const { toNumber, assertWithinCap } = require('../utils/policyMath');
+
+// ── IPR workflow transitions ────────────────────────────────────────────────
+// draft → pending_mentor_approval (students) → submitted → under_drd_review
+//   → (changes_required → resubmitted) → recommended_to_head → drd_head_approved / submitted_to_govt
+//   → govt_application_filed → published (incentives credited) | govt_rejected
+// Each DRD action may only start from the statuses listed here. DRD never acts on draft or
+// pending_mentor_approval: those belong to the applicant and the mentor.
+const DRD_REVIEWABLE_STATUSES = ['submitted', 'under_drd_review', 'resubmitted'];
+const IPR_TRANSITIONS = Object.freeze({
+  assignReviewer: DRD_REVIEWABLE_STATUSES,
+  review: DRD_REVIEWABLE_STATUSES,
+  requestChanges: [...DRD_REVIEWABLE_STATUSES, 'recommended_to_head'],
+  recommendToHead: DRD_REVIEWABLE_STATUSES,
+  finalApproval: [...DRD_REVIEWABLE_STATUSES, 'recommended_to_head', 'drd_head_approved'],
+  headApprove: ['recommended_to_head', 'drd_head_approved'],
+  finalRejection: [...DRD_REVIEWABLE_STATUSES, 'changes_required', 'recommended_to_head', 'drd_head_approved'],
+  govtApplication: ['drd_head_approved', 'submitted_to_govt', 'govt_application_filed'],
+  publication: ['govt_application_filed'],
+  govtRejected: ['submitted_to_govt', 'govt_application_filed'],
+});
+
+const transitionError = (action, currentStatus, allowed) => {
+  const err = new Error(currentStatus
+    ? `Cannot ${action} an IPR application in status '${currentStatus}'. Allowed from: ${allowed.join(', ')}`
+    : `Cannot ${action} this IPR application: its status changed meanwhile (allowed from: ${allowed.join(', ')}). Please refresh and try again.`);
+  err.statusCode = 409;
+  err.code = 'INVALID_STATUS_TRANSITION';
+  return err;
+};
+
+/** Sends a 409 for a transition error and returns true; false for any other error. */
+const respondIfTransitionError = (res, err) => {
+  if (err?.statusCode !== 409) return false;
+  res.status(409).json({ success: false, code: err.code, message: err.message });
+  return true;
+};
+
+const sendInvalidTransition = (res, action, currentStatus, allowed) =>
+  respondIfTransitionError(res, transitionError(action, currentStatus, allowed));
+
+/** Atomic status guard: move the application only if it is still in an allowed status. */
+const claimIprTransition = async (tx, id, allowed, data, action) => {
+  const result = await tx.iprApplication.updateMany({ where: { id, status: { in: allowed } }, data });
+  if (result.count !== 1) throw transitionError(action, null, allowed);
+};
+
+/** Notifications are sent after commit and never fail the request. */
+const safeNotify = (data) => prisma.notification.create({ data }).catch((e) => {
+  console.error('IPR notification error:', e);
+});
 
 // Non-blocking audit helper
 const _auditIprStatus = (application, oldStatus, newStatus, userId, req, comments) => {
@@ -8,15 +62,23 @@ const _auditIprStatus = (application, oldStatus, newStatus, userId, req, comment
 };
 
 // Helper function to notify all contributors of an IPR application
-const notifyContributors = async (iprApplicationId, notificationType, title, message, additionalMetadata = {}) => {
+const notifyContributors = async (iprApplicationId, notificationType, title, message, additionalMetadata = {}, { excludeUserIds = [] } = {}) => {
   try {
     // Get all contributors for this application
-    const contributors = await prisma.iprContributor.findMany({
-      where: { 
+    const rows = await prisma.iprContributor.findMany({
+      where: {
         iprApplicationId,
         userId: { not: null }  // Only notify internal users who have accounts
       },
       select: { userId: true, name: true }
+    });
+
+    // One notification per user, skipping users already notified by the caller
+    const skip = new Set(excludeUserIds);
+    const contributors = rows.filter((c) => {
+      if (skip.has(c.userId)) return false;
+      skip.add(c.userId);
+      return true;
     });
 
     // Create notifications for each contributor
@@ -52,8 +114,7 @@ const getPendingDrdReviews = async (req, res) => {
 
     // Use merged permissions from req.user (includes both direct and role-based permissions)
     let mergedPermissions = {};
-    let assignedSchoolIds = [];
-    
+
     // Merge all DRD permissions from req.user
     if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
       req.user.centralDeptPermissions.forEach(deptPerm => {
@@ -63,39 +124,12 @@ const getPendingDrdReviews = async (req, res) => {
       });
     }
     
-    // Get school assignments from direct permission (school assignments are not role-based)
-    try {
-      const drdDept = await prisma.centralDepartment.findFirst({
-        where: {
-          OR: [
-            { departmentCode: 'DRD' },
-            { shortName: 'DRD' }
-          ],
-        },
-      });
-      
-      if (drdDept) {
-        const directPermission = await prisma.centralDepartmentPermission.findFirst({
-          where: {
-            userId,
-            isActive: true,
-            centralDeptId: drdDept.id
-          },
-          select: {
-            assignedSchoolIds: true,
-          }
-        });
-        
-        assignedSchoolIds = (directPermission?.assignedSchoolIds || []).filter(id => id !== null && id !== undefined);
-      }
-    } catch (permError) {
-      // Error fetching school assignments - continue with empty array
-    }
+    // School scope from the direct DRD row (school assignments are not role-based):
+    // empty assignedSchoolIds = all schools, non-empty = only those schools.
+    const iprScope = await reviewScope.getSchoolScope(req.user, 'ipr');
 
     const permissions = mergedPermissions;
     const isDrdHead = permissions.ipr_approve === true || permissions.drd_ipr_approve === true;
-    const isDrdMember = permissions.ipr_review === true || permissions.ipr_recommend === true || 
-                        permissions.drd_ipr_review === true || permissions.drd_ipr_recommend === true;
 
     // Build status filter
     // Pending review statuses (for initial review)
@@ -134,28 +168,15 @@ const getPendingDrdReviews = async (req, res) => {
     // Filter by IPR type if specified
     if (iprType) where.iprType = iprType;
 
-    // School filtering logic
-    if (schoolId) {
-      // Explicit school filter from query
-      where.schoolId = schoolId;
-    } else if (!isDrdHead && isDrdMember && assignedSchoolIds.length > 0) {
-      // DRD Member with assigned schools: can see:
-      // 1. Applications from their assigned schools
-      // 2. Applications with no school assigned (schoolId is null) - so they can review and assign
-      // 3. Applications assigned to them as reviewer
+    // School filtering: the explicit ?schoolId filter narrows the reviewer's scope, never widens it.
+    // A restricted reviewer also keeps applications the DRD Head assigned to them.
+    if (schoolId) where.schoolId = schoolId;
+    if (!iprScope.all) {
       where.OR = [
-        { schoolId: { in: assignedSchoolIds } },
-        { schoolId: null },
-        { currentReviewerId: userId }
-      ];
-    } else if (!isDrdHead && isDrdMember && assignedSchoolIds.length === 0) {
-      // DRD Member with no assigned schools: see unassigned apps and their assigned applications
-      where.OR = [
-        { schoolId: null },
-        { currentReviewerId: userId }
+        { schoolId: { in: iprScope.schoolIds } },
+        { currentReviewerId: userId },
       ];
     }
-    // DRD Head sees all schools (no school filter)
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -313,25 +334,32 @@ const assignDrdReviewer = async (req, res) => {
       });
     }
 
-    // Update application with reviewer
-    await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        currentReviewerId: reviewerId,
-        status: 'under_drd_review',
-      },
-    });
+    const allowed = IPR_TRANSITIONS.assignReviewer;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'assign a reviewer to', application.status, allowed);
+    }
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'under_drd_review',
-        changedById: userId,
-        comments: `Assigned to reviewer: ${reviewerId}`,
-      },
-    });
+    try {
+      await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, {
+          currentReviewerId: reviewerId,
+          status: 'under_drd_review',
+        }, 'assign a reviewer to');
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'under_drd_review',
+            changedById: userId,
+            comments: `Assigned to reviewer: ${reviewerId}`,
+          },
+        });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Audit: reviewer assignment
     _auditIprStatus(application, application.status, 'under_drd_review', userId, req, `Assigned to reviewer: ${reviewerId}`);
@@ -364,6 +392,21 @@ const submitDrdReview = async (req, res) => {
       });
     }
 
+    // "Approved" moves the IPR past the DRD head, so it needs approve rights — a reviewer
+    // (ipr_review only) recommends; someone holding ipr_approve approves.
+    if (decision === 'approved' && !['admin', 'superadmin'].includes(req.user?.role)) {
+      const holdsApprove = (req.user?.centralDeptPermissions || []).some(
+        (d) => d.permissions && (d.permissions.ipr_approve === true || d.permissions.drd_ipr_approve === true)
+      );
+      if (!holdsApprove) {
+        return res.status(403).json({
+          success: false,
+          code: 'APPROVE_PERMISSION_REQUIRED',
+          message: 'Approving an IPR needs the IPR approve permission. Recommend it to the DRD head instead.',
+        });
+      }
+    }
+
     // Check if application exists
     const application = await prisma.iprApplication.findUnique({
       where: { id },
@@ -376,18 +419,10 @@ const submitDrdReview = async (req, res) => {
       });
     }
 
-    // Create review record
-    const review = await prisma.iprReview.create({
-      data: {
-        iprApplicationId: id,
-        reviewerId: userId,
-        reviewerRole: 'drd_member',
-        comments,
-        edits: edits || {},
-        decision,
-        reviewedAt: new Date(),
-      },
-    });
+    const allowed = IPR_TRANSITIONS.review;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'submit a DRD review for', application.status, allowed);
+    }
 
     // Determine new status
     let newStatus;
@@ -399,25 +434,45 @@ const submitDrdReview = async (req, res) => {
       newStatus = 'drd_rejected';
     }
 
-    // Update application status
-    await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        status: newStatus,
-        ...(decision === 'approved' ? { approvedAt: new Date() } : {}),
-      },
-    });
+    // Review row, status change and history are one unit: a failed status update must not
+    // leave an orphan review behind. IprApplication has no approval timestamp column; the
+    // approval time is the review's reviewedAt and the status-history row.
+    let review;
+    try {
+      review = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, {
+          status: newStatus,
+          ...(newStatus === 'drd_rejected' ? { completedAt: new Date() } : {}),
+        }, 'submit a DRD review for');
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: newStatus,
-        changedById: userId,
-        comments: `DRD review: ${decision}`,
-      },
-    });
+        const created = await tx.iprReview.create({
+          data: {
+            iprApplicationId: id,
+            reviewerId: userId,
+            reviewerRole: 'drd_member',
+            comments,
+            edits: edits || {},
+            decision,
+            reviewedAt: new Date(),
+          },
+        });
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: newStatus,
+            changedById: userId,
+            comments: `DRD review: ${decision}`,
+          },
+        });
+
+        return created;
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Notify contributors about status change
     const statusMessages = {
@@ -481,11 +536,22 @@ const acceptEditsAndResubmit = async (req, res) => {
       });
     }
 
+    if (application.status !== 'changes_required') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot resubmit an application in status: ${application.status}`,
+      });
+    }
+
+    // Mass-assignment guard: only descriptive IPR fields may be changed here
+    // (never status, incentive, applicant or mentor fields). Unknown keys are dropped.
+    const allowedData = pickAllowed(updatedData, IPR_EDITABLE_FIELDS);
+
     // Update application data and resubmit
     const updated = await prisma.iprApplication.update({
       where: { id },
       data: {
-        ...updatedData,
+        ...allowedData,
         status: 'resubmitted',
         submittedAt: new Date(),
       },
@@ -524,7 +590,12 @@ const getDrdReviewStatistics = async (req, res) => {
   try {
     const { reviewerId } = req.query;
 
-    const where = reviewerId ? { reviewerId } : {};
+    // Counts follow the same school scope as the IPR queue (empty assignment = all schools)
+    const schoolWhere = reviewScope.scopeWhere(await reviewScope.getSchoolScope(req.user, 'ipr')) || {};
+    const where = {
+      ...(reviewerId ? { reviewerId } : {}),
+      ...(Object.keys(schoolWhere).length ? { iprApplication: schoolWhere } : {}),
+    };
 
     const [
       totalReviews,
@@ -566,18 +637,21 @@ const getDrdReviewStatistics = async (req, res) => {
       // Applications awaiting DRD member review
       prisma.iprApplication.count({
         where: {
+          ...schoolWhere,
           status: { in: ['submitted', 'under_drd_review', 'resubmitted'] },
         },
       }),
       // Applications awaiting DRD Head approval (recommended by member)
       prisma.iprApplication.count({
         where: {
+          ...schoolWhere,
           status: { in: ['recommended_to_head'] },
         },
       }),
       // All active applications in the pipeline (not completed or rejected)
       prisma.iprApplication.count({
         where: {
+          ...schoolWhere,
           status: { 
             notIn: ['draft', 'completed', 'drd_rejected', 'cancelled'] 
           },
@@ -586,6 +660,7 @@ const getDrdReviewStatistics = async (req, res) => {
       // Completed/fully approved applications
       prisma.iprApplication.count({
         where: {
+          ...schoolWhere,
           status: { in: ['completed', 'drd_head_approved', 'submitted_to_govt', 'govt_application_filed'] },
         },
       }),
@@ -680,50 +755,58 @@ const finalApproval = async (req, res) => {
       });
     }
 
-    // Update application status - DRD Head approved, submitted to govt for filing
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        status: 'submitted_to_govt',
-        currentReviewerId: userId, // Assign to DRD Head for govt filing updates
-      }
-    });
+    const allowed = IPR_TRANSITIONS.finalApproval;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'approve', application.status, allowed);
+    }
 
-    // Create final review record
-    await prisma.iprReview.create({
-      data: {
-        iprApplicationId: id,
-        reviewerId: userId,
-        reviewerRole: 'drd_head',
-        comments: comments || 'Application approved by DRD Head',
-        decision: 'approved',
-        reviewedAt: new Date()
-      }
-    });
+    // Status change, review and history in one transaction with an atomic status guard
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, {
+          status: 'submitted_to_govt',
+          currentReviewerId: userId, // Assign to DRD Head for govt filing updates
+        }, 'approve');
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'submitted_to_govt',
-        changedById: userId,
-        comments: comments || 'DRD Head approved - submitted to government for filing'
-      }
-    });
+        await tx.iprReview.create({
+          data: {
+            iprApplicationId: id,
+            reviewerId: userId,
+            reviewerRole: 'drd_head',
+            comments: comments || 'Application approved by DRD Head',
+            decision: 'approved',
+            reviewedAt: new Date()
+          }
+        });
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'submitted_to_govt',
+            changedById: userId,
+            comments: comments || 'DRD Head approved - submitted to government for filing'
+          }
+        });
+
+        return tx.iprApplication.findUnique({ where: { id } });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Notify applicant
     if (application.applicantUserId) {
-      await prisma.notification.create({
-        data: {
-          userId: application.applicantUserId,
-          type: 'ipr_approved',
-          title: 'IPR Application Approved - Submitted to Government!',
-          message: `Your IPR application "${application.title}" has been approved by DRD Head and submitted to government for filing.`,
-          referenceType: 'ipr_application',
-          referenceId: id,
-          metadata: { newStatus: 'submitted_to_govt' }
-        }
+      await safeNotify({
+        userId: application.applicantUserId,
+        type: 'ipr_approved',
+        title: 'IPR Application Approved - Submitted to Government!',
+        message: `Your IPR application "${application.title}" has been approved by DRD Head and submitted to government for filing.`,
+        referenceType: 'ipr_application',
+        referenceId: id,
+        metadata: { newStatus: 'submitted_to_govt' }
       });
     }
 
@@ -783,37 +866,46 @@ const finalRejection = async (req, res) => {
       });
     }
 
-    // Update application with final rejection
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        status: 'drd_rejected',
-        completedAt: new Date()
-      }
-    });
+    const allowed = IPR_TRANSITIONS.finalRejection;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'reject', application.status, allowed);
+    }
 
-    // Create final review record
-    await prisma.iprReview.create({
-      data: {
-        iprApplicationId: id,
-        reviewerId: userId,
-        reviewerRole: 'drd_approver',
-        comments,
-        decision: 'rejected',
-        reviewedAt: new Date()
-      }
-    });
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, {
+          status: 'drd_rejected',
+          completedAt: new Date()
+        }, 'reject');
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'drd_rejected',
-        changedById: userId,
-        comments: `Final rejection by DRD: ${comments}`
-      }
-    });
+        await tx.iprReview.create({
+          data: {
+            iprApplicationId: id,
+            reviewerId: userId,
+            reviewerRole: 'drd_approver',
+            comments,
+            decision: 'rejected',
+            reviewedAt: new Date()
+          }
+        });
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'drd_rejected',
+            changedById: userId,
+            comments: `Final rejection by DRD: ${comments}`
+          }
+        });
+
+        return tx.iprApplication.findUnique({ where: { id } });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Audit: DRD final rejection
     _auditIprStatus(application, application.status, 'drd_rejected', userId, req, comments);
@@ -865,6 +957,11 @@ const requestChanges = async (req, res) => {
       });
     }
 
+    const allowedFrom = IPR_TRANSITIONS.requestChanges;
+    if (!allowedFrom.includes(application.status)) {
+      return sendInvalidTransition(res, 'request changes on', application.status, allowedFrom);
+    }
+
     // Get reviewer info
     const reviewer = await prisma.userLogin.findUnique({
       where: { id: userId },
@@ -879,42 +976,46 @@ const requestChanges = async (req, res) => {
       reviewer?.employeeDetails?.firstName ||
       reviewer?.uid || 'DRD Reviewer';
 
-    // Update application to changes required
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        status: 'changes_required',
-        currentReviewerId: userId
-      }
-    });
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowedFrom, {
+          status: 'changes_required',
+          currentReviewerId: userId
+        }, 'request changes on');
 
-    // Create review record
-    await prisma.iprReview.create({
-      data: {
-        iprApplicationId: id,
-        reviewerId: userId,
-        reviewerRole: 'drd_member',
-        comments,
-        edits: edits || {},
-        decision: 'changes_required',
-        reviewedAt: new Date()
-      }
-    });
+        await tx.iprReview.create({
+          data: {
+            iprApplicationId: id,
+            reviewerId: userId,
+            reviewerRole: 'drd_member',
+            comments,
+            edits: edits || {},
+            decision: 'changes_required',
+            reviewedAt: new Date()
+          }
+        });
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'changes_required',
-        changedById: userId,
-        comments: `Changes requested: ${comments}`
-      }
-    });
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'changes_required',
+            changedById: userId,
+            comments: `Changes requested: ${comments}`
+          }
+        });
+
+        return tx.iprApplication.findUnique({ where: { id } });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Send notification to applicant
-    await prisma.notification.create({
-      data: {
+    if (application.applicantUserId) {
+      await safeNotify({
         userId: application.applicantUserId,
         type: 'ipr_changes_requested',
         title: 'Changes Requested for Your IPR Application',
@@ -927,8 +1028,8 @@ const requestChanges = async (req, res) => {
           actionUrl: `/ipr/my-applications/${id}`,
           actionLabel: 'View & Update'
         }
-      }
-    });
+      });
+    }
 
     // Notify all contributors
     await notifyContributors(
@@ -1080,42 +1181,49 @@ const recommendToHead = async (req, res) => {
       });
     }
 
-    // Update status to recommended_to_head
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        status: 'recommended_to_head',
-        currentReviewerId: userId
-      },
-      include: {
-        applicantDetails: true,
-        contributors: true,
-        sdgs: true
-      }
-    });
+    const allowed = IPR_TRANSITIONS.recommendToHead;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'recommend', application.status, allowed);
+    }
 
-    // Create review record
-    await prisma.iprReview.create({
-      data: {
-        iprApplicationId: id,
-        reviewerId: userId,
-        reviewerRole: 'drd_member',
-        comments: comments || 'Recommended to DRD Head for approval',
-        decision: 'recommended',
-        reviewedAt: new Date()
-      }
-    });
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, {
+          status: 'recommended_to_head',
+          currentReviewerId: userId
+        }, 'recommend');
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'recommended_to_head',
-        changedById: userId,
-        comments: comments || 'Application recommended to DRD Head'
-      }
-    });
+        await tx.iprReview.create({
+          data: {
+            iprApplicationId: id,
+            reviewerId: userId,
+            reviewerRole: 'drd_member',
+            comments: comments || 'Recommended to DRD Head for approval',
+            decision: 'recommended',
+            reviewedAt: new Date()
+          }
+        });
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'recommended_to_head',
+            changedById: userId,
+            comments: comments || 'Application recommended to DRD Head'
+          }
+        });
+
+        return tx.iprApplication.findUnique({
+          where: { id },
+          include: { applicantDetails: true, contributors: true, sdgs: true }
+        });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Notify contributors
     await notifyContributors(
@@ -1161,42 +1269,49 @@ const headApproveAndSubmitToGovt = async (req, res) => {
       });
     }
 
-    // Update status to submitted_to_govt
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        status: 'submitted_to_govt',
-        currentReviewerId: userId
-      },
-      include: {
-        applicantDetails: true,
-        contributors: true,
-        sdgs: true
-      }
-    });
+    const allowed = IPR_TRANSITIONS.headApprove;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'approve and submit to Government', application.status, allowed);
+    }
 
-    // Create review record
-    await prisma.iprReview.create({
-      data: {
-        iprApplicationId: id,
-        reviewerId: userId,
-        reviewerRole: 'drd_head',
-        comments: comments || 'Approved and submitted to Government',
-        decision: 'approved',
-        reviewedAt: new Date()
-      }
-    });
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, {
+          status: 'submitted_to_govt',
+          currentReviewerId: userId
+        }, 'approve and submit to Government');
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'submitted_to_govt',
-        changedById: userId,
-        comments: 'DRD Head approved - Submitted to Government'
-      }
-    });
+        await tx.iprReview.create({
+          data: {
+            iprApplicationId: id,
+            reviewerId: userId,
+            reviewerRole: 'drd_head',
+            comments: comments || 'Approved and submitted to Government',
+            decision: 'approved',
+            reviewedAt: new Date()
+          }
+        });
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'submitted_to_govt',
+            changedById: userId,
+            comments: 'DRD Head approved - Submitted to Government'
+          }
+        });
+
+        return tx.iprApplication.findUnique({
+          where: { id },
+          include: { applicantDetails: true, contributors: true, sdgs: true }
+        });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Notify contributors
     await notifyContributors(
@@ -1249,52 +1364,63 @@ const addGovtApplicationId = async (req, res) => {
       });
     }
 
-    // Update with govt application ID
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        govtApplicationId,
-        govtFilingDate: govtFilingDate ? new Date(govtFilingDate) : new Date(),
-        status: 'govt_application_filed'
-      },
-      include: {
-        applicantUser: {
-          select: {
-            uid: true,
-            email: true,
-            employeeDetails: { select: { firstName: true, lastName: true } }
-          }
-        },
-        applicantDetails: true,
-        contributors: true,
-        sdgs: true
-      }
-    });
+    // Only after DRD Head approval (or to correct the ID of an already filed application)
+    const allowed = IPR_TRANSITIONS.govtApplication;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'add a Government Application ID to', application.status, allowed);
+    }
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'govt_application_filed',
-        changedById: userId,
-        comments: `Government Application ID added: ${govtApplicationId}`,
-        metadata: { govtApplicationId, govtFilingDate }
-      }
-    });
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, {
+          govtApplicationId,
+          govtFilingDate: govtFilingDate ? new Date(govtFilingDate) : new Date(),
+          status: 'govt_application_filed'
+        }, 'add a Government Application ID to');
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'govt_application_filed',
+            changedById: userId,
+            comments: `Government Application ID added: ${govtApplicationId}`,
+            metadata: { govtApplicationId, govtFilingDate }
+          }
+        });
+
+        return tx.iprApplication.findUnique({
+          where: { id },
+          include: {
+            applicantUser: {
+              select: {
+                uid: true,
+                email: true,
+                employeeDetails: { select: { firstName: true, lastName: true } }
+              }
+            },
+            applicantDetails: true,
+            contributors: true,
+            sdgs: true
+          }
+        });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Notify applicant
     if (application.applicantUserId) {
-      await prisma.notification.create({
-        data: {
-          userId: application.applicantUserId,
-          type: 'ipr_govt_filed',
-          title: 'Government Application Filed',
-          message: `Your IPR application "${application.title}" has been filed with the Government. Application ID: ${govtApplicationId}`,
-          referenceType: 'ipr_application',
-          referenceId: id,
-          metadata: { govtApplicationId }
-        }
+      await safeNotify({
+        userId: application.applicantUserId,
+        type: 'ipr_govt_filed',
+        title: 'Government Application Filed',
+        message: `Your IPR application "${application.title}" has been filed with the Government. Application ID: ${govtApplicationId}`,
+        referenceType: 'ipr_application',
+        referenceId: id,
+        metadata: { govtApplicationId }
       });
     }
 
@@ -1324,106 +1450,46 @@ const addGovtApplicationId = async (req, res) => {
   }
 };
 
-// Incentive Policy defaults
-const DEFAULT_INCENTIVE_POLICIES = {
-  patent: { baseIncentiveAmount: 50000, basePoints: 50, splitPolicy: 'equal' },
-  copyright: { baseIncentiveAmount: 15000, basePoints: 20, splitPolicy: 'equal' },
-  trademark: { baseIncentiveAmount: 10000, basePoints: 15, splitPolicy: 'equal' },
-  design: { baseIncentiveAmount: 20000, basePoints: 25, splitPolicy: 'equal' }
-};
+/**
+ * Split the IPR incentive equally among internal inventors and put each share into the
+ * payout ledger. Runs inside the publication transaction; notifications are returned for
+ * the caller to send after commit.
+ */
+const creditIncentivesToInventors = async (tx, application, userId, approvedAt = new Date()) => {
+  // Policy in force at publication (same date-window rule as ipr.repository.findActivePolicy);
+  // the built-in defaults apply only when none is configured, and that is recorded.
+  const { policy, usedDefaultPolicy } = await resolveIprPolicy(tx, application.iprType, approvedAt);
+  const totalIncentive = assertWithinCap(toNumber(policy.baseIncentiveAmount), 'this IPR');
+  const totalPoints = toNumber(policy.basePoints);
 
-// Helper function to calculate and credit incentives to inventors
-const creditIncentivesToInventors = async (application, userId) => {
-  try {
-    const iprType = application.iprType?.toLowerCase() || 'patent';
-    
-    // Get active policy or use default
-    let policy = await prisma.incentivePolicy.findFirst({
-      where: {
-        iprType: iprType,
-        isActive: true
-      }
-    });
+  const inventors = await resolveIprInventors(tx, application);
+  const inventorCount = inventors.length || 1;
+  const perInventorIncentive = Math.floor(totalIncentive / inventorCount);
+  const perInventorPoints = Math.floor(totalPoints / inventorCount);
 
-    if (!policy) {
-      policy = DEFAULT_INCENTIVE_POLICIES[iprType] || DEFAULT_INCENTIVE_POLICIES.patent;
-    }
+  const ledger = await createIprPayoutLines(tx, application, {
+    inventors, perInventorIncentive, perInventorPoints, approvedAt, actorId: userId,
+  });
 
-    const totalIncentive = Number(policy.baseIncentiveAmount);
-    const totalPoints = Number(policy.basePoints);
+  // One combined "published + incentive approved" notification per inventor (the applicant
+  // is included as primary inventor); addPublicationId sends nothing else to these users.
+  // Students are paid money only, never research points.
+  const notifications = inventors.filter((inv) => inv.userId).map((inv) => ({
+    userId: inv.userId,
+    type: 'ipr_published',
+    title: 'IPR Published & Incentive Approved [PAYMENT]',
+    message: `Congratulations! Your IPR "${application.title}" has been published (Publication ID: ${application.publicationId}). Your share of ₹${perInventorIncentive.toLocaleString()}${inv.isStudent ? '' : ` and ${perInventorPoints} research points`} has been approved; finance will process the payment.`,
+    referenceType: 'ipr_application',
+    referenceId: application.id,
+    metadata: {
+      incentiveAmount: perInventorIncentive,
+      pointsAwarded: inv.isStudent ? 0 : perInventorPoints,
+      publicationId: application.publicationId,
+      totalInventors: inventorCount,
+    },
+  }));
 
-    // Get all inventors (contributors with role 'inventor' or the applicant)
-    const contributors = await prisma.iprContributor.findMany({
-      where: {
-        iprApplicationId: application.id,
-        role: { in: ['inventor', 'co-inventor', 'primary_inventor', 'co_inventor'] }
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            uid: true,
-            employeeDetails: {
-              select: { firstName: true, lastName: true, displayName: true }
-            }
-          }
-        }
-      }
-    });
-
-    // If no contributors found, use the applicant as the sole inventor
-    let inventors = contributors.filter(c => c.userId);
-    
-    // Add applicant if not already in the list
-    if (application.applicantUserId) {
-      const applicantInList = inventors.some(i => i.userId === application.applicantUserId);
-      if (!applicantInList) {
-        inventors.push({
-          userId: application.applicantUserId,
-          name: 'Applicant',
-          role: 'primary_inventor'
-        });
-      }
-    }
-
-    const inventorCount = inventors.length || 1;
-    
-    // Calculate per-inventor share (equal split)
-    const perInventorIncentive = Math.floor(totalIncentive / inventorCount);
-    const perInventorPoints = Math.floor(totalPoints / inventorCount);
-
-    // Batch notify all inventors (single DB round-trip)
-    const inventorNotifs = inventors
-      .filter(inv => inv.userId)
-      .map(inv => ({
-        userId: inv.userId,
-        type: 'incentive_credited',
-        title: 'Incentive Credited! [PAYMENT]',
-        message: `Congratulations! ₹${perInventorIncentive.toLocaleString()} and ${perInventorPoints} research points have been credited for your contribution to "${application.title}".`,
-        referenceType: 'ipr_application',
-        referenceId: application.id,
-        metadata: {
-          incentiveAmount: perInventorIncentive,
-          pointsAwarded: perInventorPoints,
-          publicationId: application.publicationId,
-          totalInventors: inventorCount,
-        },
-      }));
-    if (inventorNotifs.length) {
-      await prisma.notification.createMany({ data: inventorNotifs });
-    }
-
-    return {
-      totalIncentive,
-      totalPoints,
-      perInventorIncentive,
-      perInventorPoints,
-      inventorCount
-    };
-  } catch (error) {
-    console.error('Error crediting incentives:', error);
-    throw error;
-  }
+  return { totalIncentive, totalPoints, perInventorIncentive, perInventorPoints, inventorCount, ledger, notifications, usedDefaultPolicy };
 };
 
 // Add Publication ID (after patent/copyright is granted) - Auto credits incentives
@@ -1523,118 +1589,111 @@ const addPublicationId = async (req, res) => {
       });
     }
 
-    // Original publication flow (for successful applications)
-    // Calculate incentives based on policy
-    const iprType = application.iprType?.toLowerCase() || 'patent';
-    let policy = await prisma.incentivePolicy.findFirst({
-      where: { iprType, isActive: true }
-    });
-    if (!policy) {
-      policy = DEFAULT_INCENTIVE_POLICIES[iprType] || DEFAULT_INCENTIVE_POLICIES.patent;
-    }
-
-    const totalIncentive = Number(policy.baseIncentiveAmount);
-    const totalPoints = Number(policy.basePoints);
-
-    // Count inventors to calculate split
-    const inventors = application.contributors?.filter(c => 
-      ['inventor', 'co-inventor', 'primary_inventor', 'co_inventor'].includes(c.role)
-    ) || [];
-    
-    // Include applicant if not already counted
-    let inventorCount = inventors.filter(i => i.userId).length;
-    if (application.applicantUserId) {
-      const applicantInList = inventors.some(i => i.userId === application.applicantUserId);
-      if (!applicantInList) {
-        inventorCount++;
-      }
-    }
-    inventorCount = Math.max(inventorCount, 1); // At least 1
-    
-    // Calculate per-inventor share
-    const perInventorIncentive = Math.floor(totalIncentive / inventorCount);
-    const perInventorPoints = Math.floor(totalPoints / inventorCount);
-
-    // Update application with publication ID - mark as PUBLISHED (completed)
-    // Store per-inventor share (what each inventor receives)
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        publicationId,
-        publicationDate: publicationDate ? new Date(publicationDate) : new Date(),
-        status: 'published',
-        completedAt: new Date(),
-        incentiveAmount: perInventorIncentive,
-        pointsAwarded: perInventorPoints,
-      },
-      include: {
-        applicantUser: {
-          select: {
-            uid: true,
-            email: true,
-            employeeDetails: { select: { firstName: true, lastName: true } }
-          }
-        },
-        applicantDetails: true,
-        contributors: true,
-        sdgs: true
-      }
-    });
-
-    // Credit incentives to all inventors
-    const incentiveResult = await creditIncentivesToInventors(updated, userId);
-
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'published',
-        changedById: userId,
-        comments: `Publication ID added: ${publicationId}. Total Incentive: ₹${totalIncentive} and ${totalPoints} points. Each inventor receives: ₹${perInventorIncentive} and ${perInventorPoints} points (split among ${inventorCount} inventor(s))`,
-        metadata: { 
-          publicationId, 
-          publicationDate,
-          totalIncentive,
-          totalPoints,
-          perInventorIncentive,
-          perInventorPoints,
-          inventorCount
-        }
-      }
-    });
-
-    // Notify applicant
-    if (application.applicantUserId) {
-      await prisma.notification.create({
-        data: {
-          userId: application.applicantUserId,
-          type: 'ipr_published',
-          title: 'IPR Published & Incentives Credited! 🎉[PAYMENT]',
-          message: `Congratulations! Your IPR "${application.title}" has been published. Publication ID: ${publicationId}. Incentives (₹${incentiveResult.perInventorIncentive.toLocaleString()} and ${incentiveResult.perInventorPoints} points) have been credited to all inventors.`,
-          referenceType: 'ipr_application',
-          referenceId: id,
-          metadata: { 
-            publicationId,
-            incentiveAmount: incentiveResult.perInventorIncentive,
-            pointsAwarded: incentiveResult.perInventorPoints
-          }
-        }
+    // Original publication flow (for successful applications).
+    // Incentives are credited exactly once: a repeat call must not pay inventors again.
+    if (application.creditedAt || IPR_CREDITED_STATUSES.includes(application.status)) {
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_CREDITED',
+        message: 'This IPR is already published and its incentives have already been sent to finance',
       });
     }
 
-    // Notify other contributors
+    // Publication (and the incentive payment) only after the Government filing is recorded
+    if (!IPR_TRANSITIONS.publication.includes(application.status)) {
+      return sendInvalidTransition(res, 'add a Publication ID to', application.status, IPR_TRANSITIONS.publication);
+    }
+
+    const now = new Date();
+    let updated;
+    let incentiveResult;
+    try {
+      ({ updated, incentiveResult } = await prisma.$transaction(async (tx) => {
+        // Claim the crediting atomically so concurrent calls cannot both credit.
+        const claimed = await tx.iprApplication.updateMany({
+          where: { id, creditedAt: null, status: { in: IPR_TRANSITIONS.publication } },
+          data: {
+            publicationId,
+            publicationDate: publicationDate ? new Date(publicationDate) : now,
+            status: 'published',
+            completedAt: now,
+            creditedAt: now,
+          },
+        });
+        if (claimed.count !== 1) {
+          const err = new Error('This IPR is already published and its incentives have already been sent to finance');
+          err.statusCode = 409;
+          err.code = 'ALREADY_CREDITED';
+          throw err;
+        }
+
+        const result = await creditIncentivesToInventors(tx, { ...application, publicationId }, userId, now);
+
+        // Store per-inventor share (what each inventor receives)
+        const row = await tx.iprApplication.update({
+          where: { id },
+          data: { incentiveAmount: result.perInventorIncentive, pointsAwarded: result.perInventorPoints },
+          include: {
+            applicantUser: {
+              select: {
+                uid: true,
+                email: true,
+                employeeDetails: { select: { firstName: true, lastName: true } }
+              }
+            },
+            applicantDetails: true,
+            contributors: true,
+            sdgs: true
+          }
+        });
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'published',
+            changedById: userId,
+            comments: `Publication ID added: ${publicationId}. Total Incentive: ₹${result.totalIncentive} and ${result.totalPoints} points. Each inventor receives: ₹${result.perInventorIncentive} and ${result.perInventorPoints} points (split among ${result.inventorCount} inventor(s)); sent to finance for payment${result.usedDefaultPolicy ? `. Incentive from the built-in DEFAULT ${String(application.iprType || 'patent').toLowerCase()} policy (no IPR incentive policy configured)` : ''}`,
+            metadata: {
+              publicationId,
+              publicationDate,
+              totalIncentive: result.totalIncentive,
+              totalPoints: result.totalPoints,
+              perInventorIncentive: result.perInventorIncentive,
+              perInventorPoints: result.perInventorPoints,
+              inventorCount: result.inventorCount,
+              payoutLinesCreated: result.ledger.created,
+            }
+          }
+        });
+
+        return { updated: row, incentiveResult: result };
+      }));
+    } catch (err) {
+      if (err.statusCode === 409 || err.statusCode === 422) {
+        return res.status(err.statusCode).json({ success: false, code: err.code, message: err.message });
+      }
+      throw err;
+    }
+
+    const { totalIncentive, totalPoints, perInventorIncentive, perInventorPoints, inventorCount } = incentiveResult;
+
+    // Inventors (incl. the applicant) get exactly one combined published + payment notification
+    const notifiedUserIds = incentiveResult.notifications.map((n) => n.userId);
+    if (incentiveResult.notifications.length) {
+      await prisma.notification.createMany({ data: incentiveResult.notifications }).catch((e) => {
+        console.error('IPR incentive notification error:', e);
+      });
+    }
+
+    // Other internal contributors (non-inventor roles) only hear that it was published
     await notifyContributors(
       id,
       'ipr_published',
-      'IPR Published & Incentives Credited! 🎉[PAYMENT]',
-      `The IPR "${application.title}" has been published. Publication ID: ${publicationId}. Your share: ₹${incentiveResult.perInventorIncentive.toLocaleString()} and ${incentiveResult.perInventorPoints} points.`,
-      { 
-        publicationId, 
-        newStatus: 'published',
-        incentiveAmount: incentiveResult.perInventorIncentive,
-        pointsAwarded: incentiveResult.perInventorPoints
-      }
+      'IPR Published',
+      `The IPR "${application.title}" has been published. Publication ID: ${publicationId}.`,
+      { publicationId, newStatus: 'published' },
+      { excludeUserIds: notifiedUserIds }
     );
 
     // Audit: publication ID added, IPR published
@@ -1700,41 +1759,47 @@ const markGovtRejected = async (req, res) => {
       });
     }
 
-    // Update application status to govt_rejected
-    const updated = await prisma.iprApplication.update({
-      where: { id },
-      data: {
-        status: 'govt_rejected',
-      }
-    });
+    const allowed = IPR_TRANSITIONS.govtRejected;
+    if (!allowed.includes(application.status)) {
+      return sendInvalidTransition(res, 'mark as Government rejected', application.status, allowed);
+    }
 
-    // Create status history
-    await prisma.iprStatusHistory.create({
-      data: {
-        iprApplicationId: id,
-        fromStatus: application.status,
-        toStatus: 'govt_rejected',
-        changedById: userId,
-        comments: `Government rejected the application. Reason: ${comments}`,
-        metadata: { 
-          rejectionReason: comments
-        }
-      }
-    });
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        await claimIprTransition(tx, id, allowed, { status: 'govt_rejected' }, 'mark as Government rejected');
+
+        await tx.iprStatusHistory.create({
+          data: {
+            iprApplicationId: id,
+            fromStatus: application.status,
+            toStatus: 'govt_rejected',
+            changedById: userId,
+            comments: `Government rejected the application. Reason: ${comments}`,
+            metadata: {
+              rejectionReason: comments
+            }
+          }
+        });
+
+        return tx.iprApplication.findUnique({ where: { id } });
+      });
+    } catch (err) {
+      if (respondIfTransitionError(res, err)) return;
+      throw err;
+    }
 
     // Notify applicant about rejection
     if (application.applicantUserId) {
-      await prisma.notification.create({
-        data: {
-          userId: application.applicantUserId,
-          type: 'ipr_govt_rejected',
-          title: 'IPR Application Rejected by Government',
-          message: `Your IPR "${application.title}" has been rejected by the government. Reason: ${comments}. Please contact DRD for more details.`,
-          referenceType: 'ipr_application',
-          referenceId: id,
-          metadata: { 
-            rejectionReason: comments
-          }
+      await safeNotify({
+        userId: application.applicantUserId,
+        type: 'ipr_govt_rejected',
+        title: 'IPR Application Rejected by Government',
+        message: `Your IPR "${application.title}" has been rejected by the government. Reason: ${comments}. Please contact DRD for more details.`,
+        referenceType: 'ipr_application',
+        referenceId: id,
+        metadata: {
+          rejectionReason: comments
         }
       });
     }

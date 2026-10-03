@@ -3,7 +3,7 @@ const auditLogger = require('../../../shared/utils/auditLogger');
 const cache = require('../../../shared/config/redis');
 const { REVOKE_SESSIONS_DATA } = require('../../auth/services/session.service');
 const { preparePassword, PasswordPolicyError } = require('../utils/userCredentials');
-const { validateCreateStudent, validateUpdateStudent } = require('../../../shared/validations/student.validation');
+const { validateCreateStudent, validateUpdateStudent, validateStudentPhdFields, hasPhdValues } = require('../../../shared/validations/student.validation');
 
 /**
  * Validates that mentorId is a faculty member in the same department as the student.
@@ -83,13 +83,30 @@ const createStudent = async (req, res) => {
     // Resolve student's department from program
     const program = await prisma.program.findUnique({
       where: { id: programId },
-      select: { departmentId: true },
+      select: { departmentId: true, programType: true },
     });
     if (!program) {
       return res.status(400).json({
         success: false,
         message: 'Invalid program',
         error: 'INVALID_PROGRAM',
+      });
+    }
+
+    // PhD details (doctoral programmes only)
+    const phdValidation = validateStudentPhdFields({
+      phdRegistrationDate: req.body.phdRegistrationDate,
+      phdAwardedAt: req.body.phdAwardedAt,
+      thesisTitle: req.body.thesisTitle,
+    });
+    if (!phdValidation.success) {
+      return res.status(400).json({ success: false, message: Object.values(phdValidation.errors)[0], errors: phdValidation.errors });
+    }
+    if (hasPhdValues(phdValidation.data) && program.programType !== 'doctoral') {
+      return res.status(400).json({
+        success: false,
+        message: 'PhD registration, award and thesis details can only be recorded for doctoral programmes',
+        error: 'NOT_DOCTORAL_PROGRAM',
       });
     }
 
@@ -103,7 +120,7 @@ const createStudent = async (req, res) => {
     }
 
     // Check if student ID already exists
-    const existingStudent = await prisma.studentDetails.findUnique({
+    const existingStudent = await prisma.studentDetails.findFirst({
       where: { studentId },
     });
 
@@ -115,7 +132,7 @@ const createStudent = async (req, res) => {
     }
 
     // Check if registration number already exists
-    const existingRegistration = await prisma.studentDetails.findUnique({
+    const existingRegistration = await prisma.studentDetails.findFirst({
       where: { registrationNo },
     });
 
@@ -203,6 +220,7 @@ const createStudent = async (req, res) => {
           parentContact: parentContact || null,
           emergencyContact: emergencyContact || null,
           address: address || null,
+          ...phdValidation.data,
           isActive: true,
           dataEntryStatus: 'approved',
         },
@@ -477,6 +495,9 @@ const updateStudent = async (req, res) => {
       parentContact,
       emergencyContact,
       address,
+      phdRegistrationDate,
+      phdAwardedAt,
+      thesisTitle,
     } = req.body;
 
     // Check if student exists and belongs to this university
@@ -502,6 +523,25 @@ const updateStudent = async (req, res) => {
 
     // If mentorId is being set/updated, validate mentor is faculty in same department
     const effectiveProgramId = programId || existingStudent.programId;
+
+    // PhD details (doctoral programmes only): valid dates, award not before registration
+    const phdValidation = validateStudentPhdFields({ phdRegistrationDate, phdAwardedAt, thesisTitle }, existingStudent);
+    if (!phdValidation.success) {
+      return res.status(400).json({ success: false, message: Object.values(phdValidation.errors)[0], errors: phdValidation.errors });
+    }
+    if (hasPhdValues(phdValidation.data)) {
+      const phdProgram = effectiveProgramId
+        ? await prisma.program.findUnique({ where: { id: effectiveProgramId }, select: { programType: true } })
+        : null;
+      if (phdProgram?.programType !== 'doctoral') {
+        return res.status(400).json({
+          success: false,
+          message: 'PhD registration, award and thesis details can only be recorded for doctoral programmes',
+          error: 'NOT_DOCTORAL_PROGRAM',
+        });
+      }
+    }
+
     if (mentorId) {
       if (!effectiveProgramId) {
         return res.status(400).json({
@@ -555,6 +595,7 @@ const updateStudent = async (req, res) => {
       emergencyContact: emergencyContact !== undefined ? emergencyContact : existingStudent.emergencyContact,
       address: address !== undefined ? address : existingStudent.address,
       mentorId: mentorId !== undefined ? (mentorId || null) : existingStudent.mentorId,
+      ...phdValidation.data,
     };
 
     const updatedStudent = await prisma.studentDetails.update({
@@ -661,6 +702,7 @@ const getPrograms = async (req, res) => {
         id: true,
         programName: true,
         programCode: true,
+        programType: true,
         department: {
           select: {
             departmentName: true,

@@ -3,9 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   AlertCircle,
-  ArrowLeft,
-  Award,
-  BarChart3,
   BookOpen,
   CheckCircle2,
   ChevronRight,
@@ -16,18 +13,15 @@ import {
   Hash,
   Layers3,
   Lightbulb,
-  Loader2,
   RefreshCw,
-  Sparkles,
   TrendingUp,
-  User2,
   Wallet,
   X,
-  XCircle,
   Calendar,
   Filter,
 } from 'lucide-react';
-import { AnalyticsHero, AnalyticsPanel, KpiCardGrid, TrendChartPanel, RadarComparisonChart } from '@/components/analytics';
+import { AnalyticsPanel, TrendChartPanel, RadarComparisonChart } from '@/components/analytics';
+import { VIZ, categoryColor, ui } from '@/components/analytics/theme';
 import type { RadarAxis, RadarDataSet } from '@/components/analytics';
 import type { 
   DrdAnalyticsResponse, 
@@ -42,6 +36,16 @@ import { logger } from '@/shared/utils/logger';
 
 function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+
+function buildQuickRanges() {
+  const today = isoDate(new Date());
+  return [
+    { label: '30 days', from: isoDate(new Date(Date.now() - 30 * 86400e3)), to: today },
+    { label: '3 months', from: isoDate(new Date(Date.now() - 90 * 86400e3)), to: today },
+    { label: 'Last year', from: isoDate(new Date(Date.now() - 365 * 86400e3)), to: today },
+    { label: 'This year', from: isoDate(new Date(new Date().getFullYear(), 0, 1)), to: today },
+  ];
 }
 
 interface ApplicantPerson {
@@ -65,57 +69,34 @@ interface ApplicantPerson {
 
 type CategoryKey = 'research' | 'book' | 'conference' | 'ipr' | 'grants';
 
-const CATEGORY_META: Record<CategoryKey, { label: string; icon: React.ReactNode; color: string; bg: string; border: string }> = {
-  research: {
-    label: 'Research Papers',
-    icon: <FileText className="w-4 h-4" />,
-    color: 'text-blue-700',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-  },
-  book: {
-    label: 'Book / Chapter',
-    icon: <BookOpen className="w-4 h-4" />,
-    color: 'text-violet-700',
-    bg: 'bg-violet-50',
-    border: 'border-violet-200',
-  },
-  conference: {
-    label: 'Conference Papers',
-    icon: <Layers3 className="w-4 h-4" />,
-    color: 'text-amber-700',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-  },
-  ipr: {
-    label: 'IPR / Patents',
-    icon: <Lightbulb className="w-4 h-4" />,
-    color: 'text-rose-700',
-    bg: 'bg-rose-50',
-    border: 'border-rose-200',
-  },
-  grants: {
-    label: 'Grants',
-    icon: <Wallet className="w-4 h-4" />,
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-  },
+const CATEGORY_META: Record<CategoryKey, { label: string; icon: React.ReactNode }> = {
+  research: { label: 'Research papers', icon: <FileText className="h-4 w-4" /> },
+  book: { label: 'Book / chapter', icon: <BookOpen className="h-4 w-4" /> },
+  conference: { label: 'Conference papers', icon: <Layers3 className="h-4 w-4" /> },
+  ipr: { label: 'IPR / patents', icon: <Lightbulb className="h-4 w-4" /> },
+  grants: { label: 'Grants', icon: <Wallet className="h-4 w-4" /> },
 };
 
+const TONE = {
+  good: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  bad: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  wait: 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  neutral: 'bg-stone-100 text-stone-600 dark:bg-gray-700 dark:text-gray-300',
+} as const;
+
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  approved:           { label: 'Approved', color: 'bg-emerald-100 text-emerald-800' },
-  completed:          { label: 'Completed', color: 'bg-emerald-100 text-emerald-800' },
-  drd_head_approved:  { label: 'DRD Approved', color: 'bg-emerald-100 text-emerald-800' },
-  published:          { label: 'Published', color: 'bg-blue-100 text-blue-800' },
-  submitted_to_govt:  { label: 'Submitted to Govt', color: 'bg-blue-100 text-blue-800' },
-  under_review:       { label: 'Under Review', color: 'bg-yellow-100 text-yellow-800' },
-  changes_required:   { label: 'Changes Required', color: 'bg-orange-100 text-orange-800' },
-  resubmitted:        { label: 'Resubmitted', color: 'bg-yellow-100 text-yellow-700' },
-  rejected:           { label: 'Rejected', color: 'bg-red-100 text-red-800' },
-  drd_rejected:       { label: 'Rejected', color: 'bg-red-100 text-red-800' },
-  submitted:          { label: 'Submitted', color: 'bg-gray-100 text-gray-700' },
-  recommended:        { label: 'Recommended', color: 'bg-teal-100 text-teal-800' },
+  approved:           { label: 'Approved', color: TONE.good },
+  completed:          { label: 'Completed', color: TONE.good },
+  drd_head_approved:  { label: 'DRD approved', color: TONE.good },
+  published:          { label: 'Published', color: TONE.good },
+  submitted_to_govt:  { label: 'Submitted to govt', color: TONE.wait },
+  under_review:       { label: 'Under review', color: TONE.wait },
+  changes_required:   { label: 'Changes required', color: TONE.wait },
+  resubmitted:        { label: 'Resubmitted', color: TONE.wait },
+  rejected:           { label: 'Rejected', color: TONE.bad },
+  drd_rejected:       { label: 'Rejected', color: TONE.bad },
+  submitted:          { label: 'Submitted', color: TONE.neutral },
+  recommended:        { label: 'Recommended', color: TONE.wait },
 };
 
 function fmtDate(v: string | null | undefined) {
@@ -140,9 +121,9 @@ function publicationTypeLabel(type: string) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const meta = STATUS_META[status] || { label: status.replace(/_/g, ' '), color: 'bg-gray-100 text-gray-600' };
+  const meta = STATUS_META[status] || { label: status.replace(/_/g, ' '), color: TONE.neutral };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${meta.color}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${meta.color}`}>
       {meta.label}
     </span>
   );
@@ -160,55 +141,51 @@ function PubTypeLabel({ type }: { type: string }) {
     ipr_design: 'Design',
     grant: 'Grant',
   };
-  return <span className="text-xs text-gray-400">{labels[type] || type.replace(/_/g, ' ')}</span>;
+  return <span className="text-xs text-stone-500 dark:text-gray-400">{labels[type] || type.replace(/_/g, ' ')}</span>;
 }
 
 function TrackerWorkStatusBadge({ status }: { status: ProgressTrackerRecord['currentStatus'] }) {
   const palette: Record<string, string> = {
-    writing: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-    communicated: 'border-amber-200 bg-amber-50 text-amber-700',
-    submitted: 'border-blue-200 bg-blue-50 text-blue-700',
-    accepted: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    published: 'border-green-200 bg-green-50 text-green-700',
-    rejected: 'border-red-200 bg-red-50 text-red-700',
+    writing: TONE.neutral,
+    communicated: TONE.wait,
+    submitted: TONE.wait,
+    accepted: TONE.good,
+    published: TONE.good,
+    rejected: TONE.bad,
   };
   const label = status.replace(/_/g, ' ');
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${palette[status] || 'border-slate-200 bg-slate-50 text-slate-600'}`}>{label}</span>;
+  return <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium capitalize ${palette[status] || TONE.neutral}`}>{label}</span>;
 }
 
 function TrackerWorkCard({ work }: { work: ProgressTrackerRecord }) {
   return (
-    <div className="rounded-[22px] border border-slate-200/70 bg-white/90 p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-              {publicationTypeLabel(work.publicationType)}
-            </span>
-            <TrackerWorkStatusBadge status={work.currentStatus} />
-          </div>
-          <h4 className="mt-3 text-sm font-semibold tracking-tight text-slate-900">{work.title}</h4>
-          <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-            <span>{work.trackingNumber}</span>
-            {work.researchContribution?.applicationNumber && <span>Linked: {work.researchContribution.applicationNumber}</span>}
-            <span>{work.schoolName}</span>
-          </div>
-        </div>
+    <div className="rounded-lg border border-stone-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex rounded-md border border-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600 dark:border-gray-600 dark:text-gray-300">
+          {publicationTypeLabel(work.publicationType)}
+        </span>
+        <TrackerWorkStatusBadge status={work.currentStatus} />
       </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <div className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          <p className="font-medium text-slate-700">Started</p>
-          <p className="mt-1">{fmtDate(work.createdAt)}</p>
-        </div>
-        <div className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          <p className="font-medium text-slate-700">Expected / Actual</p>
-          <p className="mt-1">{fmtDate(work.actualCompletionDate || work.expectedCompletionDate)}</p>
-        </div>
-        <div className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          <p className="font-medium text-slate-700">Last Movement</p>
-          <p className="mt-1">{fmtDate(work.latestStatusChangedAt || work.updatedAt)}</p>
-        </div>
+      <h4 className="mt-2.5 text-sm font-semibold leading-snug text-stone-900 dark:text-white">{work.title}</h4>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500 dark:text-gray-400">
+        <span className="tabular-nums">{work.trackingNumber}</span>
+        {work.researchContribution?.applicationNumber && <span>Linked: {work.researchContribution.applicationNumber}</span>}
+        <span>{work.schoolName}</span>
       </div>
+      <dl className="mt-3 grid gap-2 border-t border-stone-100 pt-3 text-xs dark:border-gray-700 sm:grid-cols-3">
+        <div>
+          <dt className="text-stone-500 dark:text-gray-400">Started</dt>
+          <dd className="mt-0.5 font-medium tabular-nums text-stone-800 dark:text-gray-100">{fmtDate(work.createdAt)}</dd>
+        </div>
+        <div>
+          <dt className="text-stone-500 dark:text-gray-400">Expected / actual</dt>
+          <dd className="mt-0.5 font-medium tabular-nums text-stone-800 dark:text-gray-100">{fmtDate(work.actualCompletionDate || work.expectedCompletionDate)}</dd>
+        </div>
+        <div>
+          <dt className="text-stone-500 dark:text-gray-400">Last movement</dt>
+          <dd className="mt-0.5 font-medium tabular-nums text-stone-800 dark:text-gray-100">{fmtDate(work.latestStatusChangedAt || work.updatedAt)}</dd>
+        </div>
+      </dl>
     </div>
   );
 }
@@ -241,58 +218,67 @@ function SubmissionsDrawer({ personId, personName, category, fromDate, toDate, d
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-stone-900/40 dark:bg-black/60"
         onClick={onClose}
       />
       {/* Drawer panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 flex flex-col">
+      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-stone-200 bg-[#faf8f6] shadow-xl dark:border-gray-700 dark:bg-gray-900">
         {/* Drawer header */}
-        <div className={`px-6 py-4 flex items-center gap-3 border-b border-gray-100 ${meta.bg}`}>
-          <div className={`p-2 rounded-lg border ${meta.border} bg-white/70`}>
-            <span className={meta.color}>{meta.icon}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className={`font-semibold text-base ${meta.color}`}>{meta.label}</h2>
-            <p className="text-xs text-gray-500 mt-0.5 truncate">{personName}</p>
+        <div className="flex items-center gap-3 border-b border-stone-200 bg-white px-5 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
+          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-600 dark:bg-gray-700 dark:text-gray-300">
+            {meta.icon}
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-sm ring-2 ring-white dark:ring-gray-800" style={{ backgroundColor: categoryColor(category) }} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold text-stone-900 dark:text-white">{meta.label}</h2>
+            <p className="mt-0.5 truncate text-xs text-stone-500 dark:text-gray-400">{personName}</p>
           </div>
           {data && (
-            <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
-              <span className="font-semibold text-gray-800">{data.approvedCount}</span> approved /
-              <span className="font-semibold text-gray-800">{data.totalCount}</span> total
+            <div className="hidden shrink-0 items-center gap-1 text-xs text-stone-500 dark:text-gray-400 sm:flex">
+              <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{data.approvedCount}</span> approved /
+              <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{data.totalCount}</span> total
             </div>
           )}
           <button
             onClick={onClose}
-            className="ml-2 p-1.5 rounded-lg hover:bg-white/80 transition-colors shrink-0"
+            aria-label="Close"
+            className="ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Filter tabs */}
-        <div className="px-6 py-3 border-b border-gray-100 flex gap-2">
-          {(['all', 'approved', 'other'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filter === f ? 'bg-[#011f4b] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              {f === 'all' ? 'All' : f === 'approved' ? 'Approved' : 'Pending / Others'}
-            </button>
-          ))}
+        <div className="border-b border-stone-200 bg-white px-5 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
+          <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-gray-600 dark:bg-gray-900/50" role="group" aria-label="Filter submissions">
+            {(['all', 'approved', 'other'] as const).map((f) => (
+              <button
+                key={f}
+                aria-pressed={filter === f}
+                onClick={() => setFilter(f)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  filter === f
+                    ? 'bg-white text-wine shadow-sm dark:bg-gray-700 dark:text-amber'
+                    : 'text-stone-600 hover:text-stone-900 dark:text-gray-300 dark:hover:text-white'
+                }`}
+              >
+                {f === 'all' ? 'All' : f === 'approved' ? 'Approved' : 'Pending / others'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4 sm:px-6">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />
+            <div className="space-y-3" aria-busy="true" aria-label="Loading submissions">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-28 animate-pulse rounded-lg bg-stone-100 dark:bg-gray-800" />
+              ))}
             </div>
           ) : visible.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3 text-gray-400">
-              <FileText className="w-10 h-10" />
+            <div className="flex flex-col items-center gap-3 py-16 text-stone-400 dark:text-gray-500">
+              <FileText className="h-8 w-8" />
               <p className="text-sm">No submissions found for this filter.</p>
             </div>
           ) : (
@@ -304,116 +290,94 @@ function SubmissionsDrawer({ personId, personName, category, fromDate, toDate, d
   );
 }
 
+function MetaItem({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div className={`text-xs text-stone-500 dark:text-gray-400 ${wide ? 'col-span-2' : ''}`}>
+      {label}: <span className="font-medium text-stone-700 dark:text-gray-200">{children}</span>
+    </div>
+  );
+}
+
 function SubmissionCard({ sub }: { sub: PersonSubmission }) {
   const link = sub.doi
     ? (sub.doi.startsWith('http') ? sub.doi : `https://doi.org/${sub.doi}`)
     : sub.weblink || null;
+  const hasIncentive = sub.incentiveAmount != null && sub.incentiveAmount > 0;
+  const hasPoints = sub.pointsAwarded != null && sub.pointsAwarded > 0;
 
   return (
-    <div className={`rounded-xl border p-4 ${sub.isApproved ? 'border-emerald-100 bg-emerald-50/30' : 'border-gray-100 bg-white'}`}>
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          {/* Title row */}
-          <div className="flex items-start gap-2 mb-1.5">
-            {sub.isApproved ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-            ) : (
-              <Clock className="w-4 h-4 text-gray-300 shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 leading-snug">{sub.title}</p>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <PubTypeLabel type={sub.publicationType} />
-                <StatusBadge status={sub.status} />
-                {sub.applicationNumber && (
-                  <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                    <Hash className="w-2.5 h-2.5" />{sub.applicationNumber}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Meta grid */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 pl-6">
-            {sub.venue && (
-              <div className="col-span-2 text-xs text-gray-600 flex items-center gap-1">
-                <FileText className="w-3 h-3 text-gray-400" />
-                <span className="font-medium truncate">{sub.venue}</span>
-              </div>
-            )}
-            {sub.submittedAt && (
-              <div className="text-xs text-gray-500 flex items-center gap-1">
-                <Clock className="w-3 h-3 text-gray-300" />
-                Submitted: {fmtDate(sub.submittedAt)}
-              </div>
-            )}
-            {sub.publicationDate && (
-              <div className="text-xs text-gray-500 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 text-gray-300" />
-                Published: {fmtDate(sub.publicationDate)}
-              </div>
-            )}
-            {sub.indexedIn && (
-              <div className="text-xs text-gray-500">Indexed: <span className="font-medium text-gray-700">{sub.indexedIn}</span></div>
-            )}
-            {sub.quartile && (
-              <div className="text-xs text-gray-500">Quartile: <span className="font-medium text-gray-700">{sub.quartile}</span></div>
-            )}
-            {sub.impactFactor != null && (
-              <div className="text-xs text-gray-500">IF: <span className="font-medium text-gray-700">{sub.impactFactor}</span></div>
-            )}
-            {sub.naasRating != null && (
-              <div className="text-xs text-gray-500">NAAS: <span className="font-medium text-gray-700">{sub.naasRating}</span></div>
-            )}
-            {sub.extra?.iprType && (
-              <div className="text-xs text-gray-500">Type: <span className="font-medium text-gray-700 capitalize">{sub.extra.iprType}</span></div>
-            )}
-            {sub.extra?.filingType && (
-              <div className="text-xs text-gray-500">Filing: <span className="font-medium text-gray-700 capitalize">{sub.extra.filingType}</span></div>
-            )}
-            {sub.extra?.govtApplicationId && (
-              <div className="col-span-2 text-xs text-gray-500">Govt ID: <span className="font-medium text-gray-700">{sub.extra.govtApplicationId}</span></div>
-            )}
-            {sub.extra?.fundingAgencyName && (
-              <div className="col-span-2 text-xs text-gray-500">Agency: <span className="font-medium text-gray-700">{sub.extra.fundingAgencyName}</span></div>
-            )}
-            {sub.extra?.submittedAmount != null && (
-              <div className="text-xs text-gray-500">Proposed: <span className="font-medium text-gray-700">{fmtCurrency(sub.extra.submittedAmount)}</span></div>
-            )}
-            {sub.nationalInternational && (
-              <div className="text-xs text-gray-500">Scope: <span className="font-medium text-gray-700 capitalize">{sub.nationalInternational}</span></div>
-            )}
-          </div>
-
-          {/* Incentive + link row */}
-          <div className="flex items-center justify-between mt-2 pl-6">
-            <div className="flex items-center gap-3">
-              {sub.incentiveAmount != null && sub.incentiveAmount > 0 && (
-                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                  {fmtCurrency(sub.incentiveAmount)} incentive
-                </span>
-              )}
-              {sub.pointsAwarded != null && sub.pointsAwarded > 0 && (
-                <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                  {sub.pointsAwarded} pts
-                </span>
-              )}
-            </div>
-            {link && (
-              <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-              >
-                <ExternalLink className="w-3 h-3" /> View Paper
-              </a>
+    <div className="rounded-lg border border-stone-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      {/* Title row */}
+      <div className="flex items-start gap-2">
+        {sub.isApproved ? (
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Approved" />
+        ) : (
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-stone-400 dark:text-gray-500" aria-label="Not yet approved" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-snug text-stone-900 dark:text-white">{sub.title}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <PubTypeLabel type={sub.publicationType} />
+            <StatusBadge status={sub.status} />
+            {sub.applicationNumber && (
+              <span className="flex items-center gap-0.5 text-xs tabular-nums text-stone-500 dark:text-gray-400">
+                <Hash className="h-3 w-3" />{sub.applicationNumber}
+              </span>
             )}
           </div>
         </div>
       </div>
+
+      {/* Meta grid */}
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 pl-6">
+        {sub.venue && (
+          <div className="col-span-2 flex items-center gap-1 text-xs text-stone-600 dark:text-gray-300">
+            <FileText className="h-3 w-3 text-stone-400 dark:text-gray-500" />
+            <span className="truncate font-medium">{sub.venue}</span>
+          </div>
+        )}
+        {sub.submittedAt && <MetaItem label="Submitted">{fmtDate(sub.submittedAt)}</MetaItem>}
+        {sub.publicationDate && <MetaItem label="Published">{fmtDate(sub.publicationDate)}</MetaItem>}
+        {sub.indexedIn && <MetaItem label="Indexed">{sub.indexedIn}</MetaItem>}
+        {sub.quartile && <MetaItem label="Quartile">{sub.quartile}</MetaItem>}
+        {sub.impactFactor != null && <MetaItem label="IF">{sub.impactFactor}</MetaItem>}
+        {sub.naasRating != null && <MetaItem label="NAAS">{sub.naasRating}</MetaItem>}
+        {sub.extra?.iprType && <MetaItem label="Type"><span className="capitalize">{sub.extra.iprType}</span></MetaItem>}
+        {sub.extra?.filingType && <MetaItem label="Filing"><span className="capitalize">{sub.extra.filingType}</span></MetaItem>}
+        {sub.extra?.govtApplicationId && <MetaItem label="Govt ID" wide>{sub.extra.govtApplicationId}</MetaItem>}
+        {sub.extra?.fundingAgencyName && <MetaItem label="Agency" wide>{sub.extra.fundingAgencyName}</MetaItem>}
+        {sub.extra?.submittedAmount != null && <MetaItem label="Proposed">{fmtCurrency(sub.extra.submittedAmount)}</MetaItem>}
+        {sub.nationalInternational && <MetaItem label="Scope"><span className="capitalize">{sub.nationalInternational}</span></MetaItem>}
+      </div>
+
+      {/* Incentive + link row */}
+      {(hasIncentive || hasPoints || link) && (
+        <div className="mt-3 flex items-center justify-between gap-3 pl-6">
+          <div className="flex flex-wrap items-center gap-2">
+            {hasIncentive && (
+              <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                {fmtCurrency(sub.incentiveAmount)} incentive
+              </span>
+            )}
+            {hasPoints && (
+              <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium tabular-nums text-stone-700 dark:bg-gray-700 dark:text-gray-200">
+                {sub.pointsAwarded} pts
+              </span>
+            )}
+          </div>
+          {link && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-wine hover:underline dark:text-amber"
+            >
+              <ExternalLink className="h-3 w-3" /> View paper
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -441,6 +405,7 @@ export default function ComprehensiveAnalyticsTab({
   const [fromDate, setFromDate] = useState(isoDate(new Date(Date.now() - 365 * 86400e3))); // 1 year ago
   const [toDate, setToDate] = useState(isoDate(new Date()));
   const [showDateFilters, setShowDateFilters] = useState(false);
+  const [quickRanges] = useState(buildQuickRanges);
   
   // Data state
   const [drdAnalyticsData, setDrdAnalyticsData] = useState<DrdAnalyticsResponse | null>(initialDrdAnalyticsData);
@@ -462,13 +427,14 @@ export default function ComprehensiveAnalyticsTab({
         from: fromDate,
         to: toDate,
         category,
-      });
+      }, { optional: true });
       
       if (response.data) {
         setDrawerData(response.data);
       }
     } catch (err) {
-      logger.error('Failed to load drawer submissions', err);
+      if ((err as { response?: { status?: number } })?.response?.status === 404) setDrawerData(null);
+      else logger.error('Failed to load drawer submissions', err);
     } finally {
       setDrawerLoading(false);
     }
@@ -500,8 +466,8 @@ export default function ComprehensiveAnalyticsTab({
       };
 
       const [analyticsResponse, submissionsResponse] = await Promise.all([
-        drdAnalyticsService.getApplicantPersonAnalytics(userId, filters),
-        drdAnalyticsService.getApplicantPersonSubmissions(userId, filters).catch(() => null),
+        drdAnalyticsService.getApplicantPersonAnalytics(userId, filters, { optional: true }),
+        drdAnalyticsService.getApplicantPersonSubmissions(userId, filters, { optional: true }).catch(() => null),
       ]);
 
       if (analyticsResponse.data) {
@@ -516,7 +482,14 @@ export default function ComprehensiveAnalyticsTab({
         setSubmissionsData(submissionsResponse.data);
       }
     } catch (err) {
-      logger.error('Failed to load analytics data', err);
+      // 404 = no submissions in this period; that is an empty report, not a failure.
+      if ((err as { response?: { status?: number } })?.response?.status === 404) {
+        setDrdAnalyticsData(null);
+        setSubmissionsData(null);
+        setTrackerWorks(null);
+      } else {
+        logger.error('Failed to load analytics data', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -556,9 +529,9 @@ export default function ComprehensiveAnalyticsTab({
   // Build radar datasets when both person + uni avg are available
   const radarAxes: RadarAxis[] = [
     { key: 'research', label: 'Research' },
-    { key: 'book', label: 'Book / Chapter' },
+    { key: 'book', label: 'Book / chapter' },
     { key: 'conference', label: 'Conference' },
-    { key: 'ipr', label: 'IPR / Patent' },
+    { key: 'ipr', label: 'IPR / patent' },
     { key: 'grants', label: 'Grants' },
   ];
 
@@ -566,7 +539,7 @@ export default function ComprehensiveAnalyticsTab({
     ? [
         {
           label: person?.applicantName ?? 'You',
-          color: '#6366f1',
+          color: VIZ[0],
           values: {
             research: filingCounts.research,
             book: filingCounts.book,
@@ -576,8 +549,8 @@ export default function ComprehensiveAnalyticsTab({
           },
         },
         {
-          label: 'University Average',
-          color: '#06b6d4',
+          label: 'University average',
+          color: VIZ[1],
           values: {
             research: universityAverage.research,
             book: universityAverage.book,
@@ -589,119 +562,125 @@ export default function ComprehensiveAnalyticsTab({
       ]
     : null;
 
+  const header = (
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-wine dark:text-amber">Analytics</p>
+        <h2 className="text-xl font-semibold tracking-tight text-stone-900 dark:text-white">Comprehensive analytics</h2>
+        <p className="mt-1 text-sm text-stone-500 dark:text-gray-400">
+          Detailed submission and research tracker data
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowDateFilters(!showDateFilters)}
+          aria-pressed={showDateFilters}
+          className={showDateFilters
+            ? `${ui.btnSecondary} border-wine/40 bg-wine/5 text-wine dark:border-amber/40 dark:bg-wine/20 dark:text-amber`
+            : ui.btnSecondary}
+        >
+          <Calendar className="h-4 w-4" />
+          Date filters
+        </button>
+
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing || loading}
+          className={`${ui.btnSecondary} disabled:opacity-50`}
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing || loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+    </div>
+  );
+
+  const dateFilterPanel = showDateFilters && (
+    <div className={`${ui.card} p-4`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-gray-600 dark:bg-gray-900/50" role="group" aria-label="Quick date ranges">
+          {quickRanges.map((qr) => {
+            const active = qr.from === fromDate && qr.to === toDate;
+            return (
+              <button
+                key={qr.label}
+                aria-pressed={active}
+                onClick={() => handleDateFilterChange(qr.from, qr.to)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-white text-wine shadow-sm dark:bg-gray-700 dark:text-amber'
+                    : 'text-stone-600 hover:text-stone-900 dark:text-gray-300 dark:hover:text-white'
+                }`}
+              >
+                {qr.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            aria-label="From date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className={ui.input}
+          />
+          <span className="text-xs text-stone-400 dark:text-gray-500">to</span>
+          <input
+            type="date"
+            aria-label="To date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className={ui.input}
+          />
+        </div>
+        <button
+          onClick={() => handleDateFilterChange(fromDate, toDate)}
+          disabled={loading}
+          className={`${ui.btnPrimary} sm:ml-auto`}
+        >
+          <Filter className="h-4 w-4" />
+          Apply
+        </button>
+      </div>
+    </div>
+  );
+
   // Show empty state only if not loading and no data
   if (!loading && (!drdAnalyticsData || !person)) {
     return (
-      <div className="space-y-8">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Comprehensive Analytics</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Detailed submission and research tracker data
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowDateFilters(!showDateFilters)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                showDateFilters
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Date Filters
-            </button>
-            
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          </div>
-        </div>
+      <div className="space-y-6">
+        {header}
+        {dateFilterPanel}
 
-        {showDateFilters && (
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200/50 dark:border-gray-700/50">
-            <div className="flex flex-col sm:flex-row gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  From Date
-                </label>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  To Date
-                </label>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                onClick={() => handleDateFilterChange(fromDate, toDate)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <Filter className="w-4 h-4" />
-                Apply Filters
-              </button>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={() => handleDateFilterChange(isoDate(new Date(Date.now() - 30 * 86400e3)), isoDate(new Date()))}
-                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Last 30 days
-              </button>
-              <button
-                onClick={() => handleDateFilterChange(isoDate(new Date(Date.now() - 90 * 86400e3)), isoDate(new Date()))}
-                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Last 3 months
-              </button>
-              <button
-                onClick={() => handleDateFilterChange(isoDate(new Date(Date.now() - 365 * 86400e3)), isoDate(new Date()))}
-                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Last year
-              </button>
-              <button
-                onClick={() => handleDateFilterChange(isoDate(new Date(new Date().getFullYear(), 0, 1)), isoDate(new Date()))}
-                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                This year
-              </button>
-            </div>
+        <div className={`${ui.card} px-6 py-12 text-center`}>
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-gray-700 dark:text-gray-300">
+            <AlertCircle className="h-5 w-5" />
           </div>
-        )}
-        
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-200/50 dark:border-gray-700/50 text-center">
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Analytics Data Available
+          <h3 className="text-sm font-semibold text-stone-900 dark:text-white">
+            No analytics data available
           </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Comprehensive analytics data could not be loaded for this profile. Try adjusting the date range or refreshing the data.
+          <p className="mx-auto mt-1 max-w-md text-sm text-stone-500 dark:text-gray-400">
+            Comprehensive analytics could not be loaded for this profile. Try adjusting the date range or refreshing the data.
           </p>
         </div>
       </div>
     );
   }
 
+  const trackerStats = trackerWorks
+    ? [
+        { label: 'Tracked', value: trackerWorks.totalTrackers, dot: 'bg-stone-400 dark:bg-gray-500' },
+        { label: 'Ongoing', value: trackerWorks.ongoingCount, dot: 'bg-amber-500' },
+        { label: 'Completed', value: trackerWorks.completedCount, dot: 'bg-emerald-500' },
+        { label: 'Published', value: trackerWorks.publishedCount, dot: 'bg-emerald-700 dark:bg-emerald-300' },
+        { label: 'Rejected', value: trackerWorks.rejectedCount, dot: 'bg-red-500' },
+      ]
+    : [];
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Drawer */}
       {drawerCategory && person && userId && (
         <SubmissionsDrawer
@@ -716,186 +695,70 @@ export default function ComprehensiveAnalyticsTab({
         />
       )}
 
-      {/* Header with Date Filters */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Comprehensive Analytics</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Detailed submission and research tracker data
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {/* Date Filter Toggle */}
-          <button
-            onClick={() => setShowDateFilters(!showDateFilters)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showDateFilters
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            Date Filters
-          </button>
-          
-          {/* Refresh Button */}
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing || loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
+      {header}
+      {dateFilterPanel}
 
-      {/* Date Filter Panel */}
-      {showDateFilters && (
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200/50 dark:border-gray-700/50">
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                From Date
-              </label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                To Date
-              </label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              onClick={() => handleDateFilterChange(fromDate, toDate)}
-              disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              <Filter className="w-4 h-4" />
-              Apply Filters
-            </button>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => handleDateFilterChange(isoDate(new Date(Date.now() - 30 * 86400e3)), isoDate(new Date()))}
-              className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Last 30 days
-            </button>
-            <button
-              onClick={() => handleDateFilterChange(isoDate(new Date(Date.now() - 90 * 86400e3)), isoDate(new Date()))}
-              className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Last 3 months
-            </button>
-            <button
-              onClick={() => handleDateFilterChange(isoDate(new Date(Date.now() - 365 * 86400e3)), isoDate(new Date()))}
-              className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Last year
-            </button>
-            <button
-              onClick={() => handleDateFilterChange(isoDate(new Date(new Date().getFullYear(), 0, 1)), isoDate(new Date()))}
-              className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              This year
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Loading State */}
+      {/* Loading state */}
       {loading && (
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-200/50 dark:border-gray-700/50 text-center">
-          <Loader2 className="w-8 h-8 text-blue-600 mx-auto mb-4 animate-spin" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Loading Analytics Data
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Fetching comprehensive analytics for the selected date range...
-          </p>
-        </div>
-      )}
-
-      {/* Unified Stats Banner */}
-      {(person || trackerWorks) && (
-        <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/50 bg-white dark:bg-slate-800/90 shadow-sm overflow-hidden">
-          {/* Top accent */}
-          <div className="h-[2px] w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-amber-400" />
-
-          <div className="px-5 py-4">
-            {/* Section: Submissions */}
-            {person && (
-              <>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Submission Overview</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 divide-x divide-slate-100 dark:divide-slate-700">
-                  {[
-                    { label: 'Total Submitted', value: String(person.totalApplications), icon: <BarChart3 className="w-3.5 h-3.5" />, accent: 'text-indigo-600 dark:text-indigo-400', dot: 'bg-indigo-500' },
-                    { label: 'Approved', value: String(person.approvedCount), icon: <CheckCircle2 className="w-3.5 h-3.5" />, accent: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
-                    { label: 'Approval Rate', value: `${approvalRate}%`, icon: <TrendingUp className="w-3.5 h-3.5" />, accent: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
-                    { label: 'Incentive Earned', value: `₹${Number(person.totalIncentive).toLocaleString('en-IN')}`, icon: <Award className="w-3.5 h-3.5" />, accent: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
-                  ].map((s, i) => (
-                    <div key={i} className={`flex flex-col gap-1.5 px-4 first:pl-0 last:pr-0 ${i > 0 ? '' : ''}`}>
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider ${s.accent}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${s.dot} shrink-0`} />
-                        {s.label}
-                      </span>
-                      <span className="text-[22px] font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums leading-none">{s.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Divider */}
-            {person && trackerWorks && trackerWorks.totalTrackers > 0 && (
-              <div className="my-4 border-t border-dashed border-slate-200 dark:border-slate-700" />
-            )}
-
-            {/* Section: Research Tracker */}
-            {trackerWorks && trackerWorks.totalTrackers > 0 && (
-              <>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Research Tracker</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: 'Tracked', value: trackerWorks.totalTrackers, dot: 'bg-slate-400', text: 'text-slate-700 dark:text-slate-300' },
-                    { label: 'Ongoing', value: trackerWorks.ongoingCount, dot: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-300' },
-                    { label: 'Completed', value: trackerWorks.completedCount, dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300' },
-                    { label: 'Published', value: trackerWorks.publishedCount, dot: 'bg-violet-500', text: 'text-violet-700 dark:text-violet-300' },
-                    { label: 'Rejected', value: trackerWorks.rejectedCount, dot: 'bg-rose-400', text: 'text-rose-600 dark:text-rose-400' },
-                  ].map((s, i) => (
-                    <div key={i} className="inline-flex items-center gap-2 rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
-                      <span className={`w-2 h-2 rounded-full ${s.dot} shrink-0`} />
-                      <span className={`text-[11px] font-semibold ${s.text}`}>{s.label}</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">{s.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+        <div className="space-y-4" aria-busy="true" aria-label="Loading analytics data">
+          <div className="h-28 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+            ))}
           </div>
+          <div className="h-64 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
         </div>
       )}
 
-      {/* Category Breakdown */}
+      {/* Headline numbers */}
+      {(person || trackerWorks) && (
+        <div className={`overflow-hidden ${ui.card}`}>
+          {person && (
+            <dl className="grid grid-cols-2 sm:grid-cols-4">
+              {[
+                { label: 'Total submitted', value: person.totalApplications.toLocaleString('en-IN') },
+                { label: 'Approved', value: person.approvedCount.toLocaleString('en-IN') },
+                { label: 'Approval rate', value: `${approvalRate}%` },
+                { label: 'Incentive earned', value: `₹${Number(person.totalIncentive).toLocaleString('en-IN')}` },
+              ].map((s, i) => (
+                <div
+                  key={s.label}
+                  className={`border-stone-200 px-5 py-4 dark:border-gray-700 ${i > 0 ? 'border-l' : ''} ${i >= 2 ? 'max-sm:border-t' : ''} ${i === 2 ? 'max-sm:border-l-0' : ''}`}
+                >
+                  <dt className={ui.label}>{s.label}</dt>
+                  <dd className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-stone-900 dark:text-white">{s.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
+          {trackerWorks && trackerWorks.totalTrackers > 0 && (
+            <div className={`flex flex-wrap items-center gap-2 bg-stone-50/60 px-5 py-3 dark:bg-gray-900/40 ${person ? 'border-t border-stone-200 dark:border-gray-700' : ''}`}>
+              <span className={`mr-1 ${ui.label}`}>Research tracker</span>
+              {trackerStats.map((s) => (
+                <span
+                  key={s.label}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
+                  <span className="text-stone-600 dark:text-gray-300">{s.label}</span>
+                  <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{s.value}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Category breakdown */}
       {filingCounts && !loading && (
-        <AnalyticsPanel 
-          title="Submission Breakdown by Category" 
-          subtitle="Distribution of submissions across different research categories. Click to view details." 
-          icon={<Layers3 className="w-4 h-4" />}
+        <AnalyticsPanel
+          title="Submissions by category"
+          subtitle="Distribution across research categories. Select a category to see its submissions."
+          icon={<Layers3 />}
         >
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {(Object.entries(CATEGORY_META) as [CategoryKey, typeof CATEGORY_META[CategoryKey]][]).map(([key, meta]) => {
               const count = filingCounts[key] ?? 0;
               return (
@@ -903,21 +766,22 @@ export default function ComprehensiveAnalyticsTab({
                   key={key}
                   onClick={() => handleCategoryClick(key, count)}
                   disabled={count === 0}
-                  className={`rounded-xl p-4 flex flex-col gap-2 border transition-all text-left
-                    ${meta.bg} ${meta.border}
-                    ${count > 0 ? 'hover:shadow-md cursor-pointer hover:scale-105' : 'opacity-50 cursor-not-allowed'}
-                  `}
+                  className={`flex flex-col gap-2 rounded-lg border border-stone-200 bg-white p-4 text-left transition-colors dark:border-gray-700 dark:bg-gray-800 ${
+                    count > 0
+                      ? 'cursor-pointer hover:border-stone-300 hover:bg-stone-50 dark:hover:border-gray-500 dark:hover:bg-gray-700/40'
+                      : 'cursor-not-allowed'
+                  }`}
                 >
-                  <div className={`flex items-center justify-between ${meta.color}`}>
-                    <div className="flex items-center gap-1.5">
-                      {meta.icon}
-                      <span className="text-xs font-medium">{meta.label}</span>
-                    </div>
-                    {count > 0 && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 dark:text-gray-300">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: categoryColor(key) }} />
+                      {meta.label}
+                    </span>
+                    {count > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-stone-400 dark:text-gray-500" />}
                   </div>
-                  <div className={`text-2xl font-bold ${meta.color}`}>{count}</div>
+                  <div className={`text-2xl font-semibold tabular-nums ${count > 0 ? 'text-stone-900 dark:text-white' : 'text-stone-300 dark:text-gray-600'}`}>{count}</div>
                   {person && person.totalApplications > 0 && (
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs tabular-nums text-stone-500 dark:text-gray-400">
                       {((count / person.totalApplications) * 100).toFixed(0)}% of total
                     </div>
                   )}
@@ -928,34 +792,28 @@ export default function ComprehensiveAnalyticsTab({
         </AnalyticsPanel>
       )}
 
-      {/* University Comparison Radar Chart */}
+      {/* University comparison */}
       {radarDatasets && (
-        <AnalyticsPanel
-          title="Performance vs University Average"
-          subtitle={`How ${person?.applicantName ?? 'this researcher'} compares against the university-wide average across ${universityAverage?.totalApplicants ?? '—'} active researchers.`}
-          icon={<Sparkles className="w-4 h-4" />}
-        >
-          <RadarComparisonChart
-            axes={radarAxes}
-            datasets={radarDatasets}
-            title="Category-wise Comparison"
-            subtitle="Individual submissions vs university average per category"
-            size={320}
-          />
-        </AnalyticsPanel>
+        <RadarComparisonChart
+          axes={radarAxes}
+          datasets={radarDatasets}
+          title="Performance vs university average"
+          subtitle={`How ${person?.applicantName ?? 'this researcher'} compares with the university-wide average across ${universityAverage?.totalApplicants ?? '—'} active researchers.`}
+          size={320}
+        />
       )}
 
-      {/* Tracker Works */}
+      {/* Tracker works */}
       {trackerWorks && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-2">
           <AnalyticsPanel
-            title="Published / Completed Works"
+            title="Published / completed works"
             subtitle="Work items that have reached accepted or published milestones in the tracker."
-            icon={<CheckCircle2 className="h-4 w-4" />}
+            icon={<CheckCircle2 />}
           >
             {trackerWorks.completedWorks.length === 0 ? (
-              <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-400">
-                No completed or published works found in this time window.
+              <div className="rounded-lg border border-dashed border-stone-200 p-6 text-center text-sm text-stone-500 dark:border-gray-700 dark:text-gray-400">
+                No completed or published works in this period.
               </div>
             ) : (
               <div className="space-y-3">
@@ -967,13 +825,13 @@ export default function ComprehensiveAnalyticsTab({
           </AnalyticsPanel>
 
           <AnalyticsPanel
-            title="Ongoing Works"
-            subtitle="Research work still moving through writing, communication, or submission stages."
-            icon={<Clock className="h-4 w-4" />}
+            title="Ongoing works"
+            subtitle="Research still moving through writing, communication or submission."
+            icon={<Clock />}
           >
             {trackerWorks.ongoingWorks.length === 0 ? (
-              <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-400">
-                No active ongoing works found in this time window.
+              <div className="rounded-lg border border-dashed border-stone-200 p-6 text-center text-sm text-stone-500 dark:border-gray-700 dark:text-gray-400">
+                No ongoing works in this period.
               </div>
             ) : (
               <div className="space-y-3">
@@ -986,11 +844,11 @@ export default function ComprehensiveAnalyticsTab({
         </div>
       )}
 
-      {/* Research Activity Distribution */}
-      <AnalyticsPanel 
-        title="Research Activity Distribution" 
-        subtitle="Share of each submission category inside this researcher's profile." 
-        icon={<TrendingUp className="h-4 w-4" />}
+      {/* Research activity distribution */}
+      <AnalyticsPanel
+        title="Research activity distribution"
+        subtitle="Share of each submission category in this researcher's profile."
+        icon={<TrendingUp />}
       >
         <div className="space-y-3">
           {filingCounts && person &&
@@ -998,25 +856,21 @@ export default function ComprehensiveAnalyticsTab({
               const count = filingCounts[key] ?? 0;
               const pct = person.totalApplications > 0 ? (count / person.totalApplications) * 100 : 0;
               return (
-                <div key={key} className={`w-full flex items-center gap-3 group`}>
-                  <div className={`w-32 text-xs font-medium ${meta.color} shrink-0 text-left`}>
+                <div key={key} className="flex w-full items-center gap-3">
+                  <div className="w-28 shrink-0 truncate text-xs font-medium text-stone-600 dark:text-gray-300 sm:w-36">
                     {meta.label}
                   </div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100 dark:bg-gray-700">
                     <div
-                      className="h-2.5 rounded-full transition-all"
+                      className="h-full rounded-full transition-all"
                       style={{
                         width: `${Math.max(pct, count > 0 ? 2 : 0)}%`,
-                        backgroundColor:
-                          key === 'research' ? '#3b82f6' :
-                          key === 'book' ? '#8b5cf6' :
-                          key === 'conference' ? '#f59e0b' :
-                          key === 'ipr' ? '#ef4444' : '#10b981',
+                        backgroundColor: categoryColor(key),
                       }}
                     />
                   </div>
-                  <div className="w-14 text-right text-xs text-gray-500 shrink-0">
-                    {count} ({pct.toFixed(0)}%)
+                  <div className={`w-20 shrink-0 text-right text-xs tabular-nums ${count > 0 ? 'text-stone-700 dark:text-gray-200' : 'text-stone-300 dark:text-gray-600'}`}>
+                    {count} <span className="text-stone-400 dark:text-gray-500">({pct.toFixed(0)}%)</span>
                   </div>
                 </div>
               );
@@ -1024,10 +878,11 @@ export default function ComprehensiveAnalyticsTab({
         </div>
       </AnalyticsPanel>
 
-      {/* Monthly Trend */}
+      {/* Monthly trend */}
       {drdAnalyticsData?.extensions?.monthlyTrend && (
         <TrendChartPanel
-          title="Monthly Submission Trend"
+          title="Monthly submission trend"
+          subtitle="Submissions per month by category, with approvals."
           data={(drdAnalyticsData.extensions.monthlyTrend as any[]).map((m) => ({
             label: m.label || m.month,
             values: {
@@ -1039,72 +894,79 @@ export default function ComprehensiveAnalyticsTab({
             },
           }))}
           keys={[
-            { key: 'total', label: 'Total', color: '#6366f1' },
-            { key: 'research', label: 'Research', color: '#3b82f6' },
-            { key: 'ipr', label: 'IPR', color: '#f59e0b' },
-            { key: 'grants', label: 'Grants', color: '#8b5cf6' },
-            { key: 'approved', label: 'Approved', color: '#10b981' },
+            { key: 'total', label: 'Total' },
+            { key: 'research', label: 'Research' },
+            { key: 'ipr', label: 'IPR' },
+            { key: 'grants', label: 'Grants' },
+            { key: 'approved', label: 'Approved' },
           ]}
-          height={200}
+          height={240}
         />
       )}
 
-      {/* School / Department Context */}
+      {/* School / department context */}
       {(drdAnalyticsData?.schoolWise?.length || drdAnalyticsData?.departmentWise?.length) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {drdAnalyticsData?.schoolWise?.map((s: any) => (
-            <div key={s.schoolId} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <GraduationCap className="w-4 h-4 text-[#011f4b]" />
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{s.schoolName}</h3>
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-white">{s.totalApplications}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Applications</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-emerald-600">{s.totalApproved}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Approved</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-blue-600">
-                    ₹{(s.totalIncentive || 0).toLocaleString('en-IN')}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Incentive</div>
-                </div>
-              </div>
-            </div>
+            <ContextCard
+              key={s.schoolId}
+              icon={<GraduationCap className="h-4 w-4" />}
+              title={s.schoolName}
+              applications={s.totalApplications}
+              approved={s.totalApproved}
+              incentive={s.totalIncentive}
+            />
           ))}
           {drdAnalyticsData?.departmentWise?.map((d: any) => (
-            <div key={d.departmentId} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-700/50 shadow-sm p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Layers3 className="w-4 h-4 text-[#011f4b]" />
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  {d.departmentName}
-                  <span className="text-xs text-gray-400 font-normal ml-1">({d.schoolName})</span>
-                </h3>
-              </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-white">{d.totalApplications}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Applications</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-emerald-600">{d.totalApproved}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Approved</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-blue-600">
-                    ₹{(d.totalIncentive || 0).toLocaleString('en-IN')}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Incentive</div>
-                </div>
-              </div>
-            </div>
+            <ContextCard
+              key={d.departmentId}
+              icon={<Layers3 className="h-4 w-4" />}
+              title={d.departmentName}
+              meta={d.schoolName}
+              applications={d.totalApplications}
+              approved={d.totalApproved}
+              incentive={d.totalIncentive}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ContextCard({
+  icon, title, meta, applications, approved, incentive,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  meta?: string;
+  applications: number;
+  approved: number;
+  incentive: number;
+}) {
+  return (
+    <div className={`${ui.card} p-5`}>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-stone-500 dark:bg-gray-700 dark:text-gray-300">{icon}</span>
+        <h3 className="min-w-0 truncate text-sm font-semibold text-stone-800 dark:text-gray-100">
+          {title}
+          {meta && <span className="ml-1 text-xs font-normal text-stone-500 dark:text-gray-400">({meta})</span>}
+        </h3>
+      </div>
+      <dl className="grid grid-cols-3 gap-3">
+        <div>
+          <dt className="text-xs text-stone-500 dark:text-gray-400">Applications</dt>
+          <dd className={`mt-0.5 text-lg ${ui.value}`}>{(applications || 0).toLocaleString('en-IN')}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-stone-500 dark:text-gray-400">Approved</dt>
+          <dd className={`mt-0.5 text-lg ${ui.value}`}>{(approved || 0).toLocaleString('en-IN')}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-stone-500 dark:text-gray-400">Incentive</dt>
+          <dd className={`mt-0.5 text-lg ${ui.value}`}>₹{(incentive || 0).toLocaleString('en-IN')}</dd>
+        </div>
+      </dl>
     </div>
   );
 }

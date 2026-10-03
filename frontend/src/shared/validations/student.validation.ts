@@ -1,5 +1,31 @@
 import { z } from 'zod';
 
+const todayIso = () => {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
+
+/** Optional YYYY-MM-DD date, not in the future. */
+const phdDate = (label: string) => z
+  .string()
+  .optional()
+  .or(z.literal(''))
+  .refine((val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val), `${label} must be in YYYY-MM-DD format`)
+  .refine((val) => !val || val <= todayIso(), `${label} cannot be in the future`);
+
+/** PhD award date cannot precede the registration date (and needs one). */
+const phdDatesInOrder = (
+  data: { phdRegistrationDate?: string; phdAwardedAt?: string },
+  ctx: z.RefinementCtx,
+) => {
+  if (!data.phdAwardedAt) return;
+  if (!data.phdRegistrationDate) {
+    ctx.addIssue({ code: 'custom', path: ['phdRegistrationDate'], message: 'PhD registration date is required when an award date is set' });
+  } else if (data.phdAwardedAt < data.phdRegistrationDate) {
+    ctx.addIssue({ code: 'custom', path: ['phdAwardedAt'], message: 'PhD awarded date cannot be before the registration date' });
+  }
+};
+
 /**
  * Student Creation Validation Schema
  */
@@ -146,7 +172,16 @@ export const createStudentSchema = z.object({
     .max(500, 'Address must be 500 characters or fewer')
     .optional()
     .or(z.literal('')),
-});
+
+  // PhD details (doctoral programmes only)
+  phdRegistrationDate: phdDate('PhD registration date'),
+  phdAwardedAt: phdDate('PhD awarded date'),
+  thesisTitle: z
+    .string()
+    .max(512, 'Thesis title must be 512 characters or fewer')
+    .optional()
+    .or(z.literal('')),
+}).superRefine(phdDatesInOrder);
 
 /**
  * Student Update Validation Schema
@@ -274,7 +309,16 @@ export const updateStudentSchema = z.object({
     .max(500, 'Address must be 500 characters or fewer')
     .optional()
     .or(z.literal('')),
-});
+
+  // PhD details (doctoral programmes only)
+  phdRegistrationDate: phdDate('PhD registration date'),
+  phdAwardedAt: phdDate('PhD awarded date'),
+  thesisTitle: z
+    .string()
+    .max(512, 'Thesis title must be 512 characters or fewer')
+    .optional()
+    .or(z.literal('')),
+}).superRefine(phdDatesInOrder);
 
 export type CreateStudentFormData = z.infer<typeof createStudentSchema>;
 export type UpdateStudentFormData = z.infer<typeof updateStudentSchema>;

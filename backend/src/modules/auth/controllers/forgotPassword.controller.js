@@ -63,7 +63,8 @@ const issueResetLink = async (sanitizedEmail) => {
       uid: true,
       status: true,
       anonymizedAt: true,
-      employeeDetails: { select: { firstName: true } }
+      employeeDetails: { select: { firstName: true } },
+      university: { select: { name: true, displayName: true } }
     }
   });
 
@@ -85,11 +86,14 @@ const issueResetLink = async (sanitizedEmail) => {
   const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
   const resetLink = `${frontendBase}/reset-password?token=${rawToken}`;
   const userName = user.employeeDetails?.firstName || user.uid || 'User';
+  // Tenant branding: the mail names the user's university (product name stays as the platform)
+  const universityName = user.university?.displayName || user.university?.name || null;
+  const headerLine = universityName ? `${universityName} · ResearchSphere` : 'ResearchSphere · University Management System';
 
   await emailService.sendEmail({
     to: user.email,
     subject: 'Reset Your ResearchSphere Password',
-    text: `Hello ${userName},\n\nYou requested a password reset. Use the link below within ${TOKEN_EXPIRY_MINUTES} minutes:\n\n${resetLink}\n\nIf you did not request this, please ignore this email.\n\n– ResearchSphere Team`,
+    text: `Hello ${userName},\n\nYou requested a password reset. Use the link below within ${TOKEN_EXPIRY_MINUTES} minutes:\n\n${resetLink}\n\nIf you did not request this, please ignore this email.\n\n– ${headerLine}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -116,7 +120,7 @@ const issueResetLink = async (sanitizedEmail) => {
   <div class="wrapper">
     <div class="header">
       <h1>🔐 Password Reset</h1>
-      <p>ResearchSphere · University Management System</p>
+      <p>${escapeHtml(headerLine)}</p>
     </div>
     <div class="body">
       <p>Hello <strong>${escapeHtml(userName)}</strong>,</p>

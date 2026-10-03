@@ -1,6 +1,9 @@
 const prisma = require('../../../shared/config/database');
 const tenantContext = require('../../../shared/tenancy/tenantContext');
 const cache = require('../../../shared/config/redis');
+const { locateAffiliation, institutionName, canonicalCountry } = require('../../../shared/utils/institutionGeo');
+const { isAffiliationMatch, normalize: normalizeAffiliation } = require('../../../shared/utils/affiliationEngine');
+const { getUniversityAffiliationVariants } = require('../../core/services/affiliation.service');
 const {
   getSupportedCentralDeptAnalyticsScopeFields,
   withSupportedAnalyticsScopeFields,
@@ -84,6 +87,22 @@ const IPR_APPROVED_STATUSES = new Set([
   'completed',
   'incentives_processed',
 ]);
+// Research indexing categories as shown in analytics. Tenant-neutral: every university
+// runs this product, so no label may name a particular one.
+const RESEARCH_CATEGORY_LABELS = {
+  nature_science_lancet_cell_nejm: 'Nature/Science/Lancet/Cell/NEJM',
+  subsidiary_if_above_20: 'Subsidiary IF > 20',
+  scopus: 'Scopus',
+  scie_wos: 'SCIE / WoS',
+  pubmed: 'PubMed',
+  naas_rating_6_plus: 'NAAS Rating ≥ 6',
+  abdc_scopus_wos: 'ABDC / Scopus / WoS',
+  sgtu_in_house: 'University In-House Journal',
+  case_centre_uk: 'Case Centre UK',
+  other_indexed: 'Other Indexed',
+  non_indexed_reputed: 'Non-Indexed Reputed',
+};
+
 const RESEARCH_APPROVED_STATUSES = new Set(['approved', 'completed']);
 const GRANT_APPROVED_STATUSES = new Set(['approved', 'completed']);
 const TERMINAL_REVIEW_DECISIONS = new Set([
@@ -536,10 +555,29 @@ function buildReviewerMonthlyTrend({
 
 // ─── Cross-request access resolution cache ──────────────────────────────────
 // Caches the fully-resolved access scope per (user, permissionKeys, schoolFields,
-// departmentFields) for 5 minutes. Eliminates repeated DB roundtrips for
-// centralDeptPermission / departmentPermission / role on every analytics request.
+// departmentFields) briefly. Eliminates repeated DB roundtrips for
+// centralDeptPermission / departmentPermission / role within a dashboard load.
+// Permission/assignment writes call cache.invalidateUser(userId), which drops the
+// user's entries on this process; other processes pick changes up within the TTL.
 const _accessResultCache = new Map(); // key → { value, expiresAt }
-const ACCESS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const ACCESS_CACHE_TTL_MS = 10 * 1000; // 10 seconds
+
+function _invalidateAccessCacheForUser(userId) {
+  if (!userId) return;
+  const marker = `|${userId}|`;
+  for (const key of _accessResultCache.keys()) {
+    if (key.includes(marker)) _accessResultCache.delete(key);
+  }
+}
+
+if (typeof cache.onUserInvalidated === 'function') {
+  cache.onUserInvalidated(async (userId) => {
+    _invalidateAccessCacheForUser(userId);
+    // Per-user analytics result caches (drd:applicant:<userId>:…, drd:tracker:…, drd:catBreakdown:…,
+    // drd:collab-network:…) were computed under the old scope; they live in the shared cache.
+    if (userId) await cache.delPattern(`drd:*${userId}*`);
+  });
+}
 
 /**
  * Tenant admins see every school/department of their own university; a superadmin sees
@@ -781,6 +819,27 @@ class DrdAnalyticsService {
     }
 
     expandedDepartmentIds = unique(expandedDepartmentIds);
+
+    // Permission held with no school/department assignment = university-wide, the same
+    // rule the DRD review queues use (empty assigned list = all schools).
+    if (schoolIds.length === 0 && departmentIds.length === 0) {
+      const [allDepartments, allSchools] = await Promise.all([
+        adminDepts || prisma.department.findMany({ where: { isActive: true }, select: { id: true } }),
+        adminSchools || prisma.facultySchoolList.findMany({ where: { isActive: true }, select: { id: true } }),
+      ]);
+      const universityResult = {
+        isUniversity: true,
+        explicitSchoolIds: allSchools.map((school) => school.id),
+        explicitDepartmentIds: allDepartments.map((department) => department.id),
+        allowedSchoolIds: allSchools.map((school) => school.id),
+        allowedDepartmentIds: allDepartments.map((department) => department.id),
+        scopeLevel: 'university',
+        canViewAllReviewers: hasAnyPermission(mergedCentralPerms, SUPERVISOR_PERMISSIONS),
+      };
+      _setAccessCached(cacheKey, universityResult);
+      return universityResult;
+    }
+
     const scopeLevel = buildScopeLevel(schoolIds, departmentIds, false);
 
     const nonAdminResult = {
@@ -2493,6 +2552,9 @@ class DrdAnalyticsService {
         totalAssigned: reviewerPerformance.reduce((s, r) => s + r.assigned, 0),
         totalReviewed: reviewerPerformance.reduce((s, r) => s + r.reviewed, 0),
         totalPending: reviewerPerformance.reduce((s, r) => s + r.pending, 0),
+        // Decision totals (the overview's DRD pipeline card shows these next to the review counts)
+        approvedCount: reviewerPerformance.reduce((s, r) => s + (r.decisionDistribution?.approved || 0), 0),
+        rejectedCount: reviewerPerformance.reduce((s, r) => s + (r.decisionDistribution?.rejected || 0), 0),
         avgTurnaroundHours: avgHours(allTurnarounds),
         medianTurnaroundHours: computeMedian(allTurnarounds),
       },
@@ -3274,19 +3336,6 @@ class DrdAnalyticsService {
       })
     );
 
-    const RESEARCH_CATEGORY_LABELS = {
-      nature_science_lancet_cell_nejm: 'Nature/Science/Lancet/Cell/NEJM',
-      subsidiary_if_above_20: 'Subsidiary IF > 20',
-      scopus: 'Scopus',
-      scie_wos: 'SCIE / WoS',
-      pubmed: 'PubMed',
-      naas_rating_6_plus: 'NAAS Rating ≥ 6',
-      abdc_scopus_wos: 'ABDC / Scopus / WoS',
-      sgtu_in_house: 'SGT In-House',
-      case_centre_uk: 'Case Centre UK',
-      other_indexed: 'Other Indexed',
-      non_indexed_reputed: 'Non-Indexed Reputed',
-    };
     const BOOK_TYPE_LABELS = { authored: 'Authored Book', edited: 'Edited Book', chapter: 'Book Chapter', other: 'Other' };
     const CONF_TYPE_LABELS = { international: 'International', national: 'National' };
     const CONF_SUBTYPE_LABELS = {
@@ -3427,55 +3476,130 @@ class DrdAnalyticsService {
   }
 
   /**
-   * Aggregate external co-author affiliations across all research contributions
-   * within the user's scope. Used by the Global Research Network globe.
-   * Returns [{name, count}] sorted by count desc.
+   * Research collaboration network for the Global Research Network globe.
+   *
+   * Partners come from two real sources per paper, de-duplicated per paper:
+   *   1. external co-authors entered on the contribution (ResearchContributionAuthor, isInternal=false)
+   *   2. Scopus-synced author affiliations (indexingDetails.affiliationSummary.authors), which carry a country
+   * Strength = number of distinct papers co-authored with that institution. Locations come from an
+   * offline gazetteer; partners that cannot be placed are returned with `lat: null` and are never
+   * given an invented position.
    */
   async getAffiliations(user, filters = {}) {
     const from = parseDate(filters.from, new Date(new Date().setMonth(new Date().getMonth() - 12)));
     const to = parseEndDate(filters.to, new Date());
+    const tenantId = tenantContext.getTenantId() || user.universityId || null;
 
-    const cacheKey = `drd:affiliations:${user.id}:${toIsoDate(from)}:${toIsoDate(to)}`;
+    const cacheKey = `drd:collab-network:v3:${tenantId || 'global'}:${user.id}:${toIsoDate(from)}:${toIsoDate(to)}`;
     const cached = await cache.get(cacheKey);
     if (cached) return cached;
 
-    // Resolve access scope using research category permissions
+    const university = tenantId
+      ? await prisma.university.findUnique({
+          where: { id: tenantId },
+          select: { name: true, city: true, state: true, country: true },
+        })
+      : null;
+    const homeLoc = university
+      ? locateAffiliation([university.name, university.city, university.state].filter(Boolean).join(', '), university.country)
+      : null;
+    const home = {
+      name: university?.name || 'Home university',
+      city: university?.city || null,
+      country: university?.country || homeLoc?.country || null,
+      lat: homeLoc?.lat ?? null,
+      lng: homeLoc?.lng ?? null,
+      precision: homeLoc?.precision || null,
+    };
+
+    const empty = { home, partners: [], summary: { papers: 0, partners: 0, located: 0, countries: 0, international: 0 }, generatedAt: new Date().toISOString() };
+
     let access;
     try {
       access = await this._resolveApplicantAccessByCategory(user, 'research', null);
     } catch (err) {
-      if (err.statusCode === 403) {
-        return [];
-      }
+      if (err.statusCode === 403) return empty;
       throw err;
     }
 
-    const schoolWhere = access.allowedSchoolIds && access.allowedSchoolIds.length > 0
-      ? { in: access.allowedSchoolIds }
-      : undefined;
+    const { variants: homeVariants } = await getUniversityAffiliationVariants(tenantId);
+    const isHome = (aff) => homeVariants.length > 0 && isAffiliationMatch(aff, homeVariants);
 
-    const authors = await prisma.researchContributionAuthor.findMany({
+    const schoolWhere = access.allowedSchoolIds && access.allowedSchoolIds.length > 0
+      ? { schoolId: { in: access.allowedSchoolIds } }
+      : {};
+
+    const papers = await prisma.researchContribution.findMany({
       where: {
-        isInternal: false,
-        affiliation: { not: null },
-        researchContribution: {
-          submittedAt: { gte: from, lte: to },
-          ...(schoolWhere ? { schoolId: schoolWhere } : {}),
-        },
+        ...schoolWhere,
+        OR: [
+          { submittedAt: { gte: from, lte: to } },
+          { submittedAt: null, publicationDate: { gte: from, lte: to } },
+        ],
       },
-      select: { affiliation: true },
+      select: {
+        id: true,
+        indexingDetails: true,
+        authors: { where: { isInternal: false, affiliation: { not: null } }, select: { affiliation: true } },
+      },
     });
 
-    const map = new Map();
-    for (const a of authors) {
-      const key = (a.affiliation || '').trim();
-      if (key) map.set(key, (map.get(key) || 0) + 1);
+    const partners = new Map();
+    let collaborativePapers = 0;
+    for (const paper of papers) {
+      const seen = new Map(); // institution key -> { name, countryHint, raw }
+      const add = (raw, country) => {
+        const text = String(raw || '').trim();
+        if (!text || isHome(text)) return;
+        const name = institutionName(text);
+        const key = normalizeAffiliation(name);
+        if (!key || key.length < 3) return;
+        const prev = seen.get(key);
+        if (!prev || (!prev.country && country)) seen.set(key, { name, country: country || prev?.country || null, raw: text });
+      };
+      for (const a of paper.authors || []) add(a.affiliation, null);
+      const summaryAuthors = paper.indexingDetails?.affiliationSummary?.authors;
+      if (Array.isArray(summaryAuthors)) {
+        for (const a of summaryAuthors) if (!a?.isSgtAffiliated) add(a?.affiliation, a?.country);
+      }
+      if (seen.size > 0) collaborativePapers += 1;
+      for (const [key, v] of seen) {
+        const entry = partners.get(key) || { name: v.name, country: null, papers: 0, raw: v.raw, countryHint: null };
+        entry.papers += 1;
+        if (v.country && !entry.countryHint) entry.countryHint = v.country;
+        partners.set(key, entry);
+      }
     }
 
-    const result = [...map.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 60);
+    const list = [...partners.values()]
+      .map((p) => {
+        const loc = locateAffiliation(p.raw, p.countryHint) || locateAffiliation(p.name, p.countryHint);
+        const country = loc?.country || canonicalCountry(p.countryHint);
+        return {
+          name: p.name,
+          country,
+          papers: p.papers,
+          lat: loc?.lat ?? null,
+          lng: loc?.lng ?? null,
+          precision: loc?.precision || null,
+          international: Boolean(country && home.country && country.toLowerCase() !== String(home.country).toLowerCase()),
+        };
+      })
+      .sort((a, b) => b.papers - a.papers || a.name.localeCompare(b.name))
+      .slice(0, 150);
+
+    const result = {
+      home,
+      partners: list,
+      summary: {
+        papers: collaborativePapers,
+        partners: list.length,
+        located: list.filter((p) => p.lat !== null).length,
+        countries: new Set(list.map((p) => p.country).filter(Boolean)).size,
+        international: list.filter((p) => p.international).length,
+      },
+      generatedAt: new Date().toISOString(),
+    };
 
     await cache.set(cacheKey, result, 300);
     return result;
@@ -3483,3 +3607,4 @@ class DrdAnalyticsService {
 }
 
 module.exports = new DrdAnalyticsService();
+module.exports.RESEARCH_CATEGORY_LABELS = RESEARCH_CATEGORY_LABELS;

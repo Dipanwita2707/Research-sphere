@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Wordmark from '@/shared/components/brand/Wordmark';
 import { useAuthStore } from '@/shared/auth/authStore';
@@ -229,14 +230,14 @@ export default function LoginPage() {
           {/* Back link */}
           <div className="mb-6 flex items-center justify-between lg:hidden">
             <Wordmark heightClassName="h-11 sm:h-12" />
-            <a href="/" className="text-sm font-semibold text-charcoal/50 hover:text-wine transition-colors flex items-center gap-1">
+            <Link href="/" className="text-sm font-semibold text-charcoal/50 hover:text-wine transition-colors flex items-center gap-1">
               ← Home
-            </a>
+            </Link>
           </div>
           <div className="mb-4 hidden lg:flex justify-end">
-            <a href="/" className="text-sm font-semibold text-charcoal/40 hover:text-wine transition-colors flex items-center gap-1">
+            <Link href="/" className="text-sm font-semibold text-charcoal/40 hover:text-wine transition-colors flex items-center gap-1">
               ← Back to Home
-            </a>
+            </Link>
           </div>
 
           <div className="rounded-3xl border border-black/5 bg-white p-8 shadow-brand-xl sm:p-10">
@@ -337,7 +338,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-wine py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-wine-dark disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-wine py-3.5 text-[15px] font-semibold text-wine-fg transition-colors hover:bg-wine-dark disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isLoading ? (
                   <>

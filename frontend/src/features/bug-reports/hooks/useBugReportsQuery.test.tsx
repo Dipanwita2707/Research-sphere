@@ -24,8 +24,19 @@ import type {
   BugReportFilters,
 } from '../types/bugReport.types';
 
-// Mock the API module
-jest.mock('@/shared/api/api');
+// Mock the API module. The hooks pass responses through unwrapResponse, so keep its real
+// implementation: the tests then exercise the same response handling as production.
+jest.mock('@/shared/api/api', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    patch: jest.fn(),
+    delete: jest.fn(),
+  },
+  unwrapResponse: jest.requireActual('@/shared/api/api').unwrapResponse,
+}));
 const mockedApi = api as jest.Mocked<typeof api>;
 
 // Helper to create a wrapper with QueryClient

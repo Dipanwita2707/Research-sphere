@@ -4,8 +4,8 @@ import Wordmark from '@/shared/components/brand/Wordmark';
 
 export default function PageLoader({ fullScreen = true }: { fullScreen?: boolean }) {
   const containerClasses = fullScreen
-    ? 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#FDF5EC] dark:bg-gray-950 transition-colors duration-200'
-    : 'relative flex flex-col items-center justify-center p-12 bg-[#FDF5EC] dark:bg-gray-950/20 rounded-2xl';
+    ? 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-blush dark:bg-gray-950 transition-colors duration-200'
+    : 'relative flex flex-col items-center justify-center p-12 bg-blush dark:bg-gray-950/20 rounded-2xl';
 
   return (
     <div className={containerClasses}>
@@ -23,8 +23,8 @@ export default function PageLoader({ fullScreen = true }: { fullScreen?: boolean
           100% { transform: rotate3d(-1, 1, 1, 360deg); }
         }
         @keyframes pulse-glow {
-          0%, 100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 12px rgba(132, 28, 67, 0.4); }
-          50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 24px rgba(226, 139, 34, 0.6); }
+          0%, 100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 12px rgb(var(--brand-primary)/0.4); }
+          50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 24px rgb(var(--brand-accent)/0.6); }
         }
         .orbit-ring-1 {
           animation: orbit-1 3s linear infinite;

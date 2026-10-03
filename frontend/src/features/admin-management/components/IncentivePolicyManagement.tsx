@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import { incentivePolicyService, IncentivePolicy } from '@/features/admin-management/services/incentivePolicy.service';
+import PolicyCycleField, { PolicyPeriod, defaultPolicyDates } from './PolicyCycleField';
+import { useCycles } from '@/features/finance/budget/useBudget';
 
 const IPR_TYPES = [
   { value: 'patent', label: 'Patent', icon: '📜' },
@@ -44,6 +46,8 @@ export default function IncentivePolicyManagement() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const cyclesQ = useCycles();
+  const today = new Date().toISOString().slice(0, 10);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -56,6 +60,8 @@ export default function IncentivePolicyManagement() {
     filingTypeMultiplier: { provisional: 0.5, complete: 1.0 } as Record<string, number>,
     projectTypeBonus: { phd: 10000, faculty_research: 5000 } as Record<string, number>,
     isActive: true,
+    effectiveFrom: new Date().toISOString().split('T')[0],
+    effectiveTo: '',
   });
 
   useEffect(() => {
@@ -74,7 +80,7 @@ export default function IncentivePolicyManagement() {
     }
   };
 
-  const handleOpenModal = (policy?: IncentivePolicy) => {
+  const handleOpenModal = (policy?: IncentivePolicy, iprType?: string) => {
     if (policy) {
       setEditingPolicy(policy);
       setFormData({
@@ -87,11 +93,13 @@ export default function IncentivePolicyManagement() {
         filingTypeMultiplier: policy.filingTypeMultiplier || { provisional: 0.5, complete: 1.0 },
         projectTypeBonus: policy.projectTypeBonus || {},
         isActive: policy.isActive,
+        effectiveFrom: policy.effectiveFrom ? new Date(policy.effectiveFrom).toISOString().split('T')[0] : today,
+        effectiveTo: policy.effectiveTo ? new Date(policy.effectiveTo).toISOString().split('T')[0] : '',
       });
     } else {
       setEditingPolicy(null);
       setFormData({
-        iprType: 'patent',
+        iprType: iprType || 'patent',
         policyName: '',
         baseIncentiveAmount: 50000,
         basePoints: 50,
@@ -100,6 +108,7 @@ export default function IncentivePolicyManagement() {
         filingTypeMultiplier: { provisional: 0.5, complete: 1.0 } as Record<string, number>,
         projectTypeBonus: {} as Record<string, number>,
         isActive: true,
+        ...defaultPolicyDates(cyclesQ.data?.cycles),
       });
     }
     setShowModal(true);
@@ -114,12 +123,14 @@ export default function IncentivePolicyManagement() {
         setError('Please provide a policy name');
         return;
       }
+      if (!formData.effectiveFrom) {
+        setError('Please choose when the policy takes effect');
+        return;
+      }
 
-      const policyData = {
-        ...formData,
-        primaryInventorShare: formData.splitPolicy ===
-   'primary_inventor' ? formData.primaryInventorShare : undefined,
-      };
+      // Only the base amount and points are paid (split equally); never send other knobs.
+      const { primaryInventorShare: _share, filingTypeMultiplier: _mult, projectTypeBonus: _bonus, ...rest } = formData;
+      const policyData = { ...rest, effectiveTo: rest.effectiveTo || undefined, splitPolicy: 'equal' as const };
 
       if (editingPolicy) {
         await incentivePolicyService.updatePolicy(editingPolicy.id, policyData);
@@ -212,8 +223,9 @@ export default function IncentivePolicyManagement() {
       {/* Policy Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {IPR_TYPES.map(iprType => {
-          const activePolicy = policies.find(p => p.iprType ===
-   iprType.value && p.isActive);
+          const enabled = policies.filter(p => p.iprType === iprType.value && p.isActive);
+          const activePolicy = enabled.find(p => (p.effectiveFrom || '').slice(0, 10) <= today
+            && (!p.effectiveTo || p.effectiveTo.slice(0, 10) >= today)) || enabled[0];
           const inactivePolicies = policies.filter(p => p.iprType ===
    iprType.value && !p.isActive);
 
@@ -233,10 +245,7 @@ export default function IncentivePolicyManagement() {
                   </div>
                   {!activePolicy && (
                     <button
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, iprType: iprType.value }));
-                        handleOpenModal();
-                      }}
+                      onClick={() => handleOpenModal(undefined, iprType.value)}
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                     >
                       + Add Policy
@@ -248,11 +257,14 @@ export default function IncentivePolicyManagement() {
               {/* Active Policy */}
               {activePolicy ? (
                 <div className="p-5">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-gray-700">{activePolicy.policyName}</span>
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
                       Active
                     </span>
+                  </div>
+                  <div className="mb-4">
+                    <PolicyPeriod effectiveFrom={activePolicy.effectiveFrom} effectiveTo={activePolicy.effectiveTo} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mb-4">
@@ -393,58 +405,19 @@ export default function IncentivePolicyManagement() {
                 </div>
               </div>
 
-              {/* Split Policy */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Distribution Policy</label>
-                <div className="space-y-2">
-                  {SPLIT_POLICIES.map(policy => (
-                    <label
-                      key={policy.value}
-                      className={`flex items-center p-3 border rounded-xl cursor-pointer transition-colors ${
-                        formData.splitPolicy ===
-   policy.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="splitPolicy"
-                        value={policy.value}
-                        checked={formData.splitPolicy ===
-   policy.value}
-                        onChange={(e) => setFormData({ ...formData, splitPolicy: e.target.value as any })}
-                        className="sr-only"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900">{policy.label}</p>
-                        <p className="text-xs text-gray-500">{policy.description}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+              {/* Distribution: publication pays only the amount above, split equally */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+                <p className="font-medium text-gray-900">Distribution: equal split</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  On publication, exactly the base amount and points above are divided equally among the internal inventors. No multipliers or bonuses are added.
+                </p>
               </div>
 
-              {/* Primary Inventor Share */}
-              {formData.splitPolicy ===
-   'primary_inventor' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Primary Inventor Share (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={formData.primaryInventorShare}
-                    onChange={(e) => setFormData({ ...formData, primaryInventorShare: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Remaining {100 - formData.primaryInventorShare}% will be split among other inventors
-                  </p>
-                </div>
-              )}
+              {/* Cycle and effective dates */}
+              <PolicyCycleField
+                value={{ effectiveFrom: formData.effectiveFrom, effectiveTo: formData.effectiveTo }}
+                onChange={(d) => setFormData({ ...formData, ...d })}
+              />
 
               {/* Active Status */}
               <div className="flex items-center gap-3">

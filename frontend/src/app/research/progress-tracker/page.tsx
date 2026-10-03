@@ -91,10 +91,10 @@ export default function ProgressTrackerListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-950">
+    <div className="min-h-screen bg-blush dark:bg-gray-950">
 
       {/* ── Page Header ──────────────────────────────────────── */}
-      <div className="bg-white dark:bg-gray-900 border-b border-[#f0e2d2] dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 border-b border-blush-line dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-6 py-6 flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -108,7 +108,7 @@ export default function ProgressTrackerListPage() {
           </div>
           <Link
             href="/research/progress-tracker/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-wine to-[#6E1738] rounded-xl hover:from-[#6E1738] hover:to-[#4A0F26] shadow-sm shadow-wine/20 transition-all duration-200 flex-shrink-0 mt-1"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-wine-fg bg-gradient-to-r from-wine to-wine-dark rounded-xl hover:from-wine-dark hover:to-wine-darker shadow-sm shadow-wine/20 transition-all duration-200 flex-shrink-0 mt-1"
           >
             <Plus className="w-4 h-4" />
             New Research
@@ -120,8 +120,8 @@ export default function ProgressTrackerListPage() {
 
         {/* ── Stats Bar ──────────────────────────────────────── */}
         {stats && (
-          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 divide-x divide-y md:divide-y-0 divide-[#f0e2d2] dark:divide-gray-800">
+          <div className="bg-white dark:bg-gray-900 border border-blush-line dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 divide-x divide-y md:divide-y-0 divide-blush-line dark:divide-gray-800">
               <div className="p-4 sm:p-5 flex flex-col">
                 <span className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{stats.total}</span>
                 <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wide">Total</span>
@@ -137,7 +137,7 @@ export default function ProgressTrackerListPage() {
         )}
 
         {/* ── Filters Bar ────────────────────────────────────── */}
-        <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-1">
+        <div className="bg-white dark:bg-gray-900 border border-blush-line dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-1">
           <div className="px-3 py-2 flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -146,7 +146,7 @@ export default function ProgressTrackerListPage() {
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); if (page !== 1) setPage(1); }}
                 placeholder="Search by title or tracking number…"
-                className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 transition-all text-gray-900 dark:text-gray-100 placeholder:text-gray-400 outline-none"
+                className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-800 border border-blush-line dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 transition-all text-gray-900 dark:text-gray-100 placeholder:text-gray-400 outline-none"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export default function ProgressTrackerListPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value as ResearchTrackerStatus | ''); setPage(1); }}
-                className="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                className="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-blush-line dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
               >
                 <option value="">All Statuses</option>
                 {Object.entries(statusLabels).map(([value, label]) => (
@@ -164,7 +164,7 @@ export default function ProgressTrackerListPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => { setTypeFilter(e.target.value as TrackerPublicationType | ''); setPage(1); }}
-                className="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                className="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-blush-line dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
               >
                 <option value="">All Types</option>
                 {Object.entries(publicationTypeLabels).map(([value, label]) => (
@@ -184,7 +184,7 @@ export default function ProgressTrackerListPage() {
 
         {/* ── Loading Skeleton ──────────────────────────────── */}
         {loading ? (
-          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] divide-y divide-[#f0e2d2] dark:divide-gray-800">
+          <div className="bg-white dark:bg-gray-900 border border-blush-line dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] divide-y divide-blush-line dark:divide-gray-800">
             {[1,2,3,4].map(i => (
               <div key={i} className="px-6 py-5 flex items-start gap-4">
                 <div className="flex-1">
@@ -198,9 +198,9 @@ export default function ProgressTrackerListPage() {
           </div>
         ) : trackers.length === 0 ? (
           /* ── Empty State ──────────────────────────────────── */
-          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] py-16 text-center">
+          <div className="bg-white dark:bg-gray-900 border border-blush-line dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] py-16 text-center">
             <div className="w-14 h-14 rounded-2xl bg-peach/40 dark:bg-wine/10 flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-7 h-7 text-wine dark:text-amber-400" />
+              <FileText className="w-7 h-7 text-wine dark:text-hi" />
             </div>
             <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">No research tracked yet</h3>
             <p className="text-sm text-gray-400 dark:text-gray-500 mb-6 max-w-xs mx-auto">
@@ -208,7 +208,7 @@ export default function ProgressTrackerListPage() {
             </p>
             <Link
               href="/research/progress-tracker/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-wine to-[#6E1738] rounded-xl hover:from-[#6E1738] hover:to-[#4A0F26] shadow-sm shadow-wine/20 transition-all duration-200"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-wine-fg bg-gradient-to-r from-wine to-wine-dark rounded-xl hover:from-wine-dark hover:to-wine-darker shadow-sm shadow-wine/20 transition-all duration-200"
             >
               <Plus className="w-4 h-4" />
               Start Your First Research
@@ -216,8 +216,8 @@ export default function ProgressTrackerListPage() {
           </div>
         ) : (
           /* ── Trackers List ────────────────────────────────── */
-          <div className="bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
-            <div className="divide-y divide-[#f0e2d2] dark:divide-gray-800">
+          <div className="bg-white dark:bg-gray-900 border border-blush-line dark:border-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.03)] overflow-hidden">
+            <div className="divide-y divide-blush-line dark:divide-gray-800">
               {trackers.map((tracker) => {
                 const progress = getProgress(tracker.currentStatus);
                 const isRejected = tracker.currentStatus === 'rejected';
@@ -236,7 +236,7 @@ export default function ProgressTrackerListPage() {
                           </span>
                           <span className="text-xs text-gray-400 dark:text-gray-500 font-mono bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md">{tracker.trackingNumber}</span>
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-wine dark:group-hover:text-amber-400 transition-colors">{tracker.title}</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-wine dark:group-hover:text-hi transition-colors">{tracker.title}</h3>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                           {publicationTypeLabels[tracker.publicationType]}
                           {tracker.school && ` \u2022 ${tracker.school.facultyName ?? tracker.school.name}`}
@@ -265,7 +265,7 @@ export default function ProgressTrackerListPage() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                        <ArrowRight className="w-4 h-4 text-gray-200 dark:text-gray-700 group-hover:text-wine dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all duration-200" />
+                        <ArrowRight className="w-4 h-4 text-gray-200 dark:text-gray-700 group-hover:text-wine dark:group-hover:text-hi group-hover:translate-x-0.5 transition-all duration-200" />
                       </div>
                     </div>
 
@@ -277,7 +277,7 @@ export default function ProgressTrackerListPage() {
                           const thisIdx = STATUS_STEPS.indexOf(status);
                           const isComplete = thisIdx <= currentIdx && !isRejected;
                           return (
-                            <span key={status} className={isComplete ? 'text-wine dark:text-amber-400 font-semibold' : ''}>
+                            <span key={status} className={isComplete ? 'text-wine dark:text-hi font-semibold' : ''}>
                               {status === 'submitted' && isRejected ? 'Rejected' : statusLabels[status as ResearchTrackerStatus]}
                             </span>
                           );
@@ -309,7 +309,7 @@ export default function ProgressTrackerListPage() {
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-700 rounded-xl hover:bg-white dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-blush-line dark:border-gray-700 rounded-xl hover:bg-white dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
@@ -317,7 +317,7 @@ export default function ProgressTrackerListPage() {
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-[#f0e2d2] dark:border-gray-700 rounded-xl hover:bg-white dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-blush-line dark:border-gray-700 rounded-xl hover:bg-white dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>

@@ -1,7 +1,8 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
-import { Building2, GraduationCap, ChevronRight } from 'lucide-react';
+import { Building2, GraduationCap, ChevronRight, ChevronDown } from 'lucide-react';
+import { ui } from './theme';
 
 export interface SchoolBreakdownRow {
   schoolId: string;
@@ -30,6 +31,13 @@ interface Props {
   onDepartmentClick?: (departmentId: string, schoolId?: string) => void;
 }
 
+const num = (n: number, strong = false) =>
+  n === 0
+    ? 'text-stone-300 dark:text-gray-600'
+    : strong
+      ? 'font-medium text-stone-900 dark:text-white'
+      : 'text-stone-700 dark:text-gray-200';
+
 export default function SchoolDepartmentBreakdown({
   schoolWise,
   departmentWise,
@@ -41,7 +49,8 @@ export default function SchoolDepartmentBreakdown({
   const toggle = (schoolId: string) => {
     setExpandedSchools((prev) => {
       const next = new Set(prev);
-      next.has(schoolId) ? next.delete(schoolId) : next.add(schoolId);
+      if (next.has(schoolId)) next.delete(schoolId);
+      else next.add(schoolId);
       return next;
     });
   };
@@ -59,35 +68,39 @@ export default function SchoolDepartmentBreakdown({
 
   if (!schoolWise.length && !departmentWise.length) {
     return (
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-8 text-center text-sm text-slate-400 dark:text-slate-500">
-        No school or department data available for the selected filters.
+      <div className={`${ui.card} p-10 text-center text-sm text-stone-400 dark:text-gray-500`}>
+        No data for this period.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-sm">
-      <div className="border-b border-slate-100 dark:border-slate-700 px-5 py-4">
-        <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-800 dark:text-slate-200">
-          <GraduationCap className="w-4 h-4" />
-          School &amp; Department Breakdown
-        </h3>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Expand a school to inspect department performance inside the same scope.</p>
+    <div className={`overflow-hidden ${ui.card}`}>
+      <div className={ui.cardHeader}>
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wine/10 text-wine dark:bg-wine/30 dark:text-amber">
+            <GraduationCap className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className={ui.title}>School and department breakdown</h3>
+            <p className={ui.subtitle}>Expand a school to see its departments.</p>
+          </div>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-slate-50/90 dark:bg-gray-700/80 text-left">
-              <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Name</th>
-              <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Applications</th>
-              <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Approved</th>
-              <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Approval %</th>
-              <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Approved Amount</th>
-              <th className="px-5 py-3 font-medium text-gray-500 text-right"></th>
+          <thead className="bg-stone-50 dark:bg-gray-900/40">
+            <tr>
+              <th className={ui.th}>Name</th>
+              <th className={`${ui.th} text-right`}>Applications</th>
+              <th className={`${ui.th} text-right`}>Approved</th>
+              <th className={`${ui.th} text-right`}>Approval rate</th>
+              <th className={`${ui.th} text-right`}>Approved amount</th>
+              <th className="px-4 py-2.5"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+          <tbody className="divide-y divide-stone-100 dark:divide-gray-700">
             {schoolWise.map((school) => {
               const isExpanded = expandedSchools.has(school.schoolId);
               const schoolDepts = deptsBySchool[school.schoolId] || [];
@@ -98,37 +111,45 @@ export default function SchoolDepartmentBreakdown({
               return (
                 <React.Fragment key={school.schoolId}>
                   <tr
-                    className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 cursor-pointer transition-colors"
+                    className="cursor-pointer transition-colors hover:bg-stone-50 dark:hover:bg-gray-700/40"
                     onClick={() => toggle(school.schoolId)}
                   >
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
-                          <GraduationCap className="w-4 h-4" />
-                        </div>
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{school.schoolName}</span>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-stone-400 dark:text-gray-500">
+                          {schoolDepts.length > 0 && (
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform ${isExpanded ? '' : '-rotate-90'}`}
+                              aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                            />
+                          )}
+                        </span>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-stone-500 dark:bg-gray-700 dark:text-gray-300">
+                          <GraduationCap className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="font-medium text-stone-900 dark:text-gray-100">{school.schoolName}</span>
                         {schoolDepts.length > 0 && (
-                          <ChevronRight
-                            className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
-                              isExpanded ? 'rotate-90' : ''
-                            }`}
-                          />
+                          <span className="text-xs tabular-nums text-stone-400 dark:text-gray-500">
+                            {schoolDepts.length} dept{schoolDepts.length !== 1 ? 's' : ''}
+                          </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-200">{school.totalApplications}</td>
-                    <td className="px-5 py-3 text-right font-medium text-emerald-600">{school.totalApproved}</td>
-                    <td className="px-5 py-3 text-right text-slate-600 dark:text-slate-400">{approvalRate}%</td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-200">
+                    <td className={`px-4 py-3 text-right tabular-nums ${num(school.totalApplications, true)}`}>{school.totalApplications}</td>
+                    <td className={`px-4 py-3 text-right tabular-nums ${num(school.totalApproved, true)}`}>{school.totalApproved}</td>
+                    <td className={`px-4 py-3 text-right tabular-nums ${num(school.totalApplications > 0 ? school.totalApproved : 0)}`}>{approvalRate}%</td>
+                    <td className={`px-4 py-3 text-right tabular-nums ${num(school.totalIncentive, true)}`}>
                       ₹{school.totalIncentive.toLocaleString('en-IN')}
                     </td>
-                    <td className="px-5 py-3 text-right">
+                    <td className="px-4 py-3 text-right">
                       {onSchoolClick && (
                         <button
+                          type="button"
                           onClick={(e) => { e.stopPropagation(); onSchoolClick(school.schoolId); }}
-                          className="rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
+                          className="inline-flex h-7 items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                         >
                           View
+                          <ChevronRight className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </td>
@@ -142,22 +163,24 @@ export default function SchoolDepartmentBreakdown({
                       return (
                         <tr
                           key={dept.departmentId}
-                          className="cursor-pointer bg-slate-50/60 dark:bg-gray-700/30 transition-colors hover:bg-sky-50/40 dark:hover:bg-blue-900/10"
+                          className="cursor-pointer bg-stone-50/60 transition-colors hover:bg-stone-100/70 dark:bg-gray-900/30 dark:hover:bg-gray-700/40"
                           onClick={() => onDepartmentClick?.(dept.departmentId, school.schoolId)}
                         >
-                          <td className="px-5 py-2.5 pl-12">
+                          <td className="py-2.5 pl-14 pr-4">
                             <div className="flex items-center gap-2">
-                              <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-slate-700 dark:text-slate-300">{dept.departmentName}</span>
+                              <Building2 className="h-3.5 w-3.5 shrink-0 text-stone-400 dark:text-gray-500" />
+                              <span className="text-stone-700 dark:text-gray-200">{dept.departmentName}</span>
                             </div>
                           </td>
-                          <td className="px-5 py-2.5 text-right text-slate-700 dark:text-slate-300">{dept.totalApplications}</td>
-                          <td className="px-5 py-2.5 text-right text-emerald-600">{dept.totalApproved}</td>
-                          <td className="px-5 py-2.5 text-right text-slate-600 dark:text-slate-400">{deptRate}%</td>
-                          <td className="px-5 py-2.5 text-right text-slate-700 dark:text-slate-300">
+                          <td className={`px-4 py-2.5 text-right tabular-nums ${num(dept.totalApplications)}`}>{dept.totalApplications}</td>
+                          <td className={`px-4 py-2.5 text-right tabular-nums ${num(dept.totalApproved)}`}>{dept.totalApproved}</td>
+                          <td className={`px-4 py-2.5 text-right tabular-nums ${num(dept.totalApplications > 0 ? dept.totalApproved : 0)}`}>{deptRate}%</td>
+                          <td className={`px-4 py-2.5 text-right tabular-nums ${num(dept.totalIncentive)}`}>
                             ₹{dept.totalIncentive.toLocaleString('en-IN')}
                           </td>
-                          <td className="px-5 py-2.5" />
+                          <td className="px-4 py-2.5 text-right">
+                            {onDepartmentClick && <ChevronRight className="ml-auto h-4 w-4 text-stone-300 dark:text-gray-600" />}
+                          </td>
                         </tr>
                       );
                     })}
@@ -170,4 +193,3 @@ export default function SchoolDepartmentBreakdown({
     </div>
   );
 }
-

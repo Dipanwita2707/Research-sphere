@@ -56,7 +56,7 @@ export default function QuickAccessModules({ hideHeader = false }: { hideHeader?
               >
                 <motion.div
                   whileHover={{ y: -3 }}
-                  className="group relative rounded-2xl bg-white dark:bg-gray-900 p-5 sm:p-6 border border-gray-100 dark:border-gray-800 hover:border-wine/25 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_24px_rgba(132,28,67,0.10)] transition-all duration-300 cursor-pointer overflow-hidden"
+                  className="group relative rounded-2xl bg-white dark:bg-gray-900 p-5 sm:p-6 border border-gray-100 dark:border-gray-800 hover:border-wine/25 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_24px_rgb(var(--brand-primary)/0.10)] transition-all duration-300 cursor-pointer overflow-hidden"
                 >
                   {/* Subtle bg gradient on hover */}
                   <div className="absolute inset-0 bg-gradient-to-br from-wine/[0.02] to-amber/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
@@ -64,13 +64,13 @@ export default function QuickAccessModules({ hideHeader = false }: { hideHeader?
                   <div className="relative">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-wine to-[#6E1738] flex items-center justify-center shadow-lg shadow-wine/20">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-wine to-wine-dark flex items-center justify-center shadow-lg shadow-wine/20">
                         <Icon className="w-5 h-5 text-white" />
                       </div>
-                      <ArrowRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-wine dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all duration-200" />
+                      <ArrowRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-wine dark:group-hover:text-hi group-hover:translate-x-0.5 transition-all duration-200" />
                     </div>
 
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5 group-hover:text-wine dark:group-hover:text-amber-400 transition-colors">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5 group-hover:text-wine dark:group-hover:text-hi transition-colors">
                       {module.title}
                     </h3>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mb-5 leading-relaxed">

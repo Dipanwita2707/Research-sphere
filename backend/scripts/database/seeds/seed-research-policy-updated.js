@@ -158,7 +158,8 @@ async function createPolicies(prisma, university) {
       distributionMethod: 'author_role_based',
       effectiveFrom: new Date('2025-01-01'),
       effectiveTo: new Date('2025-12-31'),
-      isActive: false, // Make it inactive so position-based is the active one
+      // Enabled: it applies to publications dated 2025 (selection is by effective window).
+      isActive: true,
       createdById: adminUser.id,
       indexingBonuses: {
         // Same category bonuses

@@ -117,10 +117,10 @@ exports.getSchoolTemplate = async (req, res) => {
       'SCS',
       'School offering computer science programs\nSpecializing in AI, ML, and Data Science',
       '2010',
-      'socs@sgtuniversity.ac.in',
+      'socs@university.example.edu',
       '1234567890',
       'Block A, Floor 2\nRoom 201-205',
-      'https://sgtuniversity.ac.in/socs',
+      'https://university.example.edu/socs',
     ]];
 
     await sendExcelTemplate(res, headers, sampleRows, 'schools_template.xlsx', 'Schools');
@@ -177,7 +177,7 @@ exports.getDepartmentTemplate = async (req, res) => {
       'CS',
       'Department of Computer Science',
       '2010',
-      'cs@sgtuniversity.ac.in',
+      'cs@university.example.edu',
       '1234567890',
       'Block A, Room 201',
     ]];
@@ -360,7 +360,7 @@ exports.getEmployeeTemplate = async (req, res) => {
       'EMP001',
       'John',
       'Doe',
-      'john.doe@sgtuniversity.ac.in',
+      'john.doe@university.example.edu',
       '9876543210',
       'SOCS',
       'CS',
@@ -403,7 +403,7 @@ exports.getStudentTemplate = async (req, res) => {
         'REG2025001',
         'Jane',
         'Smith',
-        'jane.smith@student.sgtuniversity.ac.in',
+        'jane.smith@student.university.example.edu',
         '9876543210',
         'BTECH-CS',
         'CS-A',
@@ -415,7 +415,7 @@ exports.getStudentTemplate = async (req, res) => {
         'REG2025002',
         'John',
         'Doe',
-        'john.doe@student.sgtuniversity.ac.in',
+        'john.doe@student.university.example.edu',
         '9876543211',
         'BTECH-CS',
         '', // Empty sectionCode to show it's optional
@@ -1056,7 +1056,7 @@ exports.bulkUploadEmployees = async (req, res) => {
         }
 
         // Check if employee ID already exists
-        const existingEmp = await prisma.employeeDetails.findUnique({
+        const existingEmp = await prisma.employeeDetails.findFirst({
           where: { empId: row.empId },
         });
 
@@ -1304,7 +1304,7 @@ exports.bulkUploadStudents = async (req, res) => {
         }
 
         // Check if student ID already exists
-        const existingStudent = await prisma.studentDetails.findUnique({
+        const existingStudent = await prisma.studentDetails.findFirst({
           where: { studentId: row.studentId },
         });
 

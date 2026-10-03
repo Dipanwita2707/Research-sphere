@@ -19,19 +19,20 @@ import {
   AnalyticsPieChart,
   AnalyticsPipelineChart,
   AnalyticsPapersTable,
+  KpiCardGrid,
 } from '@/components/analytics';
+import { categoryColor, seriesColors, ui } from '@/components/analytics/theme';
 import {
   AlertCircle,
   BarChart3,
   Building2,
   CheckCircle2,
+  ChevronRight,
   Layers3,
   LayoutList,
   Printer,
   RefreshCw,
-  Sparkles,
   TrendingUp,
-  Users,
   Wallet,
 } from 'lucide-react';
 import { logger } from '@/shared/utils/logger';
@@ -271,16 +272,50 @@ export default function DepartmentAnalyticsPage() {
     setTimeout(() => { printWindow.focus(); printWindow.print(); }, 400);
   }, [data, deptName, schoolName, fromDate, toDate, categoryBreakdown, people]);
 
+  const trendData = (data?.extensions?.monthlyTrend as any[] | undefined)?.map((m) => ({
+    label: m.label || m.month,
+    values: {
+      filed: m.totalApplications || 0,
+      approved: m.approvedCount || 0,
+    },
+  }));
+  const trendKeys = [
+    { key: 'filed', label: 'Filed' },
+    { key: 'approved', label: 'Approved' },
+  ];
+
+  const breakdownHeading = (heading: string) => (
+    <div className="flex items-start gap-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wine/10 text-wine dark:bg-wine/30 dark:text-amber">
+        <Layers3 className="h-4 w-4" />
+      </span>
+      <div>
+        <h2 className={ui.title}>{heading}</h2>
+        <p className={ui.subtitle}>Distribution of submissions by publication type and indexing</p>
+      </div>
+    </div>
+  );
+
+  const CONTRIB_COLS = [
+    { key: 'research', label: 'Research' },
+    { key: 'book', label: 'Book' },
+    { key: 'conference', label: 'Conference' },
+    { key: 'ipr', label: 'IPR' },
+    { key: 'grants', label: 'Grants' },
+  ] as const;
+
   return (
     <ProtectedRoute>
       {accessDenied ? (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center border">
-            <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
-            <p className="text-gray-500 mb-6 text-sm">You don&apos;t have permission to view this department&apos;s analytics.</p>
-            <button onClick={() => router.back()} className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-              Go Back
+        <div className="flex min-h-screen items-center justify-center bg-[#faf8f6] p-6 dark:bg-gray-900">
+          <div className={`w-full max-w-md p-8 text-center ${ui.card}`}>
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/30">
+              <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+            </div>
+            <h2 className="mb-2 text-lg font-semibold text-stone-900 dark:text-white">Access denied</h2>
+            <p className="mb-6 text-sm text-stone-500 dark:text-gray-400">You don&apos;t have permission to view this department&apos;s analytics.</p>
+            <button onClick={() => router.back()} className={ui.btnPrimary}>
+              Go back
             </button>
           </div>
         </div>
@@ -288,36 +323,30 @@ export default function DepartmentAnalyticsPage() {
         <AnalyticsShell>
           <AnalyticsHero
             title={deptName}
-            description={`Department-level analytics — submission trends, category breakdown, and contributor details${schoolName ? ` for ${schoolName}` : ''}.`}
-            eyebrow="Department Analytics"
+            description={`Submission trends, category mix and contributor details${schoolName ? ` for this department of ${schoolName}` : ''}.`}
+            eyebrow="Department analytics"
             icon={<Building2 className="h-3.5 w-3.5" />}
             onBack={() => schoolId
               ? router.push(`/drd/analytics/applicant/schools/${schoolId}`)
               : router.push('/drd/analytics/applicant')}
+            backLabel={schoolId ? `Back to ${schoolName}` : 'Back to applicant analytics'}
             actions={(
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleGenerateReport}
-                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-medium text-white transition-colors hover:bg-white/20"
-                >
+              <>
+                <button onClick={handleGenerateReport} className={ui.btnSecondary}>
                   <Printer className="h-4 w-4" />
-                  Generate Report
+                  Generate report
                 </button>
-                <button
-                  onClick={fetchData}
-                  disabled={loading}
-                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-medium text-white transition-colors hover:bg-white/20"
-                >
+                <button onClick={fetchData} disabled={loading} className={ui.btnSecondary}>
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </button>
-              </div>
+              </>
             )}
             chips={[
-              { label: 'Applications', value: String(kpis?.totalApplications || 0) },
-              { label: 'Approved', value: String(kpis?.approvedCount || 0) },
-              { label: 'Contributors', value: String(kpis?.totalPeople || people.length) },
-              { label: 'School', value: schoolName },
+              { label: 'Applications', value: (kpis?.totalApplications || 0).toLocaleString('en-IN') },
+              { label: 'Approved', value: (kpis?.approvedCount || 0).toLocaleString('en-IN') },
+              { label: 'Contributors', value: (kpis?.totalPeople || people.length).toLocaleString('en-IN') },
+              { label: 'Approved amount', value: '₹' + (kpis?.totalIncentive || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }) },
             ]}
           />
 
@@ -338,19 +367,21 @@ export default function DepartmentAnalyticsPage() {
           />
 
           {/* View mode tabs */}
-          <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-6 sm:px-8 lg:px-12 xl:px-16">
-            <div className="flex gap-0">
+          <div className="border-b border-stone-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8">
+            <div className="-mb-px flex gap-1 overflow-x-auto" role="tablist" aria-label="View">
               {([
-                { key: 'overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" /> },
-                { key: 'papers', label: 'Papers & Trackers', icon: <LayoutList className="w-3.5 h-3.5" /> },
+                { key: 'overview', label: 'Overview', icon: <BarChart3 className="h-3.5 w-3.5" /> },
+                { key: 'papers', label: 'Papers & trackers', icon: <LayoutList className="h-3.5 w-3.5" /> },
               ] as const).map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setViewMode(tab.key)}
-                  className={`inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                  role="tab"
+                  aria-selected={viewMode === tab.key}
+                  className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
                     viewMode === tab.key
-                      ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                      ? 'border-wine text-wine dark:border-amber dark:text-amber'
+                      : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
                   {tab.icon}
@@ -360,7 +391,7 @@ export default function DepartmentAnalyticsPage() {
             </div>
           </div>
 
-          <div className="px-6 py-6 sm:px-8 lg:px-12 xl:px-16 space-y-6">
+          <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
             {viewMode === 'papers' ? (
               <AnalyticsPapersTable
                 scope={departmentId ? { type: 'department', id: departmentId } : null}
@@ -368,86 +399,56 @@ export default function DepartmentAnalyticsPage() {
                 toDate={toDate}
               />
             ) : loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 animate-pulse">
-                    <div className="h-3 bg-slate-100 rounded w-20 mb-3" />
-                    <div className="h-7 bg-slate-100 rounded w-12" />
-                  </div>
-                ))}
+              <div className="space-y-6" aria-busy="true" aria-label="Loading analytics">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className={`${ui.card} p-4`}>
+                      <div className="mb-3 h-3 w-20 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+                      <div className="h-6 w-14 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+                    </div>
+                  ))}
+                </div>
+                <div className="h-[340px] animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+                <div className="h-72 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
               </div>
             ) : (
               <>
                 {/* KPIs */}
                 {kpis && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                    {[
-                      { label: 'Total Applications', value: String(kpis.totalApplications || 0), icon: <BarChart3 className="w-3.5 h-3.5" />, accent: 'from-slate-900 to-sky-700' },
-                      { label: 'Research', value: String(kpis.totalResearchSubmissions || 0), icon: null, accent: 'from-blue-600 to-blue-400' },
-                      { label: 'Book / Chapter', value: String(kpis.totalBookSubmissions || 0), icon: null, accent: 'from-violet-600 to-violet-400' },
-                      { label: 'Conference', value: String(kpis.totalConferenceSubmissions || 0), icon: null, accent: 'from-amber-600 to-amber-400' },
-                      { label: 'Approved', value: String(kpis.approvedCount || 0), icon: <CheckCircle2 className="w-3.5 h-3.5" />, accent: 'from-emerald-600 to-green-400' },
-                      {
-                        label: 'Approved Amount',
-                        value: '₹' + (kpis.totalIncentive || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }),
-                        icon: <Wallet className="w-3.5 h-3.5" />,
-                        accent: 'from-teal-600 to-cyan-400',
-                      },
-                    ].map((card) => (
-                      <div
-                        key={card.label}
-                        className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
-                      >
-                        <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${card.accent}`} />
-                        <div className="mt-0.5 flex items-start justify-between gap-1">
-                          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 leading-tight">{card.label}</span>
-                          {card.icon && (
-                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white ${card.accent}`}>{card.icon}</span>
-                          )}
-                        </div>
-                        <div className="mt-2 text-2xl font-bold leading-none tracking-tight text-slate-900">{card.value}</div>
-                      </div>
-                    ))}
-                  </div>
+                  <KpiCardGrid
+                    cols={6}
+                    cards={[
+                      { label: 'Total applications', value: kpis.totalApplications || 0, icon: <BarChart3 /> },
+                      { label: 'Research', value: kpis.totalResearchSubmissions || 0 },
+                      { label: 'Book / Chapter', value: kpis.totalBookSubmissions || 0 },
+                      { label: 'Conference', value: kpis.totalConferenceSubmissions || 0 },
+                      { label: 'Approved', value: kpis.approvedCount || 0, icon: <CheckCircle2 /> },
+                      { label: 'Approved amount', value: kpis.totalIncentive || 0, format: 'currency', icon: <Wallet /> },
+                    ]}
+                  />
                 )}
 
-                {/* All Categories: full-width layout — line chart on top, pies below in 3-col rows */}
+                {/* All categories: trend on top, six breakdown donuts below */}
                 {category === 'all' && (
                   <div className="space-y-6">
-                    {data?.extensions?.monthlyTrend && (
+                    {trendData && (
                       <TrendChartPanel
-                        title="Filed vs Approved — Monthly"
-                        data={(data.extensions.monthlyTrend as any[]).map((m) => ({
-                          label: m.label || m.month,
-                          values: {
-                            filed: m.totalApplications || 0,
-                            approved: m.approvedCount || 0,
-                          },
-                        }))}
-                        keys={[
-                          { key: 'filed', label: 'Total Filed', color: '#6366f1' },
-                          { key: 'approved', label: 'Approved', color: '#10b981' },
-                        ]}
+                        title="Filed vs approved"
+                        subtitle="Applications filed and approved each month"
+                        data={trendData}
+                        keys={trendKeys}
                         height={280}
                       />
                     )}
                     {categoryBreakdown && (
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Layers3 className="h-4 w-4 text-blue-500 shrink-0" />
-                          <div>
-                            <h2 className="text-base font-semibold text-slate-900 leading-tight">All Categories — Breakdown</h2>
-                            <p className="text-xs text-slate-400">Distribution of submissions by publication type and indexing</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <AnalyticsPieChart title="Research Papers" subtitle="By indexing category" data={categoryBreakdown.research} emptyMessage="No research submissions" colorScheme="blue" />
-                          <AnalyticsPieChart title="Books" subtitle="Authored & Edited" data={categoryBreakdown.book.filter((b) => b.key !== 'chapter')} emptyMessage="No book submissions" colorScheme="green" />
-                          <AnalyticsPieChart title="Book Chapters" subtitle="Chapter contributions" data={categoryBreakdown.book.filter((b) => b.key === 'chapter')} emptyMessage="No chapter submissions" colorScheme="purple" />
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <AnalyticsPieChart title="Conference Papers" subtitle="National vs International" data={categoryBreakdown.conference} emptyMessage="No conference submissions" colorScheme="amber" />
-                          <AnalyticsPieChart title="IPR / Patent" subtitle="Patent, Copyright, Trademark, Design" data={categoryBreakdown.ipr} emptyMessage="No IPR submissions" colorScheme="blue" />
+                        {breakdownHeading('Category mix')}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          <AnalyticsPieChart title="Research papers" subtitle="By indexing category" data={categoryBreakdown.research} emptyMessage="No research submissions" colorScheme="blue" />
+                          <AnalyticsPieChart title="Books" subtitle="Authored and edited" data={categoryBreakdown.book.filter((b) => b.key !== 'chapter')} emptyMessage="No book submissions" colorScheme="green" />
+                          <AnalyticsPieChart title="Book chapters" subtitle="Chapter contributions" data={categoryBreakdown.book.filter((b) => b.key === 'chapter')} emptyMessage="No chapter submissions" colorScheme="purple" />
+                          <AnalyticsPieChart title="Conference papers" subtitle="National vs international" data={categoryBreakdown.conference} emptyMessage="No conference submissions" colorScheme="amber" />
+                          <AnalyticsPieChart title="IPR / Patent" subtitle="Patent, copyright, trademark, design" data={categoryBreakdown.ipr} emptyMessage="No IPR submissions" colorScheme="blue" />
                           <AnalyticsPieChart title="Grants" subtitle="By funding agency" data={categoryBreakdown.grant} emptyMessage="No grant submissions" colorScheme="green" />
                         </div>
                       </div>
@@ -455,92 +456,76 @@ export default function DepartmentAnalyticsPage() {
                   </div>
                 )}
 
-                {/* Other categories: side-by-side — line chart left, breakdown right */}
+                {/* Single category: trend left, breakdown right */}
                 {category !== 'all' && (
                   <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-                    {/* LEFT: Line chart */}
-                    {data?.extensions?.monthlyTrend ? (
+                    {trendData ? (
                       <TrendChartPanel
-                        title="Filed vs Approved — Monthly"
-                        data={(data.extensions.monthlyTrend as any[]).map((m) => ({
-                          label: m.label || m.month,
-                          values: {
-                            filed: m.totalApplications || 0,
-                            approved: m.approvedCount || 0,
-                          },
-                        }))}
-                        keys={[
-                          { key: 'filed', label: 'Total Filed', color: '#6366f1' },
-                          { key: 'approved', label: 'Approved', color: '#10b981' },
-                        ]}
+                        title="Filed vs approved"
+                        subtitle="Applications filed and approved each month"
+                        data={trendData}
+                        keys={trendKeys}
                         height={320}
                       />
                     ) : <div />}
 
-                    {/* RIGHT: Category breakdown */}
                     {categoryBreakdown && (
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Layers3 className="h-4 w-4 text-blue-500 shrink-0" />
-                          <div>
-                            <h2 className="text-base font-semibold text-slate-900 leading-tight">
-                              {category === 'research' ? 'Research — Indexing Breakdown' :
-                               category === 'book' ? 'Books & Chapters — Type Breakdown' :
-                               category === 'conference' ? 'Conference — Type Breakdown' :
-                               category === 'ipr' ? 'IPR — Type Breakdown' :
-                               'Grants — Funding Agency Breakdown'}
-                            </h2>
-                            <p className="text-xs text-slate-400">Distribution of submissions by publication type and indexing</p>
-                          </div>
-                        </div>
+                        {breakdownHeading(
+                          category === 'research' ? 'Research by indexing' :
+                          category === 'book' ? 'Books and chapters by type' :
+                          category === 'conference' ? 'Conference papers by type' :
+                          category === 'ipr' ? 'IPR by type' :
+                          'Grants by funding agency',
+                        )}
                         {category === 'research' && (
-                          <AnalyticsPieChart title="Research Papers" subtitle="By indexing category" data={categoryBreakdown.research} emptyMessage="No research submissions" colorScheme="blue" />
+                          <AnalyticsPieChart title="Research papers" subtitle="By indexing category" data={categoryBreakdown.research} emptyMessage="No research submissions" colorScheme="blue" />
                         )}
                         {category === 'book' && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <AnalyticsPieChart title="Books" subtitle="Authored & Edited" data={categoryBreakdown.book.filter((b) => b.key !== 'chapter')} emptyMessage="No book submissions" colorScheme="green" />
-                            <AnalyticsPieChart title="Book Chapters" subtitle="Chapter contributions" data={categoryBreakdown.book.filter((b) => b.key === 'chapter')} emptyMessage="No chapter submissions" colorScheme="purple" />
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <AnalyticsPieChart title="Books" subtitle="Authored and edited" data={categoryBreakdown.book.filter((b) => b.key !== 'chapter')} emptyMessage="No book submissions" colorScheme="green" />
+                            <AnalyticsPieChart title="Book chapters" subtitle="Chapter contributions" data={categoryBreakdown.book.filter((b) => b.key === 'chapter')} emptyMessage="No chapter submissions" colorScheme="purple" />
                           </div>
                         )}
                         {category === 'conference' && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <AnalyticsPieChart title="Conference Type" subtitle="National vs International" data={categoryBreakdown.conference} emptyMessage="No conference submissions" colorScheme="purple" />
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <AnalyticsPieChart title="Conference type" subtitle="National vs international" data={categoryBreakdown.conference} emptyMessage="No conference submissions" colorScheme="purple" />
                             {categoryBreakdown.conferenceSubtype.length > 0 && (
-                              <AnalyticsPieChart title="Conference Sub-Type" subtitle="Paper category breakdown" data={categoryBreakdown.conferenceSubtype} emptyMessage="No subtype data" colorScheme="amber" />
+                              <AnalyticsPieChart title="Conference sub-type" subtitle="Paper category breakdown" data={categoryBreakdown.conferenceSubtype} emptyMessage="No subtype data" colorScheme="amber" />
                             )}
                           </div>
                         )}
                         {category === 'ipr' && (
-                          <AnalyticsPieChart title="IPR by Type" subtitle="Patent, Copyright, Trademark, Design" data={categoryBreakdown.ipr} emptyMessage="No IPR submissions" colorScheme="amber" />
+                          <AnalyticsPieChart title="IPR by type" subtitle="Patent, copyright, trademark, design" data={categoryBreakdown.ipr} emptyMessage="No IPR submissions" colorScheme="amber" />
                         )}
                         {category === 'grants' && (
-                          <AnalyticsPieChart title="Grants by Funding Agency" subtitle="Top agencies ranked by submission count" data={categoryBreakdown.grant} emptyMessage="No grant submissions" colorScheme="green" />
+                          <AnalyticsPieChart title="Grants by funding agency" subtitle="Top agencies ranked by submission count" data={categoryBreakdown.grant} emptyMessage="No grant submissions" colorScheme="green" />
                         )}
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Research Pipeline */}
+                {/* Research pipeline */}
                 {category === 'research' && trackerData && (
                   <AnalyticsPipelineChart
-                    title="Research Pipeline — Current Stage Distribution"
-                    subtitle="How many research works from this department are in each stage."
+                    title="Research pipeline"
+                    subtitle="How many research works from this department sit in each stage"
                     stages={(
                       [
-                        { key: 'writing',      label: 'Writing',      color: '#6366f1' },
-                        { key: 'communicated', label: 'Communicated', color: '#f59e0b' },
-                        { key: 'submitted',    label: 'Submitted',    color: '#3b82f6' },
-                        { key: 'accepted',     label: 'Accepted',     color: '#10b981' },
-                        { key: 'published',    label: 'Published',    color: '#059669' },
-                        { key: 'rejected',     label: 'Rejected',     color: '#ef4444' },
-                      ] as { key: TrackerStatus; label: string; color: string }[]
-                    ).map((stage) => ({
+                        { key: 'writing',      label: 'Writing' },
+                        { key: 'communicated', label: 'Communicated' },
+                        { key: 'submitted',    label: 'Submitted' },
+                        { key: 'accepted',     label: 'Accepted' },
+                        { key: 'published',    label: 'Published' },
+                        { key: 'rejected',     label: 'Rejected' },
+                      ] as { key: TrackerStatus; label: string }[]
+                    ).map((stage, _i, all) => ({
                       key: stage.key,
                       label: stage.label,
                       count: trackerData.statusFunnel?.find((s) => s.status === stage.key)?.count
                         ?? (stage.key === 'rejected' ? (trackerData.kpis?.rejectedCount ?? 0) : 0),
-                      color: stage.color,
+                      color: seriesColors(all.map((st) => st.key))[stage.key],
                       textColor: '',
                     }))}
                   />
@@ -548,13 +533,14 @@ export default function DepartmentAnalyticsPage() {
 
                 {/* Contributors */}
                 {people.length > 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <Users className="w-4 h-4" />
-                        Contributors
-                        <span className="text-slate-400 font-normal">({people.length})</span>
-                      </h3>
+                  <section className={`overflow-hidden ${ui.card}`}>
+                    <div className={ui.cardHeader}>
+                      <div>
+                        <h3 className={ui.title}>Contributors</h3>
+                        <p className={ui.subtitle}>
+                          <span className="tabular-nums">{people.length.toLocaleString('en-IN')}</span> people, ranked by applications filed
+                        </p>
+                      </div>
                       <ExportActions
                         data={people}
                         filename={`dept-${departmentId}-contributors`}
@@ -567,22 +553,26 @@ export default function DepartmentAnalyticsPage() {
                       />
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full min-w-[820px] text-sm">
                         <thead>
-                          <tr className="bg-slate-50 text-left">
-                            <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">#</th>
-                            <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Name</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-blue-500">Research</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-violet-500">Book</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-amber-500">Conference</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-red-500">IPR</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-emerald-500">Grants</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-400">Total</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-400">Approved</th>
-                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-400">Incentive</th>
+                          <tr className="bg-stone-50 dark:bg-gray-900/40">
+                            <th className={`${ui.th} w-12`}>#</th>
+                            <th className={ui.th}>Name</th>
+                            {CONTRIB_COLS.map((c) => (
+                              <th key={c.key} className={`${ui.th} text-right`}>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: categoryColor(c.key) }} aria-hidden="true" />
+                                  {c.label}
+                                </span>
+                              </th>
+                            ))}
+                            <th className={`${ui.th} text-right`}>Total</th>
+                            <th className={`${ui.th} text-right`}>Approved</th>
+                            <th className={`${ui.th} text-right`}>Incentive</th>
+                            <th className="w-8" aria-hidden="true" />
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-stone-100 dark:divide-gray-700">
                           {people.slice(0, 100).map((p: any, i: number) => {
                             const fc = p.filingCounts || {};
                             const rate = p.totalApplications > 0
@@ -592,24 +582,25 @@ export default function DepartmentAnalyticsPage() {
                               <tr
                                 key={p.personId}
                                 onClick={() => router.push(`/drd/analytics/applicant/people/${p.personId}`)}
-                                className="cursor-pointer hover:bg-slate-50 transition-colors"
+                                className="group cursor-pointer transition-colors hover:bg-stone-50 dark:hover:bg-gray-700/40"
                               >
-                                <td className="px-4 py-3 text-slate-400 font-medium">{i + 1}</td>
+                                <td className="px-4 py-3 tabular-nums text-stone-400 dark:text-gray-500">{i + 1}</td>
                                 <td className="px-4 py-3">
-                                  <div>
-                                    <p className="font-medium text-slate-900 hover:text-sky-700">{p.applicantName}</p>
-                                    <p className="text-xs text-slate-400">{rate}% approval</p>
-                                  </div>
+                                  <p className="font-medium text-stone-900 group-hover:text-wine dark:text-gray-100 dark:group-hover:text-amber">{p.applicantName}</p>
+                                  <p className="text-xs tabular-nums text-stone-500 dark:text-gray-400">{rate}% approval</p>
                                 </td>
-                                <td className="px-4 py-3 text-right font-medium text-blue-600">{fc.research || 0}</td>
-                                <td className="px-4 py-3 text-right font-medium text-violet-600">{fc.book || 0}</td>
-                                <td className="px-4 py-3 text-right font-medium text-amber-600">{fc.conference || 0}</td>
-                                <td className="px-4 py-3 text-right font-medium text-red-600">{fc.ipr || 0}</td>
-                                <td className="px-4 py-3 text-right font-medium text-emerald-600">{fc.grants || 0}</td>
-                                <td className="px-4 py-3 text-right font-bold text-slate-900">{p.totalApplications}</td>
-                                <td className="px-4 py-3 text-right text-emerald-600 font-medium">{p.approvedCount}</td>
-                                <td className="px-4 py-3 text-right font-medium text-slate-900">
+                                {CONTRIB_COLS.map((c) => (
+                                  <td key={c.key} className={`px-4 py-3 text-right tabular-nums ${fc[c.key] ? 'text-stone-700 dark:text-gray-200' : 'text-stone-300 dark:text-gray-600'}`}>
+                                    {fc[c.key] || 0}
+                                  </td>
+                                ))}
+                                <td className="px-4 py-3 text-right font-semibold tabular-nums text-stone-900 dark:text-white">{p.totalApplications}</td>
+                                <td className={`px-4 py-3 text-right tabular-nums ${p.approvedCount ? 'text-stone-700 dark:text-gray-200' : 'text-stone-300 dark:text-gray-600'}`}>{p.approvedCount}</td>
+                                <td className={`px-4 py-3 text-right tabular-nums ${p.totalIncentive ? 'text-stone-700 dark:text-gray-200' : 'text-stone-300 dark:text-gray-600'}`}>
                                   ₹{Number(p.totalIncentive || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                </td>
+                                <td className="pr-3 text-stone-300 dark:text-gray-600">
+                                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
                                 </td>
                               </tr>
                             );
@@ -617,13 +608,13 @@ export default function DepartmentAnalyticsPage() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
+                  </section>
                 )}
 
                 {!kpis && !loading && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-                    <TrendingUp className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                    <p className="text-sm text-slate-500">No data found for the selected filters.</p>
+                  <div className={`${ui.card} p-12 text-center`}>
+                    <TrendingUp className="mx-auto mb-3 h-8 w-8 text-stone-300 dark:text-gray-600" aria-hidden="true" />
+                    <p className="text-sm text-stone-500 dark:text-gray-400">No data for this period.</p>
                   </div>
                 )}
               </>

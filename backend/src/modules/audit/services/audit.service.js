@@ -713,9 +713,10 @@ class AuditService {
   }
 
   /**
-   * Get audit statistics for a period
+   * Get audit statistics for a period (aggregated in the database: count/groupBy only).
+   * @param {{ db?: object }} [opts] client to run on, e.g. a transaction with a statement timeout
    */
-  async getStatistics({ startDate, endDate }) {
+  async getStatistics({ startDate, endDate }, { db = prisma } = {}) {
     const where = {
       createdAt: {
         gte: new Date(startDate),
@@ -732,31 +733,31 @@ class AuditService {
       errorCount
     ] = await Promise.all([
       // Total logs count
-      prisma.auditLog.count({ where }),
+      db.auditLog.count({ where }),
 
       // Group by action type
-      prisma.auditLog.groupBy({
+      db.auditLog.groupBy({
         by: ['actionType'],
         where,
         _count: true
       }),
 
       // Group by module
-      prisma.auditLog.groupBy({
+      db.auditLog.groupBy({
         by: ['module'],
         where,
         _count: true
       }),
 
       // Group by severity
-      prisma.auditLog.groupBy({
+      db.auditLog.groupBy({
         by: ['severity'],
         where,
         _count: true
       }),
 
       // Top 10 most active users
-      prisma.auditLog.groupBy({
+      db.auditLog.groupBy({
         by: ['actorId'],
         where: { ...where, actorId: { not: null } },
         _count: true,
@@ -765,7 +766,7 @@ class AuditService {
       }),
 
       // Error count
-      prisma.auditLog.count({
+      db.auditLog.count({
         where: {
           ...where,
           severity: { in: ['ERROR', 'CRITICAL'] }
@@ -775,7 +776,7 @@ class AuditService {
 
     // Get actor details for top actors
     const actorIds = topActors.map(a => a.actorId).filter(Boolean);
-    const actors = await prisma.userLogin.findMany({
+    const actors = await db.userLogin.findMany({
       where: { id: { in: actorIds } },
       select: {
         id: true,

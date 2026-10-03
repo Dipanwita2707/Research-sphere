@@ -112,7 +112,7 @@ export default function BookChapterWritingForm({ data, onChange }: BookChapterWr
               <option value="">-- Select --</option>
               <option value="scopus_indexed">Scopus Indexed</option>
               <option value="non_indexed">Non-Indexed</option>
-              <option value="sgt_publication_house">ResearchSphere Publication House</option>
+              <option value="sgt_publication_house">University Publication House</option>
             </select>
           </div>
 
@@ -203,7 +203,7 @@ export default function BookChapterWritingForm({ data, onChange }: BookChapterWr
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
                 placeholder="Enter your personal email address"
               />
-              <p className="text-xs text-orange-600 mt-1">Since you haven't communicated with official ID, please provide your personal email.</p>
+              <p className="text-xs text-orange-600 mt-1">Since you haven&apos;t communicated with official ID, please provide your personal email.</p>
             </div>
           )}
 

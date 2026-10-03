@@ -14,6 +14,7 @@
     "seed": "node src/shared/database/seed.js",
     "seed:superadmin": "node scripts/database/seeds/seed-superadmin.js",
     "seed:demo": "node scripts/database/seeds/seed-demo-university.js",
+    "seed:branding": "node scripts/database/seeds/seed-tenant-branding.js",
     "seed:research-policy": "node scripts/database/seeds/seed-research-policy-updated.js",
     "seed:conference-policies": "node scripts/database/seeds/seed-conference-policy-not-indexed.js",
     "build:protect": "javascript-obfuscator src/shared/utils/licensing.js --output dist/licensing.protected.js --compact true --self-defending true --string-array true --string-array-encoding rc4",

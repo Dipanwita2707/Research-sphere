@@ -16,7 +16,7 @@ import type { DpoContact, GuardianInput, MyConsentState } from '../types';
 import { Modal, Toggle, btnPrimary, btnSecondary, inputClass, labelClass } from './ui';
 
 /** Routes where the gate must never appear (public / pre-login pages). */
-const EXEMPT_PREFIXES = ['/login', '/forgot-password', '/reset-password', '/privacy/', '/guardian-consent/', '/superadmin'];
+const EXEMPT_PREFIXES = ['/login', '/forgot-password', '/reset-password', '/privacy/', '/guardian-consent/', '/superadmin', '/p/'];
 
 const RELATIONS = ['Mother', 'Father', 'Legal guardian', 'Other'];
 
@@ -256,7 +256,7 @@ export default function ConsentGate() {
         {contact?.dpoEmail ? (
           <>
             {' '}at{' '}
-            <a className="text-wine dark:text-amber-400 underline" href={`mailto:${contact.dpoEmail}`}>
+            <a className="text-wine dark:text-hi underline" href={`mailto:${contact.dpoEmail}`}>
               {contact.dpoEmail}
             </a>
           </>
@@ -346,19 +346,19 @@ export default function ConsentGate() {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-1 text-wine dark:text-amber-400 hover:underline"
+              className="inline-flex items-center gap-1 text-wine dark:text-hi hover:underline"
               aria-expanded={expanded}
             >
               {expanded ? <ChevronUp className="h-4 w-4" aria-hidden="true" /> : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
               {expanded ? 'Show less' : 'Read the full notice'}
             </button>
             {privacyHref && (
-              <Link href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-wine dark:text-amber-400 hover:underline">
+              <Link href={privacyHref} target="_blank" rel="noopener noreferrer" className="text-wine dark:text-hi hover:underline">
                 Open full privacy notice in a new tab
               </Link>
             )}
             {contact?.dpoEmail && (
-              <a href={`mailto:${contact.dpoEmail}`} className="inline-flex items-center gap-1 text-wine dark:text-amber-400 hover:underline">
+              <a href={`mailto:${contact.dpoEmail}`} className="inline-flex items-center gap-1 text-wine dark:text-hi hover:underline">
                 <Mail className="h-4 w-4" aria-hidden="true" /> Contact the DPO
               </a>
             )}

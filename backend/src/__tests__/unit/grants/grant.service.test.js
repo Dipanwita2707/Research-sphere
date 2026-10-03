@@ -342,8 +342,35 @@ describe('GrantService - workflow coverage', () => {
       repo.findById.mockResolvedValue({ id: 'grant-1', status: 'recommended', projectCategory: 'govt', projectType: 'indian', numberOfConsortiumOrgs: 0 });
       repo.findActivePolicy.mockResolvedValue(null);
       repo.update.mockResolvedValue({ id: 'grant-1', status: 'approved' });
-      const result = await service.approveGrant('grant-1', 'user-1', 'approved');
+      const result = await service.approveGrant('grant-1', 'user-1', 'approved', { confirmZeroIncentive: true });
       expect(result.status).toBe('approved');
+      // the ₹0 confirmation is recorded in the status history
+      expect(repo.createStatusHistory).toHaveBeenCalledWith(expect.objectContaining({
+        comments: expect.stringContaining('Approved with ₹0 incentive'),
+      }));
+    });
+
+    test('409 NO_INCENTIVE_POLICY when no policy applies and ₹0 was not confirmed', async () => {
+      repo.findById.mockResolvedValue({ id: 'grant-1', status: 'recommended', projectCategory: 'govt', projectType: 'indian', numberOfConsortiumOrgs: 0 });
+      repo.findActivePolicy.mockResolvedValue(null);
+      await expect(service.approveGrant('grant-1', 'user-1', 'approved')).rejects.toMatchObject({
+        statusCode: 409, code: 'NO_INCENTIVE_POLICY',
+      });
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    test('adds Decimal policy values numerically (no string concatenation)', async () => {
+      const dec = (v) => ({ toNumber: () => v, toString: () => String(v) });
+      repo.findActivePolicy.mockResolvedValue({
+        baseIncentiveAmount: dec(70000), basePoints: 30, internationalBonus: dec(2000), consortiumBonus: dec(3000),
+      });
+      const r = await service.calculateGrantIncentives('govt', 'international', 1);
+      expect(r).toMatchObject({ calculatedIncentiveAmount: 75000, calculatedPoints: 30, policyFound: true });
+    });
+
+    test('refuses an amount above the per-work cap', async () => {
+      repo.findActivePolicy.mockResolvedValue({ baseIncentiveAmount: '7000020003000', basePoints: 1 });
+      await expect(service.calculateGrantIncentives('govt', 'indian', 0)).rejects.toMatchObject({ code: 'INCENTIVE_ABOVE_CAP' });
     });
   });
 

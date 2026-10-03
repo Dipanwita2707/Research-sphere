@@ -4,6 +4,8 @@
  * Accepts a prisma client via constructor for testability.
  */
 
+const { policyWindowWhere } = require('../../research/utils/policyWindow');
+
 class IprRepository {
   constructor(prisma) {
     this.prisma = prisma;
@@ -237,12 +239,7 @@ class IprRepository {
    */
   async findActivePolicy(iprType) {
     return this.prisma.incentivePolicy.findFirst({
-      where: {
-        iprType,
-        isActive: true,
-        effectiveFrom: { lte: new Date() },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
-      },
+      where: { iprType, ...policyWindowWhere(new Date()) },
       orderBy: { effectiveFrom: 'desc' },
     });
   }

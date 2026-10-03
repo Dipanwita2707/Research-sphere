@@ -43,7 +43,7 @@ export default function Panel({
         <div className="flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 sm:pt-6 pb-4">
           <div className="flex items-start gap-3 min-w-0">
             {icon && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-peach to-peach/30 dark:from-wine/25 dark:to-wine/5 flex items-center justify-center text-wine dark:text-amber-400 shadow-sm">
+              <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-peach to-peach/30 dark:from-wine/25 dark:to-wine/5 flex items-center justify-center text-wine dark:text-hi shadow-sm">
                 {icon}
               </div>
             )}

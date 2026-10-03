@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '@/shared/api/api';
-import { AxiosError, AxiosRequestConfig } from 'axios';
+import type { AxiosError, AxiosRequestConfig } from '@/shared/api/api';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 
 export interface UseApiState<T> {

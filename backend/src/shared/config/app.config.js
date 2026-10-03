@@ -1,10 +1,11 @@
 require('dotenv').config({ quiet: true });
+const { assertProductionSecret } = require('./secretPolicy');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Fail-fast: a strong JWT_SECRET is mandatory in production
-if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
-  throw new Error('FATAL: JWT_SECRET must be set to at least 32 characters in production. Aborting.');
+// Fail-fast: a strong, non-placeholder JWT_SECRET is mandatory in production
+if (isProduction) {
+  assertProductionSecret('JWT_SECRET', process.env.JWT_SECRET);
 }
 
 module.exports = {

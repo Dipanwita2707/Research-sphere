@@ -1,5 +1,6 @@
 const prisma = require('../../../shared/config/database');
 const { canViewIpr, IPR_ACCESS_INCLUDE } = require('../utils/objectAccess');
+const { IPR_EDITABLE_FIELDS } = require('../utils/editableFields');
 
 /** True when the user may view the IPR application (missing and foreign rows are false). */
 const canViewIprById = async (user, iprApplicationId) => {
@@ -17,6 +18,20 @@ const ENUM_VALUES = {
   projectType: ['phd', 'pg_project', 'ug_project', 'faculty_research', 'industry_collaboration', 'any_other'],
   filingType: ['provisional', 'complete']
 };
+
+/**
+ * The only IPR fields an edit suggestion may change (suggestion fieldName → column).
+ * Status, incentive, applicant and mentor-identity columns are never writable this way.
+ */
+const SUGGESTIBLE_FIELDS = Object.freeze(Object.fromEntries([...IPR_EDITABLE_FIELDS].map((f) => [f, f])));
+
+const isSuggestibleField = (fieldName) =>
+  typeof fieldName === 'string' && Object.prototype.hasOwnProperty.call(SUGGESTIBLE_FIELDS, fieldName);
+
+const unsupportedFieldResponse = (res, fieldName) => res.status(400).json({
+  success: false,
+  message: `Field "${String(fieldName)}" cannot be edited through suggestions. Allowed: ${Object.keys(SUGGESTIBLE_FIELDS).join(', ')}`,
+});
 
 /**
  * Start a collaborative editing session
@@ -98,6 +113,7 @@ exports.createEditSuggestion = async (req, res) => {
         message: 'Field name and suggested value are required'
       });
     }
+    if (!isSuggestibleField(fieldName)) return unsupportedFieldResponse(res, fieldName);
 
     // Check if user has permission to review this IPR
     const hasPermission = await checkReviewPermission(userId, iprApplicationId);
@@ -647,15 +663,13 @@ async function applyEditSuggestion(tx, suggestion) {
   // Build the update data based on field name
   const updateData = {};
   
-  // Map field names to actual database columns
-  const fieldMapping = {
-    'title': 'title',
-    'description': 'description',
-    'remarks': 'remarks',
-    'iprType': 'iprType',
-    'projectType': 'projectType',
-    'filingType': 'filingType'
-  };
+  // Only allowlisted fields may be written (suggestions created before the allowlist
+  // existed, or crafted directly, must not reach status/incentive/applicant columns)
+  if (!isSuggestibleField(fieldName)) {
+    const err = new Error(`Invalid value: field "${String(fieldName)}" cannot be edited through suggestions`);
+    err.statusCode = 400;
+    throw err;
+  }
 
   // Valid enum values for validation
   const enumValidation = {
@@ -664,7 +678,7 @@ async function applyEditSuggestion(tx, suggestion) {
     'filingType': ['provisional', 'complete']
   };
 
-  const dbField = fieldMapping[fieldName] || fieldName;
+  const dbField = SUGGESTIBLE_FIELDS[fieldName];
   
   // Validate enum fields before applying
   if (enumValidation[dbField]) {
@@ -776,6 +790,7 @@ exports.submitBatchSuggestions = async (req, res) => {
           message: 'Each suggestion must have fieldName and suggestedValue'
         });
       }
+      if (!isSuggestibleField(suggestion.fieldName)) return unsupportedFieldResponse(res, suggestion.fieldName);
 
       // Validate enum values
       if (ENUM_VALUES[suggestion.fieldName]) {
@@ -1167,6 +1182,9 @@ exports.respondToBatchSuggestions = async (req, res) => {
     });
   } catch (error) {
     console.error('Respond to batch suggestions error:', error);
+    if (error.statusCode === 400) {
+      return res.status(400).json({ success: false, message: 'One or more suggestions target a field that cannot be edited' });
+    }
     res.status(500).json({
       success: false,
       message: 'Failed to respond to suggestions'
@@ -1304,6 +1322,7 @@ exports.mentorCreateEditSuggestion = async (req, res) => {
         message: 'Field name and suggested value are required'
       });
     }
+    if (!isSuggestibleField(fieldName)) return unsupportedFieldResponse(res, fieldName);
 
     // Check if user is the mentor for this application
     const isMentor = await checkMentorPermission(userId, iprApplicationId);
@@ -1464,6 +1483,8 @@ exports.mentorSubmitBatchSuggestions = async (req, res) => {
         message: 'At least one suggestion is required'
       });
     }
+    const unsupported = suggestions.find((s) => !isSuggestibleField(s?.fieldName));
+    if (unsupported) return unsupportedFieldResponse(res, unsupported?.fieldName);
 
     // Check if user is the mentor
     const isMentor = await checkMentorPermission(userId, iprApplicationId);

@@ -85,10 +85,20 @@ exports.recommendForApproval = async (req, res) => {
 
 exports.approveContribution = async (req, res) => {
   try {
-    const result = await reviewService.approveContribution(req.params.id, req.user.id, { comments: req.body.comments, request: req });
+    const result = await reviewService.approveContribution(req.params.id, req.user.id, {
+      comments: req.body?.comments,
+      request: req,
+      confirmZeroIncentive: req.body?.confirmZeroIncentive === true,
+    });
     const { updated, incentiveBreakdown } = result;
     res.status(200).json({ success: true, message: 'Research contribution approved and incentives credited based on author roles', data: { ...updated, incentiveBreakdown } });
-  } catch (error) { _err(res, error, 'Failed to approve contribution'); }
+  } catch (error) {
+    // 409 NO_INCENTIVE_POLICY: the UI asks "Approve with ₹0 incentive?" and resends with confirmZeroIncentive.
+    if (error.code === 'NO_INCENTIVE_POLICY' || error.code === 'INCENTIVE_ABOVE_CAP') {
+      return res.status(error.statusCode || 409).json({ success: false, code: error.code, message: error.message, reason: error.reason || null });
+    }
+    _err(res, error, 'Failed to approve contribution');
+  }
 };
 
 exports.rejectContribution = async (req, res) => {
@@ -108,7 +118,7 @@ exports.markCompleted = async (req, res) => {
 
 exports.getReviewStatistics = async (req, res) => {
   try {
-    const data = await reviewService.getStatistics(req.query);
+    const data = await reviewService.getStatistics(req.query, req.user);
     res.status(200).json({ success: true, data });
   } catch (error) { _err(res, error, 'Failed to get statistics'); }
 };

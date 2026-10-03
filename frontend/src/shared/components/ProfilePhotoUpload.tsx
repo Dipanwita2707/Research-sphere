@@ -270,7 +270,7 @@ export function ProfilePhotoUpload({
               Photo Upload Restricted
             </h3>
             <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-              You don't have permission to upload a profile photo. Contact your group administrator to request access.
+              You don&apos;t have permission to upload a profile photo. Contact your group administrator to request access.
             </p>
           </div>
         </div>

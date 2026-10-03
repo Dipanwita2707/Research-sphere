@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, FileText, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import {
   drdAnalyticsService,
   type ContributionRecord,
   type TrackerPubType,
 } from '@/features/ipr-management/services/drdAnalytics.service';
 import { logger } from '@/shared/utils/logger';
+import { categoryColor, ui } from './theme';
 
 const PAGE_SIZE = 15;
 
@@ -22,25 +23,32 @@ const TABS: Array<{ key: string; label: string; pubType?: TrackerPubType }> = [
   { key: 'grant_proposal', label: 'Grants', pubType: 'grant_proposal' },
 ];
 
+// Status pills: emerald = positive outcome, red = rejected, amber = needs action,
+// neutral = still in flight. Every pill carries its text label.
+const NEUTRAL = { bg: 'bg-stone-100 dark:bg-gray-700', text: 'text-stone-700 dark:text-gray-200' };
+const GOOD = { bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' };
+const WARN = { bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' };
+const BAD = { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300' };
+
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  submitted:               { bg: 'bg-blue-100 dark:bg-blue-900/40',    text: 'text-blue-700 dark:text-blue-300',    label: 'Submitted' },
-  under_review:            { bg: 'bg-indigo-100 dark:bg-indigo-900/40', text: 'text-indigo-700 dark:text-indigo-300', label: 'Under Review' },
-  under_drd_review:        { bg: 'bg-indigo-100 dark:bg-indigo-900/40', text: 'text-indigo-700 dark:text-indigo-300', label: 'DRD Review' },
-  changes_required:        { bg: 'bg-amber-100 dark:bg-amber-900/40',  text: 'text-amber-700 dark:text-amber-300',  label: 'Changes Required' },
-  resubmitted:             { bg: 'bg-cyan-100 dark:bg-cyan-900/40',    text: 'text-cyan-700 dark:text-cyan-300',    label: 'Resubmitted' },
-  recommended:             { bg: 'bg-teal-100 dark:bg-teal-900/40',    text: 'text-teal-700 dark:text-teal-300',    label: 'Recommended' },
-  recommended_to_head:     { bg: 'bg-teal-100 dark:bg-teal-900/40',    text: 'text-teal-700 dark:text-teal-300',    label: 'Recommended' },
-  drd_head_approved:       { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: 'Head Approved' },
-  submitted_to_govt:       { bg: 'bg-blue-100 dark:bg-blue-900/40',    text: 'text-blue-700 dark:text-blue-300',    label: 'Submitted to Govt' },
-  govt_application_filed:  { bg: 'bg-sky-100 dark:bg-sky-900/40',      text: 'text-sky-700 dark:text-sky-300',      label: 'Govt Filed' },
-  published:               { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: 'Published' },
-  approved:                { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: 'Approved' },
-  completed:               { bg: 'bg-green-100 dark:bg-green-900/40',  text: 'text-green-700 dark:text-green-300',  label: 'Completed' },
-  rejected:                { bg: 'bg-red-100 dark:bg-red-900/40',      text: 'text-red-700 dark:text-red-300',      label: 'Rejected' },
-  drd_rejected:            { bg: 'bg-red-100 dark:bg-red-900/40',      text: 'text-red-700 dark:text-red-300',      label: 'DRD Rejected' },
-  drd_head_rejected:       { bg: 'bg-red-100 dark:bg-red-900/40',      text: 'text-red-700 dark:text-red-300',      label: 'Head Rejected' },
-  govt_rejected:           { bg: 'bg-red-100 dark:bg-red-900/40',      text: 'text-red-700 dark:text-red-300',      label: 'Govt Rejected' },
-  pending_mentor_approval: { bg: 'bg-amber-100 dark:bg-amber-900/40',  text: 'text-amber-700 dark:text-amber-300',  label: 'Mentor Approval' },
+  submitted:               { ...NEUTRAL, label: 'Submitted' },
+  under_review:            { ...NEUTRAL, label: 'Under review' },
+  under_drd_review:        { ...NEUTRAL, label: 'DRD review' },
+  changes_required:        { ...WARN,    label: 'Changes required' },
+  resubmitted:             { ...NEUTRAL, label: 'Resubmitted' },
+  recommended:             { ...GOOD,    label: 'Recommended' },
+  recommended_to_head:     { ...GOOD,    label: 'Recommended' },
+  drd_head_approved:       { ...GOOD,    label: 'Head approved' },
+  submitted_to_govt:       { ...NEUTRAL, label: 'Submitted to govt' },
+  govt_application_filed:  { ...NEUTRAL, label: 'Govt filed' },
+  published:               { ...GOOD,    label: 'Published' },
+  approved:                { ...GOOD,    label: 'Approved' },
+  completed:               { ...GOOD,    label: 'Completed' },
+  rejected:                { ...BAD,     label: 'Rejected' },
+  drd_rejected:            { ...BAD,     label: 'DRD rejected' },
+  drd_head_rejected:       { ...BAD,     label: 'Head rejected' },
+  govt_rejected:           { ...BAD,     label: 'Govt rejected' },
+  pending_mentor_approval: { ...WARN,    label: 'Mentor approval' },
 };
 
 const PUB_TYPE_LABEL: Record<TrackerPubType, string> = {
@@ -52,13 +60,14 @@ const PUB_TYPE_LABEL: Record<TrackerPubType, string> = {
   grant_proposal:   'Grant',
 };
 
-const PUB_TYPE_COLOR: Record<TrackerPubType, string> = {
-  research_paper:   'text-blue-600 dark:text-blue-400',
-  book:             'text-violet-600 dark:text-violet-400',
-  book_chapter:     'text-purple-600 dark:text-purple-400',
-  conference_paper: 'text-amber-600 dark:text-amber-400',
-  ipr:              'text-rose-600 dark:text-rose-400',
-  grant_proposal:   'text-emerald-600 dark:text-emerald-400',
+/** Publication type -> shared entity colour (shown as a swatch, never as text colour). */
+const PUB_TYPE_ENTITY: Record<TrackerPubType, string> = {
+  research_paper:   'research',
+  book:             'book',
+  book_chapter:     'book',
+  conference_paper: 'conference',
+  ipr:              'ipr',
+  grant_proposal:   'grants',
 };
 
 export interface PapersTableScope {
@@ -115,128 +124,139 @@ export function AnalyticsPapersTable({ scope, fromDate, toDate, initialTab }: Pr
   const showSchoolCol = !scope;
   const showDeptCol = scope?.type !== 'department';
 
+  const fmtDate = (d?: string | null) =>
+    d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+    <div className={`overflow-hidden ${ui.card}`}>
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Papers & Trackers
-            <span className="ml-1 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+      <div className="border-b border-stone-100 px-5 py-4 dark:border-gray-700">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wine/10 text-wine dark:bg-wine/30 dark:text-amber">
+            <FileText className="h-4 w-4" />
+          </div>
+          <h3 className={`${ui.title} flex items-center gap-2`}>
+            Papers and trackers
+            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium tabular-nums text-stone-600 dark:bg-gray-700 dark:text-gray-300">
               {records.length}
             </span>
           </h3>
         </div>
 
         {/* Category tabs */}
-        <div className="flex flex-wrap gap-1.5">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => { setActiveTab(tab.key); setPage(0); }}
-              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="-mx-1 overflow-x-auto px-1">
+          <div className="inline-flex gap-0.5 rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-gray-700 dark:bg-gray-900/40" role="tablist" aria-label="Publication type">
+            {TABS.map((tab) => {
+              const active = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => { setActiveTab(tab.key); setPage(0); }}
+                  className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-white text-wine shadow-sm dark:bg-gray-700 dark:text-amber'
+                      : 'text-stone-600 hover:text-stone-900 dark:text-gray-400 dark:hover:text-gray-100'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Body */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+        <div className="space-y-3 p-5" aria-busy="true" aria-label="Loading papers">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4">
+              <div className="h-4 w-6 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+              <div className="h-4 flex-1 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+              <div className="hidden h-4 w-32 animate-pulse rounded bg-stone-100 dark:bg-gray-700 sm:block" />
+              <div className="h-5 w-20 animate-pulse rounded-full bg-stone-100 dark:bg-gray-700" />
+            </div>
+          ))}
         </div>
       ) : slice.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-16 text-slate-400 dark:text-slate-500">
-          <FileText className="w-8 h-8" />
-          <p className="text-sm">No papers found for the selected filters.</p>
+        <div className="flex h-40 items-center justify-center text-sm text-stone-400 dark:text-gray-500">
+          No data for this period.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-gray-700 text-left">
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">#</th>
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Title</th>
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Author</th>
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Type</th>
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Status</th>
-                {showSchoolCol && (
-                  <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">School</th>
-                )}
-                {showDeptCol && (
-                  <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Department</th>
-                )}
-                <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Submitted</th>
+            <thead className="bg-stone-50 dark:bg-gray-900/40">
+              <tr>
+                <th className={`${ui.th} text-right`}>#</th>
+                <th className={ui.th}>Title</th>
+                <th className={ui.th}>Author</th>
+                <th className={ui.th}>Type</th>
+                <th className={ui.th}>Status</th>
+                {showSchoolCol && <th className={ui.th}>School</th>}
+                {showDeptCol && <th className={ui.th}>Department</th>}
+                <th className={ui.th}>Submitted</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+            <tbody className="divide-y divide-stone-100 dark:divide-gray-700">
               {slice.map((rec, i) => {
-                const statusMeta = STATUS_BADGE[rec.status] ?? { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-600 dark:text-slate-400', label: rec.status };
-                const pubColor = PUB_TYPE_COLOR[rec.publicationType] ?? 'text-slate-500';
-                const dateStr = rec.submittedAt || rec.updatedAt;
+                const statusMeta = STATUS_BADGE[rec.status] ?? { ...NEUTRAL, label: rec.status };
+                const entity = PUB_TYPE_ENTITY[rec.publicationType];
                 return (
-                  <tr key={rec.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/40 align-middle">
-                    <td className="px-4 py-3 text-xs text-slate-400 tabular-nums">
+                  <tr key={rec.id} className="align-middle transition-colors hover:bg-stone-50 dark:hover:bg-gray-700/40">
+                    <td className="px-4 py-3 text-right text-xs tabular-nums text-stone-400 dark:text-gray-500">
                       {page * PAGE_SIZE + i + 1}
                     </td>
-                    <td className="px-4 py-3 max-w-xs">
+                    <td className="max-w-xs px-4 py-3">
                       <button
+                        type="button"
                         onClick={() => {
                           if (rec.publicationType === 'ipr') router.push(`/ipr/applications/${rec.id}`);
                           else if (rec.publicationType === 'grant_proposal') router.push(`/research/grant/${rec.id}`);
                           else router.push(`/research/contribution/${rec.id}`);
                         }}
-                        className="font-medium text-slate-900 dark:text-slate-100 hover:text-sky-700 dark:hover:text-sky-400 hover:underline text-left leading-snug"
+                        className="text-left font-medium leading-snug text-stone-900 hover:text-wine hover:underline dark:text-gray-100 dark:hover:text-amber"
                       >
                         {rec.title}
                       </button>
                       {rec.applicationNumber && (
-                        <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{rec.applicationNumber}</p>
+                        <p className="mt-0.5 font-mono text-[11px] text-stone-400 dark:text-gray-500">{rec.applicationNumber}</p>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <button
+                        type="button"
                         onClick={() => router.push(`/drd/analytics/applicant/people/${rec.userId}`)}
-                        className="text-slate-700 dark:text-slate-300 hover:text-sky-700 dark:hover:text-sky-400 hover:underline text-sm text-left"
+                        className="text-left text-sm text-stone-700 hover:text-wine hover:underline dark:text-gray-200 dark:hover:text-amber"
                       >
                         {rec.userName}
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-medium ${pubColor}`}>
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-stone-700 dark:text-gray-200">
+                        {entity && <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: categoryColor(entity) }} />}
                         {PUB_TYPE_LABEL[rec.publicationType] ?? rec.publicationType}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusMeta.bg} ${statusMeta.text}`}>
+                      <span className={`inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-medium ${statusMeta.bg} ${statusMeta.text}`}>
                         {statusMeta.label}
                       </span>
                     </td>
                     {showSchoolCol && (
-                      <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 max-w-[140px] truncate">
+                      <td className="max-w-[140px] truncate px-4 py-3 text-xs text-stone-500 dark:text-gray-400" title={rec.schoolName || undefined}>
                         {rec.schoolName || '—'}
                       </td>
                     )}
                     {showDeptCol && (
-                      <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 max-w-[140px] truncate">
+                      <td className="max-w-[140px] truncate px-4 py-3 text-xs text-stone-500 dark:text-gray-400" title={rec.departmentName || undefined}>
                         {rec.departmentName || '—'}
                       </td>
                     )}
-                    <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      {dateStr
-                        ? new Date(dateStr).toLocaleDateString('en-IN', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          })
-                        : '—'}
+                    <td className="whitespace-nowrap px-4 py-3 text-xs tabular-nums text-stone-500 dark:text-gray-400">
+                      {fmtDate(rec.submittedAt || rec.updatedAt)}
                     </td>
                   </tr>
                 );
@@ -248,27 +268,31 @@ export function AnalyticsPapersTable({ scope, fromDate, toDate, initialTab }: Pr
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 px-4 py-3">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between border-t border-stone-100 px-4 py-3 dark:border-gray-700">
+          <span className="text-xs tabular-nums text-stone-500 dark:text-gray-400">
             Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, records.length)} of {records.length}
           </span>
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="rounded-lg p-1.5 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              aria-label="Previous page"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 text-stone-600 transition-colors hover:bg-stone-50 disabled:opacity-40 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-400 px-2">
+            <span className="px-2 text-xs font-medium tabular-nums text-stone-600 dark:text-gray-300">
               {page + 1} / {totalPages}
             </span>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="rounded-lg p-1.5 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              aria-label="Next page"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 text-stone-600 transition-colors hover:bg-stone-50 disabled:opacity-40 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>

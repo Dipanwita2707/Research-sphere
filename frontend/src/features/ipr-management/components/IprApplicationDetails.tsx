@@ -7,6 +7,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
 import IPRStatusUpdates from './IPRStatusUpdates';
+import IprPatentGrantPanel, { PatentGrantedBadge } from './IprPatentGrantPanel';
 import { getDocumentUrl } from '@/features/research-management/services/documentUrl';
 import {
   ArrowLeft,
@@ -120,12 +121,12 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
     const statusConfig: any = {
       draft: { color: 'bg-gray-100 text-gray-800', icon: FileText },
       pending_mentor_approval: { color: 'bg-orange-100 text-orange-800', icon: Clock },
-      submitted: { color: 'bg-[#fbe2e8] text-[#7d1a34]', icon: Clock },
+      submitted: { color: 'bg-wine-100 text-wine', icon: Clock },
       under_drd_review: { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
       under_dean_review: { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
       published: { color: 'bg-indigo-100 text-indigo-800', icon: CheckCircle },
       changes_required: { color: 'bg-orange-100 text-orange-800', icon: AlertCircle },
-      resubmitted: { color: 'bg-[#fbe2e8] text-[#7d1a34]', icon: RefreshCw },
+      resubmitted: { color: 'bg-wine-100 text-wine', icon: RefreshCw },
       drd_approved: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
       dean_approved: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
       completed: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
@@ -155,7 +156,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
     hearing: { Icon: Calendar, bg: 'bg-purple-100', iconColor: 'text-purple-600', label: 'Hearing' },
     document_request: { Icon: FileText, bg: 'bg-amber-100', iconColor: 'text-amber-600', label: 'Document Request' },
     milestone: { Icon: CheckCircle, bg: 'bg-green-100', iconColor: 'text-green-600', label: 'Milestone' },
-    general: { Icon: MessageSquare, bg: 'bg-[#fbe2e8]', iconColor: 'text-[#7d1a34]', label: 'Update' },
+    general: { Icon: MessageSquare, bg: 'bg-wine-100', iconColor: 'text-wine', label: 'Update' },
   };
 
   const buildTimeline = () => {
@@ -255,7 +256,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
     return (
       <div className="flex items-center justify-center min-h-screen dark:bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wine mx-auto"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading application details...</p>
         </div>
       </div>
@@ -309,7 +310,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{application.title}</h1>
           <div className="flex items-center gap-4 mt-2">
             {getStatusBadge(application.status)}
-            <span className="px-2 py-1 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded font-medium">
+            <PatentGrantedBadge grantedAt={application.grantedAt} patentNumber={application.patentNumber} />
+            <span className="px-2 py-1 bg-wine-100 text-wine text-xs rounded font-medium">
               {application.iprType.toUpperCase()}
             </span>
             <span className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-sm rounded-lg font-bold tracking-wide shadow-sm">
@@ -365,7 +367,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 <label className="block text-sm font-medium text-gray-700">SDGs</label>
                 <div className="mt-1 flex flex-wrap gap-2">
                   {application.sdgs.map((sdg: any) => (
-                    <span key={sdg.id} className="px-2 py-1 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded">
+                    <span key={sdg.id} className="px-2 py-1 bg-wine-100 text-wine text-xs rounded">
                       {sdg.sdgCode}
                     </span>
                   ))}
@@ -378,7 +380,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
           {(application.annexureFilePath || (application.supportingDocsFilePaths && application.supportingDocsFilePaths.length > 0) || application.prototypeFilePath) && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Download className="w-5 h-5 text-[#7d1a34]" />
+                <Download className="w-5 h-5 text-wine" />
                 Documents & Attachments
               </h2>
               
@@ -390,7 +392,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                     href={getDocumentUrl(application.annexureFilePath)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#7d1a34] text-white rounded-md hover:bg-[#5e1024] transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-wine text-wine-fg rounded-md hover:bg-wine-dark transition-colors"
                   >
                     <Download className="w-4 h-4" />
                     Download Annexure
@@ -538,7 +540,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
           {drdReview && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Edit3 className="w-5 h-5 text-[#7d1a34]" />
+                <Edit3 className="w-5 h-5 text-wine" />
                 DRD Review
               </h2>
               
@@ -607,7 +609,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                   <div className="flex gap-3">
                     <button
                       onClick={() => router.push(`/ipr/applications/${application.id}/edit`)}
-                      className="px-4 py-2 bg-[#7d1a34] text-white rounded-md hover:bg-[#5e1024] font-medium"
+                      className="px-4 py-2 bg-wine text-wine-fg rounded-md hover:bg-wine-dark font-medium"
                     >
                       Edit Application
                     </button>
@@ -702,7 +704,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                     {financeReview.pointsAwarded && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-400">Points Awarded</label>
-                        <p className="mt-1 text-xl font-semibold text-[#7d1a34]">
+                        <p className="mt-1 text-xl font-semibold text-wine">
                           {financeReview.pointsAwarded} points
                         </p>
                       </div>
@@ -767,10 +769,10 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
    'status') {
                   return (
                     <div key={item.id} className="relative">
-                      {!isLast && <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-[#fbe8d6]"></div>}
+                      {!isLast && <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-gold-50"></div>}
                       <div className="flex gap-3">
                         <div className="flex-shrink-0 z-10">
-                          <div className="w-8 h-8 bg-[#7d1a34] rounded-full flex items-center justify-center shadow-md">
+                          <div className="w-8 h-8 bg-wine rounded-full flex items-center justify-center shadow-md">
                             <Calendar className="w-4 h-4 text-white" />
                           </div>
                         </div>
@@ -800,7 +802,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 const UpdateIcon = cfg.Icon;
                 return (
                   <div key={item.id} className="relative">
-                    {!isLast && <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-[#fbe8d6]"></div>}
+                    {!isLast && <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-gold-50"></div>}
                     <div className="flex gap-3">
                       <div className="flex-shrink-0 z-10">
                         <div className={`${cfg.bg} w-8 h-8 rounded-full flex items-center justify-center shadow-md`}>
@@ -827,6 +829,16 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
               })}
             </div>
           </div>
+
+          {/* Patent grant (NIRF): DRD IPR approvers / admins mark a published patent as granted */}
+          <IprPatentGrantPanel
+            applicationId={application.id}
+            iprType={application.iprType}
+            status={application.status}
+            grantedAt={application.grantedAt}
+            patentNumber={application.patentNumber}
+            onUpdated={(next) => setApplication((prev: any) => (prev ? { ...prev, ...next } : prev))}
+          />
 
           {/* Application Info */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -863,7 +875,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
    'draft' && (
                 <button
                   onClick={() => router.push(`/ipr/applications/${application.id}/edit`)}
-                  className="w-full px-4 py-2 bg-[#7d1a34] text-white rounded-md hover:bg-[#5e1024] font-medium"
+                  className="w-full px-4 py-2 bg-wine text-wine-fg rounded-md hover:bg-wine-dark font-medium"
                 >
                   Edit Application
                 </button>
@@ -873,7 +885,7 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
    'changes_required' && (
                 <button
                   onClick={() => router.push(`/ipr/applications/${application.id}/edit`)}
-                  className="w-full px-4 py-2 bg-[#7d1a34] text-white rounded-md hover:bg-[#5e1024] font-medium"
+                  className="w-full px-4 py-2 bg-wine text-wine-fg rounded-md hover:bg-wine-dark font-medium"
                 >
                   Edit Application
                 </button>

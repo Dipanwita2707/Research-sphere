@@ -202,7 +202,7 @@ export default function SuperadminDashboard() {
         </div>
 
         {/* Card 4: Estimated MRR */}
-        <div className="group relative bg-gradient-to-br from-wine to-wine-dark rounded-3xl p-6 shadow-lg shadow-wine/20 text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-wine/30 overflow-hidden">
+        <div className="group relative bg-gradient-to-br from-wine to-wine-dark rounded-3xl p-6 shadow-lg shadow-wine/20 text-wine-fg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-wine/30 overflow-hidden">
           <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors" />
           <div className="flex justify-between items-start mb-6 relative z-10">
             <div className="p-3 bg-white/10 backdrop-blur-md text-white rounded-2xl group-hover:scale-110 transition-transform duration-300 border border-white/10">
@@ -361,7 +361,7 @@ export default function SuperadminDashboard() {
                         <div className="font-bold text-charcoal group-hover:text-wine transition-colors">{uni.name}</div>
                         <div className="text-xs font-medium text-gray-400 mt-1 flex items-center gap-2">
                           <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-bold">{uni.code}</span>
-                          {uni.slug}.sgt-ums.com
+                          {uni.slug}
                         </div>
                       </div>
                     </div>

@@ -22,7 +22,7 @@ interface ActivityListProps {
 }
 
 const toneClasses: Record<string, string> = {
-  default: 'bg-peach/60 dark:bg-wine/20 text-wine dark:text-amber-400',
+  default: 'bg-peach/60 dark:bg-wine/20 text-wine dark:text-hi',
   success: 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400',
   warning: 'bg-amber/10 dark:bg-amber-900/30 text-amber dark:text-amber-400',
   danger: 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400',

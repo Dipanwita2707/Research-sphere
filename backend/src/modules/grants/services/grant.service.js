@@ -12,6 +12,109 @@ const {
 } = require('../../../shared/utils/auditLogger');
 const log = require('../../../shared/utils/logger');
 const { canViewGrant, notFound } = require('../../research/utils/objectAccess');
+const reviewScope = require('../../research/services/reviewScope');
+const payoutService = require('../../finance/services/incentivePayout.service');
+const { toNumber, assertWithinCap } = require('../../research/utils/policyMath');
+const { grantPolicyDate } = require('../utils/grantPolicyDate');
+const {
+  GrantProjectTypeEnum,
+  GrantProjectStatusEnum,
+  GrantProjectCategoryEnum,
+  GrantFundingAgencyEnum,
+  GrantInvestigatorRoleEnum,
+} = require('@prisma/client');
+
+/** Enum-typed inputs on grant create/update/suggestions, validated against the Prisma enums. */
+const GRANT_ENUM_FIELDS = {
+  projectType: GrantProjectTypeEnum,
+  projectStatus: GrantProjectStatusEnum,
+  projectCategory: GrantProjectCategoryEnum,
+  fundingAgencyType: GrantFundingAgencyEnum,
+  myRole: GrantInvestigatorRoleEnum,
+};
+
+function badRequest(message) {
+  const err = new Error(message);
+  err.statusCode = 400;
+  return err;
+}
+
+function checkEnumValue(label, value, enumObj) {
+  if (value === undefined || value === null || value === '') return value;
+  const allowed = Object.values(enumObj);
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : value;
+  if (!allowed.includes(normalized)) {
+    throw badRequest(`Invalid ${label} '${value}'. Allowed values: ${allowed.join(', ')}`);
+  }
+  return normalized;
+}
+
+/**
+ * Validate (and normalise to lower case) the enum fields of a grant payload.
+ * Unknown values are a 400 listing the allowed values, instead of a Prisma 500.
+ * @param {object} data - request payload (not mutated)
+ * @returns {object} a copy with normalised enum values
+ */
+function validateGrantEnums(data) {
+  if (!data || typeof data !== 'object') return data;
+  const out = { ...data };
+  for (const [field, enumObj] of Object.entries(GRANT_ENUM_FIELDS)) {
+    if (field in out) out[field] = checkEnumValue(field, out[field], enumObj);
+  }
+  if (Array.isArray(out.investigators)) {
+    out.investigators = out.investigators.map((inv, i) => (
+      inv && typeof inv === 'object' && 'roleType' in inv
+        ? { ...inv, roleType: checkEnumValue(`investigators[${i}].roleType`, inv.roleType, GrantInvestigatorRoleEnum) }
+        : inv
+    ));
+  }
+  return out;
+}
+
+const REVIEW_PERMISSION_KEYS = ['grant_review', 'research_review', 'drd_grant_review', 'drd_research_review'];
+const MAX_REVIEWER_NOTIFICATIONS = 50;
+
+function formatInr(amount) {
+  return Number(amount || 0).toLocaleString('en-IN');
+}
+
+function displayNameOf(user) {
+  const p = user?.employeeDetails || user?.studentLogin;
+  return p?.displayName || [p?.firstName, p?.lastName].filter(Boolean).join(' ') || user?.uid || null;
+}
+
+/**
+ * Put an approved grant's incentive into the payout ledger.
+ * The applicant receives the full incentive: per-investigator shares are not computed for
+ * grants, so there is nothing to split by. Skipped when there is neither money nor points.
+ * The date that selected the policy (grantPolicyDate) also picks the line's incentive cycle.
+ */
+async function createGrantPayoutLines(tx, grant, { approvedAt, actorId }) {
+  const amount = Number(grant.incentiveAmount ?? grant.calculatedIncentiveAmount) || 0;
+  const points = Number(grant.pointsAwarded ?? grant.calculatedPoints) || 0;
+  if ((amount <= 0 && points <= 0) || !grant.applicantUserId) return { created: 0, skippedDuplicates: 0 };
+  const applicant = await tx.userLogin.findUnique({
+    where: { id: grant.applicantUserId },
+    select: {
+      uid: true,
+      employeeDetails: { select: { displayName: true, firstName: true, lastName: true } },
+      studentLogin: { select: { displayName: true, firstName: true, lastName: true } },
+    },
+  });
+  return payoutService.createLines(tx, {
+    universityId: grant.universityId,
+    sourceType: 'grant',
+    sourceId: grant.id,
+    workType: 'grant',
+    title: grant.title,
+    referenceNumber: grant.applicationNumber,
+    workKey: null,
+    approvedAt,
+    policyDate: grantPolicyDate(grant, approvedAt).date,
+    actorId,
+    payees: [{ userId: grant.applicantUserId, name: displayNameOf(applicant), role: 'applicant', amount, points }],
+  });
+}
 
 const GRANT_LIST_SELECT = {
   id: true,
@@ -96,9 +199,12 @@ class GrantService {
    * @param {import('../repositories/grant.repository')} grantRepository
    * @param {object} [emailService]
    */
-  constructor(grantRepository, emailService = null) {
+  constructor(grantRepository, emailService = null, notifier = null) {
     this.repo = grantRepository;
     this.emailService = emailService;
+    // Same dispatch mechanism as research (researchWorkflowQueue.dispatchNotification),
+    // falling back to a direct notification insert.
+    this.notifier = notifier;
   }
 
   // ─── Application Number Generation ────────────────────────────────────────
@@ -150,28 +256,35 @@ class GrantService {
    * @param {string} projectCategory
    * @param {string} projectType
    * @param {number} numberOfConsortiumOrgs
-   * @returns {Promise<{ calculatedIncentiveAmount: number|null, calculatedPoints: number|null }>}
+   * @param {Date} [onDate] date selecting the policy (see grantPolicyDate); default today
+   * @returns {Promise<{ calculatedIncentiveAmount: number|null, calculatedPoints: number|null, policyFound: boolean }>}
+   *   null amounts (policyFound false) when no policy covers the grant — approval then needs
+   *   an explicit ₹0 confirmation. Database/programming errors and an amount above the
+   *   per-work cap are logged and rethrown, never turned into a silent ₹0.
    */
-  async calculateGrantIncentives(projectCategory, projectType, numberOfConsortiumOrgs) {
+  async calculateGrantIncentives(projectCategory, projectType, numberOfConsortiumOrgs, onDate = new Date()) {
     try {
-      const policy = await this.repo.findActivePolicy(projectCategory, projectType);
-      if (!policy) return { calculatedIncentiveAmount: null, calculatedPoints: null };
+      const policy = await this.repo.findActivePolicy(projectCategory, projectType, onDate);
+      if (!policy) return { calculatedIncentiveAmount: null, calculatedPoints: null, policyFound: false };
 
-      let amount = parseFloat(policy.baseIncentiveAmount.toString());
-      const points = policy.basePoints;
+      // Decimal columns → numbers before any arithmetic (no string concatenation).
+      let amount = toNumber(policy.baseIncentiveAmount);
+      const points = toNumber(policy.basePoints);
 
       if (projectType === 'international' && policy.internationalBonus) {
-        amount += parseFloat(policy.internationalBonus.toString());
+        amount += toNumber(policy.internationalBonus);
       }
 
-      if (numberOfConsortiumOrgs > 0 && policy.consortiumBonus) {
-        amount += parseFloat(policy.consortiumBonus.toString()) * numberOfConsortiumOrgs;
+      const consortiumOrgs = toNumber(numberOfConsortiumOrgs);
+      if (consortiumOrgs > 0 && policy.consortiumBonus) {
+        amount += toNumber(policy.consortiumBonus) * consortiumOrgs;
       }
 
-      return { calculatedIncentiveAmount: amount, calculatedPoints: points };
+      assertWithinCap(amount, 'this grant');
+      return { calculatedIncentiveAmount: amount, calculatedPoints: points, policyFound: true, policyId: policy.id || null };
     } catch (err) {
-      log.warn('[GrantService] calculateGrantIncentives failed, returning null incentives:', err.message);
-      return { calculatedIncentiveAmount: null, calculatedPoints: null };
+      log.error('[GrantService] calculateGrantIncentives failed:', err.message);
+      throw err;
     }
   }
 
@@ -219,6 +332,7 @@ class GrantService {
    * @returns {Promise<{ grant: object, message: string }>}
    */
   async createApplication(data, userId, file, uploadToS3, req) {
+    data = validateGrantEnums(data);
     const applicantType = await this.resolveApplicantType(userId);
 
     // Auto-resolve school/dept from applicant profile (covers both employees and students)
@@ -265,6 +379,10 @@ class GrantService {
 
     const completeGrant = await this._fetchComplete(grantApplication.id);
     await this._logCreation(completeGrant, userId, req, proposalFilePath, file, shouldSubmitImmediately, finalGrant);
+
+    if (shouldSubmitImmediately) {
+      await this._notifySubmitted({ ...grantApplication, ...finalGrant }, false);
+    }
 
     const message = shouldSubmitImmediately
       ? 'Grant application submitted successfully'
@@ -339,6 +457,7 @@ class GrantService {
    * @returns {Promise<object>}
    */
   async updateApplication(id, userId, data) {
+    data = validateGrantEnums(data);
     const existing = await this.repo.findById(id, {
       consortiumOrganizations: true,
       investigators: true,
@@ -436,6 +555,8 @@ class GrantService {
       comments: statusComment,
     });
 
+    await this._notifySubmitted({ ...grant, ...updatedGrant, applicationNumber }, newStatus === 'resubmitted');
+
     return updatedGrant;
   }
 
@@ -494,7 +615,7 @@ class GrantService {
       const drdDept = await this.repo.findDrdDepartment();
       if (drdDept) {
         const directPermission = await this.repo.findDirectPermission(userId, drdDept.id);
-        assignedGrantSchoolIds = directPermission?.assignedGrantSchoolIds || [];
+        assignedGrantSchoolIds = reviewScope.normalizeIds(directPermission?.assignedGrantSchoolIds);
       }
     } catch {
       // Non-fatal: proceed without school filter
@@ -505,7 +626,9 @@ class GrantService {
       : ['submitted', 'under_review', 'resubmitted'];
 
     const where = { status: { in: statusFilter } };
-    if (!hasApprovePerm && assignedGrantSchoolIds.length > 0) {
+    // Assigned grant schools restrict reviewers and approvers alike (empty list = all schools),
+    // matching the school-scope check on every grant review action.
+    if (assignedGrantSchoolIds.length > 0) {
       where.schoolId = { in: assignedGrantSchoolIds };
     }
     if (tenantId) {
@@ -652,6 +775,17 @@ class GrantService {
       comments: comments || 'Field changes suggested',
     });
 
+    const suggestionCount = Array.isArray(suggestions) ? suggestions.length : 0;
+    await this._notifyApplicant(grant, {
+      type: 'grant_changes_requested',
+      title: 'Changes Requested for Your Grant Application',
+      message: `DRD has requested changes to your grant application "${grant.title}".`
+        + (comments ? ` Comments: ${comments}` : '')
+        + (suggestionCount ? ` (${suggestionCount} field suggestion${suggestionCount === 1 ? '' : 's'})` : '')
+        + ' Please update and resubmit.',
+      metadata: { comments: comments || null, suggestionCount, actionLabel: 'View & Update' },
+    });
+
     return updatedGrant;
   }
 
@@ -702,6 +836,13 @@ class GrantService {
       comments: comments || 'Recommended for approval by reviewer',
     });
 
+    await this._notifyApplicant(grant, {
+      type: 'grant_recommended',
+      title: 'Grant Application Recommended',
+      message: `Your grant application "${grant.title}" has been recommended for approval by the DRD reviewer.`,
+      metadata: { comments: comments || null },
+    });
+
     return updatedGrant;
   }
 
@@ -712,9 +853,12 @@ class GrantService {
    * @param {string} id
    * @param {string} userId
    * @param {string} comments
+   * @param {object} [options]
+   * @param {boolean} [options.confirmZeroIncentive] approve even though no policy applies (₹0)
    * @returns {Promise<object>}
    */
-  async approveGrant(id, userId, comments) {
+  async approveGrant(id, userId, comments, options = {}) {
+    const { confirmZeroIncentive = false } = options;
     const grant = await this.repo.findById(id);
 
     if (!grant) {
@@ -730,41 +874,101 @@ class GrantService {
     }
 
     const previousStatus = grant.status;
-    const { calculatedIncentiveAmount, calculatedPoints } = await this.calculateGrantIncentives(
+    // The policy is chosen by a date on the grant: sanction date, else submission date, else
+    // the approval date (recorded in the history and returned in incentiveBreakdown).
+    const policyDate = grantPolicyDate(grant, new Date());
+    const policyDateText = `${policyDate.label} ${policyDate.date.toISOString().slice(0, 10)}`;
+    const { calculatedIncentiveAmount, calculatedPoints, policyFound, policyId } = await this.calculateGrantIncentives(
       grant.projectCategory,
       grant.projectType,
-      grant.numberOfConsortiumOrgs || 0
+      grant.numberOfConsortiumOrgs || 0,
+      policyDate.date
     );
 
-    const updatedGrant = await this.repo.update(id, {
-      status: 'approved',
-      approvedAt: new Date(),
-      approvedById: userId,
-      currentReviewerId: null,
-      calculatedIncentiveAmount,
-      calculatedPoints,
-      incentiveAmount: calculatedIncentiveAmount,
-      pointsAwarded: calculatedPoints,
+    // No policy (or a policy worth ₹0): never approve with a silent ₹0 — the approver must
+    // confirm it explicitly (confirmZeroIncentive), and that is recorded in the history.
+    const zeroIncentive = calculatedIncentiveAmount === null || calculatedIncentiveAmount === undefined
+      || Number(calculatedIncentiveAmount) === 0;
+    if (zeroIncentive && !confirmZeroIncentive) {
+      const err = new Error(calculatedIncentiveAmount === null || calculatedIncentiveAmount === undefined
+        ? `No grant incentive policy covers ${grant.projectCategory || 'this'} / ${grant.projectType || 'this'} grants on the grant's ${policyDateText} — approving now pays ₹0 incentive. Configure a policy, or confirm approval with ₹0 incentive.`
+        : 'The applicable grant incentive policy computes ₹0 for this grant. Confirm approval with ₹0 incentive.');
+      err.statusCode = 409;
+      err.code = 'NO_INCENTIVE_POLICY';
+      throw err;
+    }
+    const zeroNote = zeroIncentive
+      ? ` [Approved with ₹0 incentive — confirmed by approver: ${calculatedIncentiveAmount === null || calculatedIncentiveAmount === undefined ? 'no grant incentive policy applies' : 'policy computes ₹0'}]`
+      : '';
+
+    // The approval writes and the payout line are one unit: an approved grant always has
+    // its ledger line, and a failed ledger write rolls the approval back.
+    const approve = async (repo, tx) => {
+      const now = new Date();
+      const updatedGrant = await repo.update(id, {
+        status: 'approved',
+        approvedAt: now,
+        approvedById: userId,
+        currentReviewerId: null,
+        calculatedIncentiveAmount,
+        calculatedPoints,
+        incentiveAmount: calculatedIncentiveAmount,
+        pointsAwarded: calculatedPoints,
+      });
+
+      await repo.createReview({
+        grantApplicationId: id,
+        reviewerId: userId,
+        reviewerRole: 'approver',
+        decision: 'approved',
+        comments: comments || 'Grant application approved',
+        reviewedAt: now,
+      });
+
+      await repo.createStatusHistory({
+        grantApplicationId: id,
+        fromStatus: previousStatus,
+        toStatus: 'approved',
+        changedById: userId,
+        comments: `${comments || 'Grant application approved by DRD'} [Incentive policy selected by ${policyDateText}]${zeroNote}`,
+      });
+
+      if (tx) await createGrantPayoutLines(tx, { ...grant, ...updatedGrant }, { approvedAt: now, actorId: userId });
+      return updatedGrant;
+    };
+
+    const client = this.repo.prisma;
+    const approvedGrant = !client?.$transaction
+      ? await approve(this.repo, null)
+      : await client.$transaction(async (tx) => {
+        const txRepo = Object.create(this.repo);
+        txRepo.prisma = tx;
+        return approve(txRepo, tx);
+      });
+
+    // After commit: tell the applicant (never fails the approval).
+    const amount = Number(calculatedIncentiveAmount) || 0;
+    await this._notifyApplicant(grant, {
+      type: 'grant_approved',
+      title: amount > 0 ? 'Grant Approved [PAYMENT]' : 'Grant Approved',
+      message: amount > 0
+        ? `Your grant "${grant.title}" was approved. Incentive ₹${formatInr(amount)} approved; finance will process the payment.`
+        : `Your grant "${grant.title}" was approved.`,
+      metadata: { incentiveAmount: calculatedIncentiveAmount, pointsAwarded: calculatedPoints, comments: comments || null },
     });
 
-    await this.repo.createReview({
-      grantApplicationId: id,
-      reviewerId: userId,
-      reviewerRole: 'approver',
-      decision: 'approved',
-      comments: comments || 'Grant application approved',
-      reviewedAt: new Date(),
-    });
-
-    await this.repo.createStatusHistory({
-      grantApplicationId: id,
-      fromStatus: previousStatus,
-      toStatus: 'approved',
-      changedById: userId,
-      comments: comments || 'Grant application approved by DRD',
-    });
-
-    return updatedGrant;
+    return {
+      ...approvedGrant,
+      incentiveBreakdown: {
+        totalIncentiveAwarded: Number(calculatedIncentiveAmount) || 0,
+        totalPointsAwarded: Number(calculatedPoints) || 0,
+        policyFound: Boolean(policyFound),
+        policyId: policyId || null,
+        policyDateBasis: policyDate.basis,
+        policyDate: policyDate.date.toISOString().slice(0, 10),
+        zeroIncentiveConfirmed: zeroIncentive,
+      },
+    };
   }
 
   // ─── Reject Grant ──────────────────────────────────────────────────────────
@@ -820,6 +1024,14 @@ class GrantService {
       toStatus: 'rejected',
       changedById: userId,
       comments: comments || reason || 'Grant application rejected',
+    });
+
+    const why = comments || reason;
+    await this._notifyApplicant(grant, {
+      type: 'grant_rejected',
+      title: 'Grant Application Rejected',
+      message: `Your grant application "${grant.title}" was rejected by DRD.${why ? ` Reason: ${why}` : ''}`,
+      metadata: { comments: comments || null, reason: reason || null },
     });
 
     return updatedGrant;
@@ -902,11 +1114,140 @@ class GrantService {
     });
 
     if (accept) {
-      const updateData = this._parseSuggestionValue(suggestion.fieldName, suggestion.suggestedValue);
+      const updateData = validateGrantEnums(
+        this._parseSuggestionValue(suggestion.fieldName, suggestion.suggestedValue)
+      );
       await this.repo.update(suggestion.grantApplicationId, updateData);
     }
 
     return updatedSuggestion;
+  }
+
+  // ─── Notifications ─────────────────────────────────────────────────────────
+  // Sent after the writes have committed; a failed send is logged and never fails the request.
+
+  async _notify(data) {
+    try {
+      if (this.notifier?.dispatchNotification) {
+        await this.notifier.dispatchNotification(data);
+      } else if (this.repo?.prisma?.notification?.create) {
+        await this.repo.prisma.notification.create({ data });
+      }
+    } catch (err) {
+      log.warn(`[GrantService] notification '${data?.type}' failed: ${err.message}`);
+    }
+  }
+
+  async _notifyApplicant(grant, { type, title, message, metadata = {} }) {
+    if (!grant?.applicantUserId) return;
+    await this._notify({
+      userId: grant.applicantUserId,
+      type,
+      title,
+      message,
+      referenceType: 'grant_application',
+      referenceId: grant.id,
+      metadata: {
+        applicationNumber: grant.applicationNumber || null,
+        actionUrl: `/research/grant/${grant.id}`,
+        ...metadata,
+      },
+    });
+  }
+
+  /** Applicant receipt + reviewer alert on submit / resubmit. */
+  async _notifySubmitted(grant, isResubmission) {
+    const ref = grant.applicationNumber ? ` (${grant.applicationNumber})` : '';
+    await this._notifyApplicant(grant, isResubmission
+      ? {
+        type: 'grant_resubmitted',
+        title: 'Grant Application Resubmitted',
+        message: `Your revised grant application "${grant.title}"${ref} was received and is back with DRD for review.`,
+      }
+      : {
+        type: 'grant_submitted',
+        title: 'Grant Application Received',
+        message: `Your grant application "${grant.title}"${ref} was received and is awaiting DRD review.`,
+      });
+
+    let reviewerIds = [];
+    try {
+      reviewerIds = await this._findReviewersToNotify(grant, isResubmission);
+    } catch (err) {
+      log.warn(`[GrantService] could not resolve grant reviewers: ${err.message}`);
+    }
+    for (const reviewerId of reviewerIds) {
+      if (reviewerId === grant.applicantUserId) continue;
+      await this._notify({
+        userId: reviewerId,
+        type: isResubmission ? 'grant_resubmitted_for_review' : 'grant_submitted_for_review',
+        title: isResubmission ? 'Grant Application Resubmitted' : 'New Grant Application for Review',
+        message: isResubmission
+          ? `The grant application "${grant.title}"${ref} has been resubmitted after changes and is ready for your review.`
+          : `A new grant application "${grant.title}"${ref} has been submitted and is awaiting review.`,
+        referenceType: 'grant_application',
+        referenceId: grant.id,
+        metadata: {
+          applicationNumber: grant.applicationNumber || null,
+          actionUrl: `/drd/research/grant-review/${grant.id}`,
+          actionLabel: 'Review Application',
+        },
+      });
+    }
+  }
+
+  /**
+   * Who to alert about a (re)submission. A resubmission goes back to the reviewer who
+   * asked for the changes (as research does with its current reviewer); a new submission
+   * goes to the DRD grant reviewers whose grant-school assignment covers the grant's school
+   * (no assignment = all schools), from direct permissions and role templates.
+   */
+  async _findReviewersToNotify(grant, isResubmission) {
+    const prisma = this.repo?.prisma;
+    if (!prisma) return [];
+
+    if (isResubmission && prisma.grantApplicationReview?.findFirst) {
+      const last = await prisma.grantApplicationReview.findFirst({
+        where: { grantApplicationId: grant.id, decision: 'changes_required' },
+        orderBy: { createdAt: 'desc' },
+        select: { reviewerId: true },
+      });
+      if (last?.reviewerId) return [last.reviewerId];
+    }
+
+    const hasReviewPerm = (perms) => !!perms && typeof perms === 'object'
+      && REVIEW_PERMISSION_KEYS.some((k) => perms[k] === true);
+    const ids = new Set();
+
+    if (prisma.centralDepartmentPermission?.findMany) {
+      const rows = await prisma.centralDepartmentPermission.findMany({
+        where: { isActive: true },
+        select: { userId: true, permissions: true, assignedGrantSchoolIds: true },
+      });
+      for (const row of rows) {
+        if (!hasReviewPerm(row.permissions)) continue;
+        const schools = Array.isArray(row.assignedGrantSchoolIds) ? row.assignedGrantSchoolIds : [];
+        if (schools.length > 0 && grant.schoolId && !schools.includes(grant.schoolId)) continue;
+        ids.add(row.userId);
+      }
+    }
+
+    if (prisma.role?.findMany && prisma.userLogin?.findMany) {
+      const tenantId = grant.universityId || null;
+      const roles = await prisma.role.findMany({
+        where: { isActive: true, ...(tenantId ? { OR: [{ universityId: tenantId }, { universityId: null }] } : {}) },
+        select: { id: true, permissions: true },
+      });
+      for (const role of roles.filter((r) => hasReviewPerm(r.permissions?.centralDeptPermissions))) {
+        const users = await prisma.userLogin.findMany({
+          where: { status: 'active', assignedRoleIds: { array_contains: [role.id] } },
+          select: { id: true },
+        });
+        users.forEach((u) => ids.add(u.id));
+      }
+    }
+
+    return [...ids].slice(0, MAX_REVIEWER_NOTIFICATIONS);
   }
 
   // ─── Private Helpers ───────────────────────────────────────────────────────
@@ -1201,3 +1542,5 @@ class GrantService {
 }
 
 module.exports = GrantService;
+module.exports.createGrantPayoutLines = createGrantPayoutLines;
+module.exports.validateGrantEnums = validateGrantEnums;

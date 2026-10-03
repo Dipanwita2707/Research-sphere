@@ -145,7 +145,7 @@ describe('ScreenshotPreview', () => {
 
       render(<ScreenshotPreview {...defaultProps} screenshots={[mockFile]} />);
 
-      const img = screen.getByAltText('test.png');
+      const img = screen.getByAltText('Screenshot: test.png');
       expect(img).toBeInTheDocument();
       expect(img).toHaveAttribute('src', 'mock-url');
     });
@@ -208,8 +208,8 @@ describe('ScreenshotPreview', () => {
 
       render(<ScreenshotPreview {...defaultProps} screenshots={mockFiles} />);
 
-      expect(screen.getByLabelText('Remove test1.png')).toBeInTheDocument();
-      expect(screen.getByLabelText('Remove test2.jpg')).toBeInTheDocument();
+      expect(screen.getByLabelText('Remove screenshot test1.png')).toBeInTheDocument();
+      expect(screen.getByLabelText('Remove screenshot test2.jpg')).toBeInTheDocument();
     });
 
     it('should remove the correct file when multiple files exist', () => {
@@ -221,14 +221,14 @@ describe('ScreenshotPreview', () => {
 
       render(<ScreenshotPreview {...defaultProps} screenshots={mockFiles} />);
 
-      const removeFirstButton = screen.getByLabelText('Remove first.png');
+      const removeFirstButton = screen.getByLabelText('Remove screenshot first.png');
       fireEvent.click(removeFirstButton);
 
       expect(mockOnRemove).toHaveBeenCalledWith(0);
 
       jest.clearAllMocks();
 
-      const removeThirdButton = screen.getByLabelText('Remove third.png');
+      const removeThirdButton = screen.getByLabelText('Remove screenshot third.png');
       fireEvent.click(removeThirdButton);
 
       expect(mockOnRemove).toHaveBeenCalledWith(2);
@@ -271,7 +271,7 @@ describe('ScreenshotPreview', () => {
 
       render(<ScreenshotPreview {...defaultProps} screenshots={[mockFile]} />);
 
-      const img = screen.getByAltText('test.png');
+      const img = screen.getByAltText('Screenshot: test.png');
 
       // Simulate image load error
       fireEvent.error(img);
@@ -313,8 +313,8 @@ describe('ScreenshotPreview', () => {
 
       render(<ScreenshotPreview {...defaultProps} screenshots={mockFiles} />);
 
-      expect(screen.getByAltText('screenshot1.png')).toBeInTheDocument();
-      expect(screen.getByAltText('screenshot2.jpg')).toBeInTheDocument();
+      expect(screen.getByAltText('Screenshot: screenshot1.png')).toBeInTheDocument();
+      expect(screen.getByAltText('Screenshot: screenshot2.jpg')).toBeInTheDocument();
     });
 
     it('should have accessible remove buttons', () => {
@@ -322,7 +322,7 @@ describe('ScreenshotPreview', () => {
 
       render(<ScreenshotPreview {...defaultProps} screenshots={[mockFile]} />);
 
-      const removeButton = screen.getByLabelText('Remove test.png');
+      const removeButton = screen.getByLabelText('Remove screenshot test.png');
       expect(removeButton).toHaveAttribute('type', 'button');
     });
   });

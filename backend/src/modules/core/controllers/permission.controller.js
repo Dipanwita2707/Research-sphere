@@ -1,4 +1,5 @@
 const prisma = require('../../../shared/config/database');
+const { findTenantOwnershipError } = require('../../../shared/tenancy/assertTenantOwned');
 
 // Get user's department permissions
 exports.getUserPermissions = async (req, res) => {
@@ -57,6 +58,11 @@ exports.grantPermissions = async (req, res) => {
         message: 'Not authorized to grant permissions'
       });
     }
+
+    const notFound = await findTenantOwnershipError(prisma, [
+      { model: 'userLogin', ids: userId, message: 'User not found' },
+    ]);
+    if (notFound) return res.status(404).json({ success: false, message: notFound });
 
     // Upsert permission
     const permission = await prisma.userDepartmentPermission.upsert({

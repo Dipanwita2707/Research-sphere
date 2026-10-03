@@ -1,13 +1,20 @@
 'use client';
 
+import type React from 'react';
+
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useState, useEffect } from 'react';
 import api from '@/shared/api/api';
 import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { researchService } from '@/features/research-management/services/research.service';
 import { iprService } from '@/features/ipr-management/services/ipr.service';
+import { countDistinctCoAuthors } from '@/shared/utils/personName';
+import { useAffiliation } from '@/shared/hooks/useAffiliation';
+import { useBranding } from '@/shared/providers/BrandingProvider';
+import { BrandMonogram } from '@/shared/components/brand/TenantLogo';
 
 interface AdminOverview {
   university: { name?: string; schools: { total: number; active: number }; departments: { total: number; active: number }; programmes: { total: number }; };
@@ -20,6 +27,14 @@ interface AdminOverview {
 
 export default function ModernStaffDashboard() {
   const { user } = useAuthStore();
+  const { canonicalName: affiliationName } = useAffiliation('Your university');
+  const { branding } = useBranding();
+  const universityName = branding?.displayName || affiliationName;
+  const heroHeading = branding?.heroHeading?.trim() || null;
+  const heroSubheading =
+    branding?.heroSubheading?.trim() ||
+    branding?.tagline?.trim() ||
+    `${branding?.displayName || 'ResearchSphere'} empowers researchers, faculty and scholars to collaborate, innovate and transform ideas into meaningful solutions for a better tomorrow.`;
   const router = useRouter();
   const isAdmin = user?.userType === 'admin' || user?.role?.name === 'admin';
   useStaffDashboardSummary({ enabled: !!user });
@@ -40,7 +55,6 @@ export default function ModernStaffDashboard() {
   const [activeProjects, setActiveProjects] = useState(0);
   const [patentsCount, setPatentsCount] = useState(0);
   const [collaborationsCount, setCollaborationsCount] = useState(0);
-  const [testimonialIndex, setTestimonialIndex] = useState(0);
   const [featuredProjects, setFeaturedProjects] = useState<any[]>([]);
   const [actualHighlights, setActualHighlights] = useState<any[]>([]);
 
@@ -73,10 +87,8 @@ export default function ModernStaffDashboard() {
         else if (tot > 100000) setResearchFundingStr('Rs ' + (tot / 100000).toFixed(2) + ' L');
         else setResearchFundingStr('Rs ' + tot.toLocaleString('en-IN'));
         setPatentsCount(iprs.length);
-        const aset = new Set<string>();
-        const uname = getUserName().toLowerCase();
-        contribs.forEach((c: any) => (c.authors || []).forEach((a: any) => { if (a.name && a.name.toLowerCase() !== uname) aset.add(a.name); }));
-        setCollaborationsCount(aset.size);
+        // Distinct co-authors: one per person across name forms ("Madaan, V." / "Vishu Madaan"), never the user
+        setCollaborationsCount(countDistinctCoAuthors(contribs, { id: user?.id, name: getUserName() }));
 
         // Compute actual details
         const getTimestamp = (item: any) => {
@@ -95,7 +107,8 @@ export default function ModernStaffDashboard() {
           let typeLabel = '';
           let statusLabel = item.status || 'Ongoing';
           let meta = '';
-          let image = '';
+          // Thumbnail is a local glyph: no third-party image hotlinks (privacy / DPDP).
+          let glyph = '';
 
           if (item.isContribution) {
             typeLabel = item.publicationType === 'research_paper' ? 'Research Paper' :
@@ -104,20 +117,20 @@ export default function ModernStaffDashboard() {
                         item.publicationType === 'conference_paper' ? 'Conference Paper' :
                         item.publicationType === 'grant_proposal' ? 'Grant Proposal' : 'Research Contribution';
             meta = item.journalName || item.publisherName || item.conferenceName || 'ResearchSphere';
-            image = item.publicationType === 'research_paper' ? 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=200&h=160&fit=crop' :
-                    item.publicationType === 'book' || item.publicationType === 'book_chapter' ? 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=200&h=160&fit=crop' :
-                    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200&h=160&fit=crop';
+            glyph = item.publicationType === 'research_paper' ? '\u{1F4C4}' :
+                    item.publicationType === 'book' || item.publicationType === 'book_chapter' ? '\u{1F4DA}' :
+                    item.publicationType === 'conference_paper' ? '\u{1F3A4}' : '\u{1F4B0}';
           } else {
             typeLabel = item.iprType === 'patent' ? 'Patent Filing' :
                         item.iprType === 'copyright' ? 'Copyright Registration' :
                         item.iprType === 'design' ? 'Design Registration' : 'Trademark Filing';
             meta = item.applicationNumber || 'Intellectual Property';
-            image = 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=200&h=160&fit=crop';
+            glyph = '\u{1F4A1}';
           }
 
           statusLabel = statusLabel.replace(/_/g, ' ').replace(/\b\w/g, (char: string) => char.toUpperCase());
 
-          return { title, typeLabel, statusLabel, meta, image };
+          return { title, typeLabel, statusLabel, meta, glyph };
         });
 
         setFeaturedProjects(featured);
@@ -164,13 +177,12 @@ export default function ModernStaffDashboard() {
     }
     load();
   }, [user, adminOverview]);
-  const testimonials = [
-    { text: 'The R&D portal has simplified our research journey from proposal to publication.', name: 'Dr. Neha Sharma', role: 'Professor, CSE', initials: 'NS' },
-    { text: 'Securing research grants and managing projects has never been this easy.', name: 'Dr. Rajat Verma', role: 'Associate Professor, ECE', initials: 'RV' },
-    { text: 'The patent filing support and innovation ecosystem is truly outstanding.', name: 'Dr. Priya Menon', role: 'Professor, Biotechnology', initials: 'PM' },
+  // What the portal actually does — shown where invented testimonials used to be.
+  const platformHighlights = [
+    { glyph: '\u{1F4E4}', title: 'Submit once, track every stage', text: 'Research, IPR and grant submissions show their current review stage and full history, from DRD review to final approval.', href: '/my-work' },
+    { glyph: '\u{1F504}', title: 'Publications synced for you', text: 'Connect ORCID, Scopus or OpenAlex on your research profile to bring your publications in automatically.', href: '/research/my-profile' },
+    { glyph: '\u{1F3C6}', title: 'Incentives by policy', text: 'Incentive amounts and points are calculated from your university’s published policies when work is approved.', href: '/research/my-contributions' },
   ];
-  const tv = testimonials.slice(testimonialIndex, testimonialIndex + 3);
-  const padded = tv.length < 3 ? [...tv, ...testimonials.slice(0, 3 - tv.length)] : tv;
   const getResearchFundingDisplay = () => {
     if (isAdmin && adminOverview?.grants) {
       const tot = adminOverview.grants.totalFunding;
@@ -183,7 +195,7 @@ export default function ModernStaffDashboard() {
 
 
 
-  const CSS = ":root{--maroon:#7a1730;--maroon-dark:#5e1024;--orange:#e08a3e;--cream:#faf3ea;--text-dark:#2b1d22;--text-gray:#6b6068;--border:#eee0d8;}.rs-body *{box-sizing:border-box;}.rs-body{background:#fff;color:var(--text-dark);font-family:Georgia,serif;min-height:100vh;}.rs-body a{text-decoration:none;color:inherit;}.rs-body ul{list-style:none;margin:0;padding:0;}.rs-hero{display:flex;align-items:center;justify-content:space-between;padding:60px;background:linear-gradient(180deg,#fff 0%,var(--cream) 100%);}.rs-hero-left{max-width:520px;}.rs-badge{display:inline-block;background:#fbe8d6;color:var(--orange);font-family:Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;padding:6px 16px;border-radius:20px;margin-bottom:20px;}.rs-hero-left h2{font-size:46px;line-height:1.15;color:var(--text-dark);margin-bottom:20px;}.rs-hero-left h2 span{color:var(--maroon);}.rs-hero-left p{font-family:Arial,sans-serif;color:var(--text-gray);font-size:15px;line-height:1.6;margin-bottom:28px;}.rs-hero-btns{display:flex;gap:14px;margin-bottom:36px;}.rs-btn-primary{background:var(--maroon-dark);color:#fff;padding:13px 26px;border-radius:30px;font-family:Arial,sans-serif;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer;border:none;}.rs-btn-secondary{background:#fff;border:1px solid var(--border);color:var(--text-dark);padding:13px 26px;border-radius:30px;font-family:Arial,sans-serif;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer;}.rs-hero-features{display:flex;gap:36px;font-family:Arial,sans-serif;padding:0;margin:0;}.rs-hero-features li{display:flex;align-items:center;gap:10px;}.rs-feat-icon{width:36px;height:36px;border-radius:50%;background:#fbe8d6;display:flex;align-items:center;justify-content:center;font-size:16px;}.rs-hero-features strong{display:block;font-size:14px;}.rs-hero-features span{font-size:12px;color:var(--text-gray);}.rs-globe-wrap{position:relative;width:440px;height:460px;}.rs-globe-wrap svg{width:100%;height:100%;}.rs-globe-caption{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--border);border-radius:30px;padding:8px 18px;display:flex;align-items:center;gap:8px;font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:var(--maroon-dark);box-shadow:0 8px 20px rgba(0,0,0,0.08);white-space:nowrap;}.rs-globe-caption .dot{width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;}.rs-stats-bar{margin:0 60px;background:#fff;border:1px solid var(--border);border-radius:16px;display:flex;justify-content:space-between;padding:26px 20px;box-shadow:0 10px 30px rgba(0,0,0,0.04);position:relative;top:-40px;font-family:Arial,sans-serif;}.rs-stat{display:flex;align-items:center;gap:10px;padding:0 10px;}.rs-stat-icon{width:44px;height:44px;border-radius:50%;background:#fbe8d6;display:flex;align-items:center;justify-content:center;font-size:18px;}.rs-stat strong{display:block;font-size:20px;color:var(--text-dark);}.rs-stat span{font-size:12px;color:var(--text-gray);}.rs-section{padding:10px 60px 50px;}.rs-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}.rs-section-head h3{font-size:22px;position:relative;padding-bottom:8px;}.rs-section-head h3::after{content:'';position:absolute;left:0;bottom:0;width:36px;height:3px;background:var(--maroon);}.rs-section-head a{font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:var(--maroon-dark);}.rs-domains-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:14px;}.rs-domain-card{border:1px solid var(--border);border-radius:12px;padding:22px 10px;text-align:center;font-family:Arial,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:box-shadow 0.2s;}.rs-domain-card:hover{box-shadow:0 4px 16px rgba(90,16,36,0.12);}.rs-domain-icon{width:44px;height:44px;border-radius:50%;background:#fbe8d6;color:var(--maroon);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:18px;}.rs-three-col{display:grid;grid-template-columns:1fr 1fr 0.9fr;gap:24px;align-items:start;}.rs-project-card{display:flex;gap:14px;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px;}.rs-project-img{width:100px;height:80px;object-fit:cover;border-radius:8px;flex-shrink:0;}.rs-project-card h4{font-size:15px;margin-bottom:6px;}.rs-tag-green{color:#2f9e44;font-family:Arial,sans-serif;font-size:11px;font-weight:700;}.rs-tag-orange{color:var(--orange);font-family:Arial,sans-serif;font-size:11px;font-weight:700;}.rs-status-pill{background:#eafaf0;color:#2f9e44;font-family:Arial,sans-serif;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;}.rs-project-meta{font-family:Arial,sans-serif;font-size:12px;color:var(--text-gray);margin-top:4px;}.rs-highlight-item{display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);padding:14px 0;font-family:Arial,sans-serif;}.rs-highlight-icon{width:40px;height:40px;border-radius:8px;background:#fbe8d6;color:var(--maroon);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;}.rs-highlight-item h5{font-size:14px;margin-bottom:3px;}.rs-hi-date{font-size:12px;color:var(--text-gray);}.rs-highlight-arrow{margin-left:auto;color:var(--text-gray);font-size:18px;}.rs-join-card{background:linear-gradient(160deg,var(--maroon-dark),var(--maroon));color:#fff;border-radius:16px;padding:30px;font-family:Arial,sans-serif;}.rs-join-card h3{font-size:20px;margin-bottom:10px;font-family:Georgia,serif;}.rs-join-card p{font-size:13px;opacity:0.9;margin-bottom:20px;line-height:1.5;}.rs-join-card ul{margin-bottom:26px;padding:0;}.rs-join-card li{display:flex;align-items:center;gap:10px;font-size:13px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.15);}.rs-join-btn{background:#fff;color:var(--maroon-dark);padding:12px 22px;border-radius:30px;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;border:none;}.rs-journey{padding:50px 60px;text-align:center;}.rs-journey h3{font-size:22px;margin-bottom:34px;}.rs-journey-steps{display:flex;justify-content:space-between;position:relative;font-family:Arial,sans-serif;}.rs-journey-steps::before{content:'';position:absolute;top:26px;left:6%;right:6%;height:1px;background:repeating-linear-gradient(90deg,var(--border) 0 6px,transparent 6px 12px);z-index:0;}.rs-step{display:flex;flex-direction:column;align-items:center;gap:10px;z-index:1;flex:1;}.rs-step-circle{width:52px;height:52px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:#fff;color:var(--maroon);font-size:18px;}.rs-step strong{font-size:13px;}.rs-step-lbl{font-size:11px;color:var(--text-gray);text-align:center;}.rs-testimonials-wrap{margin:0 60px 50px;background:var(--cream);border-radius:16px;padding:34px 30px;}.rs-testimonials-head{display:flex;align-items:center;gap:14px;margin-bottom:28px;}.rs-quote-mark{font-size:30px;color:var(--maroon);font-family:Georgia,serif;line-height:1;}.rs-testimonials-head h3{font-size:18px;}.rs-testimonials-row{display:flex;align-items:center;gap:10px;}.rs-nav-circle{width:38px;height:38px;border-radius:50%;background:var(--maroon-dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;cursor:pointer;border:none;}.rs-testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;flex:1;font-family:Arial,sans-serif;}.rs-testimonial-card p{font-size:13px;color:var(--text-gray);line-height:1.6;margin-bottom:16px;}.rs-testimonial-person{display:flex;align-items:center;gap:10px;}.rs-avatar{width:38px;height:38px;border-radius:50%;background:var(--maroon-dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;font-family:Arial,sans-serif;}.rs-testimonial-card strong{display:block;font-size:13px;color:var(--text-dark);}.rs-t-role{font-size:12px;color:var(--text-gray);}.rs-testimonial-dots{display:flex;justify-content:center;gap:6px;margin-top:24px;}.rs-testimonial-dots span{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;display:inline-block;}.rs-testimonial-dots .rs-active{background:var(--maroon);}.rs-events-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}.rs-event-card{display:flex;gap:14px;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:Arial,sans-serif;}.rs-event-date{background:var(--maroon-dark);color:#fff;border-radius:8px;text-align:center;padding:8px 10px;min-width:52px;height:fit-content;}.rs-event-date strong{display:block;font-size:20px;}.rs-event-date span{font-size:11px;}.rs-event-card h4{font-size:14px;margin-bottom:8px;}.rs-event-card p{font-size:12px;color:var(--text-gray);margin-bottom:4px;}.rs-footer{background:#241118;color:#d8c9cf;padding:50px 60px 0;font-family:Arial,sans-serif;}.rs-footer-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 1.3fr;gap:30px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,0.1);}.rs-footer-grid h5{color:#fff;font-size:14px;margin-bottom:16px;}.rs-footer-grid li{font-size:13px;margin-bottom:10px;color:#c8b9c0;cursor:pointer;}.rs-footer-logo{display:flex;align-items:center;gap:10px;margin-bottom:14px;}.rs-footer-logo h1{color:#fff;font-size:20px;}.rs-footer-col p{font-size:13px;line-height:1.6;margin-bottom:16px;}.rs-socials{display:flex;gap:10px;}.rs-socials span{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;}.rs-contact-item{display:flex;gap:10px;margin-bottom:14px;font-size:13px;}.rs-bottom-bar{display:flex;justify-content:space-between;padding:18px 0;font-size:12px;color:#b9a7af;}.rs-logo-icon-sm{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle,var(--maroon) 40%,var(--orange) 100%);flex-shrink:0;}@keyframes pulseRing{0%{stroke-opacity:0.6;}100%{stroke-opacity:0;}}.rs-globe-node-ring{fill:none;stroke:#e08a3e;stroke-width:1.5;stroke-opacity:0.5;animation:pulseRing 2.4s ease-out infinite;}.rs-hero-image-wrap{position:relative;width:480px;height:420px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
+  const CSS = ".rs-body{--maroon:rgb(var(--brand-primary));--maroon-dark:rgb(var(--brand-primary-dark));--orange:rgb(var(--brand-accent));--cream:rgb(var(--brand-canvas));--soft:rgb(var(--brand-gold-50));--text-dark:rgb(var(--brand-ink));--text-gray:rgb(var(--brand-ink-muted));--border:rgb(var(--brand-line));}.rs-body *{box-sizing:border-box;}.rs-body{background:#fff;color:var(--text-dark);font-family:Georgia,serif;min-height:100vh;}.rs-body a{text-decoration:none;color:inherit;}.rs-body ul{list-style:none;margin:0;padding:0;}.rs-hero{display:flex;align-items:center;justify-content:space-between;padding:60px;background:linear-gradient(180deg,#fff 0%,var(--cream) 100%);}.rs-hero-left{max-width:520px;}.rs-badge{display:inline-block;text-transform:uppercase;max-width:100%;background:var(--soft);color:rgb(var(--brand-gold-dark));font-family:Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;padding:6px 16px;border-radius:20px;margin-bottom:20px;}.rs-hero-left h2{font-size:46px;line-height:1.15;color:var(--text-dark);margin-bottom:20px;}.rs-hero-left h2 span{color:var(--maroon);}.rs-hero-university{font-family:Georgia,serif!important;font-size:18px!important;font-weight:700;color:var(--maroon)!important;margin:-8px 0 12px!important;}.rs-hero-left p{font-family:Arial,sans-serif;color:var(--text-gray);font-size:15px;line-height:1.6;margin-bottom:28px;}.rs-hero-btns{display:flex;gap:14px;margin-bottom:36px;}.rs-btn-primary{background:var(--maroon-dark);color:#fff;padding:13px 26px;border-radius:30px;font-family:Arial,sans-serif;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer;border:none;}.rs-btn-secondary{background:#fff;border:1px solid var(--border);color:var(--text-dark);padding:13px 26px;border-radius:30px;font-family:Arial,sans-serif;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer;}.rs-hero-features{display:flex;gap:36px;font-family:Arial,sans-serif;padding:0;margin:0;}.rs-hero-features li{display:flex;align-items:center;gap:10px;}.rs-feat-icon{width:36px;height:36px;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:16px;}.rs-hero-features strong{display:block;font-size:14px;}.rs-hero-features span{font-size:12px;color:var(--text-gray);}.rs-globe-wrap{position:relative;width:440px;height:460px;}.rs-globe-wrap svg{width:100%;height:100%;}.rs-globe-caption{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--border);border-radius:30px;padding:8px 18px;display:flex;align-items:center;gap:8px;font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:var(--maroon-dark);box-shadow:0 8px 20px rgba(0,0,0,0.08);white-space:nowrap;}.rs-globe-caption .dot{width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block;}.rs-stats-bar{margin:0 60px;background:#fff;border:1px solid var(--border);border-radius:16px;display:flex;justify-content:space-between;padding:26px 20px;box-shadow:0 10px 30px rgba(0,0,0,0.04);position:relative;top:-40px;font-family:Arial,sans-serif;}.rs-stat{display:flex;align-items:center;gap:10px;padding:0 10px;}.rs-stat-icon{width:44px;height:44px;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:18px;}.rs-stat strong{display:block;font-size:20px;color:var(--text-dark);}.rs-stat span{font-size:12px;color:var(--text-gray);}.rs-section{padding:10px 60px 50px;}.rs-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}.rs-section-head h3{font-size:22px;position:relative;padding-bottom:8px;}.rs-section-head h3::after{content:'';position:absolute;left:0;bottom:0;width:36px;height:3px;background:var(--maroon);}.rs-section-head a{font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:var(--maroon-dark);}.rs-domains-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:14px;}.rs-domain-card{border:1px solid var(--border);border-radius:12px;padding:22px 10px;text-align:center;font-family:Arial,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:box-shadow 0.2s;}.rs-domain-card:hover{box-shadow:0 4px 16px rgb(var(--brand-primary) / 0.12);}.rs-domain-icon{width:44px;height:44px;border-radius:50%;background:var(--soft);color:var(--maroon);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:18px;}.rs-three-col{display:grid;grid-template-columns:1fr 1fr 0.9fr;gap:24px;align-items:start;}.rs-project-card{display:flex;gap:14px;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px;}.rs-project-img{width:100px;height:80px;object-fit:cover;border-radius:8px;flex-shrink:0;}.rs-project-card h4{font-size:15px;margin-bottom:6px;}.rs-tag-green{color:#2f9e44;font-family:Arial,sans-serif;font-size:11px;font-weight:700;}.rs-tag-orange{color:var(--orange);font-family:Arial,sans-serif;font-size:11px;font-weight:700;}.rs-status-pill{background:#eafaf0;color:#2f9e44;font-family:Arial,sans-serif;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;}.rs-project-meta{font-family:Arial,sans-serif;font-size:12px;color:var(--text-gray);margin-top:4px;}.rs-highlight-item{display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);padding:14px 0;font-family:Arial,sans-serif;}.rs-highlight-icon{width:40px;height:40px;border-radius:8px;background:var(--soft);color:var(--maroon);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;}.rs-highlight-item h5{font-size:14px;margin-bottom:3px;}.rs-hi-date{font-size:12px;color:var(--text-gray);}.rs-highlight-arrow{margin-left:auto;color:var(--text-gray);font-size:18px;}.rs-join-card{background:linear-gradient(160deg,var(--maroon-dark),var(--maroon));color:#fff;border-radius:16px;padding:30px;font-family:Arial,sans-serif;}.rs-join-card h3{font-size:20px;margin-bottom:10px;font-family:Georgia,serif;}.rs-join-card p{font-size:13px;opacity:0.9;margin-bottom:20px;line-height:1.5;}.rs-join-card ul{margin-bottom:26px;padding:0;}.rs-join-card li{display:flex;align-items:center;gap:10px;font-size:13px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.15);}.rs-join-btn{background:#fff;color:var(--maroon-dark);padding:12px 22px;border-radius:30px;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;border:none;}.rs-journey{padding:50px 60px;text-align:center;}.rs-journey h3{font-size:22px;margin-bottom:34px;}.rs-journey-steps{display:flex;justify-content:space-between;position:relative;font-family:Arial,sans-serif;}.rs-journey-steps::before{content:'';position:absolute;top:26px;left:6%;right:6%;height:1px;background:repeating-linear-gradient(90deg,var(--border) 0 6px,transparent 6px 12px);z-index:0;}.rs-step{display:flex;flex-direction:column;align-items:center;gap:10px;z-index:1;flex:1;}.rs-step-circle{width:52px;height:52px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:#fff;color:var(--maroon);font-size:18px;}.rs-step strong{font-size:13px;}.rs-step-lbl{font-size:11px;color:var(--text-gray);text-align:center;}.rs-testimonials-wrap{margin:0 60px 50px;background:var(--cream);border-radius:16px;padding:34px 30px;}.rs-testimonials-head{display:flex;align-items:center;gap:14px;margin-bottom:28px;}.rs-quote-mark{font-size:30px;color:var(--maroon);font-family:Georgia,serif;line-height:1;}.rs-testimonials-head h3{font-size:18px;}.rs-testimonials-row{display:flex;align-items:center;gap:10px;}.rs-nav-circle{width:38px;height:38px;border-radius:50%;background:var(--maroon-dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;cursor:pointer;border:none;}.rs-testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;flex:1;font-family:Arial,sans-serif;}.rs-testimonial-card p{font-size:13px;color:var(--text-gray);line-height:1.6;margin-bottom:16px;}.rs-testimonial-person{display:flex;align-items:center;gap:10px;}.rs-avatar{width:38px;height:38px;border-radius:50%;background:var(--maroon-dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;font-family:Arial,sans-serif;}.rs-testimonial-card strong{display:block;font-size:13px;color:var(--text-dark);}.rs-t-role{font-size:12px;color:var(--text-gray);}.rs-testimonial-dots{display:flex;justify-content:center;gap:6px;margin-top:24px;}.rs-testimonial-dots span{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;display:inline-block;}.rs-testimonial-dots .rs-active{background:var(--maroon);}.rs-events-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}.rs-event-card{display:flex;gap:14px;border:1px solid var(--border);border-radius:12px;padding:18px;font-family:Arial,sans-serif;}.rs-event-date{background:var(--maroon-dark);color:#fff;border-radius:8px;text-align:center;padding:8px 10px;min-width:52px;height:fit-content;}.rs-event-date strong{display:block;font-size:20px;}.rs-event-date span{font-size:11px;}.rs-event-card h4{font-size:14px;margin-bottom:8px;}.rs-event-card p{font-size:12px;color:var(--text-gray);margin-bottom:4px;}.rs-footer{background:color-mix(in srgb,rgb(var(--brand-primary-darker)) 30%,#111111);color:rgba(255,255,255,0.8);padding:50px 60px 0;font-family:Arial,sans-serif;}.rs-footer-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 1.3fr;gap:30px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,0.1);}.rs-footer-grid h5{color:#fff;font-size:14px;margin-bottom:16px;}.rs-footer-grid li{font-size:13px;margin-bottom:10px;color:rgba(255,255,255,0.72);cursor:pointer;}.rs-footer-logo{display:flex;align-items:center;gap:10px;margin-bottom:14px;}.rs-footer-logo h1{color:#fff;font-size:20px;}.rs-footer-col p{font-size:13px;line-height:1.6;margin-bottom:16px;}.rs-socials{display:flex;gap:10px;}.rs-socials span{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;}.rs-contact-item{display:flex;gap:10px;margin-bottom:14px;font-size:13px;}.rs-bottom-bar{display:flex;justify-content:space-between;padding:18px 0;font-size:12px;color:rgba(255,255,255,0.62);}.rs-logo-icon-sm{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle,var(--maroon) 40%,var(--orange) 100%);flex-shrink:0;}@keyframes pulseRing{0%{stroke-opacity:0.6;}100%{stroke-opacity:0;}}.rs-globe-node-ring{fill:none;stroke:var(--orange);stroke-width:1.5;stroke-opacity:0.5;animation:pulseRing 2.4s ease-out infinite;}.rs-hero-image-wrap{position:relative;width:480px;height:420px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
     "@media (max-width:1024px){.rs-hero{padding:32px 24px;flex-wrap:wrap;gap:24px;}.rs-hero-left{max-width:100%;}.rs-hero-left h2{font-size:32px;}.rs-hero-image-wrap{width:340px;height:300px;}.rs-stats-bar{margin:0 24px;flex-wrap:wrap;gap:16px;padding:20px 16px;top:-20px;}.rs-stat{flex:1 1 28%;}.rs-section{padding:10px 24px 40px;}.rs-domains-grid{grid-template-columns:repeat(4,1fr);gap:10px;}.rs-three-col{grid-template-columns:1fr 1fr;gap:20px;}.rs-three-col>div:nth-child(3){grid-column:1/-1;}.rs-journey{padding:40px 24px;}.rs-journey-steps{flex-wrap:wrap;gap:24px;justify-content:center;}.rs-journey-steps::before{display:none;}.rs-step{flex:1 1 28%;}.rs-testimonials-wrap{margin:0 24px 40px;padding:24px 20px;}.rs-testimonials-grid{grid-template-columns:repeat(2,1fr);gap:20px;}.rs-events-grid{grid-template-columns:repeat(2,1fr);gap:16px;}.rs-footer{padding:40px 24px 0;}.rs-footer-grid{grid-template-columns:repeat(2,1fr);gap:24px;}.rs-footer-grid>div:first-child{grid-column:1/-1;}}" +
     "@media (max-width:640px){.rs-hero{flex-direction:column;padding:24px 16px;text-align:center;}.rs-hero-left{text-align:center;}.rs-hero-left h2{font-size:26px;}.rs-hero-left p{font-size:14px;}.rs-hero-btns{justify-content:center;flex-wrap:wrap;}.rs-hero-features{flex-wrap:wrap;justify-content:center;gap:18px;}.rs-hero-image-wrap{width:100%;max-width:280px;height:260px;}.rs-stats-bar{margin:0 12px;padding:16px 12px;top:-16px;}.rs-stat{flex:1 1 45%;}.rs-section{padding:10px 16px 32px;}.rs-section-head{flex-wrap:wrap;gap:8px;}.rs-domains-grid{grid-template-columns:repeat(2,1fr);gap:10px;}.rs-domain-card{padding:16px 8px;}.rs-three-col{grid-template-columns:1fr;gap:24px;}.rs-three-col>div:nth-child(3){grid-column:auto;}.rs-project-card{flex-direction:column;}.rs-project-img{width:100%;height:140px;}.rs-journey{padding:32px 16px;}.rs-journey-steps{flex-wrap:wrap;gap:20px;}.rs-step{flex:1 1 45%;}.rs-testimonials-wrap{margin:0 12px 32px;padding:20px 14px;}.rs-testimonials-head{flex-wrap:wrap;}.rs-testimonials-row{flex-wrap:wrap;}.rs-testimonials-grid{grid-template-columns:1fr;gap:16px;}.rs-events-grid{grid-template-columns:1fr;gap:14px;}.rs-event-card{flex-direction:column;}.rs-footer{padding:32px 16px 0;}.rs-footer-grid{grid-template-columns:1fr;gap:24px;}.rs-footer-grid>div:first-child{grid-column:auto;}.rs-bottom-bar{flex-direction:column;gap:10px;text-align:center;}}";
 
@@ -208,18 +220,13 @@ export default function ModernStaffDashboard() {
     ['\u{1F310}','7','Societal','Impact'],
   ];
 
-  const events = [
-    { day:'18', mo:'SEP', title:'Research Symposium 2026', date:'18 - 19 September 2026', loc:'University Auditorium' },
-    { day:'25', mo:'SEP', title:'Patent Filing Workshop', date:'25 September 2026', loc:'Innovation Lab' },
-    { day:'02', mo:'OCT', title:'Innovation & Startup Summit', date:'02 - 03 October 2026', loc:'University Convention Center' },
-    { day:'15', mo:'OCT', title:'Faculty Research Forum', date:'15 October 2026', loc:'Seminar Hall' },
-  ];
 
   const displayPubs = isAdmin && adminOverview?.research ? adminOverview.research.total : publicationsDynamics;
   const displayPats = isAdmin && adminOverview?.ipr ? adminOverview.ipr.total : patentsCount;
   const displayFunding = getResearchFundingDisplay();
   const displayActive = isAdmin && adminOverview?.grants ? adminOverview.grants.approved : activeProjects;
-  const displayResearchers = isAdmin && adminOverview?.users?.employees?.total ? adminOverview.users.employees.total : 32;
+  // Only real numbers: the university-wide researcher count is known to administrators only.
+  const displayResearchers = isAdmin && adminOverview?.users?.employees?.total ? adminOverview.users.employees.total : null;
   const displayCollabs = isAdmin && adminOverview?.collaborations ? adminOverview.collaborations.total : collaborationsCount;
 
   const stats = [
@@ -227,7 +234,7 @@ export default function ModernStaffDashboard() {
     { icon: '\u{1F6E1}\uFE0F', val: String(displayPats), label: 'Patents Filed' },
     { icon: '\u{1FA99}', val: displayFunding, label: 'Research Funding' },
     { icon: '\u{1F4BC}', val: String(displayActive), label: 'Active Projects' },
-    { icon: '\u{1F465}', val: String(displayResearchers), label: 'Researchers' },
+    ...(displayResearchers !== null ? [{ icon: '\u{1F465}', val: String(displayResearchers), label: 'Researchers' }] : []),
     { icon: '\u{1F91D}', val: String(displayCollabs), label: 'Collaborations' },
   ];
 
@@ -237,11 +244,18 @@ export default function ModernStaffDashboard() {
       <div className="rs-body">
         <section className="rs-hero">
           <div className="rs-hero-left">
-            <span className="rs-badge">
-              RESEARCH &amp; DEVELOPMENT PORTAL
+            <span className="rs-badge" data-testid="hero-badge">
+              {branding ? `${branding.shortName || branding.displayName} · ` : ''}Research &amp; Development Portal
             </span>
-            <h2>Where Ideas<br />Become <span>Impact</span></h2>
-            <p>ResearchSphere empowers researchers, faculty and scholars to collaborate, innovate and transform ideas into meaningful solutions for a better tomorrow.</p>
+            {heroHeading ? (
+              <h2 data-testid="hero-heading">
+                {heroHeading.split(' ').slice(0, -1).join(' ')}{heroHeading.includes(' ') ? ' ' : ''}<span>{heroHeading.split(' ').slice(-1)[0]}</span>
+              </h2>
+            ) : (
+              <h2 data-testid="hero-heading">Where Ideas<br />Become <span>Impact</span></h2>
+            )}
+            {branding && <p className="rs-hero-university" data-testid="hero-university">{branding.displayName}</p>}
+            <p>{heroSubheading}</p>
             <div className="rs-hero-btns">
               <button className="rs-btn-primary" onClick={() => router.push('/research')}><span>&#128302;</span> Explore Research</button>
               <button className="rs-btn-secondary" onClick={() => router.push('/research/apply')}><span>&#128233;</span> Submit Proposal</button>
@@ -252,10 +266,11 @@ export default function ModernStaffDashboard() {
               <li><span className="rs-feat-icon">&#127760;</span><div><strong>Impact</strong><span>For Generations</span></div></li>
             </ul>
           </div>
-          <div className="rs-hero-image-wrap">
+          {/* Raster artwork painted in Classic Wine; re-tinted to the university colour by .brand-art-tint */}
+          <div className="rs-hero-image-wrap brand-art-tint" style={{ '--brand-art-mask': 'url(/dashboard_image.png)' } as React.CSSProperties}>
             <img
               src="/dashboard_image.png"
-              alt="ResearchSphere Analytics Globe"
+              alt=""
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           </div>
@@ -288,7 +303,13 @@ export default function ModernStaffDashboard() {
               {featuredProjects.length > 0 ? (
                 featuredProjects.map((p, i) => (
                   <div key={i} className="rs-project-card">
-                    <img src={p.image} alt="" className="rs-project-img" />
+                    <div
+                      aria-hidden="true"
+                      className="rs-project-img"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)', fontSize: 34 }}
+                    >
+                      {p.glyph}
+                    </div>
                     <div>
                       <h4>{p.title}</h4>
                       <span className="rs-tag-green">{p.typeLabel}</span>
@@ -298,7 +319,7 @@ export default function ModernStaffDashboard() {
                   </div>
                 ))
               ) : (
-                <div className="h-[200px] flex items-center justify-center text-sm text-gray-500 border border-dashed border-[#f0e2d2] rounded-xl bg-white/50">
+                <div className="h-[200px] flex items-center justify-center text-sm text-gray-500 border border-dashed border-blush-line rounded-xl bg-white/50">
                   No data available
                 </div>
               )}
@@ -314,7 +335,7 @@ export default function ModernStaffDashboard() {
                   </div>
                 ))
               ) : (
-                <div className="h-[200px] flex items-center justify-center text-sm text-gray-500 border border-dashed border-[#f0e2d2] rounded-xl bg-white/50">
+                <div className="h-[200px] flex items-center justify-center text-sm text-gray-500 border border-dashed border-blush-line rounded-xl bg-white/50">
                   No data available
                 </div>
               )}
@@ -352,46 +373,41 @@ export default function ModernStaffDashboard() {
         </div>
 
         <div className="rs-testimonials-wrap">
-          <div className="rs-testimonials-head"><span className="rs-quote-mark">&#8220;</span><h3>Voices of Our Research Community</h3></div>
+          <div className="rs-testimonials-head"><h3>What You Can Do Here</h3></div>
           <div className="rs-testimonials-row">
-            <button className="rs-nav-circle" onClick={() => setTestimonialIndex(p => p === 0 ? testimonials.length - 1 : p - 1)}>&#8249;</button>
             <div className="rs-testimonials-grid">
-              {padded.map((t, i) => (
-                <div key={i} className="rs-testimonial-card">
-                  <p>{t.text}</p>
-                  <div className="rs-testimonial-person">
-                    <div className="rs-avatar">{t.initials}</div>
-                    <div><strong>&#8212; {t.name}</strong><div className="rs-t-role">{t.role}</div></div>
+              {platformHighlights.map((h) => (
+                <Link key={h.title} href={h.href} className="rs-testimonial-card" style={{ display: 'block' }}>
+                  <div className="rs-testimonial-person" style={{ marginBottom: 10 }}>
+                    <div className="rs-avatar" aria-hidden="true">{h.glyph}</div>
+                    <strong>{h.title}</strong>
                   </div>
-                </div>
+                  <p>{h.text}</p>
+                </Link>
               ))}
             </div>
-            <button className="rs-nav-circle" onClick={() => setTestimonialIndex(p => (p + 1) % testimonials.length)}>&#8250;</button>
-          </div>
-          <div className="rs-testimonial-dots">
-            {testimonials.map((_, i) => <span key={i} className={i === testimonialIndex ? 'rs-active' : ''} onClick={() => setTestimonialIndex(i)} />)}
           </div>
         </div>
-
-        <div className="rs-section">
-          <div className="rs-section-head"><h3 style={{ width:'100%', textAlign:'center' }}>Upcoming Events</h3><a href="#">View All Events &#8594;</a></div>
-          <div className="rs-events-grid">
-            {events.map((e, i) => (
-              <div key={i} className="rs-event-card">
-                <div className="rs-event-date"><strong>{e.day}</strong><span>{e.mo}</span></div>
-                <div><h4>{e.title}</h4><p>&#128197; {e.date}</p><p>&#128205; {e.loc}</p></div>
-              </div>
-            ))}
-              </div>
-            </div>
 
         <footer className="rs-footer">
           <div className="rs-footer-grid">
             <div className="rs-footer-col">
               <div className="rs-footer-logo" style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
-                <img src="/logo.png" alt="ResearchSphere Logo" className="h-10 w-auto object-contain" />
+                {branding?.logoDarkUrl || branding?.logoUrl ? (
+                  <span className="inline-flex rounded-lg bg-white/95 px-2 py-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- served by the branding API */}
+                    <img src={(branding.logoUrl || branding.logoDarkUrl)!} alt={`${branding.displayName} logo`} className="h-10 w-auto max-w-[200px] object-contain" />
+                  </span>
+                ) : branding ? (
+                  <span className="flex items-center gap-2.5">
+                    <BrandMonogram branding={branding} className="h-10 w-10" />
+                    <strong className="text-white text-base leading-tight">{branding.displayName}</strong>
+                  </span>
+                ) : (
+                  <img src="/logo.png" alt="ResearchSphere Logo" className="h-10 w-auto object-contain" />
+                )}
               </div>
-              <p>Empowering researchers and creators to push boundaries, drive innovation and shape a better future.</p>
+              <p>{branding?.tagline || 'Empowering researchers and creators to push boundaries, drive innovation and shape a better future.'}</p>
               <div className="rs-socials"><span>in</span><span>X</span><span>&#9654;</span><span>&#128247;</span></div>
             </div>
             <div className="rs-footer-col"><h5>Quick Links</h5><ul>{['Home','About Us','Research Areas','Projects','Publications','Patents'].map(l => <li key={l}>{l}</li>)}</ul></div>
@@ -399,13 +415,11 @@ export default function ModernStaffDashboard() {
             <div className="rs-footer-col"><h5>Support</h5><ul>{['Help Desk','Contact Us','Feedback','Portal Manual'].map(l => <li key={l}>{l}</li>)}</ul></div>
             <div className="rs-footer-col">
               <h5>Contact Us</h5>
-              <div className="rs-contact-item">&#128205; <span>Research &amp; Development Cell<br />University Campus<br />City, State - 000000</span></div>
-              <div className="rs-contact-item">&#9993;&#65039; <span>rdcell@university.edu.in</span></div>
-              <div className="rs-contact-item">&#128222; <span>+91 12345 67890</span></div>
+              <div className="rs-contact-item">&#128205; <span>Research &amp; Development Cell<br />{universityName}</span></div>
             </div>
           </div>
           <div className="rs-bottom-bar">
-            <span>&#169; 2026 ResearchSphere. All Rights Reserved.</span>
+            <span>&#169; {new Date().getFullYear()} {branding ? `${branding.displayName} · Powered by ResearchSphere` : 'ResearchSphere. All Rights Reserved.'}</span>
             <span style={{ display:'flex', gap:20 }}><a href="#">Privacy Policy</a><a href="#">Terms of Use</a><a href="#">Sitemap</a></span>
           </div>
         </footer>

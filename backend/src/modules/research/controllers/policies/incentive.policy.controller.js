@@ -1,6 +1,11 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
 const cache = require('../../../../shared/config/redis');
+const { parseIprPolicy, sendPolicyError } = require('../../validators/incentivePolicy.validation');
+const { savePolicy, policyWindowWhere } = require('../../utils/policyWindow');
+const { toNumber } = require('../../utils/policyMath');
+const { previewDate, sendPolicyPreview } = require('../../utils/policyPreview');
+const { DEFAULT_INCENTIVE_POLICIES, resolveIprPolicy, computeIprIncentive } = require('../../utils/iprIncentive');
 
 /**
  * Get all incentive policies
@@ -71,39 +76,25 @@ exports.getAllPolicies = async (req, res) => {
 exports.getPolicyByType = async (req, res) => {
   try {
     const { iprType } = req.params;
-    
+    const onDate = previewDate(req.query.onDate);
+
     const policy = await prisma.incentivePolicy.findFirst({
       where: {
         iprType: iprType.toLowerCase(),
-        isActive: true,
+        // Enabled and in force on the date (default today) — the rule publication uses
+        ...policyWindowWhere(onDate),
         ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
+      },
+      orderBy: { effectiveFrom: 'desc' }
     });
 
-    if (!policy) {
-      // Return default policy if none exists
-      const defaultPolicies = {
-        patent: { baseIncentiveAmount: 50000, basePoints: 50, splitPolicy: 'equal' },
-        copyright: { baseIncentiveAmount: 15000, basePoints: 20, splitPolicy: 'equal' },
-        trademark: { baseIncentiveAmount: 10000, basePoints: 15, splitPolicy: 'equal' },
-        design: { baseIncentiveAmount: 20000, basePoints: 25, splitPolicy: 'equal' }
-      };
-      
-      return res.json({
-        success: true,
-        data: {
-          iprType,
-          ...defaultPolicies[iprType.toLowerCase()] || defaultPolicies.patent,
-          isDefault: true
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      data: policy
+    // Publication pays the built-in IPR defaults when no policy applies — preview exactly those.
+    return sendPolicyPreview(res, {
+      policy,
+      defaultPolicy: { iprType, ...(DEFAULT_INCENTIVE_POLICIES[iprType.toLowerCase()] || DEFAULT_INCENTIVE_POLICIES.patent) },
     });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Get policy by type error:', error);
     res.status(500).json({
       success: false,
@@ -112,87 +103,44 @@ exports.getPolicyByType = async (req, res) => {
   }
 };
 
+const IPR_POLICY_INCLUDE = {
+  createdBy: { select: { uid: true, employeeDetails: { select: { displayName: true } } } },
+  updatedBy: { select: { uid: true, employeeDetails: { select: { displayName: true } } } },
+};
+
 /**
  * Create a new incentive policy
  * Accessible by: admin only
+ *
+ * One transaction: validate, close the previous enabled policy of the same IPR type the day
+ * before the new one starts (or replace it when the new window covers it entirely), create.
+ * isActive is the admin's switch; which policy applies is decided by its effective window.
  */
 exports.createPolicy = async (req, res) => {
   try {
-    const {
-      iprType,
-      policyName,
-      baseIncentiveAmount,
-      basePoints,
-      splitPolicy,
-      primaryInventorShare,
-      filingTypeMultiplier,
-      projectTypeBonus,
-      isActive,
-      effectiveFrom
-    } = req.body;
-
-    // Validate required fields
-    if (!iprType || !policyName || baseIncentiveAmount === undefined || basePoints === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide iprType, policyName, baseIncentiveAmount, and basePoints'
-      });
-    }
-
-    // If creating an active policy, deactivate existing active policy for same type
-    if (isActive !== false) {
-      await prisma.incentivePolicy.updateMany({
-        where: {
-          iprType: iprType.toLowerCase(),
-          isActive: true,
-          ...(req.tenantId ? { universityId: req.tenantId } : {})
-        },
-        data: {
-          isActive: false,
-          effectiveTo: new Date()
-        }
-      });
-    }
-
-    const policy = await prisma.incentivePolicy.create({
-      data: {
-        iprType: iprType.toLowerCase(),
-        policyName,
-        baseIncentiveAmount,
-        basePoints,
-        splitPolicy: splitPolicy || 'equal',
-        primaryInventorShare,
-        filingTypeMultiplier,
-        projectTypeBonus,
-        isActive: isActive !== false,
-        effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
-        createdById: req.user.id,
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      },
-      include: {
-        createdBy: {
-          select: {
-            uid: true,
-            employeeDetails: {
-              select: { displayName: true }
-            }
-          }
-        }
-      }
+    const data = parseIprPolicy(req.body);
+    const { policy, adjusted } = await savePolicy({
+      prisma,
+      model: 'incentivePolicy',
+      keyWhere: { iprType: data.iprType },
+      data,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'supersede',
+      include: IPR_POLICY_INCLUDE,
     });
 
-    // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'incentive', req.user.id, req);
-
-    // Invalidate policy cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(201).json({
       success: true,
       message: 'Incentive policy created successfully',
-      data: policy
+      data: policy,
+      adjustedPolicies: adjusted,
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Create policy error:', error);
     res.status(500).json({
       success: false,
@@ -208,16 +156,6 @@ exports.createPolicy = async (req, res) => {
 exports.updatePolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      policyName,
-      baseIncentiveAmount,
-      basePoints,
-      splitPolicy,
-      primaryInventorShare,
-      filingTypeMultiplier,
-      projectTypeBonus,
-      isActive
-    } = req.body;
 
     const existingPolicy = await prisma.incentivePolicy.findUnique({
       where: { id }
@@ -237,67 +175,31 @@ exports.updatePolicy = async (req, res) => {
       });
     }
 
-    // If activating this policy, deactivate other active policies for same type
-    if (isActive === true && !existingPolicy.isActive) {
-      await prisma.incentivePolicy.updateMany({
-        where: {
-          iprType: existingPolicy.iprType,
-          isActive: true,
-          id: { not: id },
-          ...(req.tenantId ? { universityId: req.tenantId } : {})
-        },
-        data: {
-          isActive: false,
-          effectiveTo: new Date()
-        }
-      });
-    }
-
-    const policy = await prisma.incentivePolicy.update({
-      where: { id },
-      data: {
-        policyName,
-        baseIncentiveAmount,
-        basePoints,
-        splitPolicy,
-        primaryInventorShare,
-        filingTypeMultiplier,
-        projectTypeBonus,
-        isActive,
-        updatedById: req.user.id
-      },
-      include: {
-        createdBy: {
-          select: {
-            uid: true,
-            employeeDetails: {
-              select: { displayName: true }
-            }
-          }
-        },
-        updatedBy: {
-          select: {
-            uid: true,
-            employeeDetails: {
-              select: { displayName: true }
-            }
-          }
-        }
-      }
+    // Same rules as create on the merged policy; effectiveFrom/effectiveTo are honoured.
+    const data = parseIprPolicy(req.body, existingPolicy);
+    const { policy, adjusted } = await savePolicy({
+      prisma,
+      model: 'incentivePolicy',
+      keyWhere: { iprType: existingPolicy.iprType },
+      data,
+      existing: existingPolicy,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'supersede',
+      include: IPR_POLICY_INCLUDE,
     });
 
-    // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, policy, 'incentive', req.user.id, req);
-
-    // Invalidate policy cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.json({
       success: true,
       message: 'Incentive policy updated successfully',
-      data: policy
+      data: policy,
+      adjustedPolicies: adjusted,
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Update policy error:', error);
     res.status(500).json({
       success: false,
@@ -370,76 +272,27 @@ exports.calculateIncentive = async (req, res) => {
       });
     }
 
-    // Get active policy for the IPR type
-    let policy = await prisma.incentivePolicy.findFirst({
-      where: {
-        iprType: iprType.toLowerCase(),
-        isActive: true,
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
-    });
-
-    // Use default if no policy exists
-    const defaultPolicies = {
-      patent: { baseIncentiveAmount: 50000, basePoints: 50, splitPolicy: 'equal' },
-      copyright: { baseIncentiveAmount: 15000, basePoints: 20, splitPolicy: 'equal' },
-      trademark: { baseIncentiveAmount: 10000, basePoints: 15, splitPolicy: 'equal' },
-      design: { baseIncentiveAmount: 20000, basePoints: 25, splitPolicy: 'equal' }
-    };
-
-    if (!policy) {
-      policy = {
-        ...defaultPolicies[iprType.toLowerCase()] || defaultPolicies.patent,
-        filingTypeMultiplier: null,
-        projectTypeBonus: null,
-        splitPolicy: 'equal'
-      };
-    }
-
-    let totalIncentive = Number(policy.baseIncentiveAmount);
-    let totalPoints = policy.basePoints;
-
-    // Apply filing type multiplier
-    if (filingType && policy.filingTypeMultiplier) {
-      const multiplier = policy.filingTypeMultiplier[filingType] || 1;
-      totalIncentive *= multiplier;
-    }
-
-    // Apply project type bonus
-    if (projectType && policy.projectTypeBonus) {
-      const bonus = policy.projectTypeBonus[projectType] || 0;
-      totalIncentive += bonus;
-    }
-
-    // Calculate per-inventor share
-    const count = inventorCount || 1;
-    let perInventorIncentive = totalIncentive;
-    let perInventorPoints = totalPoints;
-
-    if (policy.splitPolicy === 'equal' && count > 1) {
-      perInventorIncentive = Math.floor(totalIncentive / count);
-      perInventorPoints = Math.floor(totalPoints / count);
-    } else if (policy.splitPolicy === 'primary_inventor' && policy.primaryInventorShare && count > 1) {
-      const primaryShare = Number(policy.primaryInventorShare) / 100;
-      const remainingShare = (1 - primaryShare) / (count - 1);
-      // Returns primary inventor's share
-      perInventorIncentive = Math.floor(totalIncentive * primaryShare);
-      perInventorPoints = Math.floor(totalPoints * primaryShare);
-    }
+    // Exactly what publication pays: the policy in force (built-in defaults when none),
+    // base amount split equally among inventors. filingType/projectType are accepted for
+    // compatibility but publication does not apply multipliers or bonuses.
+    const { policy, usedDefaultPolicy } = await resolveIprPolicy(prisma, iprType, previewDate(req.body.onDate));
+    const result = computeIprIncentive(policy, inventorCount || 1);
 
     res.json({
       success: true,
+      policyFound: true,
+      usedDefaultPolicy,
       data: {
-        totalIncentive,
-        totalPoints,
-        perInventorIncentive,
-        perInventorPoints,
-        inventorCount: count,
-        splitPolicy: policy.splitPolicy,
-        policyApplied: !!policy.id
+        ...result,
+        splitPolicy: 'equal',
+        policyApplied: !usedDefaultPolicy,
+        policyFound: true,
+        usedDefaultPolicy,
+        ...(filingType || projectType ? { note: 'Filing-type multipliers and project-type bonuses are not applied at publication.' } : {}),
       }
     });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Calculate incentive error:', error);
     res.status(500).json({
       success: false,

@@ -90,7 +90,7 @@ export function RolesTab({ overview, isAdmin, onCreated, onError, onSeePeople }:
                 )}
                 <div className="mt-4 flex items-center gap-2 pt-1">
                   {r.assignable && (
-                    <button type="button" onClick={() => onSeePeople(r)} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
+                    <button type="button" onClick={() => onSeePeople(r)} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-wine-fg hover:bg-brand-700">
                       {r.assignedCount ? 'See people' : 'Assign people'}
                     </button>
                   )}

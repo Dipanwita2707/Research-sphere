@@ -196,37 +196,37 @@ export default function MyWorkDashboard() {
     totalPoints: iprStats.totalPoints + researchStats.totalPoints,
   };
 
-  const CSS = `:root{--maroon:#7d1a34;--maroon-dark:#5e1024;--gold:#c8973f;--page-bg:#fdf5ec;--card-bg:#ffffff;--border:#f0e2d2;--text-dark:#2b1d22;--text-gray:#7a7178;--text-gray-light:#9a9198;}.work-body *{box-sizing:border-box;}.work-body{background:var(--page-bg);color:var(--text-dark);font-family:Arial,Helvetica,sans-serif;min-height:100vh;}.work-main{max-width:1220px;margin:0 auto;padding:32px 32px 60px;}.hero-banner{position:relative;background:linear-gradient(to right, #fbeee0 0%, #fdf7ee 50%, #fdf7ee 100%);border-radius:18px;padding:40px 44px;min-height:190px;overflow:hidden;margin-bottom:26px;border:1px solid var(--border);}.hero-banner h1{font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;color:#1f1418;margin-bottom:14px;}.hero-underline{width:52px;height:4px;border-radius:2px;background:linear-gradient(95deg,var(--maroon),var(--gold));margin-bottom:16px;}.hero-banner p{color:var(--text-gray);font-size:14.5px;}.hero-art{position:absolute;right:0;top:0;bottom:0;width:420px;}.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-bottom:24px;}.stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:22px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 12px rgba(125,26,52,0.02);}.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.stat-icon svg{width:22px;height:22px;}.bg-rose{background:#fbe2e8;}.bg-amber{background:#fbecd2;}.bg-mint{background:#dff5e6;}.bg-lav{background:#ece2fa;}.stat-label{font-size:13px;color:var(--text-gray);margin-bottom:6px;}.stat-value{font-size:25px;font-weight:700;line-height:1;}.c-maroon{color:var(--maroon);}.c-gold{color:#cc9427;}.c-green{color:#28a24d;}.c-purple{color:#8a4fd4;}.panel{background:var(--card-bg);border:1px solid var(--border);border-radius:18px;padding:28px 30px 34px;box-shadow:0 10px 30px rgba(125,26,52,0.02);}.tabs{display:flex;gap:36px;border-bottom:1px solid var(--border);margin-bottom:24px;}.tab{display:flex;align-items:center;gap:9px;padding-bottom:16px;font-size:14.5px;font-weight:600;color:var(--text-gray-light);cursor:pointer;position:relative;border:none;background:transparent;}.tab svg{width:17px;height:17px;}.tab.active{color:var(--maroon);}.tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;background:var(--maroon);}.tab .count{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:10px;background:#f1e9ec;color:var(--text-gray);}.tab.active .count{background:#fbe2e8;color:var(--maroon);}.search-row{display:flex;gap:12px;margin-bottom:32px;}.search-box{flex:1;display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:13px 18px;color:var(--text-dark);font-size:14px;}.search-box input{border:none;outline:none;width:100%;font-size:14px;color:var(--text-dark);background:transparent;}.search-box input::placeholder{color:#b0a5ab;}.search-box svg{width:17px;height:17px;flex-shrink:0;}.filter-btn{width:48px;border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text-gray);background:transparent;cursor:pointer;}.panel h3{font-size:17.5px;font-weight:700;margin-bottom:18px;color:var(--text-dark);}.cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}.ipr-card{position:relative;border:1px solid var(--border);border-radius:16px;padding:24px 22px 22px;overflow:hidden;min-height:190px;background:var(--card-bg);transition:all 0.2s ease-in-out;cursor:pointer;text-decoration:none;color:inherit;}.ipr-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(125,26,52,0.06);border-color:var(--maroon);}.ipr-badge{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;position:relative;z-index:1;}.ipr-badge svg{width:24px;height:24px;}.bg-maroon-solid{background:var(--maroon);}.bg-gold-solid{background:var(--gold);}.ipr-card h4{font-size:16.5px;font-weight:700;margin-bottom:8px;position:relative;z-index:1;}.ipr-card p{font-size:12.8px;color:var(--text-gray);line-height:1.5;margin-bottom:22px;max-width:75%;position:relative;z-index:1;}.ipr-go{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--maroon);position:relative;z-index:1;background:var(--card-bg);}.ipr-go svg{width:14px;height:14px;}.ipr-watermark{position:absolute;right:-8px;bottom:-6px;opacity:0.5;z-index:0;}.list-section{margin-top:40px;border-top:1px dashed var(--border);padding-top:32px;}.list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}.list-header h3{font-size:18px;font-weight:700;color:var(--text-dark);}.view-all-link{color:var(--maroon);font-size:14px;font-weight:600;text-decoration:none;}.item-card{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border:1px solid var(--border);border-radius:12px;background:var(--card-bg);margin-bottom:12px;transition:border-color 0.15s;text-decoration:none;color:inherit;}.item-card:hover{border-color:var(--maroon);}.item-left{display:flex;align-items:center;gap:16px;}.item-icon-wrap{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.item-details h4{font-size:15px;font-weight:700;color:var(--text-dark);margin-bottom:4px;}.item-details p{font-size:12.5px;color:var(--text-gray);}.item-meta{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--text-gray-light);margin-top:6px;}.item-meta span{display:flex;align-items:center;gap:4px;}.status-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;}`;
+  const CSS = `:root{--maroon:rgb(var(--brand-primary));--maroon-dark:rgb(var(--brand-primary-dark));--gold:rgb(var(--brand-gold));--page-bg:rgb(var(--brand-canvas));--card-bg:#ffffff;--border:rgb(var(--brand-line));--text-dark:rgb(var(--brand-ink));--text-gray:rgb(var(--brand-ink-muted));--text-gray-light:rgb(var(--brand-ink-subtle));}.work-body *{box-sizing:border-box;}.work-body{background:var(--page-bg);color:var(--text-dark);font-family:Arial,Helvetica,sans-serif;min-height:100vh;}.work-main{max-width:1220px;margin:0 auto;padding:32px 32px 60px;}.hero-banner{position:relative;background:linear-gradient(to right, rgb(var(--brand-gold-50)) 0%, rgb(var(--brand-canvas-light)) 50%, rgb(var(--brand-canvas-light)) 100%);border-radius:18px;padding:40px 44px;min-height:190px;overflow:hidden;margin-bottom:26px;border:1px solid var(--border);}.hero-banner h1{font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;color:#1f1418;margin-bottom:14px;}.hero-underline{width:52px;height:4px;border-radius:2px;background:linear-gradient(95deg,var(--maroon),var(--gold));margin-bottom:16px;}.hero-banner p{color:var(--text-gray);font-size:14.5px;}.hero-art{position:absolute;right:0;top:0;bottom:0;width:420px;}.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-bottom:24px;}.stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:22px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 12px rgba(125,26,52,0.02);}.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.stat-icon svg{width:22px;height:22px;}.bg-rose{background:rgb(var(--brand-primary-100));}.bg-amber{background:rgb(var(--brand-gold-50));}.bg-mint{background:#dff5e6;}.bg-lav{background:#ece2fa;}.stat-label{font-size:13px;color:var(--text-gray);margin-bottom:6px;}.stat-value{font-size:25px;font-weight:700;line-height:1;}.c-maroon{color:var(--maroon);}.c-gold{color:rgb(var(--brand-gold));}.c-green{color:#28a24d;}.c-purple{color:#8a4fd4;}.panel{background:var(--card-bg);border:1px solid var(--border);border-radius:18px;padding:28px 30px 34px;box-shadow:0 10px 30px rgba(125,26,52,0.02);}.tabs{display:flex;gap:36px;border-bottom:1px solid var(--border);margin-bottom:24px;}.tab{display:flex;align-items:center;gap:9px;padding-bottom:16px;font-size:14.5px;font-weight:600;color:var(--text-gray-light);cursor:pointer;position:relative;border:none;background:transparent;}.tab svg{width:17px;height:17px;}.tab.active{color:var(--maroon);}.tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;background:var(--maroon);}.tab .count{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:10px;background:rgb(var(--brand-primary-50));color:var(--text-gray);}.tab.active .count{background:rgb(var(--brand-primary-100));color:var(--maroon);}.search-row{display:flex;gap:12px;margin-bottom:32px;}.search-box{flex:1;display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:12px;padding:13px 18px;color:var(--text-dark);font-size:14px;}.search-box input{border:none;outline:none;width:100%;font-size:14px;color:var(--text-dark);background:transparent;}.search-box input::placeholder{color:rgb(var(--brand-ink-subtle));}.search-box svg{width:17px;height:17px;flex-shrink:0;}.filter-btn{width:48px;border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text-gray);background:transparent;cursor:pointer;}.panel h3{font-size:17.5px;font-weight:700;margin-bottom:18px;color:var(--text-dark);}.cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}.ipr-card{position:relative;border:1px solid var(--border);border-radius:16px;padding:24px 22px 22px;overflow:hidden;min-height:190px;background:var(--card-bg);transition:all 0.2s ease-in-out;cursor:pointer;text-decoration:none;color:inherit;}.ipr-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(125,26,52,0.06);border-color:var(--maroon);}.ipr-badge{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;position:relative;z-index:1;}.ipr-badge svg{width:24px;height:24px;}.bg-maroon-solid{background:var(--maroon);}.bg-gold-solid{background:var(--gold);}.ipr-card h4{font-size:16.5px;font-weight:700;margin-bottom:8px;position:relative;z-index:1;}.ipr-card p{font-size:12.8px;color:var(--text-gray);line-height:1.5;margin-bottom:22px;max-width:75%;position:relative;z-index:1;}.ipr-go{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--maroon);position:relative;z-index:1;background:var(--card-bg);}.ipr-go svg{width:14px;height:14px;}.ipr-watermark{position:absolute;right:-8px;bottom:-6px;opacity:0.5;z-index:0;}.list-section{margin-top:40px;border-top:1px dashed var(--border);padding-top:32px;}.list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}.list-header h3{font-size:18px;font-weight:700;color:var(--text-dark);}.view-all-link{color:var(--maroon);font-size:14px;font-weight:600;text-decoration:none;}.item-card{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border:1px solid var(--border);border-radius:12px;background:var(--card-bg);margin-bottom:12px;transition:border-color 0.15s;text-decoration:none;color:inherit;}.item-card:hover{border-color:var(--maroon);}.item-left{display:flex;align-items:center;gap:16px;}.item-icon-wrap{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.item-details h4{font-size:15px;font-weight:700;color:var(--text-dark);margin-bottom:4px;}.item-details p{font-size:12.5px;color:var(--text-gray);}.item-meta{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--text-gray-light);margin-top:6px;}.item-meta span{display:flex;align-items:center;gap:4px;}.status-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;}`;
 
   const watermarks = {
     patent: (
       <svg className="ipr-watermark" width="90" height="90" viewBox="0 0 90 90">
-        <rect x="18" y="6" width="54" height="72" rx="3" fill="none" stroke="#e9d9c4" strokeWidth="2"/>
-        <line x1="26" y1="22" x2="64" y2="22" stroke="#e9d9c4" strokeWidth="2"/>
-        <line x1="26" y1="32" x2="64" y2="32" stroke="#e9d9c4" strokeWidth="2"/>
-        <line x1="26" y1="42" x2="50" y2="42" stroke="#e9d9c4" strokeWidth="2"/>
-        <circle cx="60" cy="62" r="12" fill="none" stroke="#e9d9c4" strokeWidth="2"/>
+        <rect x="18" y="6" width="54" height="72" rx="3" fill="none" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
+        <line x1="26" y1="22" x2="64" y2="22" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
+        <line x1="26" y1="32" x2="64" y2="32" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
+        <line x1="26" y1="42" x2="50" y2="42" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
+        <circle cx="60" cy="62" r="12" fill="none" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
       </svg>
     ),
     copyright: (
       <svg className="ipr-watermark" width="90" height="90" viewBox="0 0 90 90">
-        <circle cx="55" cy="45" r="34" fill="none" stroke="#f2e6cd" strokeWidth="2"/>
-        <text x="55" y="55" fontSize="34" textAnchor="middle" fill="#f2e6cd" fontFamily="Georgia,serif">©</text>
+        <circle cx="55" cy="45" r="34" fill="none" style={{ stroke: 'rgb(var(--brand-gold-50))' }} strokeWidth="2"/>
+        <text x="55" y="55" fontSize="34" textAnchor="middle" style={{ fill: 'rgb(var(--brand-gold-50))' }} fontFamily="Georgia,serif">©</text>
       </svg>
     ),
     design: (
       <svg className="ipr-watermark" width="90" height="90" viewBox="0 0 90 90">
-        <circle cx="35" cy="65" r="4" fill="none" stroke="#e9d9c4" strokeWidth="2"/>
-        <circle cx="65" cy="20" r="4" fill="none" stroke="#e9d9c4" strokeWidth="2"/>
-        <line x1="38" y1="62" x2="62" y2="23" stroke="#e9d9c4" strokeWidth="2"/>
-        <line x1="20" y1="75" x2="70" y2="75" stroke="#e9d9c4" strokeWidth="2"/>
+        <circle cx="35" cy="65" r="4" fill="none" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
+        <circle cx="65" cy="20" r="4" fill="none" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
+        <line x1="38" y1="62" x2="62" y2="23" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
+        <line x1="20" y1="75" x2="70" y2="75" style={{ stroke: 'rgb(var(--brand-line))' }} strokeWidth="2"/>
       </svg>
     ),
     entrepreneurship: (
       <svg className="ipr-watermark" width="90" height="90" viewBox="0 0 90 90">
-        <path d="M50,75 C40,65 38,50 48,30 C58,50 56,65 50,75 Z" fill="none" stroke="#f2e6cd" strokeWidth="2"/>
-        <circle cx="49" cy="42" r="4" fill="none" stroke="#f2e6cd" strokeWidth="2"/>
-        <path d="M42,68 L36,80 M56,68 L62,80" stroke="#f2e6cd" strokeWidth="2"/>
+        <path d="M50,75 C40,65 38,50 48,30 C58,50 56,65 50,75 Z" fill="none" style={{ stroke: 'rgb(var(--brand-gold-50))' }} strokeWidth="2"/>
+        <circle cx="49" cy="42" r="4" fill="none" style={{ stroke: 'rgb(var(--brand-gold-50))' }} strokeWidth="2"/>
+        <path d="M42,68 L36,80 M56,68 L62,80" style={{ stroke: 'rgb(var(--brand-gold-50))' }} strokeWidth="2"/>
       </svg>
     ),
   };
@@ -260,7 +260,7 @@ export default function MyWorkDashboard() {
           <div className="stats-row">
             <div className="stat-card">
               <span className="stat-icon bg-rose">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#7d1a34" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" style={{ stroke: 'rgb(var(--brand-primary))' }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
               </span>
               <div>
                 <div className="stat-label">Total Submissions</div>
@@ -269,7 +269,7 @@ export default function MyWorkDashboard() {
             </div>
             <div className="stat-card">
               <span className="stat-icon bg-amber">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#cc9427" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" style={{ stroke: 'rgb(var(--brand-gold))' }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
               </span>
               <div>
                 <div className="stat-label">Pending Review</div>
@@ -328,7 +328,7 @@ export default function MyWorkDashboard() {
             {/* Search Row */}
             <div className="search-row">
               <div className="search-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#b0a5ab" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" style={{ stroke: 'rgb(var(--brand-ink-subtle))' }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
                   type="text"
                   placeholder={activeTab === 'ipr' ? 'Search IPR applications...' : 'Search research contributions...'}
@@ -394,7 +394,7 @@ export default function MyWorkDashboard() {
                         const StatusIcon = statusInfo.icon;
                         const typeInfo = IPR_TYPES.find(t => t.type === app.iprType);
                         const TypeIcon = typeInfo?.icon || Lightbulb;
-                        const iconBg = typeInfo?.bgType === 'gold' ? 'bg-[#c8973f]' : 'bg-[#7d1a34]';
+                        const iconBg = typeInfo?.bgType === 'gold' ? 'bg-gold' : 'bg-wine';
                         
                         return (
                           <Link
@@ -482,7 +482,7 @@ export default function MyWorkDashboard() {
                         const StatusIcon = statusInfo.icon;
                         const typeInfo = RESEARCH_TYPES.find(t => t.type === contrib.publicationType);
                         const TypeIcon = typeInfo?.icon || FileText;
-                        const iconBg = typeInfo?.bgType === 'gold' ? 'bg-[#c8973f]' : 'bg-[#7d1a34]';
+                        const iconBg = typeInfo?.bgType === 'gold' ? 'bg-gold' : 'bg-wine';
                         
                         return (
                           <Link

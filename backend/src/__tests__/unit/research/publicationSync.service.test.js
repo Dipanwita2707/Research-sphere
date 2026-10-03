@@ -1,4 +1,5 @@
 const PublicationSyncService = require('../../../modules/research/services/publicationSync.service');
+const { generateAffiliationVariants } = require('../../../shared/utils/affiliationEngine');
 
 describe('PublicationSyncService', () => {
   const originalOpenAlexApiKey = process.env.OPENALEX_API_KEY;
@@ -16,26 +17,24 @@ describe('PublicationSyncService', () => {
     jest.restoreAllMocks();
   });
 
-  test('runScheduledSync honors per-profile syncFrequencyDays', async () => {
+  test('runScheduledSync selects due profiles in the database, oldest first, and schedules recently synced ones', async () => {
     const prisma = {
       researchProfileIdentity: {
         findMany: jest.fn(async () => ([
           {
-            userId: 'due-daily',
-            lastSyncedAt: new Date('2026-04-27T11:00:00.000Z'),
-            syncFrequencyDays: 1,
+            id: 'i-due', userId: 'due-daily', nextSyncAt: new Date('2026-04-28T11:00:00.000Z'),
+            lastSyncedAt: new Date('2026-04-27T11:00:00.000Z'), syncFrequencyDays: 1,
           },
           {
-            userId: 'not-due-three-day',
-            lastSyncedAt: new Date('2026-04-26T13:00:00.000Z'),
-            syncFrequencyDays: 3,
+            id: 'i-never', userId: 'never-synced', nextSyncAt: null, lastSyncedAt: null, syncFrequencyDays: 7,
           },
           {
-            userId: 'never-synced',
-            lastSyncedAt: null,
-            syncFrequencyDays: 7,
+            // Synced 1h ago but never scheduled (pre-migration row): scheduled, not synced.
+            id: 'i-recent', userId: 'recent', nextSyncAt: null,
+            lastSyncedAt: new Date('2026-04-28T11:00:00.000Z'), syncFrequencyDays: 3,
           },
         ])),
+        update: jest.fn(async () => ({})),
       },
     };
 
@@ -43,17 +42,32 @@ describe('PublicationSyncService', () => {
     const syncSpy = jest.spyOn(service, 'syncFacultyPublications')
       .mockResolvedValue({ createdCount: 1, updatedCount: 0 });
 
-    const results = await service.runScheduledSync();
+    const results = await service.runScheduledSync({ concurrency: 1 });
 
+    const query = prisma.researchProfileIdentity.findMany.mock.calls[0][0];
+    expect(query.where).toEqual({
+      autoSyncEnabled: true,
+      OR: [{ nextSyncAt: null }, { nextSyncAt: { lte: expect.any(Date) } }],
+    });
+    expect(query.orderBy).toEqual([
+      { nextSyncAt: { sort: 'asc', nulls: 'first' } },
+      { lastSyncedAt: { sort: 'asc', nulls: 'first' } },
+    ]);
+    expect(query.take).toBe(50);
     expect(syncSpy).toHaveBeenCalledTimes(2);
-    expect(syncSpy).toHaveBeenNthCalledWith(1, 'due-daily', { triggerType: 'scheduled' });
-    expect(syncSpy).toHaveBeenNthCalledWith(2, 'never-synced', { triggerType: 'scheduled' });
-    expect(results).toHaveLength(2);
-    expect(results.map((item) => item.userId)).toEqual(['due-daily', 'never-synced']);
+    expect(syncSpy).toHaveBeenCalledWith('due-daily', { triggerType: 'scheduled' });
+    expect(syncSpy).toHaveBeenCalledWith('never-synced', { triggerType: 'scheduled' });
+    expect(results.map((item) => item.userId).sort()).toEqual(['due-daily', 'never-synced']);
+    expect(prisma.researchProfileIdentity.update).toHaveBeenCalledWith({
+      where: { id: 'i-recent' },
+      data: { nextSyncAt: new Date('2026-05-01T11:00:00.000Z') },
+    });
   });
 
   test('_matchOwningFaculty prefers an actual faculty match over the first imported author', () => {
     const service = new PublicationSyncService({}, {});
+    service._affiliationVariants = generateAffiliationVariants({ name: 'SGT University' });
+    service._ownerAffiliationVariants = service._affiliationVariants;
     const user = {
       uid: 'FAC001',
       email: 'alice@sgt.edu',
@@ -175,6 +189,7 @@ describe('PublicationSyncService', () => {
       },
     ]);
     jest.spyOn(service, '_fetchOpenAlexWorks').mockRejectedValue(new Error('OpenAlex author search failed (400)'));
+    jest.spyOn(service, '_fetchOpenAlexAuthorsByDoi').mockResolvedValue(null);
 
     const result = await service._discoverCandidates(user, identity, ['orcid', 'openalex']);
 
@@ -185,49 +200,24 @@ describe('PublicationSyncService', () => {
     ]);
   });
 
-  test('_findBestOpenAlexAuthorId retries without institution filter and supports last_known_institutions', async () => {
+  test('_resolveOpenAlexAuthorIds never searches OpenAlex by name', async () => {
     const service = new PublicationSyncService({}, {});
+    global.fetch = jest.fn();
 
-    global.fetch = jest.fn()
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          results: [
-            {
-              id: 'https://openalex.org/A123456789',
-              display_name: 'Sourav Test Mukhopadhyay',
-              display_name_alternatives: ['S T Mukhopadhyay'],
-              last_known_institutions: [
-                { display_name: 'SGT University' },
-              ],
-              works_count: 24,
-            },
-          ],
-        }),
-      });
-
-    const authorId = await service._findBestOpenAlexAuthorId(
-      'Sourav Test Mukhopadhyay',
-      'https://openalex.org/I987654321',
-      { affiliationAliases: ['SGT University'] }
+    const result = await service._resolveOpenAlexAuthorIds(
+      { employeeDetails: { displayName: 'Suresh Patel' } },
+      { orcid: null, scopusAuthorId: null }
     );
 
-    expect(authorId).toBe('https://openalex.org/A123456789');
-    expect(global.fetch).toHaveBeenCalledTimes(2);
-    expect(global.fetch.mock.calls[0][0]).toContain('per-page=10');
-    expect(global.fetch.mock.calls[0][0]).toContain('last_known_institutions.id%3AI987654321');
-    expect(global.fetch.mock.calls[1][0]).toContain('per-page=10');
-    expect(global.fetch.mock.calls[1][0]).not.toContain('last_known_institutions.id');
+    expect(result.ids).toEqual([]);
+    expect(result.reason).toMatch(/not searched by name/);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   test('_findExistingContribution ignores publication import and DOI matches owned by another user', async () => {
     const prisma = {
       publicationImport: {
-        findUnique: jest.fn(async () => ({
+        findFirst: jest.fn(async () => ({
           researchContribution: {
             id: 'foreign-contribution',
             applicantUserId: 'other-user',
@@ -266,7 +256,10 @@ describe('PublicationSyncService', () => {
     expect(prisma.researchContribution.findFirst).toHaveBeenNthCalledWith(1, {
       where: {
         applicantUserId: 'user-1',
-        doi: '10.1000/example',
+        OR: [
+          { doi: { equals: '10.1000/example', mode: 'insensitive' } },
+          { doi: { endsWith: '/10.1000/example', mode: 'insensitive' } },
+        ],
       },
     });
   });
@@ -274,7 +267,7 @@ describe('PublicationSyncService', () => {
   test('_upsertImportLinks does not overwrite another profile import link', async () => {
     const prisma = {
       publicationImport: {
-        findUnique: jest.fn(async () => ({
+        findFirst: jest.fn(async () => ({
           id: 'foreign-import-link',
           researchProfileId: 'other-profile',
         })),
@@ -295,8 +288,27 @@ describe('PublicationSyncService', () => {
       },
     });
 
-    expect(prisma.publicationImport.findUnique).toHaveBeenCalled();
+    expect(prisma.publicationImport.findFirst).toHaveBeenCalled();
     expect(prisma.publicationImport.create).not.toHaveBeenCalled();
     expect(prisma.publicationImport.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('PublicationSyncService._deriveIndexingCategories — flagship journals', () => {
+  const service = new PublicationSyncService({}, {});
+  const cats = (journalName) => service._deriveIndexingCategories({ sourceSystems: ['scopus'], journalName });
+
+  it('tags only Nature, Science, The Lancet, Cell and NEJM themselves', () => {
+    for (const j of ['Nature', 'Science', 'The Lancet', 'Lancet', 'Cell', 'NEJM', 'New England Journal of Medicine']) {
+      expect(cats(j)).toContain('nature_science_lancet_cell_nejm');
+    }
+  });
+
+  it('does not tag journals that merely contain those words', () => {
+    for (const j of ['Pertanika journal of science & technology', 'Scientific Reports', 'Applied Sciences', 'Cell Reports',
+      'Nature Communications', 'Journal of Computer Science', 'Fuel Cells', 'Nature-Inspired Computing']) {
+      expect(cats(j)).not.toContain('nature_science_lancet_cell_nejm');
+      expect(cats(j)).toContain('scopus');
+    }
   });
 });

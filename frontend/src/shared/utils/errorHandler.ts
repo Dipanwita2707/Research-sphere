@@ -3,7 +3,7 @@
  * Standardized error handling across the application
  */
 
-import { AxiosError } from 'axios';
+import type { AxiosError } from '@/shared/api/api';
 import { ApiError, ApiErrorResponse } from '@/shared/types/api.types';
 import logger from '@/shared/utils/logger';
 

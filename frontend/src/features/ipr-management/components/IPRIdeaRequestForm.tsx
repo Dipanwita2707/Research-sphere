@@ -944,8 +944,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
               {/* Complete Filing Specific Options */}
               {formData.typeOfFiling ===
    'complete' && (
-                <div className="col-span-2 space-y-4 p-4 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 border border-[#f0e2d2] dark:border-[#5e1024] rounded-lg">
-                  <h4 className="font-medium text-[#7d1a34] dark:text-[#c8973f] flex items-center gap-2">
+                <div className="col-span-2 space-y-4 p-4 bg-blush dark:bg-wine/10 border border-blush-line dark:border-wine-dark rounded-lg">
+                  <h4 className="font-medium text-wine dark:text-gold flex items-center gap-2">
                     <FileText className="w-4 h-4" />
                     Complete Filing Options
                   </h4>
@@ -964,7 +964,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                           checked={formData.completeFilingSource ===
    'fresh'}
                           onChange={handleInputChange}
-                          className="text-[#7d1a34]"
+                          className="text-wine"
                         />
                         <span className="text-sm">Fresh Application</span>
                       </label>
@@ -976,7 +976,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                           checked={formData.completeFilingSource ===
    'from_provisional'}
                           onChange={handleInputChange}
-                          className="text-[#7d1a34]"
+                          className="text-wine"
                         />
                         <span className="text-sm">Convert from Published Provisional</span>
                       </label>
@@ -1006,8 +1006,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                         </select>
                       ) : (
                         <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-md">
-                          You don't have any published provisional applications yet. 
-                          You can either file a provisional first or select "Fresh Application".
+                          You don&apos;t have any published provisional applications yet. 
+                          You can either file a provisional first or select &quot;Fresh Application&quot;.
                         </div>
                       )}
                     </div>
@@ -1031,7 +1031,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                             setFormData(prev => ({ ...prev, prototypeFile: e.target.files![0] }));
                           }
                         }}
-                        className="flex-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#fdf5ec] file:text-[#7d1a34] hover:file:bg-[#fbe2e8]"
+                        className="flex-1 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blush file:text-wine hover:file:bg-wine-100"
                       />
                       {formData.prototypeFile && (
                         <button
@@ -1050,7 +1050,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                       </p>
                     )}
                     {prototypeUploading && (
-                      <p className="text-sm text-[#7d1a34] mt-1 flex items-center gap-1">
+                      <p className="text-sm text-wine mt-1 flex items-center gap-1">
                         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1153,7 +1153,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                   {formData.typeOfFiling !== 'complete' && <span className="text-red-500">*</span>}
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md p-4 text-center">
-                  <button type="button" className="bg-[#7d1a34] text-white px-4 py-2 rounded-md text-sm mb-2">
+                  <button type="button" className="bg-wine text-wine-fg px-4 py-2 rounded-md text-sm mb-2">
                     Download Annexure 1 Sample
                   </button>
                   <input
@@ -1236,7 +1236,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                             <div
                               key={index}
                               onClick={() => selectUserSuggestion(suggestion)}
-                              className="px-3 py-2 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/20 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                              className="px-3 py-2 hover:bg-blush dark:hover:bg-wine/20 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                             >
                               <div className="font-medium text-sm dark:text-white">{suggestion.uid}</div>
                               <div className="text-xs text-gray-600 dark:text-gray-400">{suggestion.name} - {suggestion.department}</div>
@@ -1405,7 +1405,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                             <div
                               key={index}
                               onClick={() => selectMentorSuggestion(suggestion)}
-                              className="px-3 py-2 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/20 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                              className="px-3 py-2 hover:bg-blush dark:hover:bg-wine/20 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                             >
                               <div className="font-medium text-sm dark:text-white">{suggestion.uid}</div>
                               <div className="text-xs text-gray-600 dark:text-gray-400">{suggestion.name} - {suggestion.department}</div>
@@ -1463,7 +1463,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                           </th>
                           <th className="px-4 py-2 border dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300">
                             <div className="flex items-center justify-center gap-1">
-                              <Award className="w-3.5 h-3.5 text-[#7d1a34]" />
+                              <Award className="w-3.5 h-3.5 text-wine" />
                               Points
                             </div>
                           </th>
@@ -1496,7 +1496,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                               <td className="px-4 py-2 border dark:border-gray-600 text-sm text-center">
                                 {contributor.employeeCategory ===
    'internal' && contributor.employeeType !== 'student' ? (
-                                  <span className="text-[#7d1a34] font-medium">{points.toFixed(2)}</span>
+                                  <span className="text-wine font-medium">{points.toFixed(2)}</span>
                                 ) : contributor.employeeCategory ===
    'internal' && contributor.employeeType ===
    'student' ? (
@@ -1531,14 +1531,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
             {/* Filing Type Info */}
             <div className="border-t pt-4 mb-4">
               <div className={`p-4 rounded-md ${formData.typeOfFiling ===
-   'complete' ? 'bg-[#fdf5ec] border border-[#f0e2d2] dark:bg-[#7d1a34]/10 dark:border-[#5e1024]' : 'bg-gray-50 border border-gray-200 dark:bg-gray-800 dark:border-gray-700'}`}>
+   'complete' ? 'bg-blush border border-blush-line dark:bg-wine/10 dark:border-wine-dark' : 'bg-gray-50 border border-gray-200 dark:bg-gray-800 dark:border-gray-700'}`}>
                 {formData.typeOfFiling ===
    'complete' ? (
                   <div className="flex items-start">
-                    <AlertCircle className="w-5 h-5 text-[#7d1a34] mr-2 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-wine mr-2 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-[#7d1a34] dark:text-[#c8973f]">Complete Filing Selected</p>
-                      <p className="text-xs text-[#7d1a34] dark:text-[#c8973f] mt-1">
+                      <p className="text-sm font-medium text-wine dark:text-gold">Complete Filing Selected</p>
+                      <p className="text-xs text-wine dark:text-gold mt-1">
                         {isCurrentUserStudent 
                           ? 'Your application will be submitted to your mentor for approval.'
                           : 'Your application will be submitted directly to DRD for review.'}
@@ -1634,14 +1634,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
               return (
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Own IPR Stats */}
-                  <div className="bg-[#fdf5ec] border border-[#f0e2d2] dark:bg-[#7d1a34]/10 dark:border-[#5e1024] rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-[#7d1a34] dark:text-[#c8973f] mb-2">My IPR Applications</h3>
+                  <div className="bg-blush border border-blush-line dark:bg-wine/10 dark:border-wine-dark rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-wine dark:text-gold mb-2">My IPR Applications</h3>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">Total: {ownApps.length}</span>
-                      <span className="text-[#7d1a34] dark:text-[#c8973f]">Published: {ownApps.filter(a => publishedStatuses.includes(a.status)).length}</span>
+                      <span className="text-wine dark:text-gold">Published: {ownApps.filter(a => publishedStatuses.includes(a.status)).length}</span>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-[#f0e2d2] dark:border-[#5e1024]">
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Points Earned: <span className="font-bold text-[#7d1a34] dark:text-[#c8973f]">{ownTotalPoints}</span></div>
+                    <div className="mt-2 pt-2 border-t border-blush-line dark:border-wine-dark">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Points Earned: <span className="font-bold text-wine dark:text-gold">{ownTotalPoints}</span></div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">Incentive: <span className="font-bold text-green-700 dark:text-green-400">₹{ownTotalIncentive.toLocaleString()}</span></div>
                     </div>
                   </div>
@@ -1727,7 +1727,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                           {app.createdAt ? new Date(app.createdAt).toLocaleDateString('en-IN') : 'N/A'}
                         </td>
                         <td className="px-4 py-2 border dark:border-gray-600 text-sm">
-                          <span className="inline-flex items-center px-2 py-1 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded uppercase font-medium">
+                          <span className="inline-flex items-center px-2 py-1 bg-wine-100 text-wine text-xs rounded uppercase font-medium">
                             {app.iprType}
                           </span>
                           <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1744,7 +1744,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                             app.status ===
    'pending_mentor_approval' ? 'bg-indigo-100 text-indigo-800' :
                             app.status ===
-   'submitted' ? 'bg-[#fbe2e8] text-[#7d1a34]' :
+   'submitted' ? 'bg-wine-100 text-wine' :
                             app.status ===
    'under_drd_review' ? 'bg-yellow-100 text-yellow-800' :
                             app.status ===
@@ -1777,7 +1777,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                               👥 Contributor
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-1 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded-full font-medium">
+                            <span className="inline-flex items-center px-2 py-1 bg-wine-100 text-wine text-xs rounded-full font-medium">
                               👤 Applicant
                             </span>
                           )}
@@ -1853,7 +1853,7 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                                     toast({ type: 'error', message: extractErrorMessage(err) });
                                   }
                                 }}
-                                className="bg-[#7d1a34] text-white px-3 py-1 rounded-lg text-xs hover:bg-[#5e1024] transition-colors w-full"
+                                className="bg-wine text-wine-fg px-3 py-1 rounded-lg text-xs hover:bg-wine-dark transition-colors w-full"
                               >
                                 {isCurrentUserStudent ? 'Submit to Mentor' : 'Submit to DRD'}
                               </button>

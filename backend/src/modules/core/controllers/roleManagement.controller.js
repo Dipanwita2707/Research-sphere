@@ -6,6 +6,7 @@ const {
 } = require('../config/permissionDefinitions');
 const { getIp } = require('../../../shared/utils/auditLogger');
 const { auditService } = require('../../audit/services/audit.service');
+const { findTenantOwnershipError } = require('../../../shared/tenancy/assertTenantOwned');
 
 /**
  * Build CentralDepartmentPermission analytics scope fields from a role's permissions.analyticsScope.
@@ -507,6 +508,14 @@ exports.applyRoleToUser = async (req, res) => {
         message: 'User ID and Role ID are required',
       });
     }
+
+    // The target user and departments must belong to the caller's university
+    const notFound = await findTenantOwnershipError(prisma, [
+      { model: 'userLogin', ids: userId, message: 'User not found' },
+      { model: 'department', ids: departmentId || null, message: 'Department not found' },
+      { model: 'centralDepartment', ids: centralDeptId || null, message: 'Central department not found' },
+    ]);
+    if (notFound) return res.status(404).json({ success: false, message: notFound });
 
     // Get the role
     const role = await prisma.role.findUnique({

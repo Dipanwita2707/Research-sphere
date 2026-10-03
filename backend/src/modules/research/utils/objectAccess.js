@@ -100,13 +100,19 @@ const isContributionParticipant = (user, c) => {
 const canViewContribution = (user, c) =>
   Boolean(c) && (isSuperadmin(user) || isContributionParticipant(user, c) || hasAnyPermission(user, RESEARCH_STAFF_PERMISSIONS));
 
+/** Personal relationship (not a staff permission) to a grant application. */
+const isGrantParticipant = (user, g) => {
+  if (!user || !g) return false;
+  if (g.applicantUserId === user.id || g.currentReviewerId === user.id) return true;
+  if (Array.isArray(g.investigators) && g.investigators.some((i) => matchesUser(user, i))) return true;
+  return reviewedBy(user, g.reviews);
+};
+
 /** May the user view this grant application (and download its documents)? */
 const canViewGrant = (user, g) => {
   if (!user || !g) return false;
   if (isSuperadmin(user)) return true;
-  if (g.applicantUserId === user.id || g.currentReviewerId === user.id) return true;
-  if (Array.isArray(g.investigators) && g.investigators.some((i) => matchesUser(user, i))) return true;
-  if (reviewedBy(user, g.reviews)) return true;
+  if (isGrantParticipant(user, g)) return true;
   return hasAnyPermission(user, GRANT_STAFF_PERMISSIONS);
 };
 
@@ -151,6 +157,7 @@ module.exports = {
   IPR_ACCESS_INCLUDE,
   hasAnyPermission,
   isContributionParticipant,
+  isGrantParticipant,
   isIprParticipant,
   canViewContribution,
   canViewGrant,

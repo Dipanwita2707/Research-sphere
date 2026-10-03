@@ -1,6 +1,10 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
 const cache = require('../../../../shared/config/redis');
+const { previewDate, sendPolicyPreview } = require('../../utils/policyPreview');
+const { DEFAULT_BOOK_POLICY } = require('../../services/incentive-calculator');
+const { parseBookPolicy, sendPolicyError } = require('../../validators/incentivePolicy.validation');
+const { savePolicy, policyWindowWhere } = require('../../utils/policyWindow');
 
 /**
  * Get all book chapter policies
@@ -31,7 +35,7 @@ exports.getAllBookChapterPolicies = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: policies
+      data: policies.map((p) => ({ ...p, publicationType: 'book_chapter' }))
     });
   } catch (error) {
     console.error('Get book chapter policies error:', error);
@@ -47,33 +51,23 @@ exports.getAllBookChapterPolicies = async (req, res) => {
  */
 exports.getActivePolicy = async (req, res) => {
   try {
-    const now = new Date();
-    
+    const now = previewDate(req.query.publicationDate);
+
     const policy = await prisma.bookChapterIncentivePolicy.findFirst({
       where: {
-        isActive: true,
         ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        effectiveFrom: { lte: now },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: now } }
-        ]
+        ...policyWindowWhere(now)
       },
       orderBy: { effectiveFrom: 'desc' }
     });
 
-    if (!policy) {
-      return res.status(404).json({
-        success: false,
-        message: 'No active book chapter policy found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: policy
+    // Without a policy the calculator pays the built-in defaults — preview exactly those.
+    return sendPolicyPreview(res, {
+      policy: policy && { ...policy, publicationType: 'book_chapter' },
+      defaultPolicy: { ...DEFAULT_BOOK_POLICY, publicationType: 'book_chapter' },
     });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Get active book chapter policy error:', error);
     res.status(500).json({
       success: false,
@@ -87,98 +81,30 @@ exports.getActivePolicy = async (req, res) => {
  */
 exports.createBookChapterPolicy = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const {
-      policyName,
-      authoredIncentiveAmount,
-      authoredPoints,
-      editedIncentiveAmount,
-      editedPoints,
-      splitPolicy,
-      indexingBonuses,
-      internationalBonus,
-      effectiveFrom,
-      effectiveTo
-    } = req.body;
+    const data = parseBookPolicy(req.body);
 
-    // Validate required fields
-    if (!policyName || !authoredIncentiveAmount || !authoredPoints || 
-        !editedIncentiveAmount || !editedPoints || !splitPolicy || !effectiveFrom) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields'
-      });
-    }
-
-    // Check for overlapping active policies
-    const overlapping = await prisma.bookChapterIncentivePolicy.findFirst({
-      where: {
-        isActive: true,
-        ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        OR: [
-          {
-            AND: [
-              { effectiveFrom: { lte: new Date(effectiveFrom) } },
-              { OR: [
-                { effectiveTo: null },
-                { effectiveTo: { gte: new Date(effectiveFrom) } }
-              ]}
-            ]
-          },
-          effectiveTo && {
-            AND: [
-              { effectiveFrom: { lte: new Date(effectiveTo) } },
-              { OR: [
-                { effectiveTo: null },
-                { effectiveTo: { gte: new Date(effectiveTo) } }
-              ]}
-            ]
-          }
-        ].filter(Boolean)
-      }
+    // Validate, reject any overlap with an enabled policy (including engulfing windows),
+    // and create — in one transaction.
+    const { policy } = await savePolicy({
+      prisma,
+      model: 'bookChapterIncentivePolicy',
+      data,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
+      setUpdatedByOnCreate: true,
     });
 
-    if (overlapping) {
-      return res.status(400).json({
-        success: false,
-        message: 'Another active book chapter policy already exists for this date range'
-      });
-    }
-
-    const policy = await prisma.bookChapterIncentivePolicy.create({
-      data: {
-        policyName,
-        authoredIncentiveAmount: parseFloat(authoredIncentiveAmount),
-        authoredPoints: parseInt(authoredPoints),
-        editedIncentiveAmount: parseFloat(editedIncentiveAmount),
-        editedPoints: parseInt(editedPoints),
-        splitPolicy,
-        indexingBonuses: indexingBonuses || { 
-          scopus_indexed: 10000, 
-          non_indexed: 0, 
-          sgt_publication_house: 2000 
-        },
-        internationalBonus: internationalBonus ? parseFloat(internationalBonus) : 5000,
-        effectiveFrom: new Date(effectiveFrom),
-        effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
-        createdById: userId,
-        updatedById: userId,
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
-    });
-
-    // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'book_chapter', req.user.id, req);
-
-    // Invalidate cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(201).json({
       success: true,
       message: 'Book chapter policy created successfully',
-      data: policy
+      data: { ...policy, publicationType: 'book_chapter' }
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Create book chapter policy error:', error);
     res.status(500).json({
       success: false,
@@ -193,8 +119,6 @@ exports.createBookChapterPolicy = async (req, res) => {
 exports.updateBookChapterPolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
-    const updateData = { ...req.body, updatedById: userId };
 
     const existingPolicy = await prisma.bookChapterIncentivePolicy.findUnique({
       where: { id }
@@ -214,46 +138,28 @@ exports.updateBookChapterPolicy = async (req, res) => {
       });
     }
 
-    // Convert numeric fields if present
-    if (updateData.authoredIncentiveAmount) {
-      updateData.authoredIncentiveAmount = parseFloat(updateData.authoredIncentiveAmount);
-    }
-    if (updateData.authoredPoints) {
-      updateData.authoredPoints = parseInt(updateData.authoredPoints);
-    }
-    if (updateData.editedIncentiveAmount) {
-      updateData.editedIncentiveAmount = parseFloat(updateData.editedIncentiveAmount);
-    }
-    if (updateData.editedPoints) {
-      updateData.editedPoints = parseInt(updateData.editedPoints);
-    }
-    if (updateData.internationalBonus) {
-      updateData.internationalBonus = parseFloat(updateData.internationalBonus);
-    }
-    if (updateData.effectiveFrom) {
-      updateData.effectiveFrom = new Date(updateData.effectiveFrom);
-    }
-    if (updateData.effectiveTo) {
-      updateData.effectiveTo = new Date(updateData.effectiveTo);
-    }
-
-    const policy = await prisma.bookChapterIncentivePolicy.update({
-      where: { id },
-      data: updateData
+    // Only known fields reach the update (no mass assignment), validated on the merged policy.
+    const data = parseBookPolicy(req.body, existingPolicy);
+    const { policy } = await savePolicy({
+      prisma,
+      model: 'bookChapterIncentivePolicy',
+      data,
+      existing: existingPolicy,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
     });
 
-    // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, policy, 'book_chapter', req.user.id, req);
-
-    // Invalidate cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(200).json({
       success: true,
       message: 'Book chapter policy updated successfully',
-      data: policy
+      data: { ...policy, publicationType: 'book_chapter' }
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Update book chapter policy error:', error);
     res.status(500).json({
       success: false,

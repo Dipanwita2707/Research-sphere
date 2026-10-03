@@ -1,6 +1,7 @@
 const prisma = require('../../../shared/config/database');
 const auditLogger = require('../../../shared/utils/auditLogger');
 const cache = require('../../../shared/config/redis');
+const logger = require('../../../shared/utils/logger');
 const { REVOKE_SESSIONS_DATA } = require('../../auth/services/session.service');
 const { preparePassword, PasswordPolicyError } = require('../utils/userCredentials');
 
@@ -84,7 +85,7 @@ const createEmployee = async (req, res) => {
     }
 
     // Check if empId already exists
-    const existingEmpId = await prisma.employeeDetails.findUnique({
+    const existingEmpId = await prisma.employeeDetails.findFirst({
       where: { empId },
     });
 
@@ -319,6 +320,7 @@ const getAllEmployees = async (req, res) => {
             is: employeeWhere,
           },
         },
+        omit: { passwordHash: true, tokenVersion: true },
         include: {
           employeeDetails: {
             include: {
@@ -443,6 +445,7 @@ const getEmployeeById = async (req, res) => {
 
     const employee = await prisma.userLogin.findUnique({
       where: { id },
+      omit: { passwordHash: true, tokenVersion: true },
       include: {
         employeeDetails: {
           include: {
@@ -800,231 +803,138 @@ const getDesignations = async (req, res) => {
   }
 };
 
-/** Delete employee (UserLogin + EmployeeDetails). Fails if user is referenced as HOD, coordinator, etc. */
+/**
+ * Records an employee leaves behind that belong to the institution (and often to other
+ * people): their submissions, authorships on colleagues' papers, reviews, approvals,
+ * status history, policies. If any exist the account is deactivated, never deleted.
+ */
+async function countEmployeeFootprint(tx, user) {
+  const id = user.id;
+  const authorMatch = [{ userId: id }, ...(user.uid ? [{ uid: user.uid }] : []), ...(user.email ? [{ email: user.email }] : [])];
+  const counts = await Promise.all([
+    tx.researchContribution.count({ where: { applicantUserId: id } }),
+    tx.iprApplication.count({ where: { applicantUserId: id } }),
+    tx.grantApplication.count({ where: { applicantUserId: id } }),
+    tx.researchContributionAuthor.count({ where: { OR: authorMatch } }),
+    tx.iprContributor.count({ where: { OR: authorMatch } }),
+    tx.grantInvestigator.count({ where: { userId: id } }),
+    tx.researchProgressTracker.count({ where: { userId: id } }),
+    tx.researchContributionReview.count({ where: { reviewerId: id } }),
+    tx.iprReview.count({ where: { reviewerId: id } }),
+    tx.grantApplicationReview.count({ where: { reviewerId: id } }),
+    tx.iprFinance.count({ where: { financeReviewerId: id } }),
+  ]);
+  return counts.reduce((sum, n) => sum + n, 0);
+}
+
+/**
+ * Release work queued for this person and remove their access. Shared by deactivation
+ * and deletion so nothing stays assigned to an account that can no longer sign in.
+ */
+async function releaseEmployeeAccess(tx, id) {
+  await tx.researchContribution.updateMany({ where: { currentReviewerId: id }, data: { currentReviewerId: null } });
+  await tx.iprApplication.updateMany({ where: { currentReviewerId: id }, data: { currentReviewerId: null } });
+  await tx.grantApplication.updateMany({ where: { currentReviewerId: id }, data: { currentReviewerId: null } });
+  await tx.userDepartmentPermission.deleteMany({ where: { userId: id } });
+  await tx.departmentPermission.deleteMany({ where: { userId: id } });
+  await tx.centralDepartmentPermission.deleteMany({ where: { userId: id } });
+  await tx.passwordResetToken.deleteMany({ where: { userId: id } });
+}
+
+/**
+ * DELETE /employees/:id
+ *
+ * An employee with institutional records is DEACTIVATED: sign-in blocked, sessions revoked,
+ * permissions removed, review queues released — every record (theirs and everyone else's) is
+ * kept. Personal data can then be anonymised through the DPDP erasure flow.
+ * Only an employee with no records at all is permanently deleted.
+ */
 const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await prisma.userLogin.findUnique({
       where: { id },
-      include: { employeeDetails: true },
+      select: { id: true, uid: true, email: true, role: true, status: true, universityId: true, employeeDetails: { select: { id: true } } },
     });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Employee not found',
-      });
+      return res.status(404).json({ success: false, message: 'Employee not found' });
     }
     // Tenant isolation: prevent cross-university deletion
     if (req.tenantId && user.universityId !== req.tenantId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied: This employee does not belong to your university.',
-      });
+      return res.status(403).json({ success: false, message: 'Access denied: This employee does not belong to your university.' });
     }
     if (!['faculty', 'staff'].includes(user.role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Only faculty or staff employees can be deleted via this endpoint',
+      return res.status(400).json({ success: false, message: 'Only faculty or staff employees can be deleted via this endpoint' });
+    }
+    if (req.user?.id === id) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
+    }
+
+    const deactivate = () =>
+      prisma.$transaction(async (tx) => {
+        await releaseEmployeeAccess(tx, id);
+        await tx.userLogin.update({ where: { id }, data: { status: 'inactive', ...REVOKE_SESSIONS_DATA } });
+        if (user.employeeDetails?.id) {
+          await tx.employeeDetails.update({ where: { id: user.employeeDetails.id }, data: { isActive: false } });
+        }
+      }).then(() => cache.invalidateUser(id));
+
+    const footprint = await countEmployeeFootprint(prisma, user);
+    if (footprint > 0) {
+      await deactivate();
+      return res.json({
+        success: true,
+        action: 'deactivated',
+        message: `Employee deactivated. They have ${footprint} research, IPR or grant record(s), which are kept; sign-in and permissions were removed.`,
       });
     }
-    await prisma.$transaction(async (tx) => {
-      // 1. Nullify currentReviewerId in applications/contributions
-      await tx.researchContribution.updateMany({
-        where: { currentReviewerId: id },
-        data: { currentReviewerId: null },
-      });
-      await tx.iprApplication.updateMany({
-        where: { currentReviewerId: id },
-        data: { currentReviewerId: null },
-      });
-      await tx.grantApplication.updateMany({
-        where: {
-          OR: [
-            { currentReviewerId: id },
-            { approvedById: id },
-            { rejectedById: id }
-          ]
-        },
-        data: {
-          currentReviewerId: null,
-          approvedById: null,
-          rejectedById: null
-        },
-      });
 
-      // 2. Set mentorId and dataApprovedById to null in StudentDetails
-      await tx.studentDetails.updateMany({
-        where: { mentorId: id },
-        data: { mentorId: null },
-      });
-      await tx.studentDetails.updateMany({
-        where: { dataApprovedById: id },
-        data: { dataApprovedById: null },
-      });
-
-      // 3. Set assignedBy to null in permission tables
-      await tx.userDepartmentPermission.updateMany({
-        where: { assignedBy: id },
-        data: { assignedBy: null },
-      });
-      await tx.departmentPermission.updateMany({
-        where: { assignedBy: id },
-        data: { assignedBy: null },
-      });
-      await tx.centralDepartmentPermission.updateMany({
-        where: { assignedBy: id },
-        data: { assignedBy: null },
-      });
-
-      // 4. Delete user permissions explicitly
-      await tx.userDepartmentPermission.deleteMany({
-        where: { userId: id },
-      });
-      await tx.departmentPermission.deleteMany({
-        where: { userId: id },
-      });
-      await tx.centralDepartmentPermission.deleteMany({
-        where: { userId: id },
-      });
-
-      // 5. Delete all filed/submitted data where user is primary applicant
-      await tx.researchContribution.deleteMany({
-        where: { applicantUserId: id },
-      });
-      await tx.iprApplication.deleteMany({
-        where: { applicantUserId: id },
-      });
-      await tx.grantApplication.deleteMany({
-        where: { applicantUserId: id },
-      });
-
-      // 6. Delete co-author and contributor references by userId, uid, or email
-      const uidCondition = user.uid ? { uid: user.uid } : null;
-      const emailCondition = user.email ? { email: user.email } : null;
-      const authorOrConditions = [{ userId: id }, ...(uidCondition ? [uidCondition] : []), ...(emailCondition ? [emailCondition] : [])];
-
-      await tx.researchContributionAuthor.deleteMany({
-        where: { OR: authorOrConditions },
-      });
-
-      await tx.iprContributor.deleteMany({
-        where: { OR: authorOrConditions },
-      });
-
-      // 7. Delete research profile identity if exists
-      await tx.researchProfileIdentity.deleteMany({
-        where: { userId: id },
-      });
-
-      // 8. Set actorId to null in AuditLog
-      await tx.auditLog.updateMany({
-        where: { actorId: id },
-        data: { actorId: null },
-      });
-
-      // 9. Delete ChangeHistory records where user is changedById
-      await tx.changeHistory.deleteMany({
-        where: { changedById: id },
-      });
-
-      // 10. Set updatedById to null in Incentive Policies
-      await tx.incentivePolicy.updateMany({
-        where: { updatedById: id },
-        data: { updatedById: null },
-      });
-      await tx.researchIncentivePolicy.updateMany({
-        where: { updatedById: id },
-        data: { updatedById: null },
-      });
-      await tx.bookIncentivePolicy.updateMany({
-        where: { updatedById: id },
-        data: { updatedById: null },
-      });
-      await tx.bookChapterIncentivePolicy.updateMany({
-        where: { updatedById: id },
-        data: { updatedById: null },
-      });
-      await tx.conferenceIncentivePolicy.updateMany({
-        where: { updatedById: id },
-        data: { updatedById: null },
-      });
-      await tx.grantIncentivePolicy.updateMany({
-        where: { updatedById: id },
-        data: { updatedById: null },
-      });
-
-      // 11. Set approvedById to null in IPR
-      await tx.iPR.updateMany({
-        where: { approvedById: id },
-        data: { approvedById: null },
-      });
-
-      // 12. Set userId to null in GrantInvestigator
-      await tx.grantInvestigator.updateMany({
-        where: { userId: id },
-        data: { userId: null },
-      });
-
-      // 13. Set issuedById to null in Card
-      await tx.card.updateMany({
-        where: { issuedById: id },
-        data: { issuedById: null },
-      });
-
-      // 14. Set requestedById and approvedById to null in ReissueRequest
-      await tx.reissueRequest.updateMany({
-        where: { requestedById: id },
-        data: { requestedById: null },
-      });
-      await tx.reissueRequest.updateMany({
-        where: { approvedById: id },
-        data: { approvedById: null },
-      });
-
-      // 15. Delete PasswordResetToken records
-      await tx.passwordResetToken.deleteMany({
-        where: { userId: id },
-      });
-
-      // 16. Delete notifications
-      await tx.notification.deleteMany({
-        where: { userId: id },
-      });
-
-      // 17. Delete userSettings
-      await tx.userSettings.deleteMany({
-        where: { userId: id },
-      });
-
-      // 18. Delete employee details and login
-      if (user.employeeDetails?.id) {
-        await tx.employeeDetails.delete({
-          where: { id: user.employeeDetails.id },
+    try {
+      await prisma.$transaction(async (tx) => {
+        await releaseEmployeeAccess(tx, id);
+        // Unlink optional references that point at this person.
+        await tx.grantApplication.updateMany({ where: { OR: [{ approvedById: id }, { rejectedById: id }] }, data: { approvedById: null, rejectedById: null } });
+        await tx.studentDetails.updateMany({ where: { mentorId: id }, data: { mentorId: null } });
+        await tx.studentDetails.updateMany({ where: { dataApprovedById: id }, data: { dataApprovedById: null } });
+        await tx.userDepartmentPermission.updateMany({ where: { assignedBy: id }, data: { assignedBy: null } });
+        await tx.departmentPermission.updateMany({ where: { assignedBy: id }, data: { assignedBy: null } });
+        await tx.centralDepartmentPermission.updateMany({ where: { assignedBy: id }, data: { assignedBy: null } });
+        await tx.auditLog.updateMany({ where: { actorId: id }, data: { actorId: null } });
+        for (const model of ['incentivePolicy', 'researchIncentivePolicy', 'bookIncentivePolicy', 'bookChapterIncentivePolicy', 'conferenceIncentivePolicy', 'grantIncentivePolicy']) {
+          await tx[model].updateMany({ where: { updatedById: id }, data: { updatedById: null } });
+        }
+        await tx.iPR.updateMany({ where: { approvedById: id }, data: { approvedById: null } });
+        await tx.card.updateMany({ where: { issuedById: id }, data: { issuedById: null } });
+        await tx.reissueRequest.updateMany({ where: { requestedById: id }, data: { requestedById: null } });
+        await tx.reissueRequest.updateMany({ where: { approvedById: id }, data: { approvedById: null } });
+        // The person's own data (settings, notifications, profile) goes with the account.
+        await tx.researchProfileIdentity.deleteMany({ where: { userId: id } });
+        await tx.notification.deleteMany({ where: { userId: id } });
+        await tx.userSettings.deleteMany({ where: { userId: id } });
+        if (user.employeeDetails?.id) {
+          await tx.employeeDetails.delete({ where: { id: user.employeeDetails.id } });
+        }
+        await tx.userLogin.delete({ where: { id } });
+      }, { maxWait: 30000, timeout: 60000 });
+      await cache.invalidateUser(id);
+    } catch (error) {
+      // P2003: something else (HOD, coordinator, policy author, review history…) still
+      // references this person. Keep the records and deactivate instead.
+      if (error.code === 'P2003') {
+        await deactivate();
+        return res.json({
+          success: true,
+          action: 'deactivated',
+          message: 'Employee deactivated instead of deleted because other records reference them (e.g. head of department, reviews or policies). Sign-in and permissions were removed.',
         });
       }
-      await tx.userLogin.delete({
-        where: { id },
-      });
-    }, {
-      maxWait: 30000,
-      timeout: 60000,
-    });
-    res.json({
-      success: true,
-      message: 'Employee deleted successfully',
-    });
-  } catch (error) {
-    console.error('Delete employee error:', error);
-    if (error.code === 'P2003') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete: employee is referenced elsewhere (e.g. as head of department, coordinator, or in permissions). Deactivate the employee instead.',
-      });
+      throw error;
     }
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete employee',
-    });
+
+    return res.json({ success: true, action: 'deleted', message: 'Employee deleted successfully' });
+  } catch (error) {
+    logger.error('Delete employee error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete employee' });
   }
 };
 

@@ -1,62 +1,88 @@
 /**
  * Affiliation Engine
  * ===================
- * Dependency-free, tenant-agnostic algorithm that derives a comprehensive set
- * of plausible "affiliation name variants" from whatever university name a
- * Super Admin configures (e.g. "SGT University", "Delhi Technological
- * University", "Shree Guru Gobind Singh Tricentenary University").
+ * Dependency-free, tenant-agnostic matcher that decides whether an author's
+ * affiliation string (as scraped from Scopus/OpenAlex/ORCID/etc.) belongs to
+ * "this" university.
  *
- * These variants are used to:
- *   1. Suggest/auto-fill the "Affiliation" field shown to users in Settings.
- *   2. Recognise whether an author's affiliation string (as scraped from
- *      Scopus/OpenAlex/ORCID/etc.) belongs to "this" university, replacing the
- *      old hardcoded SGT-only allow-list in publicationSync.service.js.
+ * Two halves:
+ *   1. generateAffiliationVariants() derives a list of name variants from the
+ *      university's configured name / aliases (shown in Settings and the
+ *      superadmin preview, and cached per tenant).
+ *   2. isAffiliationMatch(value, variants) compiles that list into a matcher
+ *      and tests the value against it.
  *
- * The generation strategy purposefully over-generates (favouring recall) since
- * the consumer always does substring-containment matching, not exact match.
+ * Matching is precision-first:
+ *   - The value is split into affiliation segments (";" / "|" / newline) and each
+ *     segment into comma parts. Only a part can match, never the joined string, and
+ *     a part matches only when it carries the institution's NAME — city, state or
+ *     country tokens and generic words ("University", "Unknown") never match.
+ *   - A name must appear as a contiguous, whole-word token run. Names whose core is a
+ *     single short token ("SGT" in "SGT University") must be followed by the
+ *     institution-type word ("SGT University", "S.G.T. Univ."), so "SGT College",
+ *     "SGT Public School", "Sgt. Pepper" and "Sgtx" do not match.
+ *   - Acronyms that include the type letter ("SGTU", "DTU") match as a whole token
+ *     only when they stand alone in their part or the segment names the tenant's
+ *     city/state/country; a segment naming a foreign country rejects acronym hits.
+ *   - Spelling variants: Shri/Shree/Sri/Sree, Univ./University, dotted or spaced
+ *     acronyms (S.G.T.), and single-token typos on long words. A whole-part fuzzy
+ *     comparison (similarity >= 0.9) is used only for parts of 12+ characters.
  */
 
-// Words that should never anchor an acronym or a "meaningful" comparison —
-// they carry no distinguishing information about the institution's identity.
-const STOP_WORDS = new Set([
-  'of', 'the', 'and', '&', 'at', 'in', 'for', 'a', 'an', 'to',
+const STOP_WORDS = new Set(['of', 'the', 'and', '&', 'at', 'in', 'for', 'a', 'an', 'to', 'de', 'la']);
+
+// Institution-type words (canonical form).
+const TYPE_WORDS = new Set([
+  'university', 'institute', 'college', 'school', 'academy', 'polytechnic', 'hospital', 'centre',
 ]);
 
-// Institutional "qualifier" words that authors frequently omit or abbreviate
-// when self-reporting affiliation (e.g. "SGT" instead of "SGT University").
-const QUALIFIER_WORDS = [
-  'university', 'institute', 'college', 'school', 'academy',
-  'institution', 'polytechnic', 'campus',
-];
+// Words that carry no institutional identity on their own.
+const GENERIC_WORDS = new Set([
+  ...TYPE_WORDS, 'campus', 'faculty', 'department', 'division', 'unit', 'lab', 'laboratory',
+  'tech', 'engineering', 'science', 'medical', 'management', 'research', 'pharmacy', 'dental',
+  'nursing', 'applied', 'studies', 'humanities', 'arts', 'commerce', 'law', 'education',
+  'national', 'international', 'state', 'central', 'private', 'deemed', 'government', 'govt',
+  'unknown', 'na', 'none', 'independent', 'researcher', 'india', 'indian', 'computer', 'information',
+]);
 
-// Common abbreviation expansions/reductions to enhance matching recall
-const ABBREVIATION_MAP = {
-  university: ['univ', 'univ.'],
-  technology: ['tech', 'tech.'],
-  technological: ['tech', 'tech.'],
-  institute: ['inst', 'inst.'],
-  institution: ['inst', 'inst.'],
-  engineering: ['engg', 'eng', 'engg.', 'eng.'],
-  science: ['sci', 'sci.'],
-  sciences: ['sci', 'sci.'],
-  management: ['mgmt', 'mgmt.'],
-  medical: ['med', 'med.'],
-  dental: ['dent', 'dent.'],
-  agricultural: ['agri', 'agri.'],
-  national: ['natl', 'natl.'],
-  international: ['intl', 'intl.'],
-  academy: ['acad', 'acad.'],
-  research: ['res', 'res.'],
-  pharmacy: ['pharm', 'pharm.'],
-  pharmaceutical: ['pharm', 'pharm.'],
-  computer: ['comp', 'comp.'],
-  information: ['info', 'info.'],
-  hospital: ['hosp', 'hosp.'],
-  nursing: ['nurs']
+// Legacy export name kept for callers that only need the generic list.
+const QUALIFIER_WORDS = ['university', 'institute', 'college', 'school', 'academy', 'institution', 'polytechnic', 'campus'];
+
+// token -> canonical token
+const CANONICAL_TOKENS = {
+  univ: 'university', uni: 'university', universities: 'university', universitat: 'university', universidad: 'university',
+  inst: 'institute', institution: 'institute', institutes: 'institute',
+  tech: 'tech', technology: 'tech', technological: 'tech', technol: 'tech',
+  coll: 'college', acad: 'academy', hosp: 'hospital', center: 'centre',
+  shree: 'shri', sri: 'shri', sree: 'shri', shre: 'shri',
+  dept: 'department', dep: 'department', deptt: 'department',
+  engg: 'engineering', eng: 'engineering',
+  sci: 'science', sciences: 'science',
+  med: 'medical', mgmt: 'management', res: 'research', pharm: 'pharmacy', pharmaceutical: 'pharmacy',
+  dent: 'dental', nurs: 'nursing', natl: 'national', intl: 'international',
+  comp: 'computer', info: 'information', lab: 'lab', labs: 'lab', laboratories: 'laboratory',
 };
 
-// Common legal-status suffixes appended to Indian university names that add
-// no identity value for matching purposes.
+// Long words that are commonly misspelt, with the edit distance tolerated.
+const FUZZY_CANONICAL = [
+  ['university', 2], ['institute', 1], ['technological', 2], ['technology', 1], ['department', 1],
+];
+
+const HONORIFICS = new Set(['shri']);
+
+// Countries that, when present in a segment, make an acronym-only hit unreliable
+// (e.g. "DTU, Lyngby, Denmark" is the Technical University of Denmark).
+const COUNTRY_NAMES = [
+  'india', 'usa', 'united states', 'united kingdom', 'uk', 'england', 'scotland', 'china', 'japan',
+  'korea', 'south korea', 'germany', 'france', 'italy', 'spain', 'denmark', 'sweden', 'norway',
+  'finland', 'netherlands', 'belgium', 'switzerland', 'austria', 'poland', 'russia', 'canada',
+  'australia', 'new zealand', 'brazil', 'mexico', 'south africa', 'egypt', 'saudi arabia',
+  'uae', 'united arab emirates', 'qatar', 'iran', 'iraq', 'turkey', 'pakistan', 'bangladesh',
+  'nepal', 'sri lanka', 'malaysia', 'singapore', 'indonesia', 'thailand', 'vietnam', 'taiwan',
+  'hong kong', 'portugal', 'greece', 'ireland', 'israel', 'nigeria', 'kenya', 'ethiopia',
+];
+
+// Common legal-status suffixes appended to Indian university names.
 const LEGAL_SUFFIX_PATTERNS = [
   /\(deemed to be university\)/gi,
   /\(deemed university\)/gi,
@@ -68,6 +94,10 @@ const LEGAL_SUFFIX_PATTERNS = [
   /\(private university\)/gi,
 ];
 
+/**
+ * Display-level normalisation (lower-case, punctuation reduced). Kept stable:
+ * other modules use it for keys.
+ */
 function normalize(value) {
   if (!value) return '';
   return String(value)
@@ -86,191 +116,152 @@ function stripLegalSuffixes(value) {
   return result.replace(/\s+/g, ' ').trim();
 }
 
-function tokenize(normalized) {
-  return normalized.split(/[\s,]+/).filter(Boolean);
-}
-
-function isQualifierToken(token) {
-  return QUALIFIER_WORDS.includes(token);
-}
-
-/**
- * Build acronyms from significant (non-stop-word) tokens.
- * Generates both the "full" acronym (all significant words) and a
- * "core" acronym that drops trailing qualifier words (University/Institute/…)
- * since that's how most short-form acronyms are actually formed
- * (e.g. "SGT University" -> "SGTU" and "SGT").
- */
-function buildAcronyms(tokens) {
-  const significant = tokens.filter((t) => !STOP_WORDS.has(t));
-  if (significant.length === 0) return [];
-
-  const acronyms = new Set();
-
-  const fullInitials = significant.map((t) => t[0]).join('');
-  if (fullInitials.length >= 2) acronyms.add(fullInitials);
-
-  const coreTokens = [];
-  for (const t of significant) {
-    if (isQualifierToken(t) && coreTokens.length > 0) break;
-    coreTokens.push(t);
-  }
-  const coreInitials = coreTokens.map((t) => t[0]).join('');
-  if (coreInitials.length >= 2) acronyms.add(coreInitials);
-
-  // If the name already starts with a short all-caps-looking token cluster
-  // (e.g. "SGT" in "SGT University"), treat that leading run of short tokens
-  // joined together as an acronym-like variant too.
-  const leadingShortTokens = [];
-  for (const t of significant) {
-    if (t.length <= 5 && !isQualifierToken(t)) {
-      leadingShortTokens.push(t);
-    } else {
-      break;
-    }
-  }
-  if (leadingShortTokens.length > 0) {
-    acronyms.add(leadingShortTokens.join(''));
-  }
-
-  return Array.from(acronyms).filter((a) => a.length >= 2);
-}
-
-/**
- * Systematically drop leading articles and trailing qualifier words to
- * produce the set of "word-drop" variants authors commonly use.
- * e.g. "SGT University" -> ["sgt university", "sgt"]
- * e.g. "The Delhi Technological University" -> [
- *   "the delhi technological university", "delhi technological university", "delhi technological"
- * ]
- */
-function buildWordDropVariants(tokens) {
-  let working = tokens.slice();
-  const variants = new Set();
-
-  // Strip leading articles ("the", "a", "an").
-  while (working.length > 1 && STOP_WORDS.has(working[0])) {
-    working = working.slice(1);
-  }
-  if (working.length === 0) return [];
-
-  variants.add(working.join(' '));
-
-  // Progressively strip trailing qualifier words, one at a time, so
-  // "guru gobind singh tricentenary university" also yields
-  // "guru gobind singh tricentenary".
-  let trimmed = working.slice();
-  while (trimmed.length > 1 && isQualifierToken(trimmed[trimmed.length - 1])) {
-    trimmed = trimmed.slice(0, -1);
-    variants.add(trimmed.join(' '));
-  }
-
-  return Array.from(variants);
-}
-
-/**
- * Generate "<name> <city>" / "<name>, <city>" / "<name> <state>" combinations
- * for every base-name variant, since scraped affiliation strings frequently
- * include the campus location.
- */
-function buildLocationVariants(baseVariants, city, state) {
-  const locations = [city, state].map((v) => normalize(v)).filter(Boolean);
-  if (locations.length === 0) return [];
-
-  const variants = new Set();
-  baseVariants.forEach((base) => {
-    locations.forEach((loc) => {
-      variants.add(`${base} ${loc}`);
-      variants.add(`${base}, ${loc}`);
-    });
-  });
-  return Array.from(variants);
-}
-
-/**
- * Generate dotted versions of acronyms (e.g. "sgt" -> "s.g.t", "s.g.t.")
- */
-function buildDottedAcronyms(acronyms) {
-  const dotted = new Set();
-  acronyms.forEach((acronym) => {
-    if (/^[a-z]+$/i.test(acronym) && acronym.length >= 2) {
-      const chars = acronym.split('');
-      const dottedStr = chars.join('.');
-      dotted.add(dottedStr);
-      dotted.add(dottedStr + '.');
-    }
-  });
-  return Array.from(dotted);
-}
-
-/**
- * Extract contiguous sub-phrases of significant tokens for multi-word university names
- */
-function buildSubphraseVariants(tokens) {
-  const significant = tokens.filter((t) => !STOP_WORDS.has(t) && !isQualifierToken(t));
-  if (significant.length < 3) return [];
-
-  const subphrases = new Set();
-  // Generate combinations of 3 or more consecutive significant words
-  for (let len = 3; len <= significant.length; len++) {
-    for (let i = 0; i <= significant.length - len; i++) {
-      const slice = significant.slice(i, i + len);
-      subphrases.add(slice.join(' '));
-    }
-  }
-  return Array.from(subphrases);
-}
-
-/**
- * Generate variants with common abbreviations substituted
- */
-function buildAbbreviationVariants(baseVariants) {
-  const result = new Set();
-
-  baseVariants.forEach((variant) => {
-    const words = variant.split(/\s+/);
-    
-    // We'll generate combinations of abbreviated words.
-    // To keep it simple and efficient, we construct possible token options for each position.
-    const options = words.map((word) => {
-      const opts = [word];
-      const normalizedWord = word.replace(/[.,]/g, '');
-      if (ABBREVIATION_MAP[normalizedWord]) {
-        opts.push(...ABBREVIATION_MAP[normalizedWord]);
-      }
-      return opts;
-    });
-
-    // Helper to cartesian-product options
-    function cartesianProduct(index, currentPhrase) {
-      if (index === options.length) {
-        result.add(currentPhrase.join(' '));
-        return;
-      }
-      for (const opt of options[index]) {
-        cartesianProduct(index + 1, [...currentPhrase, opt]);
+/** Optimal-string-alignment distance (Levenshtein + adjacent transposition). */
+function editDistance(a, b) {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const d = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) d[i][0] = i;
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
       }
     }
+  }
+  return d[m][n];
+}
 
-    cartesianProduct(0, []);
-  });
+function getSimilarity(s1, s2) {
+  const maxLength = Math.max(s1.length, s2.length);
+  if (maxLength === 0) return 1.0;
+  return 1.0 - editDistance(s1, s2) / maxLength;
+}
 
-  return Array.from(result);
+function canonicalToken(token) {
+  if (CANONICAL_TOKENS[token]) return CANONICAL_TOKENS[token];
+  if (token.length >= 7) {
+    for (const [word, maxDist] of FUZZY_CANONICAL) {
+      if (Math.abs(token.length - word.length) <= maxDist && editDistance(token, word) <= maxDist) {
+        return CANONICAL_TOKENS[word] || word;
+      }
+    }
+  }
+  return token;
+}
+
+/**
+ * Raw word tokens of a phrase: diacritics stripped, punctuation split, and runs of
+ * single letters collapsed ("S.G.T." / "s g t" -> "sgt").
+ */
+function rawTokens(value) {
+  const words = String(value || '')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/&/g, ' and ')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const out = [];
+  let run = '';
+  for (const w of words) {
+    if (w.length === 1 && /[a-z]/.test(w)) {
+      run += w;
+      continue;
+    }
+    if (run) { out.push(run); run = ''; }
+    out.push(w);
+  }
+  if (run) out.push(run);
+  return out;
+}
+
+/** Canonical comparison tokens: stop words dropped, abbreviations/spellings unified. */
+function canonTokens(value) {
+  return rawTokens(stripLegalSuffixes(value))
+    .filter((t) => !STOP_WORDS.has(t))
+    .map(canonicalToken)
+    .filter((t) => !STOP_WORDS.has(t));
+}
+
+function tokensEqual(a, b) {
+  if (a === b) return true;
+  const min = Math.min(a.length, b.length);
+  if (min >= 10) return editDistance(a, b) <= 2;
+  if (min >= 6) return editDistance(a, b) <= 1;
+  return false;
+}
+
+function findRun(haystack, needle, from = 0) {
+  outer: for (let i = from; i + needle.length <= haystack.length; i++) {
+    for (let k = 0; k < needle.length; k++) {
+      if (!tokensEqual(haystack[i + k], needle[k])) continue outer;
+    }
+    return i;
+  }
+  return -1;
+}
+
+function hasIdentityToken(tokens) {
+  return tokens.some((t) => !GENERIC_WORDS.has(t) && !HONORIFICS.has(t) && !/^\d+$/.test(t));
+}
+
+function initials(tokens) {
+  return tokens.map((t) => t[0]).join('');
+}
+
+/** "SGT" in "SGT University", "SGT Demo" in "SGT Demo University": the run of short leading tokens. */
+function leadingShortRun(tokens) {
+  const run = [];
+  for (const t of tokens) {
+    if (t.length <= 5 && !TYPE_WORDS.has(t) && !GENERIC_WORDS.has(t)) run.push(t);
+    else break;
+  }
+  return run;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Variant generation                                                         */
+/* ------------------------------------------------------------------------- */
+
+function titleTokensOf(rawName) {
+  return rawTokens(stripLegalSuffixes(rawName)).filter((t) => !['the'].includes(t));
+}
+
+function honorificSpellings(tokens) {
+  if (!tokens.length || !['shri', 'shree', 'sri', 'sree'].includes(tokens[0])) return [tokens];
+  const rest = tokens.slice(1);
+  return [['shri', ...rest], ['shree', ...rest], ['sri', ...rest], ['sree', ...rest], rest];
+}
+
+function univSpellings(tokens) {
+  const idx = tokens.findIndex((t) => t === 'university');
+  if (idx === -1) return [tokens];
+  const short = tokens.slice();
+  short[idx] = 'univ';
+  return [tokens, short];
 }
 
 /**
  * Core entry point: given a university's identifying details, generate a
- * de-duplicated, lowercase array of affiliation-string variants that should
- * all be treated as referring to "this" institution.
+ * de-duplicated, lowercase array of affiliation-string variants that refer to
+ * "this" institution. City/state only ever appear appended to a name.
  *
  * @param {Object} params
  * @param {string} params.name - Primary/display name, e.g. "SGT University".
- * @param {string} [params.code] - Short internal tenant code, e.g. "SGT".
+ * @param {string} [params.code] - Tenant code; emitted only when it is the name's acronym.
  * @param {string} [params.legalName] - Full legal/registered name, if different from `name`.
  * @param {string} [params.city]
  * @param {string} [params.state]
- * @param {string[]} [params.extraAliases] - Admin-curated manual overrides (union'd in as-is).
- * @returns {string[]} Deduplicated, normalized (lowercase) variant strings.
+ * @param {string[]} [params.extraAliases] - Admin-curated names (processed like the name).
+ * @param {string[]} [params.schools] - School names; emitted only combined with the university name.
+ * @returns {string[]}
  */
 function generateAffiliationVariants({
   name,
@@ -282,151 +273,267 @@ function generateAffiliationVariants({
   schools = [],
 } = {}) {
   const variantSet = new Set();
-  const acronyms = new Set();
-  const baseVariants = new Set();
+  const typedBases = new Set();
+  const derivedAcronyms = new Set();
+  const add = (v) => {
+    const clean = String(v || '').replace(/\s+/g, ' ').trim();
+    if (clean.length >= 2) variantSet.add(clean);
+  };
 
-  const namesToProcess = [name, legalName].filter(Boolean);
+  const aliasList = (Array.isArray(extraAliases) ? extraAliases : []).filter(Boolean);
+  const namesToProcess = [name, legalName, ...aliasList].filter(Boolean);
 
   namesToProcess.forEach((rawName) => {
-    const cleaned = stripLegalSuffixes(rawName);
-    const normalized = normalize(cleaned);
-    if (!normalized) return;
+    const tokens = titleTokensOf(rawName);
+    if (tokens.length === 0) return;
 
-    const tokens = tokenize(normalized);
-    const wordDropVariants = buildWordDropVariants(tokens);
-    const subphrases = buildSubphraseVariants(tokens);
+    if (tokens.length === 1) {
+      // A one-word alias is an acronym ("SGTU"); too-long single words are not.
+      if (tokens[0].length >= 3 && tokens[0].length <= 8 && !GENERIC_WORDS.has(canonicalToken(tokens[0]))) {
+        add(tokens[0]);
+        derivedAcronyms.add(tokens[0]);
+      }
+      return;
+    }
 
-    wordDropVariants.forEach((v) => {
-      variantSet.add(v);
-      baseVariants.add(v);
-    });
+    const canon = tokens.filter((t) => !STOP_WORDS.has(t)).map(canonicalToken);
+    if (!hasIdentityToken(canon)) return; // "Institute of Technology" alone identifies nothing
 
-    subphrases.forEach((v) => {
-      variantSet.add(v);
-      baseVariants.add(v);
-    });
+    for (const spelled of honorificSpellings(tokens)) {
+      if (spelled.length === 0) continue;
+      for (const v of univSpellings(spelled)) {
+        add(v.join(' '));
+      }
+    }
+    add(normalize(stripLegalSuffixes(rawName)));
 
-    buildAcronyms(tokens).forEach((a) => {
-      variantSet.add(a);
-      acronyms.add(a);
-    });
-
-    const locations = buildLocationVariants(wordDropVariants, city, state);
-    locations.forEach((v) => {
-      variantSet.add(v);
-      baseVariants.add(v);
-    });
+    const lastCanon = canon[canon.length - 1];
+    if (TYPE_WORDS.has(lastCanon)) {
+      typedBases.add(tokens.join(' '));
+      const core = canon.slice(0, -1);
+      if (core.length > 0) {
+        // Word-drop form ("guru gobind singh tricentenary"): only meaningful for long cores.
+        if (core.length >= 3) add(tokens.slice(0, -1).join(' '));
+        const lead = leadingShortRun(core);
+        const typeInitial = lastCanon[0];
+        if (core.length === 1 && lead.length === 1) {
+          const acr = lead.join('');
+          if (acr.length >= 2) {
+            add(`${acr} ${tokens[tokens.length - 1]}`);
+            derivedAcronyms.add(`${acr}${typeInitial}`);
+            // Dotted / spaced spellings of the short core: "s.g.t. university".
+            if (/^[a-z]{2,5}$/.test(acr)) {
+              add(`${acr.split('').join('.')}. ${tokens[tokens.length - 1]}`);
+            }
+          }
+        }
+        const init = initials(core) + typeInitial;
+        if (code && normalize(code).replace(/[^a-z0-9]/g, '') === init && init.length >= 3) {
+          derivedAcronyms.add(init);
+        }
+      }
+    }
   });
 
-  if (Array.isArray(schools) && schools.length > 0) {
-    schools.forEach((school) => {
-      const normalizedSchool = normalize(school);
-      if (!normalizedSchool) return;
+  if (code) {
+    const normalizedCode = normalize(code).replace(/[^a-z0-9]/g, '');
+    if (derivedAcronyms.has(normalizedCode)) add(normalizedCode);
+  }
+  derivedAcronyms.forEach((a) => {
+    if (a.length >= 3) add(a);
+  });
 
-      baseVariants.forEach((base) => {
-        variantSet.add(`${normalizedSchool} ${base}`);
-        variantSet.add(`${base} ${normalizedSchool}`);
-        variantSet.add(`${normalizedSchool}, ${base}`);
-        variantSet.add(`${base}, ${normalizedSchool}`);
-      });
+  // City/state only as qualifiers of a full typed name.
+  const locations = [city, state].map((v) => normalize(v)).filter(Boolean);
+  typedBases.forEach((base) => {
+    locations.forEach((loc) => add(`${base}, ${loc}`));
+  });
+
+  // School names only in combination with the university's canonical name.
+  const canonicalName = normalize(stripLegalSuffixes(name || legalName || ''));
+  if (canonicalName && Array.isArray(schools)) {
+    schools.map((s) => normalize(s)).filter((s) => s && s.length > 3).forEach((school) => {
+      add(`${school}, ${canonicalName}`);
     });
   }
 
-  if (code) {
-    const normalizedCode = normalize(code);
-    if (normalizedCode) {
-      variantSet.add(normalizedCode);
-      acronyms.add(normalizedCode);
-    }
-  }
-
-  // Generate abbreviation variations for all base word-based variants
-  const abbrVariants = buildAbbreviationVariants(Array.from(baseVariants));
-  abbrVariants.forEach((v) => variantSet.add(v));
-
-  // Generate dotted variants for all acronyms (e.g. "sgt" -> "s.g.t", "s.g.t.")
-  const dottedAcronyms = buildDottedAcronyms(Array.from(acronyms));
-  dottedAcronyms.forEach((a) => variantSet.add(a));
-
-  (Array.isArray(extraAliases) ? extraAliases : [])
-    .map((alias) => normalize(alias))
-    .filter(Boolean)
-    .forEach((alias) => variantSet.add(alias));
-
-  // Drop variants that are too short/generic to be useful signals (e.g. a
-  // single 1-2 letter leftover from aggressive word-dropping) to avoid false
-  // positives, but always keep deliberately-short acronyms/codes.
   return Array.from(variantSet).filter((v) => v.length >= 2);
 }
 
-function levenshteinDistance(s1, s2) {
-  const m = s1.length;
-  const n = s2.length;
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+/* ------------------------------------------------------------------------- */
+/* Matching                                                                   */
+/* ------------------------------------------------------------------------- */
 
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
+const compiledCache = new WeakMap();
 
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (s1[i - 1] === s2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,    // deletion
-          dp[i][j - 1] + 1,    // insertion
-          dp[i - 1][j - 1] + 1 // substitution
-        );
+/**
+ * Compile a variant list into name entries + acronyms.
+ * @param {string[]} variants
+ */
+function compileAffiliationMatcher(variants) {
+  if (Array.isArray(variants) && compiledCache.has(variants)) return compiledCache.get(variants);
+
+  const entriesByCore = new Map();
+  const singleTokens = new Set();
+
+  for (const variant of Array.isArray(variants) ? variants : []) {
+    const tokens = canonTokens(variant);
+    if (tokens.length === 0) continue;
+    if (tokens.length === 1) {
+      const t = tokens[0];
+      if (t.length >= 3 && t.length <= 8 && !GENERIC_WORDS.has(t) && !HONORIFICS.has(t)) singleTokens.add(t);
+      continue;
+    }
+    let core = tokens.slice();
+    let type = null;
+    let leadingType = null;
+    if (TYPE_WORDS.has(core[core.length - 1])) {
+      type = core[core.length - 1];
+      core = core.slice(0, -1);
+    } else if (TYPE_WORDS.has(core[0])) {
+      leadingType = core[0];
+      core = core.slice(1);
+    }
+    if (core.length === 0 || !hasIdentityToken(core)) continue;
+    const key = core.join(' ');
+    const entry = entriesByCore.get(key) || { core, types: new Set(), leadingTypes: new Set(), untyped: false };
+    if (type) entry.types.add(type);
+    else if (leadingType) entry.leadingTypes.add(leadingType);
+    else entry.untyped = true;
+    entriesByCore.set(key, entry);
+  }
+
+  const entries = Array.from(entriesByCore.values());
+  // An untyped word-drop form inherits the type of the same core ("delhi tech" + "delhi tech university").
+  const tenantTypes = new Set();
+  entries.forEach((e) => e.types.forEach((t) => tenantTypes.add(t)));
+
+  // Acronyms that include the type letter (SGTU, DTU) vs bare cores (SGT).
+  const fullAcronyms = new Set();
+  entries.forEach((e) => {
+    if (e.types.size === 0) return;
+    e.types.forEach((type) => {
+      const lead = leadingShortRun(e.core);
+      if (lead.length === e.core.length) fullAcronyms.add(lead.join('') + type[0]);
+      fullAcronyms.add(initials(e.core) + type[0]);
+    });
+  });
+  const acronyms = [];
+  singleTokens.forEach((t) => {
+    acronyms.push({ token: t, full: fullAcronyms.has(t) });
+  });
+
+  // Whole-part fuzzy comparison only for names with a long distinctive core:
+  // "sgt university" vs "srt university" is one edit apart but another institution.
+  const fullNames = [];
+  entries.forEach((e) => {
+    if (e.core.join(' ').length < 8) return;
+    e.types.forEach((type) => fullNames.push([...e.core, type].join(' ')));
+  });
+
+  const compiled = { entries, acronyms, tenantTypes, fullNames: fullNames.filter((n) => n.length >= 12) };
+  if (Array.isArray(variants)) compiledCache.set(variants, compiled);
+  return compiled;
+}
+
+function splitSegments(value) {
+  return String(value || '')
+    .split(/[;|\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function segmentCountries(segmentText) {
+  const text = ` ${rawTokens(segmentText).join(' ')} `;
+  return COUNTRY_NAMES.filter((c) => text.includes(` ${c} `));
+}
+
+function matchNameEntry(entry, part, tenantTypes) {
+  let cores = [entry.core];
+  if (HONORIFICS.has(entry.core[0]) && entry.core.length - 1 >= 3) cores = [entry.core, entry.core.slice(1)];
+
+  for (const core of cores) {
+    let from = 0;
+    for (;;) {
+      const i = findRun(part, core, from);
+      if (i === -1) break;
+      from = i + 1;
+      const next = part[i + core.length];
+      const prev = part[i - 1];
+      const allowedTypes = entry.types.size > 0 ? entry.types : (entry.untyped ? tenantTypes : new Set());
+
+      if (entry.leadingTypes.size > 0 && prev && entry.leadingTypes.has(prev)) return true;
+      if (next && allowedTypes.has(next)) return true;
+      // Distinctive multi-word cores may appear without the type word,
+      // as long as no different institution type follows.
+      const conflicting = next && TYPE_WORDS.has(next) && !allowedTypes.has(next);
+      if (!conflicting && core.length >= 3) return true;
+      if (!conflicting && entry.untyped && entry.types.size === 0 && entry.leadingTypes.size === 0 && core.length >= 2) {
+        return true;
       }
     }
   }
-  return dp[m][n];
+  return false;
 }
 
-function getSimilarity(s1, s2) {
-  const distance = levenshteinDistance(s1, s2);
-  const maxLength = Math.max(s1.length, s2.length);
-  if (maxLength === 0) return 1.0;
-  return 1.0 - distance / maxLength;
+function matchAcronym(acr, part, ctx) {
+  const idx = part.indexOf(acr.token);
+  if (idx === -1) return false;
+  const next = part[idx + 1];
+  if (next && ctx.tenantTypes.has(next)) return true; // "SGT University" via the acronym list
+  if (!acr.full) return false; // bare core acronyms ("SGT") need the type word
+  if (ctx.foreign) return false;
+  const others = part.filter((t, k) => k !== idx && !GENERIC_WORDS.has(t));
+  if (others.length === 0) return true; // "DTU", "Dept. of CSE, DTU"
+  return ctx.hasHomeLocation;
 }
 
 /**
- * Bidirectional substring-containment match: returns true if `value`
- * "looks like" it refers to the same institution as any of `variants`.
- * Mirrors the legacy `_isSgtAffiliation` behaviour but is now driven by the
- * dynamically generated variant list instead of a hardcoded array.
+ * True when `value` names the institution described by `variants`.
  *
- * @param {string} value - Raw affiliation string to test (e.g. from Scopus).
- * @param {string[]} variants - Output of generateAffiliationVariants().
+ * @param {string} value - Raw affiliation string (may hold several affiliations).
+ * @param {string[]} variants - Output of generateAffiliationVariants() (+ any aliases).
+ * @param {{ locations?: string[], country?: string }} [options] - tenant city/state/country,
+ *   used only to accept an acronym that shares its part with other words.
  * @returns {boolean}
  */
-function isAffiliationMatch(value, variants) {
-  const normalizedValue = normalize(value);
-  if (!normalizedValue || !Array.isArray(variants) || variants.length === 0) return false;
+function isAffiliationMatch(value, variants, options = {}) {
+  if (!value || !Array.isArray(variants) || variants.length === 0) return false;
+  const compiled = compileAffiliationMatcher(variants);
+  if (compiled.entries.length === 0 && compiled.acronyms.length === 0) return false;
 
-  // Bare institutional words must never reverse-match (e.g. "university"
-  // must not match variant "sgt university").
-  const genericTokens = new Set(QUALIFIER_WORDS);
-  if (genericTokens.has(normalizedValue)) return false;
+  const homeCountry = normalize(options.country || 'india');
+  const locationTokens = (options.locations || []).flatMap((l) => canonTokens(l));
 
-  return variants.some((variant) => {
-    if (!variant || genericTokens.has(variant)) return false;
-    if (normalizedValue.includes(variant)) return true;
-    // Reverse containment only for specific-enough affiliation strings
-    if (normalizedValue.length >= 4 && variant.includes(normalizedValue)) return true;
-    
-    // Fuzzy matching for longer strings to catch typos/OCR errors
-    if (normalizedValue.length >= 6 && variant.length >= 6) {
-      if (getSimilarity(normalizedValue, variant) >= 0.85) return true;
+  for (const segment of splitSegments(value)) {
+    const countries = segmentCountries(segment);
+    const segTokens = canonTokens(segment);
+    const ctx = {
+      tenantTypes: compiled.tenantTypes,
+      foreign: countries.length > 0 && !countries.includes(homeCountry),
+      hasHomeLocation: locationTokens.length > 0 && locationTokens.some((t) => segTokens.includes(t)),
+    };
+
+    const parts = segment.split(',').map((p) => canonTokens(p)).filter((p) => p.length > 0);
+    for (const part of parts) {
+      if (!hasIdentityToken(part) && !part.some((t) => compiled.acronyms.some((a) => a.token === t))) continue;
+      if (compiled.entries.some((entry) => matchNameEntry(entry, part, compiled.tenantTypes))) return true;
+      if (compiled.acronyms.some((acr) => matchAcronym(acr, part, ctx))) return true;
+
+      const joined = part.join(' ');
+      if (joined.length >= 12 && compiled.fullNames.some((n) => getSimilarity(joined, n) >= 0.9)) return true;
     }
-    
-    return normalizedValue === variant;
-  });
+  }
+  return false;
 }
 
 module.exports = {
   generateAffiliationVariants,
   isAffiliationMatch,
+  compileAffiliationMatcher,
   // Exported for unit testing / reuse by other normalization needs.
   normalize,
+  canonTokens,
+  getSimilarity,
+  QUALIFIER_WORDS,
 };

@@ -308,7 +308,7 @@ describe('BugReportDetail', () => {
       fireEvent.click(thumbnails[0]);
 
       // Modal should be visible
-      expect(screen.getByAltText('Screenshot')).toBeInTheDocument();
+      expect(screen.getByAltText('Full size screenshot')).toBeInTheDocument();
     });
 
     it('should close full-size image modal when X button is clicked', () => {
@@ -319,7 +319,7 @@ describe('BugReportDetail', () => {
       fireEvent.click(thumbnails[0]);
 
       // Verify modal is open
-      expect(screen.getByAltText('Screenshot')).toBeInTheDocument();
+      expect(screen.getByAltText('Full size screenshot')).toBeInTheDocument();
 
       // Close modal - find the button by its content (X icon)
       const closeButton = screen.getByTestId('x-icon').closest('button');
@@ -328,7 +328,7 @@ describe('BugReportDetail', () => {
       }
 
       // Modal should be closed (only one screenshot alt text visible)
-      const screenshotImages = screen.queryAllByAltText('Screenshot');
+      const screenshotImages = screen.queryAllByAltText('Full size screenshot');
       expect(screenshotImages.length).toBe(0);
     });
 
@@ -340,13 +340,13 @@ describe('BugReportDetail', () => {
       fireEvent.click(thumbnails[0]);
 
       // Click backdrop (the modal container)
-      const modal = screen.getByAltText('Screenshot').closest('div[class*="fixed"]');
+      const modal = screen.getByAltText('Full size screenshot').closest('div[class*="fixed"]');
       if (modal) {
         fireEvent.click(modal);
       }
 
       // Modal should be closed
-      const screenshotImages = screen.queryAllByAltText('Screenshot');
+      const screenshotImages = screen.queryAllByAltText('Full size screenshot');
       expect(screenshotImages.length).toBe(0);
     });
 
@@ -381,9 +381,12 @@ describe('BugReportDetail', () => {
       // Simulate image load error
       fireEvent.error(images[0]);
 
-      // The error handler should have been triggered
-      // We can't easily test the DOM manipulation, but we verify no crash occurs
-      expect(images[0]).toBeInTheDocument();
+      // The broken thumbnail is swapped for a fallback placeholder; the rest of the card survives
+      expect(screen.queryByAltText('Screenshot thumbnail: login-error.png')).not.toBeInTheDocument();
+      expect(screen.getByText('login-error.png')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'View screenshot: login-error.png' })).toBeInTheDocument();
+      // Other screenshots are unaffected
+      expect(screen.getByAltText('Screenshot thumbnail: console-error.png')).toBeInTheDocument();
     });
   });
 
@@ -406,8 +409,8 @@ describe('BugReportDetail', () => {
     it('should have proper alt text for screenshots', () => {
       render(<BugReportDetail report={mockUnresolvedReport} onStatusUpdate={mockOnStatusUpdate} />);
       
-      expect(screen.getByAltText('login-error.png')).toBeInTheDocument();
-      expect(screen.getByAltText('console-error.png')).toBeInTheDocument();
+      expect(screen.getByAltText('Screenshot thumbnail: login-error.png')).toBeInTheDocument();
+      expect(screen.getByAltText('Screenshot thumbnail: console-error.png')).toBeInTheDocument();
     });
 
     it('should have title attributes for interactive elements', () => {

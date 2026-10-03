@@ -45,7 +45,7 @@ export default function ContactCard() {
                 {contact?.dpoEmail && (
                   <li className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                    <a href={`mailto:${contact.dpoEmail}`} className="text-wine dark:text-amber-400 hover:underline break-all">
+                    <a href={`mailto:${contact.dpoEmail}`} className="text-wine dark:text-hi hover:underline break-all">
                       {contact.dpoEmail}
                     </a>
                   </li>
@@ -74,7 +74,7 @@ export default function ContactCard() {
             </p>
           </div>
           {contact?.universitySlug && (
-            <Link href={`/privacy/${contact.universitySlug}`} className="inline-block text-wine dark:text-amber-400 hover:underline">
+            <Link href={`/privacy/${contact.universitySlug}`} className="inline-block text-wine dark:text-hi hover:underline">
               Read the public privacy notice
             </Link>
           )}

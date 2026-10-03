@@ -10,11 +10,20 @@ const TRANSACTION_OPTIONS = {
   isolationLevel: "ReadCommitted",
 };
 
+// Credentials never leave the database by accident: every UserLogin read (including
+// nested include/select of a relation) omits these unless the query asks for them
+// explicitly with `select: { passwordHash: true }` or `omit: { passwordHash: false }`
+// (login, change-password, reset-password and protect do).
+const GLOBAL_OMIT = {
+  userLogin: { passwordHash: true, tokenVersion: true },
+};
+
 if (process.env.NODE_ENV === "production") {
   // Production: single instance, emit events for error handling
   prisma = createPrismaClient({
     log: [{ level: "error", emit: "event" }],
     transactionOptions: TRANSACTION_OPTIONS,
+    omit: GLOBAL_OMIT,
   });
 } else {
   // Development: global singleton to survive HMR
@@ -26,6 +35,7 @@ if (process.env.NODE_ENV === "production") {
         { level: "query", emit: "event" }, // For slow query logging
       ],
       transactionOptions: TRANSACTION_OPTIONS,
+      omit: GLOBAL_OMIT,
     });
   }
   prisma = global.prisma;

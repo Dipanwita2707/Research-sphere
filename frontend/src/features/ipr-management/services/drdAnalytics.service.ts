@@ -1,4 +1,19 @@
-import api from '@/shared/api/api';
+import api, { optionalRequest } from '@/shared/api/api';
+
+export interface CollaborationNetwork {
+  home: { name: string; city: string | null; country: string | null; lat: number | null; lng: number | null; precision: string | null };
+  partners: Array<{
+    name: string;
+    country: string | null;
+    papers: number;
+    lat: number | null;
+    lng: number | null;
+    precision: 'institution' | 'city' | 'country' | null;
+    international: boolean;
+  }>;
+  summary: { papers: number; partners: number; located: number; countries: number; international: number };
+  generatedAt: string;
+}
 
 export interface DrdAnalyticsResponse {
   meta: {
@@ -429,18 +444,18 @@ class DrdAnalyticsService {
     return response.data;
   }
 
-  async getApplicantPersonAnalytics(personId: string, filters?: DrdAnalyticsFilters) {
+  async getApplicantPersonAnalytics(personId: string, filters?: DrdAnalyticsFilters, opts?: { optional?: boolean }) {
     const response = await api.get<{ success: boolean; data: DrdAnalyticsResponse }>(
       `${this.baseUrl}/applicant/people/${personId}`,
-      { params: filters }
+      opts?.optional ? optionalRequest({ params: filters }) : { params: filters }
     );
     return response.data;
   }
 
-  async getApplicantPersonSubmissions(personId: string, filters?: DrdAnalyticsFilters) {
+  async getApplicantPersonSubmissions(personId: string, filters?: DrdAnalyticsFilters, opts?: { optional?: boolean }) {
     const response = await api.get<{ success: boolean; data: PersonSubmissionsResponse }>(
       `${this.baseUrl}/applicant/people/${personId}/submissions`,
-      { params: filters }
+      opts?.optional ? optionalRequest({ params: filters }) : { params: filters }
     );
     return response.data;
   }
@@ -485,8 +500,9 @@ class DrdAnalyticsService {
     return response.data;
   }
 
+  /** Real co-authorship network for the Global Research Network globe. */
   async getAffiliations(filters?: DrdAnalyticsFilters) {
-    const response = await api.get<{ success: boolean; data: { name: string; count: number }[] }>(
+    const response = await api.get<{ success: boolean; data: CollaborationNetwork }>(
       `${this.baseUrl}/applicant/affiliations`,
       { params: filters }
     );

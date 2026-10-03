@@ -8,27 +8,28 @@ import {
   type DrdAnalyticsResponse,
 } from '@/features/ipr-management/services/drdAnalytics.service';
 import {
-  ArrowRight,
   BarChart3,
   Briefcase,
-  Building2,
+  CalendarDays,
   CheckCircle2,
+  ChevronRight,
   Clock3,
+  Crosshair,
   Download,
-  Eye,
-  Filter,
   GraduationCap,
+  Inbox,
   Layers3,
   RefreshCw,
-  ShieldCheck,
-  Sparkles,
+  RotateCcw,
+  ShieldAlert,
+  SlidersHorizontal,
   Target,
-  TrendingUp,
   UserCheck,
-  Users,
   X,
 } from 'lucide-react';
 import { logger } from '@/shared/utils/logger';
+import { AnalyticsBarChart, AnalyticsHero, AnalyticsShell } from '@/components/analytics';
+import { VIZ, categoryColor, ui } from '@/components/analytics/theme';
 
 type AnalyticsTab = 'applicant' | 'drd_member';
 
@@ -161,7 +162,7 @@ function formatDateLabel(value: string) {
 }
 
 function buildRangeLabel(filters: AnalyticsFiltersState) {
-  return `${formatDateLabel(filters.from)} - ${formatDateLabel(filters.to)}`;
+  return `${formatDateLabel(filters.from)} – ${formatDateLabel(filters.to)}`;
 }
 
 function countActiveFilters(filters: AnalyticsFiltersState) {
@@ -174,16 +175,13 @@ function countActiveFilters(filters: AnalyticsFiltersState) {
 }
 
 function serializeCsvValue(value: unknown) {
-  if (value ===
-   null || value ===
-   undefined) return '';
+  if (value === null || value === undefined) return '';
   const text = String(value).replace(/"/g, '""');
   return /[",\n]/.test(text) ? `"${text}"` : text;
 }
 
 function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
-  if (!rows.length || typeof window ===
-   'undefined') return;
+  if (!rows.length || typeof window === 'undefined') return;
 
   const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
   const csv = [
@@ -200,31 +198,45 @@ function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
   window.URL.revokeObjectURL(url);
 }
 
+/* ------------------------------------------------------------------ */
+/* Presentational pieces                                               */
+/* ------------------------------------------------------------------ */
+
+const rowActionCls =
+  'inline-flex h-8 items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 hover:text-stone-900 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700';
+const selectCls = `${ui.input} w-full min-w-0 sm:w-auto`;
+const theadCls = 'bg-stone-50 dark:bg-gray-900/40';
+const tbodyCls = 'divide-y divide-stone-100 dark:divide-gray-700';
+const trCls = 'transition-colors hover:bg-stone-50 dark:hover:bg-gray-700/40';
+const numCls = 'px-4 py-3 text-right text-sm tabular-nums text-stone-700 dark:text-gray-200';
+
+/** Numbers right-aligned; zeros recede so the eye lands on real activity. */
+function Num({ value, format = formatNumber, strong = false }: { value: number | undefined; format?: (v: number | undefined) => string; strong?: boolean }) {
+  if (!value) return <span className="text-stone-300 dark:text-gray-600">{format(0)}</span>;
+  return <span className={strong ? 'font-semibold text-stone-900 dark:text-white' : undefined}>{format(value)}</span>;
+}
+
 function DashboardCard({
   title,
   value,
   subtitle,
   icon,
-  accent,
 }: {
   title: string;
   value: string;
   subtitle: string;
   icon: ReactNode;
-  accent: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-[#6497b1] dark:text-gray-400">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-[#011f4b] dark:text-white">{value}</p>
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
-        </div>
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg ${accent}`}>
+    <div className={`${ui.card} p-5`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium text-stone-500 dark:text-gray-400">{title}</p>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-gray-700 dark:text-gray-300 [&_svg]:h-4 [&_svg]:w-4">
           {icon}
-        </div>
+        </span>
       </div>
+      <p className={`mt-2 text-2xl leading-none tracking-tight ${ui.value}`}>{value}</p>
+      <p className="mt-2.5 text-xs leading-relaxed text-stone-500 dark:text-gray-400">{subtitle}</p>
     </div>
   );
 }
@@ -239,57 +251,13 @@ function SectionHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-[#e3edf4] dark:border-gray-700 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 className="text-lg font-semibold text-[#011f4b] dark:text-white">{title}</h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
+    <div className={ui.cardHeader}>
+      <div className="min-w-0">
+        <h2 className={ui.title}>{title}</h2>
+        <p className={ui.subtitle}>{description}</p>
       </div>
       {action}
     </div>
-  );
-}
-
-function MetricPill({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-[#b3cde0]">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <p className="mt-3 text-xl font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
-function QuickFilterButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-        active
-          ? 'border-[#005b96] bg-[#005b96] text-white'
-          : 'border-[#b3cde0] bg-white dark:bg-gray-800 dark:border-gray-600 text-[#005b96] dark:text-blue-400 hover:border-[#005b96]'
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -301,9 +269,10 @@ function ScopeBadge({
   value: string;
 }) {
   return (
-    <div className="rounded-full border border-[#d8e6ef] dark:border-gray-600 bg-[#f7fbfe] dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-[#005b96] dark:text-blue-400">
-      <span className="text-[#6497b1] dark:text-gray-400">{label}:</span> {value}
-    </div>
+    <span className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-xs dark:border-gray-600 dark:bg-gray-800">
+      <span className="text-stone-500 dark:text-gray-400">{label}</span>
+      <span className="font-medium capitalize text-stone-800 dark:text-gray-100">{value}</span>
+    </span>
   );
 }
 
@@ -315,12 +284,12 @@ function EmptyPanel({
   description: string;
 }) {
   return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#b3cde0] dark:border-gray-600 bg-[#f7fbfe] dark:bg-gray-800 px-6 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-gray-700 text-[#005b96] dark:text-blue-400 shadow-sm">
-        <Sparkles className="h-6 w-6" />
+    <div className={`${ui.card} flex min-h-[220px] flex-col items-center justify-center px-6 py-10 text-center`}>
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-gray-700 dark:text-gray-300">
+        <Inbox className="h-5 w-5" />
       </div>
-      <h3 className="mt-4 text-lg font-semibold text-[#011f4b] dark:text-white">{title}</h3>
-      <p className="mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">{description}</p>
+      <h3 className="mt-3 text-sm font-semibold text-stone-900 dark:text-white">{title}</h3>
+      <p className="mt-1 max-w-md text-sm text-stone-500 dark:text-gray-400">{description}</p>
     </div>
   );
 }
@@ -334,64 +303,22 @@ function MonthlyBarChart({
   title: string;
   description: string;
   points: MonthlyTrendPoint[];
-  series: Array<{ key: keyof MonthlyTrendPoint; label: string; color: string; text: string }>;
+  series: Array<{ key: keyof MonthlyTrendPoint; label: string }>;
 }) {
   const visiblePoints = points.slice(-6);
-  const maxValue = Math.max(
-    1,
-    ...visiblePoints.flatMap((point) => series.map((item) => Number(point[item.key] || 0)))
-  );
+  const chartData = visiblePoints.map((point) => ({
+    label: point.label,
+    values: Object.fromEntries(series.map((item) => [String(item.key), Number(point[item.key] || 0)])),
+  }));
 
   return (
-    <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-      <SectionHeader title={title} description={description} />
-      <div className="space-y-5 p-5">
-        <div className="flex flex-wrap gap-2">
-          {series.map((item) => (
-            <span
-              key={item.label}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${item.text} ${item.color}`}
-            >
-              {item.label}
-            </span>
-          ))}
-        </div>
-
-        {visiblePoints.length ===
-   0 ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">No trend points available for the selected period.</p>
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-6">
-            {visiblePoints.map((point) => (
-              <div key={point.month} className="space-y-3">
-                <div className="flex h-40 items-end justify-center gap-2 rounded-2xl bg-[#f7fbfe] dark:bg-gray-700/50 px-3 pb-3 pt-5">
-                  {series.map((item) => {
-                    const height = Math.max(10, Math.round((Number(point[item.key] || 0) / maxValue) * 120));
-                    return (
-                      <div key={`${point.month}-${String(item.key)}`} className="flex flex-col items-center gap-2">
-                        <div
-                          className={`w-5 rounded-full ${item.color}`}
-                          style={{ height }}
-                          title={`${item.label}: ${formatNumber(Number(point[item.key] || 0))}`}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-semibold text-[#011f4b] dark:text-white">{point.label}</p>
-                  <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                    {series
-                      .map((item) => `${item.label.split(' ')[0]} ${formatNumber(Number(point[item.key] || 0))}`)
-                      .join(' • ')}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    <AnalyticsBarChart
+      title={title}
+      subtitle={description}
+      data={chartData}
+      keys={series.map((item) => ({ key: String(item.key), label: item.label }))}
+      height={260}
+    />
   );
 }
 
@@ -405,12 +332,59 @@ function InsightCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#d8e6ef] dark:border-gray-700 bg-[#f7fbfe] dark:bg-gray-800 p-4">
-      <p className="text-xs uppercase tracking-[0.22em] text-[#6497b1] dark:text-gray-400">{title}</p>
-      <p className="mt-2 text-2xl font-semibold text-[#011f4b] dark:text-white">{value}</p>
-      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{helper}</p>
+    <div className="rounded-lg border border-stone-200 bg-stone-50/60 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+      <p className={ui.label}>{title}</p>
+      <p className="mt-1.5 truncate text-lg font-semibold capitalize tabular-nums text-stone-900 dark:text-white" title={value}>{value}</p>
+      <p className="mt-1 text-xs text-stone-500 dark:text-gray-400">{helper}</p>
     </div>
   );
+}
+
+/** Thin progress meter — the fill is data, so it takes a palette slot. */
+function Meter({ percent, color = VIZ[0], label }: { percent: number; color?: string; label: string }) {
+  const clamped = Math.max(0, Math.min(100, percent));
+  return (
+    <div
+      className="h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-gray-700"
+      role="meter"
+      aria-label={label}
+      aria-valuenow={Math.round(clamped)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div className="h-full rounded-full" style={{ width: `${clamped}%`, backgroundColor: color }} />
+    </div>
+  );
+}
+
+const CATEGORY_KEYS = [
+  { key: 'research', label: 'Research' },
+  { key: 'book', label: 'Book' },
+  { key: 'conference', label: 'Conference' },
+  { key: 'ipr', label: 'IPR' },
+  { key: 'grants', label: 'Grants' },
+] as const;
+
+/** Category counts as swatch + label + number; the swatch carries identity, the text stays ink. */
+function CategorySplit({ counts }: { counts: Record<(typeof CATEGORY_KEYS)[number]['key'], number> }) {
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
+      {CATEGORY_KEYS.map(({ key, label }) => {
+        const v = counts[key] || 0;
+        return (
+          <span key={key} className={`inline-flex items-center gap-1.5 text-xs ${v ? 'text-stone-700 dark:text-gray-200' : 'text-stone-300 dark:text-gray-600'}`}>
+            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: categoryColor(key), opacity: v ? 1 : 0.35 }} />
+            {label}
+            <span className="tabular-nums font-medium">{formatNumber(v)}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function SkeletonBlock({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800 ${className}`} />;
 }
 
 function DrilldownDrawer({
@@ -429,46 +403,54 @@ function DrilldownDrawer({
   const trend = (panel.data?.extensions?.monthlyTrend || []) as MonthlyTrendPoint[];
 
   return (
-    <div className="fixed inset-0 z-[70] flex justify-end bg-slate-950/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex justify-end bg-stone-900/40 dark:bg-black/60">
       <button type="button" className="flex-1" onClick={onClose} aria-label="Close drilldown" />
-      <aside className="h-full w-full max-w-2xl overflow-y-auto border-l border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl">
-        <div className="sticky top-0 z-10 border-b border-[#e3edf4] dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-5">
+      <aside className="h-full w-full max-w-2xl overflow-y-auto border-l border-stone-200 bg-[#faf8f6] shadow-xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="sticky top-0 z-10 border-b border-stone-200 bg-white px-5 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#6497b1] dark:text-gray-400">Drilldown View</p>
-              <h2 className="mt-2 text-2xl font-semibold text-[#011f4b] dark:text-white">{panel.title}</h2>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{panel.subtitle}</p>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-wine dark:text-amber">Drill-down</p>
+              <h2 className="mt-1 truncate text-xl font-semibold tracking-tight text-stone-900 dark:text-white">{panel.title}</h2>
+              <p className="mt-1 text-sm text-stone-500 dark:text-gray-400">{panel.subtitle}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-[#d8e6ef] dark:border-gray-600 p-2 text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
+              aria-label="Close"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200 text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="space-y-6 p-6">
+        <div className="space-y-5 p-5 sm:p-6">
           {panel.loading || !panel.data ? (
-            <div className="flex min-h-[260px] items-center justify-center text-gray-500 dark:text-gray-400">
-              <div className="text-center">
-                <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#005b96]" />
-                <p className="mt-3 text-sm">Loading detail analytics...</p>
+            panel.loading ? (
+              <div className="space-y-5" aria-busy="true" aria-label="Loading detail analytics">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <SkeletonBlock className="h-24" />
+                  <SkeletonBlock className="h-24" />
+                  <SkeletonBlock className="h-24" />
+                </div>
+                <SkeletonBlock className="h-72" />
+                <SkeletonBlock className="h-48" />
               </div>
-            </div>
+            ) : (
+              <EmptyPanel title="Detail could not be loaded" description="No data for this period." />
+            )
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <InsightCard
-                  title="Scope Level"
+                  title="Scope level"
                   value={panel.data.meta.scopeApplied.scopeLevel}
                   helper="Resolved from the narrowed analytics context."
                 />
                 <InsightCard
                   title="Range"
-                  value={`${formatDateLabel(panel.data.meta.timeRange.from)} - ${formatDateLabel(panel.data.meta.timeRange.to)}`}
-                  helper="Same time filter used for the parent dashboard."
+                  value={`${formatDateLabel(panel.data.meta.timeRange.from)} – ${formatDateLabel(panel.data.meta.timeRange.to)}`}
+                  helper="Same time filter as the parent dashboard."
                 />
                 <InsightCard
                   title="Records"
@@ -478,94 +460,85 @@ function DrilldownDrawer({
               </div>
 
               <MonthlyBarChart
-                title="Monthly Focus Trend"
-                description="Trend view for just the selected entity."
+                title="Monthly focus trend"
+                description="Trend for just the selected entity, last six months."
                 points={trend}
                 series={
-                  panel.kind ===
-   'reviewer'
+                  panel.kind === 'reviewer'
                     ? [
-                        { key: 'assigned', label: 'Assigned', color: 'bg-[#005b96]', text: 'bg-[#edf5fa] text-[#005b96]' },
-                        { key: 'completed', label: 'Completed', color: 'bg-emerald-500', text: 'bg-[#edf8f4] text-emerald-700' },
+                        { key: 'assigned', label: 'Assigned' },
+                        { key: 'completed', label: 'Completed' },
                       ]
                     : [
-                        { key: 'totalApplications', label: 'Applications', color: 'bg-[#005b96]', text: 'bg-[#edf5fa] text-[#005b96]' },
-                        { key: 'approvedCount', label: 'Approved', color: 'bg-emerald-500', text: 'bg-[#edf8f4] text-emerald-700' },
+                        { key: 'totalApplications', label: 'Applications' },
+                        { key: 'approvedCount', label: 'Approved' },
                       ]
                 }
               />
 
               {people.length > 0 ? (
-                <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                <section className={`overflow-hidden ${ui.card}`}>
                   <SectionHeader
-                    title="Applicants in Focus"
-                    description="People-level records inside the selected school, department, or applicant view."
+                    title="Applicants in focus"
+                    description="People-level records inside the selected school, department or applicant view."
                   />
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
+                    <table className="min-w-full">
+                      <thead className={theadCls}>
                         <tr>
-                          {['Applicant', 'Department', 'Applications', 'Approved', 'Incentive'].map((label) => (
-                            <th key={label} className="px-5 py-3 font-semibold">
-                              {label}
-                            </th>
-                          ))}
+                          <th className={ui.th}>Applicant</th>
+                          <th className={ui.th}>Department</th>
+                          <th className={`${ui.th} text-right`}>Applications</th>
+                          <th className={`${ui.th} text-right`}>Approved</th>
+                          <th className={`${ui.th} text-right`}>Incentive</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className={tbodyCls}>
                         {people.map((person) => (
-                          <tr key={person.personId} className="border-t border-[#eef5f9] dark:border-gray-700">
-                            <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">{person.applicantName}</td>
-                            <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{person.departmentName}</td>
-                            <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(person.totalApplications)}</td>
-                            <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(person.approvedCount)}</td>
-                            <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">
-                              {formatNumber(person.totalIncentive)}
-                            </td>
+                          <tr key={person.personId} className={trCls}>
+                            <td className={`${ui.td} font-medium text-stone-900 dark:text-white`}>{person.applicantName}</td>
+                            <td className={`${ui.td} text-stone-500 dark:text-gray-400`}>{person.departmentName}</td>
+                            <td className={numCls}><Num value={person.totalApplications} /></td>
+                            <td className={numCls}><Num value={person.approvedCount} /></td>
+                            <td className={numCls}><Num value={person.totalIncentive} strong /></td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </section>
               ) : null}
 
               {reviewers.length > 0 ? (
-                <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                <section className={`overflow-hidden ${ui.card}`}>
                   <SectionHeader
-                    title="Reviewer in Focus"
+                    title="Reviewer in focus"
                     description="Detailed reviewer performance for the selected DRD member."
                   />
-                  <div className="space-y-4 p-5">
+                  <ul className={tbodyCls}>
                     {reviewers.map((reviewer) => (
-                      <div key={reviewer.reviewerId} className="rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="text-lg font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                              Completion {formatPercent(reviewer.completionRate)} • First response{' '}
-                              {formatHours(reviewer.avgFirstResponseHours)}
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div className="rounded-xl bg-[#f7fbfe] dark:bg-gray-700/50 px-3 py-2">
-                              <p className="text-xs text-[#6497b1] dark:text-gray-400">Assigned</p>
-                              <p className="mt-1 font-semibold text-[#011f4b] dark:text-white">
-                                {formatNumber(reviewer.assignedCount)}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-[#f7fbfe] dark:bg-gray-700/50 px-3 py-2">
-                              <p className="text-xs text-[#6497b1] dark:text-gray-400">Pending</p>
-                              <p className="mt-1 font-semibold text-[#011f4b] dark:text-white">
-                                {formatNumber(reviewer.pendingCount)}
-                              </p>
-                            </div>
-                          </div>
+                      <li key={reviewer.reviewerId} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-medium text-stone-900 dark:text-white">{reviewer.reviewerName}</p>
+                          <p className="mt-0.5 text-xs text-stone-500 dark:text-gray-400">
+                            Completion <span className="tabular-nums">{formatPercent(reviewer.completionRate)}</span> · First response{' '}
+                            <span className="tabular-nums">{formatHours(reviewer.avgFirstResponseHours)}</span>
+                          </p>
                         </div>
-                      </div>
+                        <dl className="grid grid-cols-2 gap-6 text-right">
+                          <div>
+                            <dt className={ui.label}>Assigned</dt>
+                            <dd className={`mt-0.5 text-base ${ui.value}`}>{formatNumber(reviewer.assignedCount)}</dd>
+                          </div>
+                          <div>
+                            <dt className={ui.label}>Pending</dt>
+                            <dd className={`mt-0.5 text-base ${ui.value}`}>{formatNumber(reviewer.pendingCount)}</dd>
+                          </div>
+                        </dl>
+                      </li>
                     ))}
-                  </div>
-                </div>
+                  </ul>
+                </section>
               ) : null}
             </>
           )}
@@ -593,10 +566,8 @@ export default function DrdAnalyticsPage() {
           drdAnalyticsService.getDrdMemberAnalytics({ category: 'all' }),
         ]);
         // If either succeeds (not 403), user has permission
-        const appOk = app.status ===
-   'fulfilled';
-        const memOk = mem.status ===
-   'fulfilled';
+        const appOk = app.status === 'fulfilled';
+        const memOk = mem.status === 'fulfilled';
         setPermStatus(appOk || memOk ? 'granted' : 'denied');
       } catch {
         setPermStatus('denied');
@@ -606,8 +577,7 @@ export default function DrdAnalyticsPage() {
   }, []);
 
   useEffect(() => {
-    if (permStatus ===
-   'granted') void loadAnalytics(activeTab, filters);
+    if (permStatus === 'granted') void loadAnalytics(activeTab, filters);
   }, [activeTab, filters, permStatus]);
 
   const loadAnalytics = async (
@@ -622,13 +592,11 @@ export default function DrdAnalyticsPage() {
         category: currentFilters.category,
         schoolId: currentFilters.schoolId || undefined,
         departmentId: currentFilters.departmentId || undefined,
-        reviewerId: tab ===
-   'drd_member' ? currentFilters.reviewerId || undefined : undefined,
+        reviewerId: tab === 'drd_member' ? currentFilters.reviewerId || undefined : undefined,
       };
 
       const response =
-        tab ===
-   'applicant'
+        tab === 'applicant'
           ? await drdAnalyticsService.getApplicantAnalytics(requestFilters)
           : await drdAnalyticsService.getDrdMemberAnalytics(requestFilters);
 
@@ -649,15 +617,12 @@ export default function DrdAnalyticsPage() {
 
   const departmentOptions = useMemo(() => {
     if (!draftFilters.schoolId) return departmentRows;
-    return departmentRows.filter((department) => department.schoolId ===
-   draftFilters.schoolId);
+    return departmentRows.filter((department) => department.schoolId === draftFilters.schoolId);
   }, [departmentRows, draftFilters.schoolId]);
 
   const quickRangeLabel = useMemo(() => {
     const defaults = getDefaultFilters();
-    if (filters.from ===
-   defaults.from && filters.to ===
-   defaults.to) return 'Last 90 days';
+    if (filters.from === defaults.from && filters.to === defaults.to) return 'Last 90 days';
     return buildRangeLabel(filters);
   }, [filters]);
 
@@ -669,14 +634,13 @@ export default function DrdAnalyticsPage() {
 
   const applicantCards = [
     {
-      title: 'Total Applications',
+      title: 'Total applications',
       value: formatNumber(data?.kpis.totalApplications),
       subtitle: `${formatNumber(data?.kpis.approvedCount)} approved in selected period`,
-      icon: <BarChart3 className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-[#005b96] to-[#03396c]',
+      icon: <BarChart3 />,
     },
     {
-      title: 'Research Outputs',
+      title: 'Research outputs',
       value: formatNumber(
         (data?.kpis.totalResearchSubmissions || 0) +
           (data?.kpis.totalBookSubmissions || 0) +
@@ -685,63 +649,55 @@ export default function DrdAnalyticsPage() {
       subtitle: `${formatNumber(data?.kpis.totalResearchSubmissions)} papers, ${formatNumber(
         data?.kpis.totalBookSubmissions
       )} books, ${formatNumber(data?.kpis.totalConferenceSubmissions)} conferences`,
-      icon: <GraduationCap className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-[#6497b1] to-[#005b96]',
+      icon: <GraduationCap />,
     },
     {
-      title: 'IPR + Grants',
+      title: 'IPR + grants',
       value: formatNumber((data?.kpis.totalPatentSubmissions || 0) + (data?.kpis.totalGrantSubmissions || 0)),
       subtitle: `${formatNumber(data?.kpis.totalPatentSubmissions)} IPR, ${formatNumber(
         data?.kpis.totalGrantSubmissions
       )} grants`,
-      icon: <Layers3 className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-emerald-500 to-emerald-700',
+      icon: <Layers3 />,
     },
     {
-      title: 'Approved Incentive',
+      title: 'Approved incentive',
       value: formatNumber(data?.kpis.totalIncentive),
       subtitle: 'Approved or credited incentive only',
-      icon: <CheckCircle2 className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-amber-500 to-orange-600',
+      icon: <CheckCircle2 />,
     },
   ];
 
   const reviewerCards = [
     {
-      title: 'Assigned Workload',
+      title: 'Assigned workload',
       value: formatNumber(data?.kpis.assignedCount),
       subtitle: `${formatNumber(data?.kpis.pendingCount)} still pending`,
-      icon: <Briefcase className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-[#005b96] to-[#03396c]',
+      icon: <Briefcase />,
     },
     {
-      title: 'First Response',
+      title: 'First response',
       value: formatHours(data?.kpis.avgFirstResponseHours),
       subtitle: `${formatNumber(data?.kpis.respondedCount)} cases received a first response`,
-      icon: <Clock3 className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-[#6497b1] to-[#005b96]',
+      icon: <Clock3 />,
     },
     {
-      title: 'Completed Reviews',
+      title: 'Completed reviews',
       value: formatNumber(data?.kpis.completedCount),
       subtitle: `${formatNumber(data?.kpis.totalReviewers)} reviewers in current view`,
-      icon: <UserCheck className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-emerald-500 to-emerald-700',
+      icon: <UserCheck />,
     },
     {
-      title: 'Avg Completion',
+      title: 'Avg completion',
       value: formatHours(data?.kpis.avgCompletionHours),
       subtitle: 'Across all completed review cycles',
-      icon: <Target className="h-6 w-6" />,
-      accent: 'bg-gradient-to-br from-amber-500 to-orange-600',
+      icon: <Target />,
     },
   ];
 
   const applyFilters = () => {
     setFilters({
       ...draftFilters,
-      reviewerId: activeTab ===
-   'drd_member' ? draftFilters.reviewerId : '',
+      reviewerId: activeTab === 'drd_member' ? draftFilters.reviewerId : '',
     });
   };
 
@@ -763,8 +719,7 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab ===
-   'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -779,8 +734,7 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab ===
-   'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -793,8 +747,7 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab ===
-   'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -807,8 +760,7 @@ export default function DrdAnalyticsPage() {
     setDraftFilters(next);
     setFilters({
       ...next,
-      reviewerId: activeTab ===
-   'drd_member' ? next.reviewerId : '',
+      reviewerId: activeTab === 'drd_member' ? next.reviewerId : '',
     });
   };
 
@@ -840,14 +792,11 @@ export default function DrdAnalyticsPage() {
       };
 
       let response;
-      if (kind ===
-   'school') {
+      if (kind === 'school') {
         response = await drdAnalyticsService.getApplicantSchoolAnalytics(id, requestFilters);
-      } else if (kind ===
-   'department') {
+      } else if (kind === 'department') {
         response = await drdAnalyticsService.getApplicantDepartmentAnalytics(id, requestFilters);
-      } else if (kind ===
-   'person') {
+      } else if (kind === 'person') {
         response = await drdAnalyticsService.getApplicantPersonAnalytics(id, requestFilters);
       } else {
         response = await drdAnalyticsService.getReviewerAnalytics(id, {
@@ -878,8 +827,7 @@ export default function DrdAnalyticsPage() {
   const exportCurrentView = () => {
     if (!data) return;
 
-    if (activeTab ===
-   'applicant') {
+    if (activeTab === 'applicant') {
       const rows = [
         ...schoolRows.map((school) => ({
           rowType: 'school',
@@ -940,487 +888,571 @@ export default function DrdAnalyticsPage() {
   const applicantTopPerson = peopleRows[0];
   const topReviewer = reviewerRows[0];
 
-  if (permStatus ===
-   'checking') {
+  if (permStatus === 'checking') {
     return (
       <ProtectedRoute>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-        </div>
+        <AnalyticsShell>
+          <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8" aria-busy="true" aria-label="Checking access">
+            <SkeletonBlock className="h-40" />
+            <SkeletonBlock className="h-14" />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => <SkeletonBlock key={i} className="h-28" />)}
+            </div>
+            <SkeletonBlock className="h-80" />
+          </div>
+        </AnalyticsShell>
       </ProtectedRoute>
     );
   }
 
-  if (permStatus ===
-   'denied') {
+  if (permStatus === 'denied') {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
-          <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border dark:border-gray-700">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ShieldCheck className="w-8 h-8 text-red-600" />
+        <AnalyticsShell className="flex items-center justify-center p-6">
+          <div className={`${ui.card} w-full max-w-md p-8 text-center`}>
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+              <ShieldAlert className="h-6 w-6" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Denied</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <h2 className="text-lg font-semibold text-stone-900 dark:text-white">Access denied</h2>
+            <p className="mt-2 text-sm text-stone-500 dark:text-gray-400">
               You do not have the required analytics permissions to view this page. Contact your administrator.
             </p>
           </div>
-        </div>
+        </AnalyticsShell>
       </ProtectedRoute>
     );
   }
 
+  const kpis = data?.kpis;
+  const heroChips = activeTab === 'applicant'
+    ? [
+        { label: 'Applications', value: data ? formatNumber(kpis?.totalApplications) : '—' },
+        { label: 'Approved', value: data ? formatNumber(kpis?.approvedCount) : '—' },
+        {
+          label: 'Approval rate',
+          value: data && kpis?.totalApplications
+            ? formatPercent(Math.round(((kpis.approvedCount || 0) / kpis.totalApplications) * 1000) / 10)
+            : '—',
+        },
+        { label: 'Approved incentive', value: data ? formatNumber(kpis?.totalIncentive) : '—' },
+      ]
+    : [
+        { label: 'Assigned', value: data ? formatNumber(kpis?.assignedCount) : '—' },
+        { label: 'Completed', value: data ? formatNumber(kpis?.completedCount) : '—' },
+        { label: 'Pending', value: data ? formatNumber(kpis?.pendingCount) : '—' },
+        { label: 'First response', value: data ? formatHours(kpis?.avgFirstResponseHours) : '—' },
+      ];
+
+  const quick30Active = filters.from === toDateInputValue(new Date(new Date().setDate(new Date().getDate() - 30)));
+  const quick90Active = quickRangeLabel === 'Last 90 days';
+  const quickYtdActive = filters.from === `${new Date().getFullYear()}-01-01`;
+  const quickRanges = [
+    { label: '30 days', active: quick30Active, onClick: () => setQuickRange(30) },
+    { label: '90 days', active: quick90Active, onClick: () => setQuickRange(90) },
+    { label: 'YTD', active: quickYtdActive, onClick: setYearToDate },
+  ];
+
+  const tabs: Array<{ id: AnalyticsTab; label: string }> = [
+    { id: 'applicant', label: 'Applicants' },
+    { id: 'drd_member', label: 'DRD members' },
+  ];
+
   return (
     <ProtectedRoute>
-      <div className="mx-auto max-w-7xl space-y-6 p-6">
-        <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-[#005b96] via-[#004a80] to-[#003d6b] text-white shadow-[0_16px_48px_rgba(0,91,150,0.24)]">
-          <div className="absolute -right-14 top-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-[#6497b1]/25 blur-3xl" />
-          <div className="relative px-6 py-7 sm:px-8 sm:py-8">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-              <div className="max-w-3xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-[#d8e6ef]">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  DRD University Analytics
-                </div>
-                <h1 className="mt-4 text-3xl font-bold sm:text-4xl">
-                  A clearer view of applicant activity and DRD performance
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#d8e6ef] sm:text-base">
-                  Built around your assigned schools and departments. Review trends, reviewer workload,
-                  approvals, and incentive impact without leaving the DRD workflow.
-                </p>
+      <AnalyticsShell>
+        <AnalyticsHero
+          eyebrow="DRD analytics"
+          title="Applicant activity and DRD performance"
+          description="Built around your assigned schools and departments. Review trends, reviewer workload, approvals and incentive impact without leaving the DRD workflow."
+          actions={
+            <>
+              <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-gray-600 dark:bg-gray-900/50" role="tablist" aria-label="Analytics view">
+                {tabs.map((tab) => {
+                  const active = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                        active
+                          ? 'bg-white text-wine shadow-sm dark:bg-gray-700 dark:text-amber'
+                          : 'text-stone-600 hover:text-stone-900 dark:text-gray-300 dark:hover:text-white'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
-
-              <div className="flex flex-col gap-3 sm:items-end">
-                <div className="inline-flex w-full flex-col gap-2 rounded-2xl bg-white/10 p-1 backdrop-blur-sm sm:w-auto sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('applicant')}
-                    className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
-                      activeTab ===
-   'applicant' ? 'bg-white text-[#011f4b] shadow-lg' : 'text-white/85 hover:bg-white/10'
-                    }`}
-                  >
-                    Applicant Analytics
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('drd_member')}
-                    className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
-                      activeTab ===
-   'drd_member' ? 'bg-white text-[#011f4b] shadow-lg' : 'text-white/85 hover:bg-white/10'
-                    }`}
-                  >
-                    DRD Member Analytics
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={exportCurrentView}
-                  disabled={!data}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Download className="h-4 w-4" />
-                  Export Current View
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-3 md:grid-cols-3">
-              <MetricPill icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Scope Level" value={scopeLevel} />
-              <MetricPill
-                icon={<Building2 className="h-3.5 w-3.5" />}
-                label="Schools in Scope"
-                value={formatNumber(scopeSchools)}
-              />
-              <MetricPill
-                icon={<Layers3 className="h-3.5 w-3.5" />}
-                label="Departments in Scope"
-                value={formatNumber(scopeDepartments)}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-          <SectionHeader
-            title="Filters and View Control"
-            description="Apply focused filters without losing the scope restrictions already assigned to you."
-            action={
               <button
                 type="button"
                 onClick={() => void loadAnalytics(activeTab, filters)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
+                className={ui.btnSecondary}
+                aria-label="Refresh"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
               </button>
-            }
-          />
+              <button
+                type="button"
+                onClick={exportCurrentView}
+                disabled={!data}
+                className={`${ui.btnPrimary} disabled:cursor-not-allowed`}
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </button>
+            </>
+          }
+          chips={heroChips}
+        />
 
-          <div className="space-y-5 p-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <QuickFilterButton
-                label="Last 30 Days"
-                active={filters.from ===
-   toDateInputValue(new Date(new Date().setDate(new Date().getDate() - 30)))}
-                onClick={() => setQuickRange(30)}
-              />
-              <QuickFilterButton
-                label="Last 90 Days"
-                active={quickRangeLabel ===
-   'Last 90 days'}
-                onClick={() => setQuickRange(90)}
-              />
-              <QuickFilterButton
-                label="Year to Date"
-                active={filters.from ===
-   `${new Date().getFullYear()}-01-01`}
-                onClick={setYearToDate}
-              />
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <ScopeBadge label="Range" value={quickRangeLabel} />
-                <ScopeBadge label="Active Filters" value={formatNumber(activeFilterCount)} />
-                {isSelfView ? <ScopeBadge label="Reviewer Mode" value="Self View" /> : null}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-              <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">From</label>
-                <input
-                  type="date"
-                  value={draftFilters.from}
-                  onChange={(e) => setDraftFilters((current) => ({ ...current, from: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
-                />
-              </div>
-
-              <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">To</label>
-                <input
-                  type="date"
-                  value={draftFilters.to}
-                  onChange={(e) => setDraftFilters((current) => ({ ...current, to: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
-                />
-              </div>
-
-              <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">Category</label>
-                <select
-                  value={draftFilters.category}
-                  onChange={(e) => setDraftFilters((current) => ({ ...current, category: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="research">Research</option>
-                  <option value="book">Book / Chapter</option>
-                  <option value="conference">Conference</option>
-                  <option value="ipr">Patent / IPR</option>
-                  <option value="grants">Grants</option>
-                </select>
-              </div>
-
-              <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">School</label>
-                <select
-                  value={draftFilters.schoolId}
-                  onChange={(e) =>
-                    setDraftFilters((current) => ({
-                      ...current,
-                      schoolId: e.target.value,
-                      departmentId: '',
-                    }))
-                  }
-                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
-                >
-                  <option value="">All Schools</option>
-                  {schoolRows.map((school) => (
-                    <option key={school.schoolId} value={school.schoolId}>
-                      {school.schoolName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">Department</label>
-                <select
-                  value={draftFilters.departmentId}
-                  onChange={(e) => setDraftFilters((current) => ({ ...current, departmentId: e.target.value }))}
-                  className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
-                >
-                  <option value="">All Departments</option>
-                  {departmentOptions.map((department) => (
-                    <option key={department.departmentId} value={department.departmentId}>
-                      {department.departmentName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="xl:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-[#011f4b] dark:text-gray-300">
-                  {activeTab ===
-   'drd_member' ? 'Reviewer' : 'Scope Hint'}
-                </label>
-                {activeTab ===
-   'drd_member' ? (
-                  <select
-                    value={draftFilters.reviewerId}
-                    onChange={(e) => setDraftFilters((current) => ({ ...current, reviewerId: e.target.value }))}
-                    className="w-full rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-[#011f4b] dark:text-gray-100 outline-none transition-colors focus:border-[#005b96]"
-                  >
-                    <option value="">{isSelfView ? 'My Analytics' : 'All Reviewers'}</option>
-                    {reviewerRows.map((reviewer) => (
-                      <option key={reviewer.reviewerId} value={reviewer.reviewerId}>
-                        {reviewer.reviewerName}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="flex h-[42px] items-center rounded-xl border border-dashed border-[#b3cde0] dark:border-gray-600 bg-[#f7fbfe] dark:bg-gray-700 px-3 text-sm text-[#6497b1] dark:text-gray-400">
-                    Department-only users stay within their assigned department
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 rounded-2xl border border-[#e3edf4] dark:border-gray-700 bg-[#f7fbfe] dark:bg-gray-800 p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-xl bg-white dark:bg-gray-700 p-2 text-[#005b96] dark:text-blue-400 shadow-sm">
-                  <Filter className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#011f4b] dark:text-white">Current view</p>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {activeTab ===
-   'applicant'
-                      ? 'Monitor applicant submissions, approvals, and incentive impact in the chosen scope.'
-                      : 'Track reviewer workload, response speed, completion efficiency, and pending load.'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
+        {/* Filters */}
+        <div className="sticky top-20 z-30 border-b border-stone-200 bg-white/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:border-gray-700 dark:bg-gray-800/90 sm:top-[5.5rem] sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500 dark:text-gray-400">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Period
+            </span>
+            <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-gray-600 dark:bg-gray-900/50" role="group" aria-label="Quick date ranges">
+              {quickRanges.map((qr) => (
                 <button
+                  key={qr.label}
                   type="button"
-                  onClick={resetFilters}
-                  className="rounded-xl border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
+                  aria-pressed={qr.active}
+                  onClick={qr.onClick}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                    qr.active
+                      ? 'bg-white text-wine shadow-sm dark:bg-gray-700 dark:text-amber'
+                      : 'text-stone-600 hover:text-stone-900 dark:text-gray-300 dark:hover:text-white'
+                  }`}
                 >
-                  Reset
+                  {qr.label}
                 </button>
-                <button
-                  type="button"
-                  onClick={applyFilters}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#005b96] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#005b96]/20 transition-colors hover:bg-[#004a80]"
-                >
-                  Apply Filters
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {loading ? (
-          <div className="flex min-h-[280px] items-center justify-center rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800">
-            <div className="text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f0f7fb] dark:bg-gray-700 text-[#005b96]">
-                <RefreshCw className="h-6 w-6 animate-spin" />
-              </div>
-              <p className="mt-4 text-sm font-medium text-[#011f4b] dark:text-white">Loading DRD analytics</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Preparing the latest scoped view for you.</p>
-            </div>
-          </div>
-        ) : !data ? (
-          <EmptyPanel
-            title="Analytics could not be loaded"
-            description="The current user may not have the required analytics permission or scoped assignment yet."
-          />
-        ) : (
-          <>
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {(activeTab ===
-   'applicant' ? applicantCards : reviewerCards).map((card) => (
-                <DashboardCard key={card.title} {...card} />
               ))}
-            </section>
+            </div>
 
-            <section className="flex flex-wrap gap-2">
-              <ScopeBadge label="Scope Level" value={scopeLevel} />
-              <ScopeBadge label="Resolution" value={data.meta.scopeApplied.resolution} />
-              <ScopeBadge
-                label="Time Range"
-                value={`${formatDateLabel(data.meta.timeRange.from)} to ${formatDateLabel(data.meta.timeRange.to)}`}
+            <div className="flex items-center gap-1.5">
+              <CalendarDays className="h-4 w-4 text-stone-400 dark:text-gray-500" />
+              <input
+                type="date"
+                aria-label="From date"
+                value={draftFilters.from}
+                onChange={(e) => setDraftFilters((current) => ({ ...current, from: e.target.value }))}
+                className={ui.input}
               />
-              <ScopeBadge label="Category" value={filters.category ===
-   'all' ? 'All' : filters.category} />
-            </section>
-
-            <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <MonthlyBarChart
-                title={activeTab ===
-   'applicant' ? 'Monthly Filing Trend' : 'Monthly Review Trend'}
-                description={
-                  activeTab ===
-   'applicant'
-                    ? 'Applications and approvals over the selected months.'
-                    : 'Assigned and completed work across the selected months.'
-                }
-                points={monthlyTrend}
-                series={
-                  activeTab ===
-   'applicant'
-                    ? [
-                        { key: 'totalApplications', label: 'Applications', color: 'bg-[#005b96]', text: 'bg-[#edf5fa] text-[#005b96]' },
-                        { key: 'approvedCount', label: 'Approved', color: 'bg-emerald-500', text: 'bg-[#edf8f4] text-emerald-700' },
-                      ]
-                    : [
-                        { key: 'assigned', label: 'Assigned', color: 'bg-[#005b96]', text: 'bg-[#edf5fa] text-[#005b96]' },
-                        { key: 'completed', label: 'Completed', color: 'bg-emerald-500', text: 'bg-[#edf8f4] text-emerald-700' },
-                      ]
-                }
+              <span className="text-xs text-stone-400 dark:text-gray-500">to</span>
+              <input
+                type="date"
+                aria-label="To date"
+                value={draftFilters.to}
+                onChange={(e) => setDraftFilters((current) => ({ ...current, to: e.target.value }))}
+                className={ui.input}
               />
+            </div>
 
-              <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                <SectionHeader
-                  title="Highlights"
-                  description="The most important signals from the current scoped view."
-                />
-                <div className="grid gap-4 p-5">
-                  {activeTab ===
-   'applicant' ? (
-                    <>
-                      <InsightCard
-                        title="Top School"
-                        value={applicantTopSchool?.schoolName || 'No data'}
-                        helper={
-                          applicantTopSchool
-                            ? `${formatNumber(applicantTopSchool.totalApplications)} applications`
-                            : 'No school activity found in this range.'
-                        }
-                      />
-                      <InsightCard
-                        title="Top Department"
-                        value={applicantTopDepartment?.departmentName || 'No data'}
-                        helper={
-                          applicantTopDepartment
-                            ? `${formatNumber(applicantTopDepartment.totalIncentive)} incentive`
-                            : 'No department activity found in this range.'
-                        }
-                      />
-                      <InsightCard
-                        title="Top Applicant"
-                        value={applicantTopPerson?.applicantName || 'No data'}
-                        helper={
-                          applicantTopPerson
-                            ? `${formatNumber(applicantTopPerson.totalApplications)} applications filed`
-                            : 'No applicant records found in this range.'
-                        }
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <InsightCard
-                        title="Top Reviewer"
-                        value={topReviewer?.reviewerName || 'No data'}
-                        helper={
-                          topReviewer
-                            ? `${formatNumber(topReviewer.completedCount)} completed reviews`
-                            : 'No reviewer activity found in this range.'
-                        }
-                      />
-                      <InsightCard
-                        title="Team Completion"
-                        value={formatPercent(
-                          data.kpis.assignedCount
-                            ? ((data.kpis.completedCount || 0) / data.kpis.assignedCount) * 100
-                            : 0
-                        )}
-                        helper="Based on assigned items in the current DRD view."
-                      />
-                      <InsightCard
-                        title="Response Speed"
-                        value={formatHours(data.kpis.avgFirstResponseHours)}
-                        helper={isSelfView ? 'Your current review response speed.' : 'Average across visible reviewers.'}
-                      />
-                    </>
-                  )}
-                </div>
+            <select
+              aria-label="Category"
+              value={draftFilters.category}
+              onChange={(e) => setDraftFilters((current) => ({ ...current, category: e.target.value }))}
+              className={selectCls}
+            >
+              <option value="all">All categories</option>
+              <option value="research">Research</option>
+              <option value="book">Book / chapter</option>
+              <option value="conference">Conference</option>
+              <option value="ipr">Patent / IPR</option>
+              <option value="grants">Grants</option>
+            </select>
+
+            <select
+              aria-label="School"
+              value={draftFilters.schoolId}
+              onChange={(e) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  schoolId: e.target.value,
+                  departmentId: '',
+                }))
+              }
+              className={`${selectCls} sm:max-w-[14rem]`}
+            >
+              <option value="">All schools</option>
+              {schoolRows.map((school) => (
+                <option key={school.schoolId} value={school.schoolId}>
+                  {school.schoolName}
+                </option>
+              ))}
+            </select>
+
+            <select
+              aria-label="Department"
+              value={draftFilters.departmentId}
+              onChange={(e) => setDraftFilters((current) => ({ ...current, departmentId: e.target.value }))}
+              className={`${selectCls} sm:max-w-[14rem]`}
+            >
+              <option value="">All departments</option>
+              {departmentOptions.map((department) => (
+                <option key={department.departmentId} value={department.departmentId}>
+                  {department.departmentName}
+                </option>
+              ))}
+            </select>
+
+            {activeTab === 'drd_member' ? (
+              <select
+                aria-label="Reviewer"
+                value={draftFilters.reviewerId}
+                onChange={(e) => setDraftFilters((current) => ({ ...current, reviewerId: e.target.value }))}
+                className={`${selectCls} sm:max-w-[14rem]`}
+              >
+                <option value="">{isSelfView ? 'My analytics' : 'All reviewers'}</option>
+                {reviewerRows.map((reviewer) => (
+                  <option key={reviewer.reviewerId} value={reviewer.reviewerId}>
+                    {reviewer.reviewerName}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={resetFilters} className={ui.btnSecondary}>
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset
+              </button>
+              <button type="button" onClick={applyFilters} className={ui.btnPrimary}>
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+          {/* Scope summary */}
+          <div className="flex flex-wrap items-center gap-2">
+            <ScopeBadge label="Range" value={quickRangeLabel} />
+            <ScopeBadge label="Scope" value={scopeLevel} />
+            <ScopeBadge label="Schools" value={formatNumber(scopeSchools)} />
+            <ScopeBadge label="Departments" value={formatNumber(scopeDepartments)} />
+            <ScopeBadge label="Active filters" value={formatNumber(activeFilterCount)} />
+            {isSelfView ? <ScopeBadge label="Reviewer mode" value="Self view" /> : null}
+            {data ? <ScopeBadge label="Resolution" value={data.meta.scopeApplied.resolution} /> : null}
+            {activeTab === 'applicant' ? (
+              <span className="text-xs text-stone-500 dark:text-gray-400">Department-only users stay within their assigned department.</span>
+            ) : null}
+          </div>
+
+          {loading ? (
+            <div className="space-y-6" aria-busy="true" aria-label="Loading DRD analytics">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {[0, 1, 2, 3].map((i) => <SkeletonBlock key={i} className="h-32" />)}
               </div>
-            </section>
+              <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <SkeletonBlock className="h-80" />
+                <SkeletonBlock className="h-80" />
+              </div>
+              <SkeletonBlock className="h-72" />
+            </div>
+          ) : !data ? (
+            <EmptyPanel
+              title="Analytics could not be loaded"
+              description="The current user may not have the required analytics permission or scoped assignment yet."
+            />
+          ) : (
+            <>
+              <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {(activeTab === 'applicant' ? applicantCards : reviewerCards).map((card) => (
+                  <DashboardCard key={card.title} {...card} />
+                ))}
+              </section>
 
-            {activeTab ===
-   'applicant' ? (
-              <>
-                <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                  <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                    <SectionHeader
-                      title="School Performance"
-                      description="See where filing volume and incentive impact are concentrated."
-                    />
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
-                          <tr>
-                            {['School', 'Applications', 'Approved', 'Incentive', 'Actions'].map((label) => (
-                              <th key={label} className="px-5 py-3 font-semibold">
-                                {label}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {schoolRows.length ===
-   0 ? (
+              <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <MonthlyBarChart
+                  title={activeTab === 'applicant' ? 'Monthly filing trend' : 'Monthly review trend'}
+                  description={
+                    activeTab === 'applicant'
+                      ? 'Applications and approvals, last six months of the period.'
+                      : 'Assigned and completed work, last six months of the period.'
+                  }
+                  points={monthlyTrend}
+                  series={
+                    activeTab === 'applicant'
+                      ? [
+                          { key: 'totalApplications', label: 'Applications' },
+                          { key: 'approvedCount', label: 'Approved' },
+                        ]
+                      : [
+                          { key: 'assigned', label: 'Assigned' },
+                          { key: 'completed', label: 'Completed' },
+                        ]
+                  }
+                />
+
+                <section className={`overflow-hidden ${ui.card}`}>
+                  <SectionHeader
+                    title="Highlights"
+                    description="The most important signals from the current scoped view."
+                  />
+                  <div className="grid gap-3 p-5">
+                    {activeTab === 'applicant' ? (
+                      <>
+                        <InsightCard
+                          title="Top school"
+                          value={applicantTopSchool?.schoolName || 'No data'}
+                          helper={
+                            applicantTopSchool
+                              ? `${formatNumber(applicantTopSchool.totalApplications)} applications`
+                              : 'No school activity found in this range.'
+                          }
+                        />
+                        <InsightCard
+                          title="Top department"
+                          value={applicantTopDepartment?.departmentName || 'No data'}
+                          helper={
+                            applicantTopDepartment
+                              ? `${formatNumber(applicantTopDepartment.totalIncentive)} incentive`
+                              : 'No department activity found in this range.'
+                          }
+                        />
+                        <InsightCard
+                          title="Top applicant"
+                          value={applicantTopPerson?.applicantName || 'No data'}
+                          helper={
+                            applicantTopPerson
+                              ? `${formatNumber(applicantTopPerson.totalApplications)} applications filed`
+                              : 'No applicant records found in this range.'
+                          }
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <InsightCard
+                          title="Top reviewer"
+                          value={topReviewer?.reviewerName || 'No data'}
+                          helper={
+                            topReviewer
+                              ? `${formatNumber(topReviewer.completedCount)} completed reviews`
+                              : 'No reviewer activity found in this range.'
+                          }
+                        />
+                        <InsightCard
+                          title="Team completion"
+                          value={formatPercent(
+                            data.kpis.assignedCount
+                              ? ((data.kpis.completedCount || 0) / data.kpis.assignedCount) * 100
+                              : 0
+                          )}
+                          helper="Based on assigned items in the current DRD view."
+                        />
+                        <InsightCard
+                          title="Response speed"
+                          value={formatHours(data.kpis.avgFirstResponseHours)}
+                          helper={isSelfView ? 'Your current review response speed.' : 'Average across visible reviewers.'}
+                        />
+                      </>
+                    )}
+                  </div>
+                </section>
+              </section>
+
+              {activeTab === 'applicant' ? (
+                <>
+                  <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                    <section className={`overflow-hidden ${ui.card}`}>
+                      <SectionHeader
+                        title="School performance"
+                        description="Where filing volume and incentive impact are concentrated."
+                      />
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                          <thead className={theadCls}>
                             <tr>
-                              <td colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
-                                No school analytics available for the selected scope.
-                              </td>
+                              <th className={ui.th}>School</th>
+                              <th className={`${ui.th} text-right`}>Applications</th>
+                              <th className={`${ui.th} text-right`}>Approved</th>
+                              <th className={`${ui.th} text-right`}>Incentive</th>
+                              <th className={`${ui.th} text-right`}><span className="sr-only">Actions</span></th>
                             </tr>
-                          ) : (
-                            schoolRows.map((school) => (
-                              <tr key={school.schoolId} className="border-t border-[#eef5f9] dark:border-gray-700">
-                                <td className="px-5 py-4">
-                                  <p className="font-semibold text-[#011f4b] dark:text-white">{school.schoolName}</p>
-                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {school.totalApplications > 0
-                                      ? `${formatPercent((school.totalApproved / school.totalApplications) * 100)} approval rate`
-                                      : 'No completed filings yet'}
-                                  </p>
+                          </thead>
+                          <tbody className={tbodyCls}>
+                            {schoolRows.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-10 text-center text-sm text-stone-500 dark:text-gray-400">
+                                  No school analytics available for the selected scope.
                                 </td>
-                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(school.totalApplications)}</td>
-                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(school.totalApproved)}</td>
-                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(school.totalIncentive)}</td>
-                                <td className="px-5 py-4">
-                                  <div className="flex flex-wrap gap-2">
+                              </tr>
+                            ) : (
+                              schoolRows.map((school) => (
+                                <tr key={school.schoolId} className={trCls}>
+                                  <td className={ui.td}>
+                                    <p className="font-medium text-stone-900 dark:text-white">{school.schoolName}</p>
+                                    <p className="mt-0.5 text-xs text-stone-500 dark:text-gray-400">
+                                      {school.totalApplications > 0
+                                        ? `${formatPercent((school.totalApproved / school.totalApplications) * 100)} approval rate`
+                                        : 'No completed filings yet'}
+                                    </p>
+                                  </td>
+                                  <td className={numCls}><Num value={school.totalApplications} /></td>
+                                  <td className={numCls}><Num value={school.totalApproved} /></td>
+                                  <td className={numCls}><Num value={school.totalIncentive} strong /></td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex justify-end gap-2">
+                                      <button type="button" onClick={() => focusSchool(school.schoolId)} className={rowActionCls}>
+                                        <Crosshair className="h-3.5 w-3.5" />
+                                        Focus
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          openDrilldown(
+                                            'school',
+                                            school.schoolId,
+                                            school.schoolName,
+                                            'Focused school analytics including people, departments and month trend.'
+                                          )
+                                        }
+                                        className={rowActionCls}
+                                      >
+                                        Details
+                                        <ChevronRight className="h-3.5 w-3.5 text-stone-400 dark:text-gray-500" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+
+                    <section className={`overflow-hidden ${ui.card}`}>
+                      <SectionHeader
+                        title="Department momentum"
+                        description="Active departments, bar relative to the busiest one."
+                      />
+                      {departmentRows.length === 0 ? (
+                        <p className="px-5 py-10 text-center text-sm text-stone-500 dark:text-gray-400">No data for this period.</p>
+                      ) : (
+                        <ul className={tbodyCls}>
+                          {departmentRows.slice(0, 7).map((department) => {
+                            const progressBase = departmentRows[0]?.totalApplications || 1;
+                            const progress = Math.min(
+                              100,
+                              Math.round((department.totalApplications / progressBase) * 100)
+                            );
+                            return (
+                              <li key={department.departmentId} className="px-5 py-4">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-stone-900 dark:text-white">{department.departmentName}</p>
+                                    <p className="mt-0.5 truncate text-xs text-stone-500 dark:text-gray-400">
+                                      {department.schoolName} · <span className="tabular-nums">{formatNumber(department.totalApplicants)}</span> applicants
+                                    </p>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <p className={`text-sm ${ui.value}`}>{formatNumber(department.totalApplications)}</p>
+                                    <p className="text-xs text-stone-500 dark:text-gray-400">applications</p>
+                                  </div>
+                                </div>
+                                <div className="mt-2.5">
+                                  <Meter percent={progress} label={`${department.departmentName} relative volume`} />
+                                </div>
+                                <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-xs text-stone-500 dark:text-gray-400">
+                                    <span className="tabular-nums">{formatNumber(department.totalApproved)}</span> approved · Incentive{' '}
+                                    <span className="tabular-nums">{formatNumber(department.totalIncentive)}</span>
+                                  </p>
+                                  <div className="flex gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => focusSchool(school.schoolId)}
-                                      className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400 transition-colors hover:border-[#005b96]"
+                                      onClick={() => focusDepartment(department.departmentId, department.schoolId)}
+                                      className={rowActionCls}
                                     >
+                                      <Crosshair className="h-3.5 w-3.5" />
                                       Focus
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() =>
                                         openDrilldown(
-                                          'school',
-                                          school.schoolId,
-                                          school.schoolName,
-                                          'Focused school analytics including people, departments, and month trend.'
+                                          'department',
+                                          department.departmentId,
+                                          department.departmentName,
+                                          'Focused department analytics including people and month trend.'
                                         )
                                       }
-                                      className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200 transition-colors hover:border-[#005b96]"
+                                      className={rowActionCls}
                                     >
-                                      <Eye className="h-3.5 w-3.5" />
                                       Details
+                                      <ChevronRight className="h-3.5 w-3.5 text-stone-400 dark:text-gray-500" />
                                     </button>
                                   </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </section>
+                  </section>
+
+                  <section className={`overflow-hidden ${ui.card}`}>
+                    <SectionHeader
+                      title="Applicant leaderboard"
+                      description="People-level view for the visible scope. Spot high-volume contributors and how incentive is distributed."
+                    />
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className={theadCls}>
+                          <tr>
+                            <th className={ui.th}>Applicant</th>
+                            <th className={ui.th}>Department</th>
+                            <th className={ui.th}>Category split</th>
+                            <th className={`${ui.th} text-right`}>Approved</th>
+                            <th className={`${ui.th} text-right`}>Incentive</th>
+                            <th className={`${ui.th} text-right`}><span className="sr-only">Actions</span></th>
+                          </tr>
+                        </thead>
+                        <tbody className={tbodyCls}>
+                          {peopleRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-10 text-center text-sm text-stone-500 dark:text-gray-400">
+                                No applicant records were found for the selected view.
+                              </td>
+                            </tr>
+                          ) : (
+                            peopleRows.map((person) => (
+                              <tr key={person.personId} className={trCls}>
+                                <td className={ui.td}>
+                                  <p className="font-medium text-stone-900 dark:text-white">{person.applicantName}</p>
+                                  <p className="mt-0.5 text-xs text-stone-500 dark:text-gray-400">{person.schoolName}</p>
+                                </td>
+                                <td className={`${ui.td} text-stone-500 dark:text-gray-400`}>{person.departmentName}</td>
+                                <td className="min-w-[16rem] px-4 py-3">
+                                  <CategorySplit counts={person.filingCounts} />
+                                </td>
+                                <td className={numCls}><Num value={person.approvedCount} /></td>
+                                <td className={numCls}><Num value={person.totalIncentive} strong /></td>
+                                <td className="px-4 py-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openDrilldown(
+                                        'person',
+                                        person.personId,
+                                        person.applicantName,
+                                        'Focused applicant analytics including month trend and scoped submission summary.'
+                                      )
+                                    }
+                                    className={rowActionCls}
+                                  >
+                                    Details
+                                    <ChevronRight className="h-3.5 w-3.5 text-stone-400 dark:text-gray-500" />
+                                  </button>
                                 </td>
                               </tr>
                             ))
@@ -1428,387 +1460,209 @@ export default function DrdAnalyticsPage() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
+                  </section>
+                </>
+              ) : (
+                <>
+                  <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                    <section className={`overflow-hidden ${ui.card}`}>
+                      <SectionHeader
+                        title="Reviewer performance"
+                        description="Assignment load, response speed and closure rate across the visible DRD team."
+                      />
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                          <thead className={theadCls}>
+                            <tr>
+                              <th className={ui.th}>Reviewer</th>
+                              <th className={`${ui.th} text-right`}>Assigned</th>
+                              <th className={`${ui.th} text-right`}>Pending</th>
+                              <th className={`${ui.th} text-right`}>Completion</th>
+                              <th className={`${ui.th} text-right`}><span className="sr-only">Actions</span></th>
+                            </tr>
+                          </thead>
+                          <tbody className={tbodyCls}>
+                            {reviewerRows.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-10 text-center text-sm text-stone-500 dark:text-gray-400">
+                                  No reviewer activity is available for this period.
+                                </td>
+                              </tr>
+                            ) : (
+                              reviewerRows.map((reviewer) => (
+                                <tr key={reviewer.reviewerId} className={trCls}>
+                                  <td className={ui.td}>
+                                    <p className="font-medium text-stone-900 dark:text-white">{reviewer.reviewerName}</p>
+                                    <p className="mt-0.5 text-xs text-stone-500 dark:text-gray-400">
+                                      Response <span className="tabular-nums">{formatHours(reviewer.avgFirstResponseHours)}</span> · Completion{' '}
+                                      <span className="tabular-nums">{formatHours(reviewer.avgCompletionHours)}</span>
+                                    </p>
+                                  </td>
+                                  <td className={numCls}><Num value={reviewer.assignedCount} /></td>
+                                  <td className={numCls}><Num value={reviewer.pendingCount} /></td>
+                                  <td className={numCls}><Num value={reviewer.completionRate} format={formatPercent} strong /></td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex justify-end gap-2">
+                                      <button type="button" onClick={() => focusReviewer(reviewer.reviewerId)} className={rowActionCls}>
+                                        <Crosshair className="h-3.5 w-3.5" />
+                                        Focus
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          openDrilldown(
+                                            'reviewer',
+                                            reviewer.reviewerId,
+                                            reviewer.reviewerName,
+                                            'Focused reviewer analytics including response, completion and monthly trend.'
+                                          )
+                                        }
+                                        className={rowActionCls}
+                                      >
+                                        Details
+                                        <ChevronRight className="h-3.5 w-3.5 text-stone-400 dark:text-gray-500" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
 
-                  <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                    <div className="space-y-6">
+                      <section className={`overflow-hidden ${ui.card}`}>
+                        <SectionHeader
+                          title="Service standards"
+                          description="Speed, closure quality and reviewer mode at a glance."
+                        />
+                        <div className="grid gap-3 p-5 sm:grid-cols-2">
+                          <InsightCard
+                            title="Mode"
+                            value={isSelfView ? 'Self view' : 'Supervisor view'}
+                            helper="Determined by analytics permission and DRD approval scope."
+                          />
+                          <InsightCard
+                            title="Visible reviewers"
+                            value={formatNumber(data.kpis.totalReviewers)}
+                            helper="Reviewers inside the current filter and scope window."
+                          />
+                          <InsightCard
+                            title="Avg first response"
+                            value={formatHours(data.kpis.avgFirstResponseHours)}
+                            helper="Time to first reviewer action."
+                          />
+                          <InsightCard
+                            title="Avg completion"
+                            value={formatHours(data.kpis.avgCompletionHours)}
+                            helper="Time to final decision for completed review cycles."
+                          />
+                        </div>
+                      </section>
+
+                      <section className={`overflow-hidden ${ui.card}`}>
+                        <SectionHeader
+                          title="Top reviewers"
+                          description="Ordered by completed work, with response speed as the tie-breaker."
+                        />
+                        {reviewerRows.length === 0 ? (
+                          <p className="px-5 py-10 text-center text-sm text-stone-500 dark:text-gray-400">No data for this period.</p>
+                        ) : (
+                          <ol className={tbodyCls}>
+                            {reviewerRows.slice(0, 5).map((reviewer, index) => (
+                              <li key={reviewer.reviewerId} className="flex items-center justify-between gap-4 px-5 py-3.5">
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-xs font-semibold tabular-nums text-stone-600 dark:bg-gray-700 dark:text-gray-300">
+                                    {index + 1}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-stone-900 dark:text-white">{reviewer.reviewerName}</p>
+                                    <div className="mt-1">
+                                      <CategorySplit counts={reviewer.categoryBreakdown} />
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <p className={`text-sm ${ui.value}`}>{formatNumber(reviewer.completedCount)} completed</p>
+                                  <p className="mt-0.5 text-xs tabular-nums text-stone-500 dark:text-gray-400">
+                                    {formatHours(reviewer.avgCompletionHours)} avg
+                                  </p>
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </section>
+                    </div>
+                  </section>
+
+                  <section className={`overflow-hidden ${ui.card}`}>
                     <SectionHeader
-                      title="Department Momentum"
-                      description="Quickly spot active departments and incentive-heavy pockets."
+                      title="Reviewer workload"
+                      description="Share of assigned work completed per reviewer, with pending load and response speed."
                     />
-                    <div className="space-y-4 p-5">
-                      {departmentRows.length ===
-   0 ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">No department analytics are available for this view.</p>
-                      ) : (
-                        departmentRows.slice(0, 7).map((department) => {
-                          const progressBase = departmentRows[0]?.totalApplications || 1;
-                          const progress = Math.min(
-                            100,
-                            Math.round((department.totalApplications / progressBase) * 100)
-                          );
+                    {reviewerRows.length === 0 ? (
+                      <p className="px-5 py-10 text-center text-sm text-stone-500 dark:text-gray-400">No data for this period.</p>
+                    ) : (
+                      <ul className={tbodyCls}>
+                        {reviewerRows.map((reviewer) => {
+                          const progress = reviewer.assignedCount
+                            ? Math.round((reviewer.completedCount / reviewer.assignedCount) * 100)
+                            : 0;
                           return (
-                            <div
-                              key={department.departmentId}
-                              className="rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4 transition-all hover:border-[#b3cde0] hover:shadow-sm"
-                            >
-                              <div className="flex items-start justify-between gap-4">
-                                <div>
-                                  <p className="font-semibold text-[#011f4b] dark:text-white">{department.departmentName}</p>
-                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {department.schoolName} • {formatNumber(department.totalApplicants)} applicants
+                            <li key={reviewer.reviewerId} className="px-5 py-4">
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-stone-900 dark:text-white">{reviewer.reviewerName}</p>
+                                  <p className="mt-0.5 text-xs text-stone-500 dark:text-gray-400">
+                                    <span className="tabular-nums">{formatNumber(reviewer.assignedCount)}</span> assigned ·{' '}
+                                    <span className="tabular-nums">{formatNumber(reviewer.pendingCount)}</span> pending ·{' '}
+                                    <span className="tabular-nums">{formatHours(reviewer.avgFirstResponseHours)}</span> first response
                                   </p>
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-sm font-semibold text-[#011f4b] dark:text-white">
-                                    {formatNumber(department.totalApplications)}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">applications</p>
-                                </div>
-                              </div>
-                              <div className="mt-3 h-2 rounded-full bg-[#e8f1f7] dark:bg-gray-700">
-                                <div
-                                  className="h-2 rounded-full bg-gradient-to-r from-[#005b96] to-[#6497b1]"
-                                  style={{ width: `${progress}%` }}
-                                />
-                              </div>
-                              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {formatNumber(department.totalApproved)} approved • Incentive{' '}
-                                  {formatNumber(department.totalIncentive)}
-                                </div>
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => focusDepartment(department.departmentId, department.schoolId)}
-                                    className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400"
-                                  >
+                                <div className="flex flex-wrap gap-2">
+                                  <button type="button" onClick={() => focusReviewer(reviewer.reviewerId)} className={rowActionCls}>
+                                    <Crosshair className="h-3.5 w-3.5" />
                                     Focus
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() =>
                                       openDrilldown(
-                                        'department',
-                                        department.departmentId,
-                                        department.departmentName,
-                                        'Focused department analytics including people and month trend.'
+                                        'reviewer',
+                                        reviewer.reviewerId,
+                                        reviewer.reviewerName,
+                                        'Focused reviewer analytics including response, completion and monthly trend.'
                                       )
                                     }
-                                    className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
+                                    className={rowActionCls}
                                   >
-                                    <Eye className="h-3.5 w-3.5" />
                                     Details
+                                    <ChevronRight className="h-3.5 w-3.5 text-stone-400 dark:text-gray-500" />
                                   </button>
                                 </div>
                               </div>
-                            </div>
+                              <div className="mt-3">
+                                <Meter percent={progress} color={VIZ[2]} label={`${reviewer.reviewerName} completion`} />
+                              </div>
+                              <div className="mt-2 flex items-center justify-between text-xs text-stone-500 dark:text-gray-400">
+                                <span className="tabular-nums">{formatPercent(reviewer.completionRate)} completion</span>
+                                <span className="tabular-nums">{formatHours(reviewer.avgCompletionHours)} avg completion</span>
+                              </div>
+                            </li>
                           );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </section>
-
-                <section className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                  <SectionHeader
-                    title="Applicant Leaderboard"
-                    description="People-level view for the currently visible scope. Use it to spot high-volume contributors and incentive distribution."
-                  />
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
-                        <tr>
-                          {['Applicant', 'Department', 'Category Split', 'Approved', 'Incentive', 'Actions'].map((label) => (
-                            <th key={label} className="px-5 py-3 font-semibold">
-                              {label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {peopleRows.length ===
-   0 ? (
-                          <tr>
-                            <td colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
-                              No applicant records were found for the selected view.
-                            </td>
-                          </tr>
-                        ) : (
-                          peopleRows.map((person) => (
-                            <tr key={person.personId} className="border-t border-[#eef5f9] dark:border-gray-700">
-                              <td className="px-5 py-4">
-                                <p className="font-semibold text-[#011f4b] dark:text-white">{person.applicantName}</p>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{person.schoolName}</p>
-                              </td>
-                              <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{person.departmentName}</td>
-                              <td className="px-5 py-4">
-                                <div className="flex flex-wrap gap-2">
-                                  <span className="rounded-full bg-[#edf5fa] px-2.5 py-1 text-xs font-medium text-[#005b96]">
-                                    Research {formatNumber(person.filingCounts.research)}
-                                  </span>
-                                  <span className="rounded-full bg-[#f3e8ff] px-2.5 py-1 text-xs font-medium text-violet-700">
-                                    Book {formatNumber(person.filingCounts.book)}
-                                  </span>
-                                  <span className="rounded-full bg-[#fff7ed] px-2.5 py-1 text-xs font-medium text-orange-700">
-                                    Conference {formatNumber(person.filingCounts.conference)}
-                                  </span>
-                                  <span className="rounded-full bg-[#edf8f4] px-2.5 py-1 text-xs font-medium text-emerald-700">
-                                    IPR {formatNumber(person.filingCounts.ipr)}
-                                  </span>
-                                  <span className="rounded-full bg-[#fff7eb] px-2.5 py-1 text-xs font-medium text-amber-700">
-                                    Grants {formatNumber(person.filingCounts.grants)}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(person.approvedCount)}</td>
-                              <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">
-                                {formatNumber(person.totalIncentive)}
-                              </td>
-                              <td className="px-5 py-4">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openDrilldown(
-                                      'person',
-                                      person.personId,
-                                      person.applicantName,
-                                      'Focused applicant analytics including month trend and scoped submission summary.'
-                                    )
-                                  }
-                                  className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                  Details
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </>
-            ) : (
-              <>
-                <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                  <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                    <SectionHeader
-                      title="Reviewer Performance"
-                      description="Compare assignment load, response speed, and closure rate across the visible DRD team."
-                    />
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead className="bg-[#f7fbfe] dark:bg-gray-700 text-left text-[#6497b1] dark:text-gray-400">
-                          <tr>
-                            {['Reviewer', 'Assigned', 'Pending', 'Completion', 'Actions'].map((label) => (
-                              <th key={label} className="px-5 py-3 font-semibold">
-                                {label}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reviewerRows.length ===
-   0 ? (
-                            <tr>
-                              <td colSpan={5} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
-                                No reviewer activity is available for this period.
-                              </td>
-                            </tr>
-                          ) : (
-                            reviewerRows.map((reviewer) => (
-                              <tr key={reviewer.reviewerId} className="border-t border-[#eef5f9] dark:border-gray-700">
-                                <td className="px-5 py-4">
-                                  <p className="font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
-                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Response {formatHours(reviewer.avgFirstResponseHours)} • Completion{' '}
-                                    {formatHours(reviewer.avgCompletionHours)}
-                                  </p>
-                                </td>
-                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(reviewer.assignedCount)}</td>
-                                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">{formatNumber(reviewer.pendingCount)}</td>
-                                <td className="px-5 py-4 font-semibold text-[#011f4b] dark:text-white">
-                                  {formatPercent(reviewer.completionRate)}
-                                </td>
-                                <td className="px-5 py-4">
-                                  <div className="flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => focusReviewer(reviewer.reviewerId)}
-                                      className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400"
-                                    >
-                                      Focus
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        openDrilldown(
-                                          'reviewer',
-                                          reviewer.reviewerId,
-                                          reviewer.reviewerName,
-                                          'Focused reviewer analytics including response, completion, and monthly trend.'
-                                        )
-                                      }
-                                      className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
-                                    >
-                                      <Eye className="h-3.5 w-3.5" />
-                                      Details
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                      <SectionHeader
-                        title="Service Standards"
-                        description="A compact status panel for speed, closure quality, and reviewer mode."
-                      />
-                      <div className="grid gap-4 p-5 sm:grid-cols-2">
-                        <InsightCard
-                          title="Mode"
-                          value={isSelfView ? 'Self View' : 'Supervisor View'}
-                          helper="Determined by analytics permission and DRD approval scope."
-                        />
-                        <InsightCard
-                          title="Visible Reviewers"
-                          value={formatNumber(data.kpis.totalReviewers)}
-                          helper="Reviewers inside the current filter and scope window."
-                        />
-                        <InsightCard
-                          title="Avg First Response"
-                          value={formatHours(data.kpis.avgFirstResponseHours)}
-                          helper="Time to first reviewer action."
-                        />
-                        <InsightCard
-                          title="Avg Completion"
-                          value={formatHours(data.kpis.avgCompletionHours)}
-                          helper="Time to final decision for completed review cycles."
-                        />
-                      </div>
-                    </div>
-
-                    <div className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                      <SectionHeader
-                        title="Top Reviewers"
-                        description="Ordered by completed work, with response speed as the tie-breaker."
-                      />
-                      <div className="space-y-4 p-5">
-                        {reviewerRows.slice(0, 5).map((reviewer, index) => (
-                          <div
-                            key={reviewer.reviewerId}
-                            className="flex items-center justify-between rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#005b96] to-[#6497b1] text-sm font-bold text-white">
-                                {index + 1}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                  Research {formatNumber(reviewer.categoryBreakdown.research)} • Book{' '}
-                                  {formatNumber(reviewer.categoryBreakdown.book)} • Conference{' '}
-                                  {formatNumber(reviewer.categoryBreakdown.conference)} • IPR{' '}
-                                  {formatNumber(reviewer.categoryBreakdown.ipr)} • Grants{' '}
-                                  {formatNumber(reviewer.categoryBreakdown.grants)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-[#011f4b] dark:text-white">
-                                {formatNumber(reviewer.completedCount)} completed
-                              </p>
-                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                {formatHours(reviewer.avgCompletionHours)} avg completion
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="rounded-[28px] border border-[#d8e6ef] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                  <SectionHeader
-                    title="Reviewer Workload Board"
-                    description="Use the workload bars to see pending pressure and overall handling capacity."
-                  />
-                  <div className="space-y-4 p-5">
-                    {reviewerRows.length ===
-   0 ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">No workload data is available for the selected range.</p>
-                    ) : (
-                      reviewerRows.map((reviewer) => {
-                        const progress = reviewer.assignedCount
-                          ? Math.round((reviewer.completedCount / reviewer.assignedCount) * 100)
-                          : 0;
-                        return (
-                          <div
-                            key={reviewer.reviewerId}
-                            className="rounded-2xl border border-[#e3edf4] dark:border-gray-700 p-4 transition-all hover:border-[#b3cde0] hover:shadow-sm"
-                          >
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                              <div>
-                                <p className="font-semibold text-[#011f4b] dark:text-white">{reviewer.reviewerName}</p>
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                  {formatNumber(reviewer.assignedCount)} assigned • {formatNumber(reviewer.pendingCount)} pending •{' '}
-                                  {formatHours(reviewer.avgFirstResponseHours)} first response
-                                </p>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => focusReviewer(reviewer.reviewerId)}
-                                  className="rounded-full border border-[#b3cde0] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#005b96] dark:text-blue-400"
-                                >
-                                  Focus
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openDrilldown(
-                                      'reviewer',
-                                      reviewer.reviewerId,
-                                      reviewer.reviewerName,
-                                      'Focused reviewer analytics including response, completion, and monthly trend.'
-                                    )
-                                  }
-                                  className="inline-flex items-center gap-1 rounded-full border border-[#d8e6ef] dark:border-gray-600 px-3 py-1.5 text-xs font-semibold text-[#011f4b] dark:text-gray-200"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                  Details
-                                </button>
-                              </div>
-                            </div>
-                            <div className="mt-3 h-2.5 rounded-full bg-[#e8f1f7] dark:bg-gray-700">
-                              <div
-                                className="h-2.5 rounded-full bg-gradient-to-r from-[#005b96] to-emerald-500"
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                            <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                              <span>{formatPercent(reviewer.completionRate)} completion</span>
-                              <span>{formatHours(reviewer.avgCompletionHours)} average completion</span>
-                            </div>
-                          </div>
-                        );
-                      })
+                        })}
+                      </ul>
                     )}
-                  </div>
-                </section>
-              </>
-            )}
-          </>
-        )}
-      </div>
+                  </section>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </AnalyticsShell>
 
       <DrilldownDrawer panel={drilldown} onClose={() => setDrilldown(null)} />
     </ProtectedRoute>

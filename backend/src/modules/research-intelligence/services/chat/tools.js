@@ -17,6 +17,7 @@ const retrieval = require('../retrieval.service');
 const graph = require('../graph.service');
 const analytics = require('../analytics.service');
 const taxonomy = require('../taxonomy.service');
+const externalCollab = require('../externalCollaboration.service');
 
 // ─── Source registry ──────────────────────────────────────────────────────────
 
@@ -82,7 +83,19 @@ async function resolveOneResearcher(name) {
   return { researcher: matches[0] };
 }
 
-const pubOut = (sources) => (p) => ({
+/** First ~600 characters of an abstract, cut at a word boundary; undefined when there is none. */
+const abstractExcerpt = (text, max = 600) => {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return undefined;
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), max - 40))} …`;
+};
+
+/** Characters of abstract per paper so that a search result stays well under the tool-result cap. */
+const abstractBudget = (count) => Math.max(400, Math.min(2500, Math.floor(6000 / Math.max(1, count))));
+
+const pubOut = (sources, excerptMax = 600) => (p) => ({
   ref: sources.publication(p),
   title: p.title,
   authors: p.authors.slice(0, 5).join(', ') + (p.authors.length > 5 ? ' et al.' : ''),
@@ -91,6 +104,8 @@ const pubOut = (sources) => (p) => ({
   citations: p.citations,
   quartile: p.quartile,
   department: p.department,
+  // What the paper itself says: lets the model summarise a paper without guessing its content.
+  abstract_excerpt: abstractExcerpt(p.abstract, excerptMax),
   // text = full-text hit; keyword = indexed keyword the query names; taxonomy = under a category /
   // specialization the query names; related = topic that co-occurs with the query's keywords
   matched_via: p.matchedVia?.length ? p.matchedVia : undefined,
@@ -166,7 +181,9 @@ const TOOLS = [
         research_area: taxonomyFilter?.names,
         expanded_with: expandedWith,
         note: unit.note,
-        publications: results.map(pubOut(sources)),
+        // Abstract budget shared by the results: few papers get their whole abstract (a summary must not
+        // stop before the part that says what the paper does), many papers get a short excerpt each.
+        publications: results.map(pubOut(sources, abstractBudget(results.length))),
       };
     },
     summarize: (r) => (r.error ? r.error : `${r.total_matching ?? 0} matching publication(s)`),
@@ -213,7 +230,10 @@ const TOOLS = [
   {
     name: 'get_researcher_profile',
     label: (a) => `Looking up ${a.name || 'researcher'}`,
-    description: 'Get a researcher\'s research profile: metrics (publications, citations, h-index), main topics, keywords, top papers, yearly output and frequent collaborators.',
+    description:
+      'Get a researcher\'s research profile: metrics (publications, citations, h-index), main topics, keywords, top papers, yearly output, ' +
+      'internal collaborators (frequent_collaborators) and ALL co-authors without an account here, including those at other institutions (co_authors). ' +
+      'Use it for "who does X collaborate / work with (most)".',
     parameters: { type: 'object', properties: { name: { type: 'string', description: 'Researcher name, e.g. "Dr. Anita Sharma"' } }, required: ['name'] },
     async run(args, { tenantId, sources }) {
       const r = await resolveOneResearcher(str(args.name));
@@ -229,6 +249,9 @@ const TOOLS = [
         yearly_output: p.yearly,
         top_papers: p.topPapers.slice(0, 8).map((x) => ({ ref: sources.publication({ ...x, authors: [p.researcher.name] }), title: x.title, journal: x.journal, year: x.year, citations: x.citations, quartile: x.quartile })),
         frequent_collaborators: p.collaborators.slice(0, 8).map((c) => ({ name: c.name, department: c.department, shared_papers: c.sharedPapers })),
+        // Co-authors without an account here: external partners, and colleagues whose affiliation on the
+        // paper is this university but who are not linked to an account yet (same_university_affiliation).
+        co_authors: (p.coAuthors || []).slice(0, 15).map((c) => ({ name: c.name, affiliation: c.affiliation, shared_papers: c.sharedPapers, same_university_affiliation: c.homeInstitution })),
       };
     },
     summarize: (r) => (r.error || (r.ambiguous ? 'Several researchers matched' : `Profile of ${r.researcher?.name}`)),
@@ -236,7 +259,11 @@ const TOOLS = [
   {
     name: 'get_collaborations',
     label: (a) => `Mapping collaborations${a.researcher ? ` of ${a.researcher}` : a.department ? ` in ${a.department}` : ''}`,
-    description: 'Co-authorship network: who collaborates with whom (weighted by shared papers). Give a researcher for their network, or a department for its internal network.',
+    description:
+      'INTERNAL co-authorship network among the university\'s own researchers: who collaborates with whom (weighted by shared papers). ' +
+      'Give a researcher for their network, or a department for its internal network. ' +
+      'For collaboration with other institutions, countries, international co-authors or industry, use get_external_collaborations instead. ' +
+      'For ONE researcher\'s co-authors (internal and external), use get_researcher_profile.',
     parameters: {
       type: 'object',
       properties: {
@@ -263,6 +290,55 @@ const TOOLS = [
       };
     },
     summarize: (r) => (r.error ? r.error : `${r.researchers?.length || 0} researchers, ${r.strongest_links?.length || 0} links`),
+  },
+  {
+    name: 'get_external_collaborations',
+    label: (a) => `Mapping external collaborations${a.department ? ` of ${a.department}` : ''}`,
+    description:
+      'EXTERNAL collaboration with other institutions: top partner institutions (universities, hospitals, companies) and their countries, ' +
+      'international vs domestic co-authored papers, papers with international co-authors, industry collaborations, and which of the ' +
+      'university\'s researchers collaborate externally most. Use for questions about external, international, foreign, global, industry ' +
+      'or inter-institutional collaboration, partner institutions/universities/countries, or "who collaborates with external institutions". ' +
+      'Counts approved/completed contributions only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        department: { type: 'string', description: 'Optional department or school name to restrict to' },
+        year_from: { type: 'integer', description: 'Earliest publication year' },
+        year_to: { type: 'integer', description: 'Latest publication year' },
+        limit: { type: 'integer', description: 'How many partners/researchers/papers to list, 1-25, default 10' },
+      },
+    },
+    async run(args, { tenantId, sources }) {
+      const unit = await resolveUnit(str(args.department));
+      if (unit.notFound) return { error: unit.notFound };
+      const res = await externalCollab.getExternalCollaborations(tenantId, {
+        departmentIds: unit.departmentIds,
+        schoolIds: unit.schoolIds,
+        yearFrom: int(args.year_from, 1900, 2100),
+        yearTo: int(args.year_to, 1900, 2100),
+        limit: int(args.limit, 1, 25) || 10,
+      });
+      const paper = (p) => ({ ref: sources.publication(p), title: p.title, year: p.year, journal: p.journal, citations: p.citations, partners: p.partners.slice(0, 5), countries: p.countries });
+      return {
+        scope: unit.unit || 'whole university',
+        note: unit.note,
+        home_country: res.homeCountry,
+        summary: res.summary,
+        top_partner_institutions: res.partners.map((p) => ({ name: p.name, country: p.country || 'unknown', shared_papers: p.papers, international: p.international, industry: p.industry || undefined })),
+        countries: res.countries.map((c) => ({ country: c.country, papers: c.papers, home: c.home || undefined })),
+        researchers_with_most_external_collaboration: res.researchers.map((r) => ({
+          ref: sources.researcher(r), name: r.name, designation: r.designation, department: r.department,
+          external_papers: r.externalPapers, international_papers: r.internationalPapers, industry_papers: r.industryPapers || undefined, partners: r.partners,
+        })),
+        papers_with_international_coauthors: res.internationalPapers.map(paper),
+        industry_collaborations: res.industryPapers.map(paper),
+        data_note: res.summary.papers_with_external_collaboration === 0
+          ? 'No approved/completed contributions record external co-authors, partner affiliations or collaboration flags for this scope.'
+          : res.truncated ? 'Very large result; only the most cited contributions were analysed.' : undefined,
+      };
+    },
+    summarize: (r) => (r.error ? r.error : `${r.summary?.partner_institutions ?? 0} partner institution(s), ${r.summary?.papers_with_external_collaboration ?? 0} paper(s)`),
   },
   {
     name: 'get_trending_topics',
@@ -401,4 +477,4 @@ async function execute(name, rawArgs, ctx) {
   }
 }
 
-module.exports = { declarations, execute, SourceRegistry, TOOLS };
+module.exports = { declarations, execute, SourceRegistry, TOOLS, abstractExcerpt, abstractBudget };

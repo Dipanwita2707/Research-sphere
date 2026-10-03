@@ -1,6 +1,9 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
 const cache = require('../../../../shared/config/redis');
+const { previewDate, sendPolicyPreview } = require('../../utils/policyPreview');
+const { parseResearchPolicy, sendPolicyError } = require('../../validators/incentivePolicy.validation');
+const { savePolicy, policyWindowWhere } = require('../../utils/policyWindow');
 
 // Default policies for research publications
 const DEFAULT_RESEARCH_POLICIES = {
@@ -152,34 +155,22 @@ exports.getAllPolicies = async (req, res) => {
 exports.getPolicyByType = async (req, res) => {
   try {
     const { publicationType } = req.params;
-    
+    const onDate = previewDate(req.query.publicationDate);
+
+    // The policy in force on the date (enabled and inside its effective window).
     const policy = await prisma.researchIncentivePolicy.findFirst({
       where: {
         publicationType: publicationType.toLowerCase(),
-        isActive: true,
+        ...policyWindowWhere(onDate),
         ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
+      },
+      orderBy: { effectiveFrom: 'desc' }
     });
 
-    if (!policy) {
-      // Return default policy if none exists
-      const defaultPolicy = DEFAULT_RESEARCH_POLICIES[publicationType.toLowerCase()] || DEFAULT_RESEARCH_POLICIES.research_paper;
-      
-      return res.json({
-        success: true,
-        data: {
-          publicationType,
-          ...defaultPolicy,
-          isDefault: true
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      data: policy
-    });
+    // No built-in defaults: the calculator pays ₹0 without a policy, so the preview says so.
+    return sendPolicyPreview(res, { policy });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Get research policy by type error:', error);
     res.status(500).json({
       success: false,
@@ -203,45 +194,25 @@ exports.getApplicablePolicyByDate = async (req, res) => {
       });
     }
 
-    const pubDate = publicationDate ? new Date(publicationDate) : new Date();
-    
+    const pubDate = previewDate(publicationDate);
+        
     // Find policy where effectiveFrom <= publicationDate AND (effectiveTo >= publicationDate OR effectiveTo is null)
     const policy = await prisma.researchIncentivePolicy.findFirst({
       where: {
         publicationType: publicationType.toLowerCase(),
         ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        effectiveFrom: {
-          lte: pubDate
-        },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: pubDate } }
-        ]
+        // Enabled and covering the publication's day (same rule the calculator uses)
+        ...policyWindowWhere(pubDate)
       },
       orderBy: {
         effectiveFrom: 'desc' // Get the most recent applicable policy
       }
     });
 
-    if (!policy) {
-      // Return default policy if none exists
-      const defaultPolicy = DEFAULT_RESEARCH_POLICIES[publicationType.toLowerCase()] || DEFAULT_RESEARCH_POLICIES.research_paper;
-      
-      return res.json({
-        success: true,
-        data: {
-          publicationType,
-          ...defaultPolicy,
-          isDefault: true
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      data: policy
-    });
+    // Same answer the calculator gives: the policy, or policyFound:false (₹0) — never defaults.
+    return sendPolicyPreview(res, { policy });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Get applicable policy by date error:', error);
     res.status(500).json({
       success: false,
@@ -251,150 +222,49 @@ exports.getApplicablePolicyByDate = async (req, res) => {
 };
 
 /**
+ * Create or update a research policy in ONE transaction: validate, make room among the
+ * enabled policies of the same type (closing the previous one the day before the new
+ * window starts), then write. isActive is the admin's on/off switch and is never derived
+ * from dates; which policy applies to a publication is decided by its effective window.
+ */
+function saveResearchPolicy({ data, existing = null, tenantId, actorId }) {
+  return savePolicy({
+    prisma,
+    model: 'researchIncentivePolicy',
+    keyWhere: { publicationType: data.publicationType },
+    data,
+    existing,
+    tenantId,
+    actorId,
+    mode: 'supersede',
+  });
+}
+
+/**
  * Create a new research incentive policy
  * Accessible by: admin
  */
 exports.createPolicy = async (req, res) => {
   try {
-    const {
-      publicationType,
-      policyName,
-      baseIncentiveAmount,
-      basePoints,
-      splitPolicy,
-      distributionMethod,
-      primaryAuthorShare,
-      authorTypeMultipliers,
-      indexingBonuses,
-      impactFactorTiers,
-      effectiveFrom,
-      effectiveTo,
-      isActive,
-      firstAuthorPercentage,
-      correspondingAuthorPercentage,
-      rolePercentages,
-      positionPercentages
-    } = req.body;
+    const data = parseResearchPolicy(req.body);
+    const defaults = DEFAULT_RESEARCH_POLICIES.research_paper;
+    if (data.authorTypeMultipliers === undefined) data.authorTypeMultipliers = defaults.authorRoleMultipliers;
+    if (data.indexingBonuses === undefined) data.indexingBonuses = defaults.indexingBonuses;
+    if (data.impactFactorTiers === undefined) data.impactFactorTiers = defaults.impactFactorTiers;
 
-    // Validate required fields
-    if (!publicationType || !policyName || baseIncentiveAmount === undefined || basePoints === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide publicationType, policyName, baseIncentiveAmount, and basePoints'
-      });
-    }
+    const { policy, adjusted } = await saveResearchPolicy({ data, tenantId: req.tenantId, actorId: req.user.id });
 
-    if (!effectiveFrom) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide an effectiveFrom date'
-      });
-    }
-
-    // Validate quartile incentives if provided
-    if (indexingBonuses && indexingBonuses.quartileIncentives) {
-      const requiredQuartiles = ['Top 1%', 'Top 5%', 'Q1', 'Q2', 'Q3', 'Q4'];
-      const providedQuartiles = indexingBonuses.quartileIncentives.map(q => q.quartile);
-      const missingQuartiles = requiredQuartiles.filter(q => !providedQuartiles.includes(q));
-      
-      if (missingQuartiles.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Missing required quartile incentives: ${missingQuartiles.join(', ')}. All six quartiles (Top 1%, Top 5%, Q1-Q4) must be provided.`
-        });
-      }
-    }
-
-    // Check for overlapping date ranges with existing policies of same publication type
-    const existingPolicies = await prisma.researchIncentivePolicy.findMany({
-      where: {
-        publicationType: publicationType.toLowerCase(),
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
-    });
-
-    const newStartDate = new Date(effectiveFrom);
-    const newEndDate = effectiveTo ? new Date(effectiveTo) : null;
-
-    for (const existingPolicy of existingPolicies) {
-      const existingStart = new Date(existingPolicy.effectiveFrom);
-      const existingEnd = existingPolicy.effectiveTo ? new Date(existingPolicy.effectiveTo) : null;
-
-      // Check for overlap
-      const overlaps = (
-        // New policy starts during existing policy
-        (newStartDate >= existingStart && (!existingEnd || newStartDate <= existingEnd)) ||
-        // New policy ends during existing policy
-        (newEndDate && newEndDate >= existingStart && (!existingEnd || newEndDate <= existingEnd)) ||
-        // New policy completely contains existing policy
-        (newStartDate <= existingStart && (!newEndDate || (existingEnd && newEndDate >= existingEnd) || !existingEnd)) ||
-        // Existing policy completely contains new policy
-        (existingStart <= newStartDate && (!existingEnd || (newEndDate && existingEnd >= newEndDate) || !newEndDate))
-      );
-
-      if (overlaps) {
-        // AUTO-FIX: Instead of throwing error, automatically adjust the conflicting policy's end date
-        // If the new policy starts after the existing policy, set existing policy's end date to one day before new policy starts
-        if (newStartDate > existingStart) {
-          const oneDayBefore = new Date(newStartDate);
-          oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-          
-          await prisma.researchIncentivePolicy.update({
-            where: { id: existingPolicy.id },
-            data: { effectiveTo: oneDayBefore }
-          });
-        }
-        // If the new policy completely contains the existing policy, deactivate the existing policy
-        else if (newStartDate <= existingStart && (!newEndDate || !existingEnd || newEndDate >= existingEnd)) {
-          await prisma.researchIncentivePolicy.update({
-            where: { id: existingPolicy.id },
-            data: { isActive: false }
-          });
-        }
-      }
-    }
-
-    const now = new Date();
-    const policyStartDate = new Date(effectiveFrom);
-    const policyEndDate = effectiveTo ? new Date(effectiveTo) : null;
-    
-    // Determine if policy is currently active based on dates
-    const isCurrentlyActive = policyStartDate <= now && (!policyEndDate || policyEndDate >= now);
-
-    const policy = await prisma.researchIncentivePolicy.create({
-      data: {
-        publicationType: publicationType.toLowerCase(),
-        policyName,
-        baseIncentiveAmount,
-        basePoints,
-        splitPolicy: splitPolicy || 'equal',
-        distributionMethod: distributionMethod || 'author_role_based',
-        primaryAuthorShare,
-        authorTypeMultipliers: authorTypeMultipliers || DEFAULT_RESEARCH_POLICIES.research_paper.authorRoleMultipliers,
-        indexingBonuses: indexingBonuses || DEFAULT_RESEARCH_POLICIES.research_paper.indexingBonuses,
-        impactFactorTiers: impactFactorTiers || DEFAULT_RESEARCH_POLICIES.research_paper.impactFactorTiers,
-        first_author_percentage: firstAuthorPercentage ?? 40,
-        corresponding_author_percentage: correspondingAuthorPercentage ?? 40,
-        effectiveFrom: policyStartDate,
-        effectiveTo: policyEndDate,
-        isActive: isCurrentlyActive,
-        createdById: req.user.id,
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
-    });
-
-    // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'research', req.user.id, req);
-
-    // Invalidate policy cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(201).json({
       success: true,
       message: 'Research incentive policy created successfully',
-      data: policy
+      data: policy,
+      adjustedPolicies: adjusted,
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Create research policy error:', error);
     res.status(500).json({
       success: false,
@@ -410,26 +280,7 @@ exports.createPolicy = async (req, res) => {
 exports.updatePolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      policyName,
-      baseIncentiveAmount,
-      basePoints,
-      splitPolicy,
-      distributionMethod,
-      primaryAuthorShare,
-      authorTypeMultipliers,
-      indexingBonuses,
-      impactFactorTiers,
-      effectiveFrom,
-      effectiveTo,
-      isActive,
-      firstAuthorPercentage,
-      correspondingAuthorPercentage,
-      rolePercentages,
-      positionPercentages
-    } = req.body;
 
-    // Check if policy exists
     const existingPolicy = await prisma.researchIncentivePolicy.findUnique({
       where: { id }
     });
@@ -448,112 +299,22 @@ exports.updatePolicy = async (req, res) => {
       });
     }
 
-    // Validate quartile incentives if provided
-    if (indexingBonuses && indexingBonuses.quartileIncentives) {
-      const requiredQuartiles = ['Top 1%', 'Top 5%', 'Q1', 'Q2', 'Q3', 'Q4'];
-      const providedQuartiles = indexingBonuses.quartileIncentives.map(q => q.quartile);
-      const missingQuartiles = requiredQuartiles.filter(q => !providedQuartiles.includes(q));
-      
-      if (missingQuartiles.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Missing required quartile incentives: ${missingQuartiles.join(', ')}. All six quartiles (Top 1%, Top 5%, Q1-Q4) must be provided.`
-        });
-      }
-    }
-
-    // If dates are being updated, check for overlapping date ranges
-    if (effectiveFrom || effectiveTo !== undefined) {
-      const newStartDate = effectiveFrom ? new Date(effectiveFrom) : existingPolicy.effectiveFrom;
-      const newEndDate = effectiveTo === null ? null : (effectiveTo ? new Date(effectiveTo) : existingPolicy.effectiveTo);
-
-      const otherPolicies = await prisma.researchIncentivePolicy.findMany({
-        where: {
-          publicationType: existingPolicy.publicationType,
-          id: { not: id }
-        }
-      });
-
-      for (const otherPolicy of otherPolicies) {
-        const existingStart = new Date(otherPolicy.effectiveFrom);
-        const existingEnd = otherPolicy.effectiveTo ? new Date(otherPolicy.effectiveTo) : null;
-
-        // Check for overlap
-        const overlaps = (
-          (newStartDate >= existingStart && (!existingEnd || newStartDate <= existingEnd)) ||
-          (newEndDate && newEndDate >= existingStart && (!existingEnd || newEndDate <= existingEnd)) ||
-          (newStartDate <= existingStart && (!newEndDate || (existingEnd && newEndDate >= existingEnd) || !existingEnd)) ||
-          (existingStart <= newStartDate && (!existingEnd || (newEndDate && existingEnd >= newEndDate) || !newEndDate))
-        );
-
-        if (overlaps) {
-          // AUTO-FIX: Instead of throwing error, automatically adjust the conflicting policy's end date
-          // If the new policy starts after the existing policy, set existing policy's end date to one day before new policy starts
-          if (newStartDate > existingStart) {
-            const oneDayBefore = new Date(newStartDate);
-            oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-            
-            await prisma.researchIncentivePolicy.update({
-              where: { id: otherPolicy.id },
-              data: { effectiveTo: oneDayBefore }
-            });
-          }
-          // If the new policy ends before the existing policy starts, adjust new policy's end date
-          else if (newEndDate && newEndDate < existingStart) {
-            // This case is fine, no overlap
-            continue;
-          }
-          // If the new policy completely contains the existing policy, deactivate the existing policy
-          else if (newStartDate <= existingStart && (!newEndDate || !existingEnd || newEndDate >= existingEnd)) {
-            await prisma.researchIncentivePolicy.update({
-              where: { id: otherPolicy.id },
-              data: { isActive: false }
-            });
-          }
-        }
-      }
-    }
-
-    const now = new Date();
-    const policyStartDate = effectiveFrom ? new Date(effectiveFrom) : existingPolicy.effectiveFrom;
-    const policyEndDate = effectiveTo === null ? null : (effectiveTo ? new Date(effectiveTo) : existingPolicy.effectiveTo);
-    
-    // Determine if policy is currently active based on dates
-    const isCurrentlyActive = policyStartDate <= now && (!policyEndDate || policyEndDate >= now);
-
-    const updatedPolicy = await prisma.researchIncentivePolicy.update({
-      where: { id },
-      data: {
-        policyName: policyName || existingPolicy.policyName,
-        baseIncentiveAmount: baseIncentiveAmount ?? existingPolicy.baseIncentiveAmount,
-        basePoints: basePoints ?? existingPolicy.basePoints,
-        splitPolicy: splitPolicy || existingPolicy.splitPolicy,
-        distributionMethod: distributionMethod || existingPolicy.distributionMethod || 'author_role_based',
-        primaryAuthorShare: primaryAuthorShare ?? existingPolicy.primaryAuthorShare,
-        authorTypeMultipliers: authorTypeMultipliers || existingPolicy.authorTypeMultipliers,
-        indexingBonuses: indexingBonuses || existingPolicy.indexingBonuses,
-        impactFactorTiers: impactFactorTiers || existingPolicy.impactFactorTiers,
-        first_author_percentage: firstAuthorPercentage ?? existingPolicy.first_author_percentage,
-        corresponding_author_percentage: correspondingAuthorPercentage ?? existingPolicy.corresponding_author_percentage,
-        effectiveFrom: policyStartDate,
-        effectiveTo: policyEndDate,
-        isActive: isCurrentlyActive,
-        updatedById: req.user.id
-      }
+    const data = parseResearchPolicy(req.body, existingPolicy);
+    const { policy: updatedPolicy, adjusted } = await saveResearchPolicy({
+      data, existing: existingPolicy, tenantId: req.tenantId, actorId: req.user.id,
     });
 
-    // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, updatedPolicy, 'research', req.user.id, req);
-
-    // Invalidate policy cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.json({
       success: true,
       message: 'Research incentive policy updated successfully',
-      data: updatedPolicy
+      data: updatedPolicy,
+      adjustedPolicies: adjusted,
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Update research policy error:', error);
     res.status(500).json({
       success: false,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { superadminService, SaaSTier } from '@/shared/services/superadmin.service';
 import { 
@@ -14,6 +14,8 @@ import {
   CheckCircle 
 } from 'lucide-react';
 import Link from 'next/link';
+import BrandingEditor, { uploadDraftImages, type BrandingDraft } from '@/features/branding/components/BrandingEditor';
+import { superadminBrandingApi } from '@/features/branding/services/branding.service';
 
 export default function ProvisionNewUniversity() {
   const router = useRouter();
@@ -33,6 +35,9 @@ export default function ProvisionNewUniversity() {
   const [adminUsername, setAdminUsername] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  // Branding & theme section: values go with the create request, images are uploaded right after
+  const brandingDraft = useRef<BrandingDraft | null>(null);
+  const onBrandingDraft = useCallback((draft: BrandingDraft) => { brandingDraft.current = draft; }, []);
 
   useEffect(() => {
     const fetchTiers = async () => {
@@ -58,7 +63,8 @@ export default function ProvisionNewUniversity() {
     setIsSubmitting(true);
 
     try {
-      await superadminService.provisionUniversity({
+      const draft = brandingDraft.current;
+      const created = await superadminService.provisionUniversity({
         code,
         name,
         slug,
@@ -67,8 +73,19 @@ export default function ProvisionNewUniversity() {
         tierId,
         adminUsername,
         adminEmail,
-        adminPassword
+        adminPassword,
+        branding: draft?.values,
       });
+
+      const universityId: string | undefined = created?.data?.university?.id ?? created?.university?.id;
+      const uploadFailures = universityId && draft && Object.keys(draft.files).length > 0
+        ? await uploadDraftImages(superadminBrandingApi(universityId), draft)
+        : [];
+      if (uploadFailures.length > 0) {
+        setErrorMsg(`University created, but some images were not saved: ${uploadFailures.join('; ')}. Upload them from the university page.`);
+        if (universityId) setTimeout(() => router.push(`/superadmin/universities/${universityId}`), 3500);
+        return;
+      }
 
       setSuccessMsg('University tenant and administrator account provisioned successfully!');
       setTimeout(() => {
@@ -146,7 +163,7 @@ export default function ProvisionNewUniversity() {
               <input
                 type="text"
                 required
-                placeholder="e.g. SGT University"
+                placeholder="e.g. Example University"
                 value={name}
                 onChange={(e) => handleAutoSlug(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none text-sm focus:border-red-600"
@@ -158,7 +175,7 @@ export default function ProvisionNewUniversity() {
               <input
                 type="text"
                 required
-                placeholder="e.g. SGT"
+                placeholder="e.g. EXU"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none text-sm focus:border-red-600"
@@ -171,12 +188,12 @@ export default function ProvisionNewUniversity() {
                 <input
                   type="text"
                   required
-                  placeholder="sgt"
+                  placeholder="example-university"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}
                   className="w-full px-4 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none text-sm focus:border-red-600 pr-24"
                 />
-                <span className="absolute right-4 text-xs font-semibold text-gray-400">.sgt-ums.com</span>
+                <span className="absolute right-4 text-xs font-semibold text-gray-400">/p/&lt;slug&gt;/…</span>
               </div>
             </div>
 
@@ -204,6 +221,9 @@ export default function ProvisionNewUniversity() {
             </div>
           </div>
         </div>
+
+        {/* Branding & theme */}
+        <BrandingEditor mode="create" legalName={name} onDraftChange={onBrandingDraft} />
 
         {/* Step 2: License Plan */}
         <div className="bg-white dark:bg-gray-950 p-6 rounded-2xl border border-gray-200 dark:border-gray-800 space-y-6">
@@ -241,7 +261,7 @@ export default function ProvisionNewUniversity() {
               <input
                 type="text"
                 required
-                placeholder="e.g. sgt_admin"
+                placeholder="e.g. exu_admin"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none text-sm focus:border-red-600"
@@ -253,7 +273,7 @@ export default function ProvisionNewUniversity() {
               <input
                 type="email"
                 required
-                placeholder="admin@slug.sgt-ums.com"
+                placeholder="admin@university.edu"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-900 outline-none text-sm focus:border-red-600"

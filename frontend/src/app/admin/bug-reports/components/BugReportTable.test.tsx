@@ -420,15 +420,16 @@ describe('BugReportTable', () => {
     it('should highlight current page button', () => {
       render(<BugReportTable {...paginatedProps} />);
 
-      const page2Button = screen.getByRole('button', { name: '2' });
+      const page2Button = screen.getByRole('button', { name: 'Go to page 2' });
       expect(page2Button).toHaveAttribute('data-variant', 'default');
+      expect(page2Button).toHaveAttribute('aria-current', 'page');
     });
 
     it('should call onPageChange when clicking page number', () => {
       const onPageChange = jest.fn();
       render(<BugReportTable {...paginatedProps} onPageChange={onPageChange} />);
 
-      const page3Button = screen.getByRole('button', { name: '3' });
+      const page3Button = screen.getByRole('button', { name: 'Go to page 3' });
       fireEvent.click(page3Button);
 
       expect(onPageChange).toHaveBeenCalledWith(3);

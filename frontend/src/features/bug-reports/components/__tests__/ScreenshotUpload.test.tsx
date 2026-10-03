@@ -64,7 +64,7 @@ describe('ScreenshotUpload', () => {
       render(<ScreenshotUpload {...defaultProps} />);
 
       const validFile = new File(['content'], 'test.png', { type: 'image/png' });
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [validFile],
@@ -82,7 +82,7 @@ describe('ScreenshotUpload', () => {
       render(<ScreenshotUpload {...defaultProps} />);
 
       const invalidFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [invalidFile],
@@ -111,7 +111,7 @@ describe('ScreenshotUpload', () => {
         const { unmount } = render(<ScreenshotUpload {...defaultProps} />);
 
         const validFile = new File(['content'], imageType.name, { type: imageType.type });
-        const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+        const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
         Object.defineProperty(input, 'files', {
           value: [validFile],
@@ -134,7 +134,7 @@ describe('ScreenshotUpload', () => {
       render(<ScreenshotUpload {...defaultProps} />);
 
       const validFile = new File(['x'.repeat(1024 * 1024)], 'test.png', { type: 'image/png' }); // 1MB
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [validFile],
@@ -154,7 +154,7 @@ describe('ScreenshotUpload', () => {
       const oversizedFile = new File(['x'.repeat(6 * 1024 * 1024)], 'large.png', {
         type: 'image/png',
       }); // 6MB
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [oversizedFile],
@@ -176,7 +176,7 @@ describe('ScreenshotUpload', () => {
       const oversizedFile = new File(['x'.repeat(3 * 1024 * 1024)], 'large.png', {
         type: 'image/png',
       }); // 3MB
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [oversizedFile],
@@ -199,7 +199,7 @@ describe('ScreenshotUpload', () => {
       const files = Array.from({ length: 5 }, (_, i) =>
         new File(['content'], `test${i}.png`, { type: 'image/png' })
       );
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: files,
@@ -219,7 +219,7 @@ describe('ScreenshotUpload', () => {
       const files = Array.from({ length: 6 }, (_, i) =>
         new File(['content'], `test${i}.png`, { type: 'image/png' })
       );
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: files,
@@ -242,7 +242,7 @@ describe('ScreenshotUpload', () => {
       render(<ScreenshotUpload {...defaultProps} screenshots={existingFiles} />);
 
       const newFile = new File(['content'], 'new.png', { type: 'image/png' });
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [newFile],
@@ -268,7 +268,7 @@ describe('ScreenshotUpload', () => {
         new File(['content'], 'new1.png', { type: 'image/png' }),
         new File(['content'], 'new2.png', { type: 'image/png' }),
       ];
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: newFiles,
@@ -288,7 +288,7 @@ describe('ScreenshotUpload', () => {
       const files = Array.from({ length: 4 }, (_, i) =>
         new File(['content'], `test${i}.png`, { type: 'image/png' })
       );
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: files,
@@ -392,7 +392,7 @@ describe('ScreenshotUpload', () => {
       render(<ScreenshotUpload {...defaultProps} />);
 
       const dropzone = screen.getByText(/drag and drop screenshots here/i).closest('div');
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       const clickSpy = jest.spyOn(input, 'click');
 
@@ -407,7 +407,7 @@ describe('ScreenshotUpload', () => {
       render(<ScreenshotUpload {...defaultProps} />);
 
       const invalidFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [invalidFile],
@@ -431,7 +431,7 @@ describe('ScreenshotUpload', () => {
       render(<ScreenshotUpload {...defaultProps} error="External error" />);
 
       const invalidFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [invalidFile],
@@ -449,7 +449,7 @@ describe('ScreenshotUpload', () => {
 
       // First, trigger an error
       const invalidFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
-      let input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      let input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [invalidFile],
@@ -468,7 +468,7 @@ describe('ScreenshotUpload', () => {
 
       // Then, select a valid file
       const validFile = new File(['content'], 'test.png', { type: 'image/png' });
-      input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: [validFile],
@@ -492,7 +492,7 @@ describe('ScreenshotUpload', () => {
         new File(['content2'], 'test2.jpg', { type: 'image/jpeg' }),
         new File(['content3'], 'test3.gif', { type: 'image/gif' }),
       ];
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: files,
@@ -514,7 +514,7 @@ describe('ScreenshotUpload', () => {
         new File(['content2'], 'test2.pdf', { type: 'application/pdf' }), // Invalid
         new File(['content3'], 'test3.jpg', { type: 'image/jpeg' }),
       ];
-      const input = screen.getByLabelText(/upload screenshots/i) as HTMLInputElement;
+      const input = screen.getByLabelText('Upload screenshots', { selector: 'input[type="file"]' }) as HTMLInputElement;
 
       Object.defineProperty(input, 'files', {
         value: files,

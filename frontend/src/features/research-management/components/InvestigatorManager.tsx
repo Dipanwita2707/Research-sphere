@@ -382,7 +382,7 @@ export default function InvestigatorManager({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="text-sm text-[#7d1a34] hover:text-[#5e1024] font-medium flex items-center gap-1"
+            className="text-sm text-wine hover:text-wine-dark font-medium flex items-center gap-1"
           >
             <Edit2 className="w-4 h-4" />
             {investigators.length > 0 ? 'Edit' : 'Add'} Team Members
@@ -398,13 +398,13 @@ export default function InvestigatorManager({
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   investigator.investigatorCategory ===
-   'Internal' ? 'bg-green-100' : 'bg-[#fbe2e8]'
+   'Internal' ? 'bg-green-100' : 'bg-wine-100'
                 }`}>
                   {investigator.investigatorCategory ===
    'Internal' ? (
                     <User className="w-5 h-5 text-green-600" />
                   ) : (
-                    <Building2 className="w-5 h-5 text-[#7d1a34]" />
+                    <Building2 className="w-5 h-5 text-wine" />
                   )}
                 </div>
                 <div>
@@ -431,7 +431,7 @@ export default function InvestigatorManager({
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <span className={`px-2 py-0.5 rounded text-xs ${
                       investigator.investigatorCategory ===
-   'Internal' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f]'
+   'Internal' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-wine-100 dark:bg-wine/20 text-wine dark:text-gold'
                     }`}>
                       {investigator.investigatorCategory}
                     </span>
@@ -440,7 +440,7 @@ export default function InvestigatorManager({
                     {investigator.consortiumOrgName && (
                       <>
                         <span>•</span>
-                        <span className="text-[#7d1a34]">{investigator.consortiumOrgName}</span>
+                        <span className="text-wine">{investigator.consortiumOrgName}</span>
                       </>
                     )}
                     {investigator.affiliation !== universityName && !investigator.consortiumOrgName && (
@@ -484,7 +484,7 @@ export default function InvestigatorManager({
 
       {investigators.length ===
    0 && !isEditing && (
-        <div className="text-center py-6 bg-white dark:bg-gray-700/50 rounded-lg border border-dashed border-[#f0e2d2] dark:border-gray-600">
+        <div className="text-center py-6 bg-white dark:bg-gray-700/50 rounded-lg border border-dashed border-blush-line dark:border-gray-600">
           <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-500 dark:text-gray-400">No team members added yet</p>
         </div>
@@ -492,7 +492,7 @@ export default function InvestigatorManager({
 
       {/* Add investigator form */}
       {isEditing && !disabled && (
-        <div className="p-4 bg-[#fdf5ec]/40 dark:bg-indigo-900/20 rounded-lg border border-[#f0e2d2] dark:border-indigo-800 space-y-4">
+        <div className="p-4 bg-blush/40 dark:bg-indigo-900/20 rounded-lg border border-blush-line dark:border-indigo-800 space-y-4">
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
               {error}
@@ -506,7 +506,7 @@ export default function InvestigatorManager({
               <select
                 value={newInvestigator.roleType}
                 onChange={(e) => setNewInvestigator({ ...newInvestigator, roleType: e.target.value as InvestigatorRole })}
-                className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                 disabled={newInvestigator.investigatorCategory ===
    'External' && mustExternalBePI()}
               >
@@ -516,7 +516,7 @@ export default function InvestigatorManager({
               </select>
               {newInvestigator.investigatorCategory ===
    'External' && mustExternalBePI() && (
-                <p className="mt-1 text-xs text-[#7d1a34]">
+                <p className="mt-1 text-xs text-wine">
                   Only 1 external investigator - must be PI
                 </p>
               )}
@@ -555,7 +555,7 @@ export default function InvestigatorManager({
                   });
                   setSearchTerm('');
                 }}
-                className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="Internal" disabled={isInternalLimitReached()}>
                   Internal ({universityName}) {isInternalLimitReached() ? '(Limit Reached)' : ''}
@@ -575,7 +575,7 @@ export default function InvestigatorManager({
               <select
                 value={newInvestigator.investigatorType}
                 onChange={(e) => setNewInvestigator({ ...newInvestigator, investigatorType: e.target.value as 'Faculty' })}
-                className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                 disabled
               >
                 <option value="Faculty">Faculty/Employee</option>
@@ -598,7 +598,7 @@ export default function InvestigatorManager({
                     searchInvestigators(e.target.value);
                   }}
                   placeholder="Type to search..."
-                  className="w-full pl-10 rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full pl-10 rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               
@@ -644,7 +644,7 @@ export default function InvestigatorManager({
                         affiliation: org?.organizationName || ''
                       });
                     }}
-                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="">Select Organization</option>
                     {consortiumOrganizations.map(org => {
@@ -668,7 +668,7 @@ export default function InvestigatorManager({
                     type="text"
                     value={newInvestigator.name}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, name: e.target.value })}
-                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Full name"
                   />
                 </div>
@@ -678,7 +678,7 @@ export default function InvestigatorManager({
                     type="email"
                     value={newInvestigator.email || ''}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, email: e.target.value })}
-                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                     placeholder="email@example.com"
                   />
                 </div>
@@ -691,7 +691,7 @@ export default function InvestigatorManager({
                     type="text"
                     value={newInvestigator.designation || ''}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, designation: e.target.value })}
-                    className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Professor, Researcher, etc."
                   />
                 </div>
@@ -702,7 +702,7 @@ export default function InvestigatorManager({
                       type="text"
                       value={newInvestigator.affiliation}
                       onChange={(e) => setNewInvestigator({ ...newInvestigator, affiliation: e.target.value })}
-                      className="w-full rounded-md border-[#f0e2d2] dark:border-gray-600 shadow-sm focus:border-[#7d1a34] focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full rounded-md border-blush-line dark:border-gray-600 shadow-sm focus:border-wine focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                       placeholder="University/Organization"
                     />
                   </div>
@@ -715,7 +715,7 @@ export default function InvestigatorManager({
             <button
               type="button"
               onClick={addInvestigator}
-              className="flex-1 px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark flex items-center justify-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Add Team Member

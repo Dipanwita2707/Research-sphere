@@ -380,7 +380,7 @@ export const statusLabels: Record<ResearchTrackerStatus, string> = {
 
 export const statusColors: Record<ResearchTrackerStatus, string> = {
   writing: 'bg-gray-100 text-gray-800',
-  communicated: 'bg-[#fbe2e8] text-[#7d1a34]',
+  communicated: 'bg-wine-100 text-wine',
   submitted: 'bg-indigo-100 text-indigo-800',
   rejected: 'bg-red-100 text-red-800',
   accepted: 'bg-green-100 text-green-800',

@@ -44,6 +44,7 @@ exports.getAllUsers = async (req, res) => {
 
     const users = await prisma.userLogin.findMany({
       where,
+      omit: { passwordHash: true, tokenVersion: true },
       include: {
         employeeDetails: {
           select: {
@@ -100,6 +101,7 @@ exports.getUserById = async (req, res) => {
 
     const user = await prisma.userLogin.findUnique({
       where: { id: userId },
+      omit: { passwordHash: true, tokenVersion: true },
       include: {
         employeeDetails: true,
       }
@@ -619,6 +621,9 @@ exports.updateUserIprPermissions = async (req, res) => {
         }
       });
     }
+
+    // Session + review-scope caches hold the old permissions until invalidated
+    await require('../../../shared/config/redis').invalidateUser(userId);
 
     // === COMPREHENSIVE AUDIT LOGGING ===
 

@@ -1,6 +1,10 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
 const cache = require('../../../../shared/config/redis');
+const { previewDate, sendPolicyPreview } = require('../../utils/policyPreview');
+const { defaultConferencePolicy } = require('../../services/incentive-calculator');
+const { parseConferencePolicy, sendPolicyError } = require('../../validators/incentivePolicy.validation');
+const { savePolicy, policyWindowWhere } = require('../../utils/policyWindow');
 
 // Conference sub-types
 const CONFERENCE_SUB_TYPES = [
@@ -64,33 +68,20 @@ exports.getActivePolicyBySubType = async (req, res) => {
       });
     }
 
-    const currentDate = new Date();
+    const currentDate = previewDate(req.query.publicationDate);
     const policy = await prisma.conferenceIncentivePolicy.findFirst({
       where: {
         conferenceSubType: subType,
-        isActive: true,
         ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        effectiveFrom: { lte: currentDate },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: currentDate } }
-        ]
+        ...policyWindowWhere(currentDate)
       },
       orderBy: { effectiveFrom: 'desc' }
     });
 
-    if (!policy) {
-      return res.status(404).json({
-        success: false,
-        message: `No active policy found for conference sub-type: ${subType}`
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: policy
-    });
+    // Without a policy the calculator pays the built-in defaults — preview exactly those.
+    return sendPolicyPreview(res, { policy, defaultPolicy: defaultConferencePolicy(subType) });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Get active conference policy error:', error);
     res.status(500).json({
       success: false,
@@ -143,120 +134,21 @@ exports.getConferencePolicyById = async (req, res) => {
  */
 exports.createConferencePolicy = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const {
-      policyName,
-      conferenceSubType,
-      quartileIncentives,
-      rolePercentages,
-      flatIncentiveAmount,
-      flatPoints,
-      splitPolicy,
-      internationalBonus,
-      bestPaperAwardBonus,
-      effectiveFrom,
-      effectiveTo
-    } = req.body;
+    const data = parseConferencePolicy(req.body);
 
-    // Validate required fields
-    if (!policyName || !conferenceSubType) {
-      return res.status(400).json({
-        success: false,
-        message: 'Policy name and conference sub-type are required'
-      });
-    }
-
-    if (!CONFERENCE_SUB_TYPES.includes(conferenceSubType)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid conference sub-type. Valid types: ${CONFERENCE_SUB_TYPES.join(', ')}`
-      });
-    }
-
-    // For paper_indexed_scopus, require quartile incentives
-    if (conferenceSubType === 'paper_indexed_scopus') {
-      if (!quartileIncentives || !Array.isArray(quartileIncentives) || quartileIncentives.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Quartile incentives are required for Scopus-indexed conference papers'
-        });
-      }
-    } else {
-      // For other types, require flat incentive
-      if (flatIncentiveAmount === undefined || flatPoints === undefined) {
-        return res.status(400).json({
-          success: false,
-          message: 'Flat incentive amount and points are required for this conference type'
-        });
-      }
-    }
-
-    // Check for overlapping active policies
-    const effectiveFromDate = new Date(effectiveFrom || new Date());
-    const effectiveToDate = effectiveTo ? new Date(effectiveTo) : null;
-
-    const overlapping = await prisma.conferenceIncentivePolicy.findFirst({
-      where: {
-        conferenceSubType,
-        isActive: true,
-        ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        OR: [
-          {
-            AND: [
-              { effectiveFrom: { lte: effectiveFromDate } },
-              {
-                OR: [
-                  { effectiveTo: null },
-                  { effectiveTo: { gte: effectiveFromDate } }
-                ]
-              }
-            ]
-          },
-          effectiveToDate ? {
-            AND: [
-              { effectiveFrom: { lte: effectiveToDate } },
-              {
-                OR: [
-                  { effectiveTo: null },
-                  { effectiveTo: { gte: effectiveFromDate } }
-                ]
-              }
-            ]
-          } : {}
-        ]
-      }
+    // Validate, reject overlap with an enabled policy of the same sub-type (engulfing
+    // windows included) and create — in one transaction.
+    const { policy } = await savePolicy({
+      prisma,
+      model: 'conferenceIncentivePolicy',
+      keyWhere: { conferenceSubType: data.conferenceSubType },
+      data,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
     });
 
-    if (overlapping) {
-      return res.status(400).json({
-        success: false,
-        message: 'An active policy already exists for this conference type and date range'
-      });
-    }
-
-    const policy = await prisma.conferenceIncentivePolicy.create({
-      data: {
-        policyName,
-        conferenceSubType,
-        quartileIncentives: conferenceSubType === 'paper_indexed_scopus' ? quartileIncentives : [],
-        rolePercentages: rolePercentages || [],
-        flatIncentiveAmount: conferenceSubType !== 'paper_indexed_scopus' ? parseFloat(flatIncentiveAmount) : null,
-        flatPoints: conferenceSubType !== 'paper_indexed_scopus' ? parseInt(flatPoints) : null,
-        splitPolicy: splitPolicy || 'equal',
-        internationalBonus: parseFloat(internationalBonus) || 5000,
-        bestPaperAwardBonus: parseFloat(bestPaperAwardBonus) || 5000,
-        effectiveFrom: effectiveFromDate,
-        effectiveTo: effectiveToDate,
-        createdById: userId,
-        isActive: true,
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
-    });
-
-    // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'conference', req.user.id, req);
-
-    // Invalidate policy cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(201).json({
@@ -265,6 +157,7 @@ exports.createConferencePolicy = async (req, res) => {
       data: policy
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Create conference policy error:', error);
     res.status(500).json({
       success: false,
@@ -279,20 +172,6 @@ exports.createConferencePolicy = async (req, res) => {
 exports.updateConferencePolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
-    const {
-      policyName,
-      quartileIncentives,
-      rolePercentages,
-      flatIncentiveAmount,
-      flatPoints,
-      splitPolicy,
-      internationalBonus,
-      bestPaperAwardBonus,
-      effectiveFrom,
-      effectiveTo,
-      isActive
-    } = req.body;
 
     const existingPolicy = await prisma.conferenceIncentivePolicy.findUnique({
       where: { id }
@@ -312,32 +191,19 @@ exports.updateConferencePolicy = async (req, res) => {
       });
     }
 
-    const updateData = {
-      updatedById: userId,
-      updatedAt: new Date()
-    };
-
-    if (policyName !== undefined) updateData.policyName = policyName;
-    if (quartileIncentives !== undefined) updateData.quartileIncentives = quartileIncentives;
-    if (rolePercentages !== undefined) updateData.rolePercentages = rolePercentages;
-    if (flatIncentiveAmount !== undefined) updateData.flatIncentiveAmount = parseFloat(flatIncentiveAmount);
-    if (flatPoints !== undefined) updateData.flatPoints = parseInt(flatPoints);
-    if (splitPolicy !== undefined) updateData.splitPolicy = splitPolicy;
-    if (internationalBonus !== undefined) updateData.internationalBonus = parseFloat(internationalBonus);
-    if (bestPaperAwardBonus !== undefined) updateData.bestPaperAwardBonus = parseFloat(bestPaperAwardBonus);
-    if (effectiveFrom !== undefined) updateData.effectiveFrom = new Date(effectiveFrom);
-    if (effectiveTo !== undefined) updateData.effectiveTo = effectiveTo ? new Date(effectiveTo) : null;
-    if (isActive !== undefined) updateData.isActive = isActive;
-
-    const policy = await prisma.conferenceIncentivePolicy.update({
-      where: { id },
-      data: updateData
+    const data = parseConferencePolicy(req.body, existingPolicy);
+    const { policy } = await savePolicy({
+      prisma,
+      model: 'conferenceIncentivePolicy',
+      keyWhere: { conferenceSubType: existingPolicy.conferenceSubType },
+      data,
+      existing: existingPolicy,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
     });
 
-    // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, policy, 'conference', req.user.id, req);
-
-    // Invalidate policy cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(200).json({
@@ -346,6 +212,7 @@ exports.updateConferencePolicy = async (req, res) => {
       data: policy
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Update conference policy error:', error);
     res.status(500).json({
       success: false,

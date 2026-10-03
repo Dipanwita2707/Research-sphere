@@ -38,7 +38,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
           <a
             key={key}
             href={href}
-            className="text-wine dark:text-amber-400 underline underline-offset-2 hover:opacity-80"
+            className="text-wine dark:text-hi underline underline-offset-2 hover:opacity-80"
             {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
           >
             {match[7]}

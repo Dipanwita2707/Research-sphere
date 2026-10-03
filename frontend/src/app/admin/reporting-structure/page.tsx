@@ -300,7 +300,7 @@ export default function ReportingStructurePage() {
               Refresh Status
             </button>
           </div>
-          <p className="text-sm text-gray-500 mb-3">Click a card to open that department's reporting structure page.</p>
+          <p className="text-sm text-gray-500 mb-3">Click a card to open that department&apos;s reporting structure page.</p>
           <p className="text-xs text-gray-500 mb-4">
             You can remove a card only when that department has no reporting structure entries.
           </p>

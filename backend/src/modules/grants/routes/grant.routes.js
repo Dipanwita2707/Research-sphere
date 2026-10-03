@@ -6,11 +6,22 @@
 const express = require('express');
 const { bindMiddleware } = require('../../../shared/tenancy/tenantContext');
 const router = express.Router();
+
+// Every :id is a grant UUID; anything else is a 404, not a database error (500).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+router.param('id', (req, res, next, id) => (
+  UUID_RE.test(id) ? next() : res.status(404).json({ success: false, message: 'Grant application not found' })
+));
 const multer = require('multer');
 const path = require('path');
 const grantController = require('../controllers/grant.controller');
+const grantFundingController = require('../controllers/grantFunding.controller');
 const { protect, requirePermission, requireAnyPermission } = require('../../../shared/middleware/auth');
 const prisma = require('../../../shared/config/database');
+const { requireSchoolScope, requireViewScope } = require('../../research/services/reviewScope');
+
+// DRD grant actions only inside the reviewer's assigned grant schools
+const requireGrantSchoolScope = requireSchoolScope('grant');
 
 // Configure multer with memory storage for S3 uploads
 const memoryStorage = multer.memoryStorage();
@@ -109,6 +120,7 @@ router.get('/review/pending', requireGrantAccess, grantController.getPendingGran
 router.post(
   '/:id/review/start',
   requirePermission('central-department', 'grant_review', 'research_review'),
+  requireGrantSchoolScope,
   grantController.startReview
 );
 
@@ -120,6 +132,7 @@ router.post(
 router.post(
   '/:id/review/request-changes',
   requireAnyPermission('central-department', ['grant_review', 'grant_approve', 'research_review', 'research_approve']),
+  requireGrantSchoolScope,
   grantController.requestChanges
 );
 
@@ -131,6 +144,7 @@ router.post(
 router.post(
   '/:id/review/recommend',
   requirePermission('central-department', 'grant_review', 'research_review'),
+  requireGrantSchoolScope,
   grantController.recommendForApproval
 );
 
@@ -142,6 +156,7 @@ router.post(
 router.post(
   '/:id/review/approve',
   requirePermission('central-department', 'grant_approve', 'research_approve'),
+  requireGrantSchoolScope,
   grantController.approveGrant
 );
 
@@ -153,6 +168,7 @@ router.post(
 router.post(
   '/:id/review/reject',
   requireAnyPermission('central-department', ['grant_review', 'grant_approve', 'research_review', 'research_approve']),
+  requireGrantSchoolScope,
   grantController.rejectGrant
 );
 
@@ -164,8 +180,19 @@ router.post(
 router.post(
   '/:id/review/complete',
   requirePermission('central-department', 'grant_approve', 'research_approve'),
+  requireGrantSchoolScope,
   grantController.markCompleted
 );
+
+// =====================================
+// Sanction & funds received (NAAC 3.1 / NIRF)
+// Writes: DRD grant approvers (grant_approve / research_approve) or admin; approved/completed grants only.
+// Reads: anyone who may view the grant (checked in the controller).
+// =====================================
+router.patch('/:id/sanction', grantFundingController.requireFundingManager, requireGrantSchoolScope, grantFundingController.updateSanction);
+router.get('/:id/fund-receipts', requireViewScope('grant'), grantFundingController.listFundReceipts);
+router.post('/:id/fund-receipts', grantFundingController.requireFundingManager, requireGrantSchoolScope, grantFundingController.addFundReceipt);
+router.delete('/:id/fund-receipts/:receiptId', grantFundingController.requireFundingManager, requireGrantSchoolScope, grantFundingController.deleteFundReceipt);
 
 /**
  * @route   GET /api/grants/:id

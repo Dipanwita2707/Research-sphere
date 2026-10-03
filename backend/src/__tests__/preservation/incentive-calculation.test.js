@@ -176,7 +176,7 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
         false    // isInternal = false → external
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         totalPoolAmount: 0,
         totalPoolPoints: 0,
         incentiveAmount: 0,
@@ -194,7 +194,7 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
         false    // isInternal = false
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         totalPoolAmount: 0,
         totalPoolPoints: 0,
         incentiveAmount: 0,
@@ -331,7 +331,13 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
         true
       );
 
+      // Rounding change (Oct 2026): one author looked at alone still rounds on its own
+      // (6667), but the three shares are no longer each rounded up. The exact share is
+      // exposed as rawIncentive and computeAuthorShares (authorShares.js) apportions the
+      // three with the largest-remainder method: 6667 + 6667 + 6666 = 20000, never 20001.
+      // See authorShares.test.js for the split that is saved, previewed and credited.
       expect(result.incentiveAmount).toBe(Math.round(20000 / 3));
+      expect(result.rawIncentive).toBeCloseTo(20000 / 3, 6);
     });
   });
 
@@ -406,7 +412,7 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
         true
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         totalPoolAmount: 0,
         totalPoolPoints: 0,
         incentiveAmount: 0,
@@ -532,7 +538,7 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
           quartile: 'Q1',
         }),
         'research_paper',
-        'first_author',
+        'first_and_corresponding_author',
         false, 0, 0,
         1,   // single author
         true,
@@ -542,6 +548,19 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
       expect(result.incentiveAmount).toBe(50000); // 100%
     });
 
+    test('single author who is only first author (not corresponding) gets just the first-author share', async () => {
+      const result = await calculateIncentives(
+        makeContributionData({ indexingCategories: ['scopus'], quartile: 'Q1' }),
+        'research_paper',
+        'first_author',
+        false, 0, 0,
+        1,
+        true,
+        0
+      );
+      expect(result.incentiveAmount).toBe(20000); // 50000 * 40%
+    });
+
     test('student author gets incentive but zero points', async () => {
       const result = await calculateIncentives(
         makeContributionData({
@@ -549,7 +568,7 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
           quartile: 'Q1',
         }),
         'research_paper',
-        'first_author',
+        'first_and_corresponding_author',
         true,  // isStudent
         0, 0, 1,
         true
@@ -571,7 +590,7 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
         true
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         totalPoolAmount: 0,
         totalPoolPoints: 0,
         incentiveAmount: 0,
@@ -603,7 +622,7 @@ describe('Preservation: calculateIncentives behavior baseline', () => {
           sjr: 1.5,
         }),
         'research_paper',
-        'first_author',
+        'first_and_corresponding_author',
         false, 0, 0,
         1,
         true

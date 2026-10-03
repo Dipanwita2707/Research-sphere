@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import grantPolicyService from '@/features/research-management/services/grantPolicy.service';
+import PolicyCycleField, { PolicyPeriod, defaultPolicyDates } from './PolicyCycleField';
+import { useCycles } from '@/features/finance/budget/useBudget';
 
 // Define types
 interface RolePercentage {
@@ -94,6 +96,7 @@ export default function GrantIncentivePolicyManagement() {
   const [success, setSuccess] = useState('');
 
   // Form state
+  const cyclesQ = useCycles();
   const [formData, setFormData] = useState<FormData>({
     policyName: '',
     projectCategory: 'govt',
@@ -152,8 +155,7 @@ export default function GrantIncentivePolicyManagement() {
         rolePercentages: [...DEFAULT_ROLE_PERCENTAGES],
         internationalBonus: 10000,
         consortiumBonus: 5000,
-        effectiveFrom: new Date().toISOString().split('T')[0],
-        effectiveTo: '',
+        ...defaultPolicyDates(cyclesQ.data?.cycles),
       });
     }
     setShowModal(true);
@@ -306,6 +308,7 @@ export default function GrantIncentivePolicyManagement() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg text-gray-900 mb-1">{policy.policyName}</h3>
+                    <PolicyPeriod effectiveFrom={policy.effectiveFrom} effectiveTo={policy.effectiveTo} />
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                         policy.projectCategory ===
@@ -584,33 +587,12 @@ export default function GrantIncentivePolicyManagement() {
                 </div>
               </div>
 
-              {/* Effective Dates */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Effective From *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.effectiveFrom}
-                    onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Effective To (Optional)
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.effectiveTo}
-                    onChange={(e) => setFormData({ ...formData, effectiveTo: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+              {/* Cycle and effective dates */}
+              <PolicyCycleField
+                value={{ effectiveFrom: formData.effectiveFrom, effectiveTo: formData.effectiveTo }}
+                onChange={(d) => setFormData({ ...formData, ...d })}
+                inputClassName="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4 border-t">

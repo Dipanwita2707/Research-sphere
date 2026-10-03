@@ -100,13 +100,13 @@ export default function OverviewTab({ onNavigate }: { onNavigate: (tab: AdminTab
           <ul className="space-y-2 text-sm">
             <li className="flex items-center justify-between gap-3">
               <span className="text-gray-700 dark:text-gray-300">Overdue data principal requests</span>
-              <button type="button" className="text-wine dark:text-amber-400 hover:underline" onClick={() => onNavigate('requests')}>
+              <button type="button" className="text-wine dark:text-hi hover:underline" onClick={() => onNavigate('requests')}>
                 {data.overdueRequests} → review
               </button>
             </li>
             <li className="flex items-center justify-between gap-3">
               <span className="text-gray-700 dark:text-gray-300">Breaches needing Board intimation within 24h</span>
-              <button type="button" className="text-wine dark:text-amber-400 hover:underline" onClick={() => onNavigate('breaches')}>
+              <button type="button" className="text-wine dark:text-hi hover:underline" onClick={() => onNavigate('breaches')}>
                 {data.breachesDueSoon} → open register
               </button>
             </li>

@@ -79,7 +79,13 @@ const applyReview = async (req, res) => ok(res, await taxonomy.applyReview(req.b
 // ─── Graph & search ───────────────────────────────────────────────────────────
 
 const getCollaborationNetwork = async (req, res) =>
-  ok(res, await graph.getCollaborationNetwork(req.tenantId, { userId: req.query.userId, departmentId: req.query.departmentId, schoolId: req.query.schoolId, limit: req.query.limit }));
+  ok(res, await graph.getCollaborationNetwork(req.tenantId, {
+    userId: req.query.userId,
+    departmentId: req.query.departmentId,
+    schoolId: req.query.schoolId,
+    limit: req.query.limit,
+    minJointPapers: req.query.minJointPapers,
+  }));
 const getKeywordNetwork = async (req, res) =>
   ok(res, await graph.getKeywordNetwork(req.tenantId, { categoryId: req.query.categoryId, limit: req.query.limit, minWeight: req.query.minWeight }));
 const findExperts = async (req, res) =>
@@ -100,7 +106,11 @@ const searchPublications = async (req, res) =>
     publicationType: req.query.type,
     sort: req.query.sort,
     limit: req.query.limit,
+    page: req.query.page,
+    pageSize: req.query.pageSize,
   }));
+
+const listUnits = async (req, res) => ok(res, await search.listUnits(req.tenantId));
 
 const searchEntities = async (req, res) => {
   const q = String(req.query.q || '').trim();
@@ -213,6 +223,7 @@ module.exports = {
   getDomainMap,
   searchPublications,
   searchEntities,
+  listUnits,
   startPipeline,
   listPipelineRuns,
   listChatSessions,

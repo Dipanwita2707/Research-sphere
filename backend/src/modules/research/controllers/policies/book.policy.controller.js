@@ -1,6 +1,10 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
 const cache = require('../../../../shared/config/redis');
+const { previewDate, sendPolicyPreview } = require('../../utils/policyPreview');
+const { DEFAULT_BOOK_POLICY } = require('../../services/incentive-calculator');
+const { parseBookPolicy, parseBookPublicationType, sendPolicyError } = require('../../validators/incentivePolicy.validation');
+const { savePolicy, policyWindowWhere } = require('../../utils/policyWindow');
 
 /**
  * Get all book incentive policies
@@ -34,7 +38,8 @@ exports.getAllBookPolicies = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: policies
+      // The admin UI reads publicationType when editing a row.
+      data: policies.map((p) => ({ ...p, publicationType: 'book' }))
     });
   } catch (error) {
     console.error('Get all book policies error:', error);
@@ -63,35 +68,24 @@ exports.getActivePolicyByType = async (req, res) => {
     // Choose the correct model based on publication type
     const modelName = publicationType === 'book' ? 'bookIncentivePolicy' : 'bookChapterIncentivePolicy';
     
+    const onDate = previewDate(req.query.publicationDate);
     const policy = await prisma[modelName].findFirst({
       where: {
-        isActive: true,
         ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        effectiveFrom: {
-          lte: new Date()
-        },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: new Date() } }
-        ]
+        ...policyWindowWhere(onDate)
       },
       orderBy: {
         effectiveFrom: 'desc'
       }
     });
 
-    if (!policy) {
-      return res.status(404).json({
-        success: false,
-        message: `No active policy found for ${publicationType}`
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: policy
+    // Without a policy the calculator pays the built-in defaults — preview exactly those.
+    return sendPolicyPreview(res, {
+      policy: policy && { ...policy, publicationType },
+      defaultPolicy: { ...DEFAULT_BOOK_POLICY, publicationType },
     });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Get active policy error:', error);
     res.status(500).json({
       success: false,
@@ -106,100 +100,31 @@ exports.getActivePolicyByType = async (req, res) => {
  */
 exports.createBookPolicy = async (req, res) => {
   try {
-    const {
-      publicationType,
-      policyName,
-      authoredIncentiveAmount,
-      authoredPoints,
-      editedIncentiveAmount,
-      editedPoints,
-      splitPolicy,
-      indexingBonuses,
-      internationalBonus,
-      effectiveFrom,
-      effectiveTo
-    } = req.body;
-
-    // Validation
-    if (!['book', 'book_chapter'].includes(publicationType)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid publication type. Must be "book" or "book_chapter"'
-      });
-    }
-
-    if (!policyName || !authoredIncentiveAmount || !editedIncentiveAmount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Policy name, authored incentive, and edited incentive are required'
-      });
-    }
-
-    // Choose the correct model based on publication type
+    const publicationType = parseBookPublicationType(req.body.publicationType);
+    const data = parseBookPolicy(req.body);
     const modelName = publicationType === 'book' ? 'bookIncentivePolicy' : 'bookChapterIncentivePolicy';
 
-    // Check for overlapping active policies
-    const existingPolicies = await prisma[modelName].findMany({
-      where: {
-        isActive: true,
-        ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        OR: [
-          {
-            AND: [
-              { effectiveFrom: { lte: new Date(effectiveFrom || new Date()) } },
-              {
-                OR: [
-                  { effectiveTo: null },
-                  { effectiveTo: { gte: new Date(effectiveFrom || new Date()) } }
-                ]
-              }
-            ]
-          }
-        ]
-      }
+    // Validate, reject any overlap with an enabled policy (including windows that engulf
+    // or sit inside the new one), and create — in one transaction.
+    const { policy } = await savePolicy({
+      prisma,
+      model: modelName,
+      data,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
     });
 
-    if (existingPolicies.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'An active policy already exists for this publication type and date range'
-      });
-    }
-
-    // Create the policy
-    const policy = await prisma[modelName].create({
-      data: {
-        policyName,
-        authoredIncentiveAmount: parseFloat(authoredIncentiveAmount),
-        authoredPoints: parseInt(authoredPoints) || 0,
-        editedIncentiveAmount: parseFloat(editedIncentiveAmount),
-        editedPoints: parseInt(editedPoints) || 0,
-        splitPolicy: splitPolicy || 'equal',
-        indexingBonuses: indexingBonuses || {
-          scopus_indexed: 10000,
-          non_indexed: 0,
-          sgt_publication_house: 2000
-        },
-        internationalBonus: internationalBonus ? parseFloat(internationalBonus) : 5000,
-        effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
-        effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
-        createdById: req.user.id,
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      }
-    });
-
-    // Log policy creation
-    await auditLogger.logPolicyCreation(policy, 'book', req.user.id, req);
-
-    // Invalidate cache
+    await auditLogger.logPolicyCreation(policy, publicationType, req.user.id, req);
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(201).json({
       success: true,
       message: 'Book policy created successfully',
-      data: policy
+      data: { ...policy, publicationType }
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Create book policy error:', error);
     res.status(500).json({
       success: false,
@@ -215,21 +140,7 @@ exports.createBookPolicy = async (req, res) => {
 exports.updateBookPolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      policyName,
-      authoredIncentiveAmount,
-      authoredPoints,
-      editedIncentiveAmount,
-      editedPoints,
-      splitPolicy,
-      indexingBonuses,
-      internationalBonus,
-      isActive,
-      effectiveFrom,
-      effectiveTo
-    } = req.body;
 
-    // Check if policy exists
     const existingPolicy = await prisma.bookIncentivePolicy.findUnique({
       where: { id }
     });
@@ -248,41 +159,28 @@ exports.updateBookPolicy = async (req, res) => {
       });
     }
 
-    // Build update data
-    const updateData = {
-      updatedById: req.user.id
-    };
-
-    if (policyName !== undefined) updateData.policyName = policyName;
-    if (authoredIncentiveAmount !== undefined) updateData.authoredIncentiveAmount = parseFloat(authoredIncentiveAmount);
-    if (authoredPoints !== undefined) updateData.authoredPoints = parseInt(authoredPoints);
-    if (editedIncentiveAmount !== undefined) updateData.editedIncentiveAmount = parseFloat(editedIncentiveAmount);
-    if (editedPoints !== undefined) updateData.editedPoints = parseInt(editedPoints);
-    if (splitPolicy !== undefined) updateData.splitPolicy = splitPolicy;
-    if (indexingBonuses !== undefined) updateData.indexingBonuses = indexingBonuses;
-    if (internationalBonus !== undefined) updateData.internationalBonus = parseFloat(internationalBonus);
-    if (isActive !== undefined) updateData.isActive = isActive;
-    if (effectiveFrom !== undefined) updateData.effectiveFrom = new Date(effectiveFrom);
-    if (effectiveTo !== undefined) updateData.effectiveTo = effectiveTo ? new Date(effectiveTo) : null;
-
-    // Update the policy
-    const updatedPolicy = await prisma.bookIncentivePolicy.update({
-      where: { id },
-      data: updateData
+    // Same rules as create, applied to the merged (stored + changed) policy.
+    const data = parseBookPolicy(req.body, existingPolicy);
+    const { policy: updatedPolicy } = await savePolicy({
+      prisma,
+      model: 'bookIncentivePolicy',
+      data,
+      existing: existingPolicy,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
     });
 
-    // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, updatedPolicy, 'book', req.user.id, req);
-
-    // Invalidate cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(200).json({
       success: true,
       message: 'Book policy updated successfully',
-      data: updatedPolicy
+      data: { ...updatedPolicy, publicationType: 'book' }
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Update book policy error:', error);
     res.status(500).json({
       success: false,
@@ -384,7 +282,7 @@ exports.getBookPolicyById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: policy
+      data: { ...policy, publicationType: 'book' }
     });
   } catch (error) {
     console.error('Get book policy by ID error:', error);

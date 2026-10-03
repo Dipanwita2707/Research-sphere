@@ -28,8 +28,12 @@ export interface University {
   code: string;
   name: string;
   slug: string;
+  /** Browser URL of the uploaded logo (served by /public/branding/:slug/logo/light). */
   logoUrl?: string | null;
   primaryColor?: string | null;
+  themePreset?: string;
+  displayName?: string | null;
+  shortName?: string | null;
   contactEmail?: string | null;
   websiteUrl?: string | null;
   address?: string | null;
@@ -88,6 +92,8 @@ export interface ProvisionUniversityPayload {
   adminUsername: string;
   adminEmail: string;
   adminPassword?: string;
+  /** Optional "Branding & theme" values; logos are uploaded after the university exists. */
+  branding?: Partial<import('@/features/branding/services/branding.service').BrandingValues>;
 }
 
 export interface ApiMonitorStats {

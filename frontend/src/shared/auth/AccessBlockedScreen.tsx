@@ -66,7 +66,7 @@ export default function AccessBlockedScreen({ code, message, onSignOut }: Access
             type="button"
             onClick={handleSignOut}
             disabled={signingOut}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-wine px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-wine px-4 py-2 text-sm font-medium text-wine-fg hover:opacity-90 disabled:opacity-60"
           >
             <LogOut size={16} aria-hidden="true" />
             Sign out

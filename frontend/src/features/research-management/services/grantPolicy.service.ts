@@ -1,6 +1,5 @@
-import api from '@/shared/api/api';
+import api, { isAxiosError } from '@/shared/api/api';
 import { logger } from '@/shared/utils/logger';
-import { isAxiosError } from 'axios';
 
 export interface RolePercentage {
   role: string;
@@ -42,6 +41,8 @@ export interface CreateGrantPolicyData {
 }
 
 export interface GrantIncentiveCalculation {
+  /** false when no policy covers the grant on the policy date (everything is 0). */
+  policyFound?: boolean;
   baseIncentiveAmount: number;
   basePoints: number;
   internationalBonus: number;
@@ -68,17 +69,25 @@ class GrantPolicyService {
   /**
    * Get active policy by project category and type
    */
-  async getActivePolicy(projectCategory: string, projectType: string): Promise<GrantIncentivePolicy> {
+  /**
+   * Policy in force for a grant on `onDate` (use grantPolicyDateOf(grant)); null when no
+   * policy applies — approval then pays ₹0, so previews must show ₹0 too.
+   */
+  async getActivePolicy(projectCategory: string, projectType: string, onDate?: string | null): Promise<GrantIncentivePolicy | null> {
     try {
       // Disable caching to force fresh data
       const response = await api.get(`/grant-policies/active/${projectCategory}/${projectType}`, {
+        params: onDate ? { onDate } : {},
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         }
       });
       logger.debug('getActivePolicy raw response:', response);
-      
+
+      if (response.data?.policyFound === false) {
+        return null;
+      }
       // Handle both response.data.data and response.data formats
       if (response.data?.data) {
         return response.data.data;
@@ -136,10 +145,26 @@ class GrantPolicyService {
     projectType: string;
     submittedAmount?: number;
     numberOfConsortiumOrgs?: number;
+    /** grantPolicyDateOf(grant); default today */
+    onDate?: string;
   }): Promise<GrantIncentiveCalculation> {
     const response = await api.post('/grant-policies/calculate', params);
     return response.data.data;
   }
+}
+
+/**
+ * The date that selects a grant's incentive policy — same order as the server:
+ * sanction date, then submission date (to the agency, then in the system); undefined means
+ * "today" (the approval date for a grant not yet approved).
+ */
+export function grantPolicyDateOf(grant: {
+  sanctionDate?: string | null;
+  dateOfSubmission?: string | null;
+  submittedAt?: string | null;
+} | null | undefined): string | undefined {
+  const value = grant?.sanctionDate || grant?.dateOfSubmission || grant?.submittedAt;
+  return value ? String(value).slice(0, 10) : undefined;
 }
 
 export const grantPolicyService = new GrantPolicyService();

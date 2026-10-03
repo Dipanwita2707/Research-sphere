@@ -100,8 +100,8 @@ export default function AuthDebugPage() {
             Troubleshooting Steps
           </h2>
           <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-200 text-sm">
-            <li>Check if "isAuthenticated" is true above</li>
-            <li>Click "Test Endpoint" to verify backend authentication</li>
+            <li>Check if &quot;isAuthenticated&quot; is true above</li>
+            <li>Click &quot;Test Endpoint&quot; to verify backend authentication</li>
             <li>Open browser console (F12) and check for error messages</li>
             <li>Check backend server is running (port 5001)</li>
             <li>Try logging out and logging in again</li>

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import PublicNav from '@/shared/components/public/PublicNav';
 import Wordmark from '@/shared/components/brand/Wordmark';
+import { BRAND, SUPPORT_CONTACT_PATH } from '@/shared/config/brand';
 import {
   CheckCircle,
   XCircle,
@@ -12,17 +13,20 @@ import {
   Globe,
   ChevronRight,
   HelpCircle,
-  Star,
   Shield,
-  Users,
-  BarChart3,
-  BookOpen,
-  Lightbulb,
-  DollarSign
+  Lock,
+  ScrollText,
+  UserCheck,
 } from 'lucide-react';
 
 type BillingCycle = 'monthly' | 'annual';
 
+/*
+ * Plan features list only capabilities that exist in the product today.
+ * Deliberately not listed because they are not offered: uptime SLA, phone /
+ * chat / 24x7 support, white-label branding, custom BI, NAAC/NIRF exports,
+ * SSO/MFA, mobile apps and online payment.
+ */
 const PLANS = [
   {
     id: 'starter',
@@ -37,16 +41,14 @@ const PLANS = [
     buttonClass: 'bg-gray-900 hover:bg-black text-white',
     features: [
       { label: 'Up to 100 researchers', included: true },
-      { label: 'Research paper tracking', included: true },
-      { label: 'IPR / Patent filing', included: true },
+      { label: 'Research submission & review workflows', included: true },
+      { label: 'IPR / patent filing workflow', included: true },
+      { label: 'Researcher profiles with ORCID, Scopus & OpenAlex sync', included: true },
       { label: 'Basic analytics dashboard', included: true },
       { label: 'Email support', included: true },
       { label: 'Grants management', included: false },
-      { label: 'Advanced analytics & reports', included: false },
-      { label: 'DRD workflow automation', included: false },
-      { label: 'Custom branding', included: false },
-      { label: 'Dedicated account manager', included: false },
-      { label: 'SLA guarantee', included: false },
+      { label: 'DRD analytics with CSV export', included: false },
+      { label: 'Incentive policies & finance processing', included: false },
     ],
   },
   {
@@ -59,19 +61,17 @@ const PLANS = [
     highlight: true,
     badge: 'Most Popular',
     color: 'border-wine',
-    buttonClass: 'bg-wine hover:bg-wine-dark text-white',
+    buttonClass: 'bg-wine hover:bg-wine-dark text-wine-fg',
     features: [
       { label: 'Up to 500 researchers', included: true },
-      { label: 'Research paper tracking', included: true },
-      { label: 'IPR / Patent filing', included: true },
+      { label: 'Research submission & review workflows', included: true },
+      { label: 'IPR / patent filing workflow', included: true },
+      { label: 'Researcher profiles with ORCID, Scopus & OpenAlex sync', included: true },
       { label: 'Advanced analytics dashboard', included: true },
-      { label: 'Priority email & chat support', included: true },
+      { label: 'Priority email support', included: true },
       { label: 'Grants management', included: true },
-      { label: 'Advanced analytics & reports', included: true },
-      { label: 'DRD workflow automation', included: true },
-      { label: 'Custom branding', included: false },
-      { label: 'Dedicated account manager', included: false },
-      { label: 'SLA guarantee (99.5%)', included: false },
+      { label: 'DRD analytics with CSV export', included: true },
+      { label: 'Incentive policies & finance processing', included: true },
     ],
   },
   {
@@ -87,24 +87,40 @@ const PLANS = [
     buttonClass: 'bg-amber hover:bg-amber-600 text-white',
     features: [
       { label: 'Unlimited researchers', included: true },
-      { label: 'Research paper tracking', included: true },
-      { label: 'IPR / Patent filing', included: true },
-      { label: 'Enterprise analytics & BI', included: true },
-      { label: '24/7 phone, email & chat support', included: true },
+      { label: 'Research submission & review workflows', included: true },
+      { label: 'IPR / patent filing workflow', included: true },
+      { label: 'Researcher profiles with ORCID, Scopus & OpenAlex sync', included: true },
+      { label: 'Advanced analytics dashboard', included: true },
+      { label: 'Priority email support', included: true },
       { label: 'Grants management', included: true },
-      { label: 'Advanced analytics & reports', included: true },
-      { label: 'DRD workflow automation', included: true },
-      { label: 'Custom branding & white-label', included: true },
-      { label: 'Dedicated account manager', included: true },
-      { label: 'SLA guarantee (99.9%)', included: true },
+      { label: 'DRD analytics with CSV export', included: true },
+      { label: 'Incentive policies & finance processing', included: true },
     ],
   },
+];
+
+/** Annual discount for a plan, as a whole percentage. */
+function discountPercent(monthly: number, annual: number) {
+  return Math.round((1 - annual / monthly) * 100);
+}
+
+const MAX_ANNUAL_DISCOUNT = Math.max(
+  ...PLANS.map((p) => (p.monthlyPrice && p.annualPrice ? discountPercent(p.monthlyPrice, p.annualPrice) : 0))
+);
+
+const EVERY_PLAN = [
+  { icon: Lock, title: 'Tenant data isolation', desc: 'Each university runs as its own tenant; one institution cannot see another’s data.' },
+  { icon: UserCheck, title: 'Role-based access', desc: 'Roles and permission templates decide who can file, review, approve and administer.' },
+  { icon: ScrollText, title: 'Audit logs', desc: 'Administrative and workflow actions are recorded, so you can see who changed what and when.' },
+  { icon: Shield, title: 'DPDP compliance tools', desc: 'Consent notices, data-principal requests, breach records and retention policies.' },
 ];
 
 const COMPARISON_ROWS = [
   { category: 'Research', label: 'Research paper submissions', starter: true, pro: true, enterprise: true },
   { category: 'Research', label: 'Book & chapter management', starter: true, pro: true, enterprise: true },
   { category: 'Research', label: 'Conference paper tracking', starter: true, pro: true, enterprise: true },
+  { category: 'Research', label: 'Publication sync (ORCID, Scopus, OpenAlex)', starter: true, pro: true, enterprise: true },
+  { category: 'Research', label: 'Public researcher profiles', starter: true, pro: true, enterprise: true },
   { category: 'IPR', label: 'Patent / IPR filing', starter: true, pro: true, enterprise: true },
   { category: 'IPR', label: 'Multi-school assignment', starter: false, pro: true, enterprise: true },
   { category: 'Grants', label: 'Grant application & tracking', starter: false, pro: true, enterprise: true },
@@ -112,37 +128,37 @@ const COMPARISON_ROWS = [
   { category: 'Analytics', label: 'Basic dashboard', starter: true, pro: true, enterprise: true },
   { category: 'Analytics', label: 'Applicant analytics', starter: false, pro: true, enterprise: true },
   { category: 'Analytics', label: 'DRD member performance', starter: false, pro: true, enterprise: true },
-  { category: 'Analytics', label: 'Custom BI reports', starter: false, pro: false, enterprise: true },
+  { category: 'Analytics', label: 'CSV export of analytics', starter: false, pro: true, enterprise: true },
   { category: 'Workflows', label: 'Review & approval workflows', starter: true, pro: true, enterprise: true },
-  { category: 'Workflows', label: 'DRD automation engine', starter: false, pro: true, enterprise: true },
+  { category: 'Workflows', label: 'School-wise reviewer routing', starter: false, pro: true, enterprise: true },
+  { category: 'Workflows', label: 'Incentive policies & finance processing', starter: false, pro: true, enterprise: true },
   { category: 'Admin', label: 'Multiple admin accounts', starter: '2 admins', pro: '10 admins', enterprise: 'Unlimited' },
-  { category: 'Admin', label: 'Custom branding & logo', starter: false, pro: false, enterprise: true },
-  { category: 'Admin', label: 'Dedicated account manager', starter: false, pro: false, enterprise: true },
+  { category: 'Admin', label: 'Role-based access & audit logs', starter: true, pro: true, enterprise: true },
+  { category: 'Admin', label: 'DPDP Act compliance tools', starter: true, pro: true, enterprise: true },
   { category: 'Support', label: 'Email support', starter: true, pro: true, enterprise: true },
   { category: 'Support', label: 'Priority support', starter: false, pro: true, enterprise: true },
-  { category: 'Support', label: '24/7 support', starter: false, pro: false, enterprise: true },
 ];
 
 const FAQS = [
   {
     q: 'Can I switch plans later?',
-    a: 'Yes! You can upgrade or downgrade your plan at any time. Upgrades take effect immediately, and downgrades at the end of the billing cycle.',
+    a: 'Yes. Plan changes are made by our team rather than self-service: get in touch through the contact page and we will move your university to the new plan.',
   },
   {
     q: 'Is there a free trial?',
-    a: 'We offer a 14-day pilot for the Professional plan. Contact our team to get started with no credit card required.',
+    a: 'We can arrange a pilot for your institution. Contact us to discuss scope and duration.',
   },
   {
     q: 'How does billing work?',
-    a: 'We bill per university/tenant on a monthly or annual basis. Annual plans offer significant savings. All prices are in INR and exclude applicable taxes.',
+    a: 'We bill per university/tenant on a monthly or annual basis, arranged directly with our team. All prices are in INR and exclude applicable taxes.',
   },
   {
-    q: 'What is the SLA commitment?',
-    a: 'Starter has no formal SLA. Professional guarantees 99.5% uptime and Enterprise guarantees 99.9% with compensation for downtime beyond the threshold.',
+    q: 'Do you offer an uptime SLA?',
+    a: 'No plan includes a contractual uptime SLA today. If your institution needs one, contact us to discuss your requirements.',
   },
   {
     q: 'Is data isolated between tenants?',
-    a: 'Absolutely. ResearchSphere uses strict multi-tenant architecture with complete data isolation. One university cannot access another\'s data.',
+    a: 'Yes. Each university is a separate tenant, and its data is isolated from every other tenant on the platform.',
   },
   {
     q: 'Can we have multiple admin accounts?',
@@ -182,7 +198,7 @@ export default function PricingPage() {
             <span className="text-wine">Institution</span>
           </h1>
           <p className="text-lg text-gray-500 max-w-xl mx-auto mb-10">
-            Choose the plan that fits your university's scale. All plans include core research management features with no hidden fees.
+            Choose the plan that fits your university&apos;s scale. All plans include core research management features with no hidden fees.
           </p>
 
           {/* Billing toggle */}
@@ -198,12 +214,9 @@ export default function PricingPage() {
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${billing === 'annual' ? 'bg-wine text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
             >
               Annual
-              {billing === 'annual' && <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-bold">Save 23%</span>}
+              {billing === 'annual' && <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-bold">Save up to {MAX_ANNUAL_DISCOUNT}%</span>}
             </button>
           </div>
-          {billing === 'annual' && (
-            <p className="text-emerald-600 text-xs font-semibold mt-3">🎉 Annual billing saves you up to ₹36,000/year</p>
-          )}
         </div>
       </section>
 
@@ -219,7 +232,7 @@ export default function PricingPage() {
                 className={`relative rounded-3xl border-2 ${plan.color} bg-white shadow-sm ${plan.highlight ? 'shadow-xl shadow-wine/10 scale-105 z-10' : 'hover:shadow-md'} transition-all duration-300 overflow-hidden`}
               >
                 {plan.badge && (
-                  <div className="absolute top-0 left-0 right-0 bg-wine text-white text-center text-xs font-extrabold py-1.5 tracking-wider uppercase">
+                  <div className="absolute top-0 left-0 right-0 bg-wine text-wine-fg text-center text-xs font-extrabold py-1.5 tracking-wider uppercase">
                     {plan.badge}
                   </div>
                 )}
@@ -244,7 +257,7 @@ export default function PricingPage() {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-sm text-gray-400 line-through font-normal">{formatPrice(plan.monthlyPrice!)}</span>
                               <span className="text-xs font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">
-                                {plan.id === 'starter' ? '20%' : '27%'} Off
+                                {discountPercent(plan.monthlyPrice!, plan.annualPrice!)}% Off
                               </span>
                             </div>
                             <div className="text-4xl font-extrabold text-charcoal">
@@ -273,11 +286,12 @@ export default function PricingPage() {
                   </div>
 
                   {/* CTA */}
+                  {/* No self-service sign-up or online payment exists, so every plan starts with a conversation. */}
                   <Link
-                    href="/login"
+                    href={SUPPORT_CONTACT_PATH}
                     className={`w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all hover:-translate-y-0.5 hover:shadow-lg mb-6 ${plan.buttonClass}`}
                   >
-                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Get Started'}
+                    {plan.id === 'enterprise' ? 'Contact Sales' : 'Talk to Us'}
                     <ChevronRight className="h-4 w-4" />
                   </Link>
 
@@ -305,7 +319,7 @@ export default function PricingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-extrabold text-charcoal tracking-tight mb-3">Full Feature Comparison</h2>
-            <p className="text-gray-400">See exactly what's included in each plan.</p>
+            <p className="text-gray-400">See exactly what&apos;s included in each plan.</p>
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
@@ -349,23 +363,18 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ===== TRUSTED BY ===== */}
+      {/* ===== INCLUDED IN EVERY PLAN ===== */}
       <section className="py-16 bg-gradient-to-br from-blush to-ivory">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-8">What Our Customers Say About Pricing</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { name: 'VP Research', quote: 'The ROI was immediate. We replaced 4 separate tools with ResearchSphere and cut our admin costs by 60% in the first year.', stars: 5 },
-              { name: 'Head IT', quote: 'Enterprise pricing was customized to our 3,000-researcher scale. The team was incredibly accommodating and transparent throughout.', stars: 5 },
-            ].map(({ name, quote, stars }) => (
-              <div key={name} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-left">
-                <div className="flex gap-0.5 mb-3">
-                  {Array.from({ length: stars }).map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-amber text-amber" />
-                  ))}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-8">Included in Every Plan</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {EVERY_PLAN.map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-left">
+                <div className="w-10 h-10 rounded-xl bg-blush text-wine flex items-center justify-center mb-4">
+                  <Icon className="h-5 w-5" />
                 </div>
-                <p className="text-sm text-gray-600 italic mb-3">&ldquo;{quote}&rdquo;</p>
-                <p className="text-xs font-bold text-gray-400">— {name}</p>
+                <h3 className="text-sm font-bold text-charcoal mb-1.5">{title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -410,9 +419,15 @@ export default function PricingPage() {
               Sign In to Platform
               <ChevronRight className="h-5 w-5" />
             </Link>
-            <a href="mailto:mrinal11092002@gmail.com" className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 border border-white/20 text-white font-bold text-base rounded-2xl hover:bg-white/20 transition-all hover:-translate-y-0.5 backdrop-blur-sm">
-              Contact Sales
-            </a>
+            {BRAND.supportEmail ? (
+              <a href={`mailto:${BRAND.supportEmail}`} className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 border border-white/20 text-white font-bold text-base rounded-2xl hover:bg-white/20 transition-all hover:-translate-y-0.5 backdrop-blur-sm">
+                Contact Sales
+              </a>
+            ) : (
+              <Link href={SUPPORT_CONTACT_PATH} className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 border border-white/20 text-white font-bold text-base rounded-2xl hover:bg-white/20 transition-all hover:-translate-y-0.5 backdrop-blur-sm">
+                Contact Sales
+              </Link>
+            )}
           </div>
         </div>
       </section>

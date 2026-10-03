@@ -23,29 +23,23 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { iprService, IprApplication } from '@/features/ipr-management/services/ipr.service';
-import { researchService, ResearchContribution } from '@/features/research-management/services/research.service';
+import { researchService } from '@/features/research-management/services/research.service';
+import ResearchMentorApprovals from '@/features/research-management/components/ResearchMentorApprovals';
 import { useAuthStore } from '@/shared/auth/authStore';
 import MentorCollaborativeReviewModal from '@/features/ipr-management/components/MentorCollaborativeReviewModal';
 
 const IPR_TYPE_CONFIG = {
-  patent: { label: 'Patent', icon: Lightbulb, color: 'bg-[#7d1a34]' },
+  patent: { label: 'Patent', icon: Lightbulb, color: 'bg-wine' },
   copyright: { label: 'Copyright', icon: FileText, color: 'bg-purple-500' },
   trademark: { label: 'Trademark', icon: FileText, color: 'bg-green-500' },
   design: { label: 'Design', icon: FileText, color: 'bg-orange-500' },
   entrepreneurship: { label: 'Entrepreneurship', icon: FileText, color: 'bg-orange-500' },
 };
 
-const RESEARCH_TYPE_CONFIG = {
-  research_paper: { label: 'Research Paper', icon: FileText, color: 'bg-[#7d1a34]' },
-  book: { label: 'Book / Chapter', icon: BookOpen, color: 'bg-green-500' },
-  conference_paper: { label: 'Conference', icon: FileText, color: 'bg-purple-500' },
-  grant_proposal: { label: 'Grant', icon: FileText, color: 'bg-orange-500' },
-};
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   pending_mentor_approval: { label: 'Pending Your Approval', color: 'text-orange-700', bgColor: 'bg-orange-100' },
   changes_required: { label: 'Changes Requested', color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
-  submitted: { label: 'Submitted to DRD', color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]' },
+  submitted: { label: 'Submitted to DRD', color: 'text-wine', bgColor: 'bg-wine-100' },
   under_review: { label: 'Under DRD Review', color: 'text-indigo-700', bgColor: 'bg-indigo-100' },
   approved: { label: 'Approved', color: 'text-green-700', bgColor: 'bg-green-100' },
   completed: { label: 'Completed', color: 'text-green-700', bgColor: 'bg-green-100' },
@@ -67,9 +61,8 @@ export default function UnifiedMentorApprovalsPage() {
   const [selectedIprApp, setSelectedIprApp] = useState<IprApplication | null>(null);
   const [showIprReviewModal, setShowIprReviewModal] = useState(false);
   
-  // Research State
-  const [researchPending, setResearchPending] = useState<ResearchContribution[]>([]);
-  const [researchHistory, setResearchHistory] = useState<ResearchContribution[]>([]);
+  // Research State: the research tab owns its list; the page only keeps the count for badges.
+  const [researchPendingCount, setResearchPendingCount] = useState(0);
   
   // Common State
   const [loading, setLoading] = useState(true);
@@ -85,7 +78,21 @@ export default function UnifiedMentorApprovalsPage() {
     fetchData();
   }, [mainTab, subTab]);
 
+  // Load the research count once so the tab badge and header total are right before the tab is opened.
+  useEffect(() => {
+    researchService
+      .getMentorPendingContributions()
+      .then((items) => setResearchPendingCount(items.length))
+      .catch((err: unknown) => logger.error('Error fetching research mentor approval count:', err));
+  }, []);
+
   const fetchData = async () => {
+    if (mainTab === 'research') {
+      // ResearchMentorApprovals loads and manages its own list, loading and error states.
+      setLoading(false);
+      setError('');
+      return;
+    }
     setLoading(true);
     setError('');
     
@@ -100,11 +107,6 @@ export default function UnifiedMentorApprovalsPage() {
           const response = await iprService.getMentorReviewHistory();
           setIprHistory(response);
         }
-      } else {
-        // Research - For now, show empty as research mentor approval might not be fully implemented
-        // You can add research mentor approval API calls here when ready
-        setResearchPending([]);
-        setResearchHistory([]);
       }
     } catch (err: unknown) {
       logger.error('Error fetching data:', err);
@@ -180,7 +182,7 @@ export default function UnifiedMentorApprovalsPage() {
     const statusConfig = STATUS_CONFIG[app.status] || STATUS_CONFIG.pending_mentor_approval;
 
     return (
-      <div key={app.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#f0e2d2] dark:hover:border-[#7d1a34] hover:shadow-md transition-all duration-200 p-6">
+      <div key={app.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blush-line dark:hover:border-wine hover:shadow-md transition-all duration-200 p-6">
         <div className="flex items-start gap-4">
           <div className={`w-12 h-12 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
             <TypeIcon className="w-6 h-6 text-white" />
@@ -217,7 +219,7 @@ export default function UnifiedMentorApprovalsPage() {
                 <>
                   <button
                     onClick={() => openCollaborativeReview(app)}
-                    className="flex-1 px-4 py-2.5 bg-[#7d1a34] dark:bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] dark:hover:bg-[#7d1a34] transition-colors font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 bg-wine dark:bg-wine text-wine-fg rounded-lg hover:bg-wine-dark dark:hover:bg-wine transition-colors font-medium flex items-center justify-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" />
                     Review & Suggest
@@ -259,34 +261,33 @@ export default function UnifiedMentorApprovalsPage() {
     iprPending: iprPending.length,
     iprTotal: iprHistory?.stats?.total || 0,
     iprApproved: iprHistory?.stats?.approved || 0,
-    researchPending: researchPending.length,
-    researchTotal: researchHistory.length,
+    researchPending: researchPendingCount,
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900 pt-20 transition-colors duration-200">
+    <div className="min-h-screen bg-blush dark:bg-gray-900 pt-20 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Back Button */}
         <Link 
           href="/dashboard" 
-          className="inline-flex items-center gap-2 px-4 py-2 border border-[#f0e2d2] rounded-xl bg-white text-sm font-semibold text-gray-700 hover:text-[#7d1a34] hover:bg-[#fbe2e8]/20 shadow-sm transition-all duration-200 mb-6"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-blush-line rounded-xl bg-white text-sm font-semibold text-gray-700 hover:text-wine hover:bg-wine-100/20 shadow-sm transition-all duration-200 mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </Link>
 
         {/* Header Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-[#f0e2d2] dark:border-gray-700 px-6 py-5 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-blush-line dark:border-gray-700 px-6 py-5 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mentor Approvals</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Review and approve student IPR applications and research contributions</p>
           </div>
-          <div className="flex items-center gap-3 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 rounded-xl p-3 border border-[#f0e2d2] self-start md:self-auto">
+          <div className="flex items-center gap-3 bg-blush dark:bg-wine/10 rounded-xl p-3 border border-blush-line self-start md:self-auto">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
-              <UserCheck className="w-5 h-5 text-[#7d1a34]" />
+              <UserCheck className="w-5 h-5 text-wine" />
             </div>
             <div>
-              <p className="text-lg font-bold text-[#7d1a34]">{stats.iprPending + stats.researchPending}</p>
+              <p className="text-lg font-bold text-wine">{stats.iprPending + stats.researchPending}</p>
               <p className="text-xs text-gray-500 font-medium">Pending Approvals</p>
             </div>
           </div>
@@ -299,7 +300,7 @@ export default function UnifiedMentorApprovalsPage() {
                 onClick={() => { setMainTab('ipr'); setSubTab('pending'); }}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
                   mainTab ===
-   'ipr' ? 'text-[#7d1a34] dark:text-[#c8973f]' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'ipr' ? 'text-wine dark:text-gold' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -312,14 +313,14 @@ export default function UnifiedMentorApprovalsPage() {
                   )}
                 </div>
                 {mainTab ===
-   'ipr' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#7d1a34] dark:bg-blue-400"></div>}
+   'ipr' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-wine dark:bg-blue-400"></div>}
               </button>
               
               <button
                 onClick={() => { setMainTab('research'); setSubTab('pending'); }}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
                   mainTab ===
-   'research' ? 'text-[#7d1a34] dark:text-[#c8973f]' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'research' ? 'text-wine dark:text-gold' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -332,7 +333,7 @@ export default function UnifiedMentorApprovalsPage() {
                   )}
                 </div>
                 {mainTab ===
-   'research' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#7d1a34] dark:bg-blue-400"></div>}
+   'research' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-wine dark:bg-blue-400"></div>}
               </button>
             </div>
           </div>
@@ -344,42 +345,46 @@ export default function UnifiedMentorApprovalsPage() {
                 onClick={() => setSubTab('pending')}
                 className={`px-6 py-3 text-sm font-medium transition-colors ${
                   subTab ===
-   'pending' ? 'text-[#7d1a34] dark:text-[#c8973f] border-b-2 border-[#7d1a34] dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'pending' ? 'text-wine dark:text-gold border-b-2 border-wine dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 Pending Approvals
-                {mainTab ===
-   'ipr' && stats.iprPending > 0 && (
+                {(mainTab === 'ipr' ? stats.iprPending : stats.researchPending) > 0 && (
                   <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300">
-                    {stats.iprPending}
+                    {mainTab === 'ipr' ? stats.iprPending : stats.researchPending}
                   </span>
                 )}
               </button>
               
+              {/* No research mentor-history endpoint exists yet, so History is IPR-only. */}
+              {mainTab === 'ipr' && (
               <button
                 onClick={() => setSubTab('history')}
                 className={`px-6 py-3 text-sm font-medium transition-colors ${
                   subTab ===
-   'history' ? 'text-[#7d1a34] dark:text-[#c8973f] border-b-2 border-[#7d1a34] dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+   'history' ? 'text-wine dark:text-gold border-b-2 border-wine dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 Review History
               </button>
+              )}
             </div>
           </div>
 
           {/* Content */}
           <div className="p-6">
-            {loading ? (
+            {mainTab === 'research' ? (
+              <ResearchMentorApprovals onPendingCountChange={setResearchPendingCount} />
+            ) : loading ? (
               <div className="text-center py-12">
-                <RefreshCw className="w-12 h-12 text-[#7d1a34] mx-auto mb-4 animate-spin" />
+                <RefreshCw className="w-12 h-12 text-wine mx-auto mb-4 animate-spin" />
                 <p className="text-gray-500">Loading...</p>
               </div>
             ) : error ? (
               <div className="text-center py-12">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <p className="text-red-600 dark:text-red-400">{error}</p>
-                <button onClick={fetchData} className="mt-4 px-4 py-2 bg-[#7d1a34] dark:bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] dark:hover:bg-[#7d1a34]">
+                <button onClick={fetchData} className="mt-4 px-4 py-2 bg-wine dark:bg-wine text-wine-fg rounded-lg hover:bg-wine-dark dark:hover:bg-wine">
                   Retry
                 </button>
               </div>
@@ -411,13 +416,6 @@ export default function UnifiedMentorApprovalsPage() {
                   <p className="text-gray-500">No review history yet</p>
                 </div>
               )
-            ) : mainTab ===
-   'research' ? (
-              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Research Mentor Approvals Coming Soon</h3>
-                <p className="text-gray-500">Research contribution mentor approval feature will be available soon.</p>
-              </div>
             ) : null}
           </div>
         </div>
@@ -435,7 +433,7 @@ export default function UnifiedMentorApprovalsPage() {
               value={approvalComments}
               onChange={(e) => setApprovalComments(e.target.value)}
               placeholder="Add comments (optional)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-transparent mb-4"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-transparent mb-4"
               rows={3}
             />
             <div className="flex gap-3">

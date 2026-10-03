@@ -89,7 +89,7 @@ export default function AboutUsPage() {
         </section>
 
         {/* STATS SECTION */}
-        <section className="bg-wine text-white py-16 relative overflow-hidden">
+        <section className="bg-wine text-wine-fg py-16 relative overflow-hidden">
           <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
@@ -129,14 +129,14 @@ export default function AboutUsPage() {
 
         {/* CTA SECTION */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-          <div className="bg-[#fdfaf7] border border-[#f0e2d2] rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden shadow-sm">
+          <div className="bg-blush-light border border-blush-line rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden shadow-sm">
             <div className="relative z-10 max-w-2xl mx-auto space-y-6">
-              <h2 className="text-3xl font-bold text-charcoal font-serif">Accelerate Your University's Research Potential</h2>
+              <h2 className="text-3xl font-bold text-charcoal font-serif">Accelerate Your University&apos;s Research Potential</h2>
               <p className="text-sm text-gray-500 leading-relaxed">
-                Connect with our product specialists to discover how our multi-tenant SaaS solution can elevate your faculty's research capabilities and index compliance.
+                Connect with our product specialists to discover how our multi-tenant SaaS solution can elevate your faculty&apos;s research capabilities and index compliance.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link href="/pricing" className="inline-flex items-center gap-1.5 px-6 py-3 bg-wine text-white text-sm font-bold rounded-xl hover:bg-wine-dark transition-colors shadow-md shadow-wine/20">
+                <Link href="/pricing" className="inline-flex items-center gap-1.5 px-6 py-3 bg-wine text-wine-fg text-sm font-bold rounded-xl hover:bg-wine-dark transition-colors shadow-md shadow-wine/20">
                   Explore Pricing Plans <ChevronRight className="h-4 w-4" />
                 </Link>
                 <Link href="/login" className="px-6 py-3 border border-wine/20 text-wine hover:bg-blush text-sm font-bold rounded-xl transition-colors">

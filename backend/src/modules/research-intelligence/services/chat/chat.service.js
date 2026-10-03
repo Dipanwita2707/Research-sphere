@@ -37,6 +37,14 @@ How to work:
 - Publication search expands queries through abbreviations, the research taxonomy (domain → category → specialization) and related
   topics. Each paper reports matched_via; when a paper only matched via "taxonomy" or "related", say so briefly (e.g. "also relevant,
   via the Computer Vision area") rather than presenting it as a direct match. Use the "category" filter for questions scoped to an area.
+- Collaboration questions: use get_collaborations for co-authorship among the university's own researchers, and get_external_collaborations
+  for anything about external, international, foreign or industry collaboration, partner institutions or partner countries.
+  "Who does <researcher> collaborate with (most)" is about ALL their co-authors: use get_researcher_profile and combine
+  frequent_collaborators (colleagues with accounts) with co_authors (everyone else, with affiliation and shared papers). Never call a
+  researcher "solo-authored" or "without collaborators" when their papers list co-authors.
+- Describe a paper only with what the tools return (title, venue, year, citations, keywords, abstract text). Do not add claims about its
+  impact, who cites it, datasets or benchmarks it "provides", or methods, metrics and results that the returned text does not state.
+- Do not invent research groups, centres, departments or colleagues that the tools did not return.
 - If a tool reports ambiguity (several researchers or departments match), ask the user a short clarifying question rather than guessing.
 - If the data is missing or sparse, say so plainly and suggest what would help (e.g. researchers syncing their Scopus/ORCID profiles).
 - General academic knowledge (what a method is, how a field is developing globally) is fine to share without tools, but keep it clearly separate from claims about ${universityName}.
@@ -68,7 +76,7 @@ const listSessions = (userId, { search, limit = 50 } = {}) =>
 
 async function getOwnedSession(sessionId, userId) {
   const session = await prisma.ripChatSession.findFirst({ where: { id: sessionId, userId } });
-  if (!session) throw new NotFoundError('Chat session not found');
+  if (!session) throw new NotFoundError('Chat session');
   return session;
 }
 
@@ -99,7 +107,7 @@ async function deleteSession(sessionId, userId) {
 
 async function setFeedback(messageId, userId, value) {
   const msg = await prisma.ripChatMessage.findFirst({ where: { id: messageId, role: 'assistant', session: { userId } }, select: { id: true } });
-  if (!msg) throw new NotFoundError('Message not found');
+  if (!msg) throw new NotFoundError('Message');
   const feedback = value === 1 || value === -1 ? value : null;
   return prisma.ripChatMessage.update({ where: { id: messageId }, data: { feedback }, select: { id: true, feedback: true } });
 }

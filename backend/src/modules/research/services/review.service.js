@@ -4,8 +4,13 @@
  * Dependencies injected via constructor for testability.
  */
 
-const { IncentiveCalculator } = require('./incentive-calculator');
-const tenantContext = require('../../../shared/tenancy/tenantContext');
+const { assertNoActiveClaim } = require('./duplicateClaim.service');
+const payoutService = require('../../finance/services/incentivePayout.service');
+const { toIncentiveInput } = require('../utils/incentiveInput');
+const { computeAuthorShares, storedAuthorsForShares } = require('./authorShares');
+const { policyWindowWhere } = require('../utils/policyWindow');
+const { APPLICANT_EDITABLE_FIELDS } = require('../utils/editableFields');
+const reviewScope = require('./reviewScope');
 
 const RESEARCH_REVIEW_LIST_SELECT = {
   id: true,
@@ -135,15 +140,10 @@ function parsePaginationQuery(query = {}) {
   };
 }
 
-// Module-level TTL cache for DRD department permission lookups (per-user).
-// Avoids redundant DB round-trips on every hot review-queue request.
-const _drdPermCache = new Map(); // key: `drd:<tenant>:${userId}` → { data, expiresAt }
-const DRD_PERM_CACHE_TTL_MS = 60_000; // 1 minute
-
 class ReviewService {
   /** Drop cached DRD permission lookups (tests, or after permission changes). */
   static clearPermissionCache() {
-    _drdPermCache.clear();
+    reviewScope.clearCache();
   }
 
   /**
@@ -163,36 +163,14 @@ class ReviewService {
   }
 
   /**
-   * Cached DRD department permission lookup for a user.
-   * Returns { permissions, assignedResearchSchoolIds, assignedBookSchoolIds,
+   * Cached DRD department permission lookup for a user (see reviewScope: short TTL,
+   * invalidated on every permission/assignment write).
+   * Returns { permissions, assignedSchoolIds, assignedResearchSchoolIds, assignedBookSchoolIds,
    *           assignedConferenceSchoolIds, assignedGrantSchoolIds } or null if
    * the user has no DRD permission record.
    */
   async _getDrdPermissions(userId) {
-    // The DRD department row is per university, so the cached lookup is too
-    const key = `drd:${tenantContext.getTenantId() || 'global'}:${userId}`;
-    const cached = _drdPermCache.get(key);
-    if (cached && Date.now() < cached.expiresAt) return cached.data;
-
-    let data = null;
-    const drdDept = await this.prisma.centralDepartment.findFirst({
-      where: { OR: [{ departmentCode: 'DRD' }, { departmentCode: 'drd' }, { shortName: 'DRD' }] },
-      select: { id: true },
-    });
-    if (drdDept) {
-      data = await this.prisma.centralDepartmentPermission.findFirst({
-        where: { userId, isActive: true, centralDeptId: drdDept.id },
-        select: {
-          permissions: true,
-          assignedResearchSchoolIds: true,
-          assignedBookSchoolIds: true,
-          assignedConferenceSchoolIds: true,
-          assignedGrantSchoolIds: true,
-        },
-      });
-    }
-    _drdPermCache.set(key, { data, expiresAt: Date.now() + DRD_PERM_CACHE_TTL_MS });
-    return data;
+    return reviewScope.loadDrdAssignment(userId, { db: this.prisma });
   }
 
   // ─── Reviewer assignment ─────────────────────────────────────────────────
@@ -357,7 +335,8 @@ class ReviewService {
    * @returns {object} { updated, incentiveBreakdown }
    */
   async approveContribution(contributionId, approverId, options = {}) {
-    const { comments, request = null } = options;
+    // confirmZeroIncentive: the approver accepted that no policy applies / the incentive is ₹0.
+    const { comments, request = null, confirmZeroIncentive = false } = options;
 
     const contribution = await this.contributionRepo.findById(contributionId, { authors: true, applicantUser: true });
     if (!contribution) throw this._notFound('Research contribution');
@@ -389,8 +368,32 @@ class ReviewService {
       }
       this._assertStatus(freshContribution, ['submitted', 'under_review', 'resubmitted'], 'approve');
 
-      const { totalIncentiveAwarded, totalPointsAwarded, authorShares } =
-        await this._creditIncentivesToAuthors(freshContribution, contributionId, tx);
+      // Never approve (and pay) the same work twice, even if it slipped past submission.
+      const { workKey, titleWorkKey } = await assertNoActiveClaim(freshContribution, { client: tx });
+
+      const credited = await this._creditIncentivesToAuthors(freshContribution, contributionId, tx);
+      const { totalIncentiveAwarded, totalPointsAwarded, authorShares } = credited;
+      const incentiveStatus = credited.incentiveStatus
+        || { hasInternalAuthors: true, policyFound: true, usedDefaultPolicy: false, reason: null };
+
+      // Never approve with a silent ₹0: no applicable policy (or a policy that pays nothing
+      // for this work) needs the approver's explicit confirmation. Throwing here rolls back
+      // the author-share writes above.
+      const zeroIncentive = incentiveStatus.hasInternalAuthors
+        && (!incentiveStatus.policyFound || Number(totalIncentiveAwarded) === 0);
+      if (zeroIncentive && !confirmZeroIncentive) {
+        const err = new Error(!incentiveStatus.policyFound
+          ? `${incentiveStatus.reason || 'No incentive policy covers this publication date/type'} — approving now pays ₹0 incentive. Configure a policy, or confirm approval with ₹0 incentive.`
+          : 'The applicable incentive policy computes ₹0 for this publication. Confirm approval with ₹0 incentive.');
+        err.statusCode = 409;
+        err.code = 'NO_INCENTIVE_POLICY';
+        err.reason = incentiveStatus.reason || null;
+        throw err;
+      }
+      const historyNotes = [
+        zeroIncentive ? `Approved with ₹0 incentive — confirmed by approver (${incentiveStatus.policyFound ? 'policy computes ₹0' : (incentiveStatus.reason || 'no incentive policy applies')})` : null,
+        incentiveStatus.usedDefaultPolicy ? `Incentive computed from the built-in DEFAULT ${this._publicationLabel(freshContribution.publicationType)} policy (no policy configured for this date)` : null,
+      ].filter(Boolean);
 
       await tx.researchContributionReview.create({
         data: {
@@ -412,6 +415,8 @@ class ReviewService {
         data: {
           status: 'approved',
           currentReviewerId: null,
+          workKey,
+          titleWorkKey,
           incentiveAmount: totalIncentiveAwarded,
           pointsAwarded: totalPointsAwarded,
           creditedAt: now,
@@ -430,12 +435,23 @@ class ReviewService {
         freshContribution.status,
         'approved',
         approverId,
-        comments || 'Approved by DRD Head - Incentives credited based on author roles',
+        [comments || 'Approved by DRD Head - incentives sent to finance for payment', ...historyNotes].join('. '),
         tx
       );
 
+      // Each internal author gets a payable line; finance verifies, approves and pays it.
+      await payoutService.createLinesForContribution(tx, {
+        contribution: { ...freshContribution, workKey },
+        authorShares,
+        approvedAt: now,
+        actorId: approverId,
+      });
+
       const updated = await tx.researchContribution.findUnique({ where: { id: contributionId } });
-      return { updated, totalIncentiveAwarded, totalPointsAwarded, authorShares };
+      return {
+        updated, totalIncentiveAwarded, totalPointsAwarded, authorShares,
+        incentiveStatus: { ...incentiveStatus, zeroIncentiveConfirmed: zeroIncentive },
+      };
     });
 
     await this._notifyAuthorsOnApproval(
@@ -456,18 +472,24 @@ class ReviewService {
       comments || 'Approved by DRD Head'
     );
 
-    return {
-      updated: result.updated,
-      incentiveBreakdown: await this._buildIncentiveBreakdown(
-        contribution,
-        result.totalIncentiveAwarded,
-        result.totalPointsAwarded
-      ),
-    };
+    const breakdown = await this._buildIncentiveBreakdown(
+      contribution,
+      result.totalIncentiveAwarded,
+      result.totalPointsAwarded
+    );
+    if (result.incentiveStatus) {
+      breakdown.policyFound = result.incentiveStatus.policyFound;
+      breakdown.usedDefaultPolicy = result.incentiveStatus.usedDefaultPolicy;
+      breakdown.zeroIncentiveConfirmed = Boolean(result.incentiveStatus.zeroIncentiveConfirmed);
+      if (result.incentiveStatus.reason) breakdown.reason = result.incentiveStatus.reason;
+    }
+    return { updated: result.updated, incentiveBreakdown: breakdown };
   }
 
   async _buildIncentiveBreakdown(contribution, totalIncentiveAwarded, totalPointsAwarded) {
-    const activePolicy = await this._fetchActivePolicy(contribution.universityId || contribution.applicantUser?.universityId);
+    const activePolicy = await this._fetchActivePolicy(
+      contribution.universityId || contribution.applicantUser?.universityId, this.prisma, contribution.publicationDate
+    );
     return {
       totalIncentiveAwarded,
       totalPointsAwarded,
@@ -576,95 +598,44 @@ class ReviewService {
   }
 
   async _creditIncentivesToAuthors(contribution, contributionId, dbClient = this.prisma) {
-    const activePolicy = await this._fetchActivePolicy(contribution.universityId || contribution.applicantUser?.universityId, dbClient);
-    if (!activePolicy) {
-      const err = new Error('No active research policy found. Please configure policy in admin panel.');
-      err.statusCode = 500;
-      throw err;
-    }
-
-    const policyFirstPct = Number(activePolicy.first_author_percentage);
-    const policyCorrespondingPct = Number(activePolicy.corresponding_author_percentage);
-
-    const totalAuthors = contribution.authors.length;
-    const internalAuthors = contribution.authors.filter(a =>
-      !a.authorCategory?.toLowerCase().includes('external')
+    // The same computation as the submission preview and the shares saved with the work.
+    // A missing research policy is not a server fault: the shares report policyFound:false
+    // and the approval asks for an explicit ₹0 confirmation instead.
+    const authors = [...(contribution.authors || [])].sort(
+      (a, b) => (Number(a.authorOrder) || 0) - (Number(b.authorOrder) || 0)
     );
-    const internalCoAuthors = internalAuthors.filter(a =>
-      a.authorType === 'co_author' || a.authorType === 'senior_author'
-    );
-    const internalEmployeeCoAuthors = internalCoAuthors.filter(a =>
-      !a.authorType?.toLowerCase().includes('student')
-    );
-    const totalCoAuthors = contribution.authors.filter(a =>
-      a.authorType === 'co_author' || a.authorType === 'senior_author'
-    ).length;
+    const shares = await computeAuthorShares(dbClient, {
+      contributionData: toIncentiveInput(contribution),
+      publicationType: contribution.publicationType,
+      authors: await storedAuthorsForShares(dbClient, authors),
+    });
 
-    let externalFirstCorrespondingPct = 0;
-    for (const a of contribution.authors) {
-      if (a.authorCategory?.toLowerCase().includes('external')) {
-        const role = a.authorType || 'co_author';
-        if (role === 'first_author') externalFirstCorrespondingPct += policyFirstPct;
-        if (role === 'corresponding_author') externalFirstCorrespondingPct += policyCorrespondingPct;
-        if (role === 'first_and_corresponding_author' || role === 'first_and_corresponding') {
-          externalFirstCorrespondingPct += policyFirstPct + policyCorrespondingPct;
-        }
-      }
-    }
-
-    const calculator = new IncentiveCalculator(dbClient);
     let totalIncentiveAwarded = 0;
     let totalPointsAwarded = 0;
     const authorShares = [];
-
-    for (const author of contribution.authors) {
-      const isExternal = author.authorCategory?.toLowerCase().includes('external');
-      const authorRole = author.authorType || 'co_author';
-      const isStudent = author.authorType?.toLowerCase().includes('student') || false;
-
-      const result = await calculator.calculate({
-        contributionData: contribution,
-        publicationType: contribution.publicationType,
-        authorRole,
-        isStudent,
-        sjrValue: contribution.sjr || 0,
-        coAuthorCount: totalCoAuthors,
-        totalAuthors,
-        isInternal: !isExternal,
-        internalCoAuthorCount: internalCoAuthors.length,
-        externalFirstCorrespondingPct,
-        internalEmployeeCoAuthorCount: internalEmployeeCoAuthors.length
-      });
-
-      const authorIncentive = result.incentiveAmount || 0;
-      const authorPoints = result.points || 0;
-
+    for (const [i, author] of authors.entries()) {
+      const { incentive, points } = shares.authors[i];
       await dbClient.researchContributionAuthor.update({
         where: { id: author.id },
-        data: { incentiveShare: Math.round(authorIncentive), pointsShare: authorPoints }
+        data: { incentiveShare: incentive, pointsShare: points }
       });
-
-      totalIncentiveAwarded += Math.round(authorIncentive);
-      totalPointsAwarded += authorPoints;
-      authorShares.push({
-        ...author,
-        incentiveShare: Math.round(authorIncentive),
-        pointsShare: authorPoints,
-      });
+      totalIncentiveAwarded += incentive;
+      totalPointsAwarded += points;
+      authorShares.push({ ...author, incentiveShare: incentive, pointsShare: points });
     }
 
-    return { totalIncentiveAwarded, totalPointsAwarded, authorShares };
+    return { totalIncentiveAwarded, totalPointsAwarded, authorShares, incentiveStatus: shares.incentiveStatus };
   }
 
   async _notifyAuthorsOnApproval(contribution, contributionId, totalIncentive, totalPoints, authorShares = []) {
     for (const author of authorShares) {
-      if (!author.userId || author.authorCategory?.toLowerCase().includes('external')) continue;
+      if (!author.userId || author.isInternal === false) continue;
       const label = this._publicationLabel(contribution.publicationType);
       await this._dispatchNotification({
         userId: author.userId,
-        type: 'research_incentive_credited',
-        title: `${label} Incentive Credited`,
-        message: `You have been credited ₹${Math.round(author.incentiveShare || 0).toLocaleString()} and ${author.pointsShare || 0} points for "${contribution.title}".`,
+        type: 'research_incentive_approved',
+        title: `${label} Incentive Approved`,
+        message: `₹${Math.round(author.incentiveShare || 0).toLocaleString()} and ${author.pointsShare || 0} points were approved for "${contribution.title}". Finance will process the payment; track it under My incentives.`,
         referenceType: 'research_contribution',
         referenceId: contributionId,
         metadata: {
@@ -747,14 +718,26 @@ class ReviewService {
     });
   }
 
-  async _fetchActivePolicy(universityId = null, dbClient = this.prisma) {
-    const where = { publicationType: 'research_paper', isActive: true };
+  /**
+   * research_paper policy whose author percentages apply on `onDate` (the publication date),
+   * falling back to the latest enabled one; null when none is configured.
+   */
+  async _fetchActivePolicy(universityId = null, dbClient = this.prisma, onDate = null) {
+    const base = { publicationType: 'research_paper' };
     if (universityId) {
-      where.universityId = universityId;
+      base.universityId = universityId;
     }
-    return dbClient.researchIncentivePolicy.findFirst({
-      where,
-      select: { first_author_percentage: true, corresponding_author_percentage: true }
+    const select = { first_author_percentage: true, corresponding_author_percentage: true };
+    const date = onDate ? new Date(onDate) : new Date();
+    const inWindow = await dbClient.researchIncentivePolicy.findFirst({
+      where: { ...base, ...policyWindowWhere(Number.isNaN(date.getTime()) ? new Date() : date) },
+      orderBy: { effectiveFrom: 'desc' },
+      select,
+    });
+    return inWindow || dbClient.researchIncentivePolicy.findFirst({
+      where: { ...base, isActive: true },
+      orderBy: { effectiveFrom: 'desc' },
+      select,
     });
   }
 
@@ -1022,9 +1005,15 @@ class ReviewService {
   /**
    * Get review statistics.
    */
-  async getStatistics(filters = {}) {
+  async getStatistics(filters = {}, user = null) {
     const { schoolId, publicationType, startDate, endDate } = filters;
     const whereClause = {};
+    if (user) {
+      // Same per-category school scope as the review queue (empty assignment = all schools)
+      const assignment = await this._getDrdPermissions(user.id);
+      const scope = reviewScope.researchCategoriesWhere(assignment, ['research', 'book', 'conference'], user);
+      if (scope) whereClause.AND = [scope];
+    }
     if (schoolId) whereClause.schoolId = schoolId;
     if (publicationType) whereClause.publicationType = publicationType;
     if (startDate || endDate) {
@@ -1057,9 +1046,11 @@ class ReviewService {
     let assignedResearchSchoolIds = [];
     let assignedBookSchoolIds = [];
     let assignedConferenceSchoolIds = [];
+    let drdAssignment = null;
 
     try {
       const userDrdPermission = await this._getDrdPermissions(userId);
+      drdAssignment = userDrdPermission;
       assignedResearchSchoolIds = userDrdPermission?.assignedResearchSchoolIds || [];
       assignedBookSchoolIds = userDrdPermission?.assignedBookSchoolIds || [];
       assignedConferenceSchoolIds = userDrdPermission?.assignedConferenceSchoolIds || [];
@@ -1072,12 +1063,11 @@ class ReviewService {
     const permissions = mergedPermissions;
     const hasApprovePermission = permissions.research_approve === true || permissions.book_approve === true || permissions.conference_approve === true;
     const hasReviewPermission = permissions.research_review === true || permissions.book_review === true || permissions.conference_review === true;
-    const hasResearchReview = permissions.research_review === true;
-    const hasResearchApprove = permissions.research_approve === true;
-    const hasBookReview = permissions.book_review === true;
-    const hasBookApprove = permissions.book_approve === true;
-    const hasConferenceReview = permissions.conference_review === true;
-    const hasConferenceApprove = permissions.conference_approve === true;
+    // Per-category capability, same rule as the action routes (reviewScope.requireReviewAccess):
+    // book_* / conference_* for their items, with the deprecated research_* fallback.
+    const {
+      hasResearchReview, hasResearchApprove, hasBookReview, hasBookApprove, hasConferenceReview, hasConferenceApprove,
+    } = reviewScope.effectiveCategoryFlags(permissions);
 
     if (!hasApprovePermission && !hasReviewPermission) {
       return { contributions: [], stats: { submitted: 0, underReview: 0, changesRequired: 0, resubmitted: 0, recommended: 0, approved: 0, total: 0 }, userPermissions: { hasApprovePermission: false, hasReviewPermission: false, canReview: false, canApprove: false } };
@@ -1085,6 +1075,16 @@ class ReviewService {
 
     const pendingStatuses = ['submitted', 'under_review', 'resubmitted', 'changes_required'];
     let whereClause = {};
+
+    // School scope per category (reviewScope): an empty list covers all schools, a
+    // non-empty list restricts that category. Only categories the user can act on are listed.
+    const scopedCategories = (useApprove, useReview) => [
+      ((useReview && hasResearchReview) || (useApprove && hasResearchApprove)) && 'research',
+      ((useReview && hasBookReview) || (useApprove && hasBookApprove)) && 'book',
+      ((useReview && hasConferenceReview) || (useApprove && hasConferenceApprove)) && 'conference',
+    ].filter(Boolean);
+    const categoryScope = (categories) => reviewScope.researchCategoriesWhere(drdAssignment, categories)
+      || { publicationType: { in: categories.flatMap((c) => reviewScope.CATEGORY_PUBLICATION_TYPES[c]) } };
 
     if (hasApprovePermission && !hasReviewPermission) {
       whereClause = {
@@ -1096,31 +1096,13 @@ class ReviewService {
             ],
           },
           { status: { in: status ? [status] : ['under_review', 'approved', 'completed'] } },
+          categoryScope(scopedCategories(true, false)),
         ],
       };
     } else if (hasReviewPermission && !hasApprovePermission) {
-      const allAssigned = [...assignedResearchSchoolIds, ...assignedBookSchoolIds, ...assignedConferenceSchoolIds];
-      if (allAssigned.length > 0) {
-        const orConds = [];
-        if (assignedResearchSchoolIds.length > 0 && hasResearchReview) orConds.push({ AND: [{ publicationType: 'research_paper' }, { OR: [{ schoolId: { in: assignedResearchSchoolIds } }, { schoolId: null }] }] });
-        if (assignedBookSchoolIds.length > 0 && hasBookReview) orConds.push({ AND: [{ publicationType: { in: ['book', 'book_chapter'] } }, { OR: [{ schoolId: { in: assignedBookSchoolIds } }, { schoolId: null }] }] });
-        if (assignedConferenceSchoolIds.length > 0 && hasConferenceReview) orConds.push({ AND: [{ publicationType: 'conference_paper' }, { OR: [{ schoolId: { in: assignedConferenceSchoolIds } }, { schoolId: null }] }] });
-        whereClause = { AND: [{ status: { in: status ? [status] : pendingStatuses } }, { OR: orConds.length > 0 ? orConds : [{ id: 'none' }] }] };
-      } else {
-        whereClause = { status: { in: status ? [status] : pendingStatuses } };
-      }
+      whereClause = { AND: [{ status: { in: status ? [status] : pendingStatuses } }, categoryScope(scopedCategories(false, true))] };
     } else {
-      const allAssigned = [...assignedResearchSchoolIds, ...assignedBookSchoolIds, ...assignedConferenceSchoolIds];
-      if (allAssigned.length > 0) {
-        const orConds = [];
-        if (assignedResearchSchoolIds.length > 0 && (hasResearchReview || hasResearchApprove)) orConds.push({ AND: [{ publicationType: 'research_paper' }, { OR: [{ schoolId: { in: assignedResearchSchoolIds } }, { schoolId: null }] }] });
-        if (assignedBookSchoolIds.length > 0 && (hasBookReview || hasBookApprove)) orConds.push({ AND: [{ publicationType: { in: ['book', 'book_chapter'] } }, { OR: [{ schoolId: { in: assignedBookSchoolIds } }, { schoolId: null }] }] });
-        if (assignedConferenceSchoolIds.length > 0 && (hasConferenceReview || hasConferenceApprove)) orConds.push({ AND: [{ publicationType: 'conference_paper' }, { OR: [{ schoolId: { in: assignedConferenceSchoolIds } }, { schoolId: null }] }] });
-        orConds.push({ reviews: { some: { decision: 'recommended' } } });
-        whereClause = { AND: [{ status: { in: status ? [status] : [...pendingStatuses, 'approved'] } }, { OR: orConds.length > 0 ? orConds : [{ id: 'none' }] }] };
-      } else {
-        whereClause = { status: { in: status ? [status] : [...pendingStatuses, 'approved'] } };
-      }
+      whereClause = { AND: [{ status: { in: status ? [status] : [...pendingStatuses, 'approved'] } }, categoryScope(scopedCategories(true, true))] };
     }
 
     if (publicationType) { if (whereClause.AND) whereClause.AND.push({ publicationType }); else whereClause.publicationType = publicationType; }
@@ -1288,6 +1270,13 @@ class ReviewService {
     if (!suggestion) throw this._notFound('Suggestion');
     if (suggestion.researchContribution.applicantUserId !== userId) {
       const e = new Error('Only the applicant can respond to suggestions'); e.statusCode = 403; throw e;
+    }
+    // Accepting a suggestion writes suggestion.fieldName: only applicant-editable publication
+    // fields may be written this way (never status, incentive, ownership or review columns).
+    // targetedResearchType is a UI-only field that is acknowledged but not stored.
+    if (accept && suggestion.fieldName && suggestion.fieldName !== 'targetedResearchType'
+      && !APPLICANT_EDITABLE_FIELDS.has(suggestion.fieldName)) {
+      const e = new Error(`Field "${suggestion.fieldName}" cannot be changed through a suggestion`); e.statusCode = 400; throw e;
     }
 
     await this.prisma.researchContributionEditSuggestion.update({ where: { id: suggestionId }, data: { status: accept ? 'accepted' : 'rejected', applicantResponse: response, respondedAt: new Date() } });

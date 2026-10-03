@@ -782,7 +782,7 @@ export default function ReportingStructureManagement({
             </Link>
           )}
         </div>
-        <p className="text-gray-600">Manage organizational reporting hierarchy ("who reports to whom")</p>
+        <p className="text-gray-600">Manage organizational reporting hierarchy (&quot;who reports to whom&quot;)</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
             Users Visible: {filteredUsers.length}

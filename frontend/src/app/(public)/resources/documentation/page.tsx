@@ -38,7 +38,7 @@ const DOCS_SECTIONS = [
             <ShieldCheck className="h-5 w-5" /> Key Architecture Highlight
           </h4>
           <p className="text-sm text-charcoal/70">
-            Our platform operates under a secure, multi-tenant model. Each institution's data is fully isolated to guarantee safety, privacy, and regulatory compliance.
+            Our platform operates under a secure, multi-tenant model. Each institution&apos;s data is fully isolated to guarantee safety, privacy, and regulatory compliance.
           </p>
         </div>
         <h3 className="text-xl font-bold text-charcoal pt-4 border-t border-gray-100">Core Capabilities</h3>
@@ -87,7 +87,7 @@ const DOCS_SECTIONS = [
         </p>
         <ol className="list-decimal list-inside space-y-3 text-sm text-gray-600">
           <li>
-            <strong className="text-charcoal">Manual Entry:</strong> Click "Add New Employee" in the Admin Panel. Enter personal, employment, and academic identifier details.
+            <strong className="text-charcoal">Manual Entry:</strong> Click &quot;Add New Employee&quot; in the Admin Panel. Enter personal, employment, and academic identifier details.
           </li>
           <li>
             <strong className="text-charcoal">Bulk Upload:</strong> Download the pre-formatted Excel template, populate your faculty data, and upload the spreadsheet to provision accounts in bulk.
@@ -109,11 +109,11 @@ const DOCS_SECTIONS = [
       <div className="space-y-6">
         <h2 className="text-3xl font-bold text-charcoal font-serif">Researcher Profiles & Sync</h2>
         <p className="text-gray-600 leading-relaxed">
-          ResearchSphere integrates with external academic databases to keep the university's research repository up-to-date automatically.
+          ResearchSphere integrates with external academic databases to keep the university&apos;s research repository up-to-date automatically.
         </p>
         <h3 className="text-xl font-bold text-charcoal pt-4 border-t border-gray-100">Configuring Identifiers</h3>
         <p className="text-sm text-gray-600">
-          To enable automated syncing, administrators must associate the relevant database identifiers with the researcher's profile. These fields can be configured during employee creation or updated via the <strong>Researcher Profiles</strong> section:
+          To enable automated syncing, administrators must associate the relevant database identifiers with the researcher&apos;s profile. These fields can be configured during employee creation or updated via the <strong>Researcher Profiles</strong> section:
         </p>
         <div className="overflow-hidden border border-gray-100 rounded-2xl">
           <table className="min-w-full divide-y divide-gray-100 text-left">
@@ -167,28 +167,28 @@ const DOCS_SECTIONS = [
         <h3 className="text-xl font-bold text-charcoal pt-4 border-t border-gray-100">Step-by-Step Filing Process</h3>
         <div className="space-y-4">
           <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-wine text-white flex items-center justify-center font-bold flex-shrink-0">1</div>
+            <div className="w-8 h-8 rounded-full bg-wine text-wine-fg flex items-center justify-center font-bold flex-shrink-0">1</div>
             <div>
               <h4 className="font-bold text-charcoal">Submit Draft</h4>
               <p className="text-xs text-gray-500 mt-1">The primary researcher enters patent details, adds abstract, uploads claims documents, and lists co-inventors.</p>
             </div>
           </div>
           <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-wine text-white flex items-center justify-center font-bold flex-shrink-0">2</div>
+            <div className="w-8 h-8 rounded-full bg-wine text-wine-fg flex items-center justify-center font-bold flex-shrink-0">2</div>
             <div>
               <h4 className="font-bold text-charcoal">Co-Author Notification</h4>
               <p className="text-xs text-gray-500 mt-1">All internal co-authors/co-inventors receive immediate in-app notifications and can track progress and incentives from their dashboard.</p>
             </div>
           </div>
           <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-wine text-white flex items-center justify-center font-bold flex-shrink-0">3</div>
+            <div className="w-8 h-8 rounded-full bg-wine text-wine-fg flex items-center justify-center font-bold flex-shrink-0">3</div>
             <div>
               <h4 className="font-bold text-charcoal">DRD Evaluation</h4>
               <p className="text-xs text-gray-500 mt-1">The Directorate of Research reviews the patentability, claims strength, and compliance with institutional research guidelines.</p>
             </div>
           </div>
           <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-wine text-white flex items-center justify-center font-bold flex-shrink-0">4</div>
+            <div className="w-8 h-8 rounded-full bg-wine text-wine-fg flex items-center justify-center font-bold flex-shrink-0">4</div>
             <div>
               <h4 className="font-bold text-charcoal">Final Approval & Filing</h4>
               <p className="text-xs text-gray-500 mt-1">Once approved by the Dean/DRD, the patent is assigned an internal filing ID, forwarded to legal, and tracked through public granting stages.</p>
@@ -223,7 +223,7 @@ const DOCS_SECTIONS = [
           <div className="relative">
             <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-wine ring-4 ring-white" />
             <h4 className="font-bold text-charcoal text-sm">Budget Sanction & Disbursement</h4>
-            <p className="text-xs text-gray-500 mt-1">Finance teams verify external funding letters or authorize internal funds, making the budget active in the researcher's portal.</p>
+            <p className="text-xs text-gray-500 mt-1">Finance teams verify external funding letters or authorize internal funds, making the budget active in the researcher&apos;s portal.</p>
           </div>
         </div>
       </div>
@@ -237,7 +237,7 @@ const DOCS_SECTIONS = [
       <div className="space-y-6">
         <h2 className="text-3xl font-bold text-charcoal font-serif">Accreditation & Analytics</h2>
         <p className="text-gray-600 leading-relaxed">
-          ResearchSphere's reporting suite enables administrative leaders to generate institutional reports required by national and international accreditation bodies (e.g. NAAC, UGC, NIRF).
+          ResearchSphere&apos;s reporting suite enables administrative leaders to generate institutional reports required by national and international accreditation bodies (e.g. NAAC, UGC, NIRF).
         </p>
         <h3 className="text-xl font-bold text-charcoal pt-4 border-t border-gray-100">Exportable Metrics</h3>
         <ul className="space-y-3 text-sm text-gray-600">
@@ -274,7 +274,7 @@ export default function DocumentationPage() {
         <div className="h-16 sm:h-20" />
 
         {/* Mobile Sidebar Toggle */}
-        <div className="md:hidden bg-white border-b border-[#f0e2d2] px-6 py-3 flex items-center justify-between">
+        <div className="md:hidden bg-white border-b border-blush-line px-6 py-3 flex items-center justify-between">
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="inline-flex items-center gap-2 text-sm font-semibold text-wine"
@@ -304,7 +304,7 @@ export default function DocumentationPage() {
                       }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-left transition-all ${
                         isActive 
-                          ? 'bg-wine text-white shadow-md shadow-wine/20' 
+                          ? 'bg-wine text-wine-fg shadow-md shadow-wine/20' 
                           : 'text-gray-600 hover:bg-blush hover:text-wine'
                       }`}
                     >

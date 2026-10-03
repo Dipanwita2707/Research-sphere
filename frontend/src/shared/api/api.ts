@@ -15,6 +15,12 @@ const SLOW_REQUEST_THRESHOLD_MS = 1200;
 const OPTIONAL_404_ROUTES = ['/events/volunteers/my'];
 
 /**
+ * Request config for a call whose 403/404 is an expected outcome (an optional extra on a page):
+ * the failure is still rejected, but logged at debug level instead of as an error.
+ */
+export const optionalRequest = <T extends AxiosRequestConfig>(config: T = {} as T): T => ({ ...config, optional: true }) as T;
+
+/**
  * Failures that are a normal part of using the app, not faults: no session yet (401 on /auth/me),
  * and rejected sign-ins, which the login form already shows to the user. They are logged at debug
  * level so that red [ERROR] lines in the console mean something is actually wrong.
@@ -177,7 +183,7 @@ api.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const config = error.config as (AxiosRequestConfig & { _retryCount?: number; _requestId?: string });
+    const config = error.config as (AxiosRequestConfig & { _retryCount?: number; _requestId?: string; optional?: boolean });
     
     if (!config) {
       return Promise.reject(error);
@@ -226,7 +232,9 @@ api.interceptors.response.use(
       const msg = (error.response?.data as any)?.message || error.message;
       const url = config.url || '';
       const isOptional404 = status === 404 && OPTIONAL_404_ROUTES.some((route) => url.includes(route));
-      const logFn = isOptional404 || isExpectedAuthOutcome(url, error.response?.status) ? logger.debug.bind(logger) : logger.error.bind(logger);
+      // Callers that treat "no data" / "no access" as a normal outcome mark the request optional.
+      const isOptionalMiss = !!config.optional && (status === 403 || status === 404);
+      const logFn = isOptional404 || isOptionalMiss || isExpectedAuthOutcome(url, error.response?.status) ? logger.debug.bind(logger) : logger.error.bind(logger);
       logFn(`[API] Request failed: ${config.method?.toUpperCase()} ${url} - ${status}`, { message: msg, code: (error as any).code });
     }
     
@@ -253,3 +261,8 @@ export default api;
 
 // Export for direct usage with custom config
 export { api, API_URL };
+
+// Axios types and helpers, re-exported so the rest of the app never imports axios directly
+// (enforced by the no-restricted-imports lint rule).
+export { isAxiosError } from 'axios';
+export type { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';

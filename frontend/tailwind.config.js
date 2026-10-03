@@ -1,3 +1,39 @@
+/** Tailwind colour backed by a "R G B" CSS variable, so opacity modifiers keep working. */
+const v = (name) => `rgb(var(--brand-${name}) / <alpha-value>)`;
+/** Plain CSS colour from a brand variable (for gradients and shadows). */
+const c = (name, alpha) => (alpha === undefined ? `rgb(var(--brand-${name}))` : `rgb(var(--brand-${name}) / ${alpha})`);
+
+const brandScale = {
+  50: v('ivory'), // page background
+  100: v('peach'), // soft fills, hovers
+  200: v('peach-dark'),
+  300: v('accent-300'),
+  400: v('accent'), // accent
+  500: v('accent-dark'),
+  600: v('primary'), // primary
+  700: v('primary-dark'),
+  800: v('primary-darker'),
+  900: v('charcoal'), // text, dark surfaces
+};
+
+const wine = {
+  DEFAULT: v('primary'),
+  dark: v('primary-dark'),
+  darker: v('primary-darker'),
+  light: v('primary-light'),
+  fg: v('primary-fg'), // text on a primary fill (white, or dark for light custom colours)
+  50: v('primary-50'),
+  100: v('primary-100'),
+  200: v('primary-200'),
+  300: v('primary-300'),
+  400: v('primary-light'),
+  500: v('primary'),
+  600: v('primary'),
+  700: v('primary-dark'),
+  800: v('primary-darker'),
+  900: v('primary-darker'),
+};
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: 'class',
@@ -6,82 +42,62 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // Brand colours resolve to CSS variables set per university (src/shared/theme):
+      // defaults (Classic Wine) live in src/styles/globals.css; a tenant theme overrides
+      // them on <html data-brand>. Every bg-wine / text-wine / border-amber / bg-blush …
+      // therefore follows the active university theme.
       colors: {
-        // ResearchSphere Brand Palette
-        brand: {
-          50: '#FEF7F4',   // Soft Ivory — page background
-          100: '#FDD7BF',  // Peach Beige — soft fills, hovers
-          200: '#F5C9A6',  // peach tint
-          300: '#EFAE73',  // amber tint
-          400: '#E28B22',  // Amber Orange — accent
-          500: '#C9771B',  // amber hover
-          600: '#841C43',  // Deep Raspberry Wine — primary
-          700: '#6E1738',  // wine hover
-          800: '#4A0F26',  // wine active
-          900: '#232323',  // Charcoal — text, dark surfaces
-        },
-        // Semantic aliases
-        charcoal: '#232323',
-        wine: {
-          DEFAULT: '#841C43',
-          dark: '#6E1738',
-          darker: '#4A0F26',
-        },
+        brand: brandScale,
+        charcoal: v('charcoal'),
+        wine: wine,
         amber: {
-          DEFAULT: '#E28B22',
-          dark: '#C9771B',
+          // Brand accent. The numeric amber-50…950 scale stays Tailwind's (warning states).
+          DEFAULT: v('accent'),
+          dark: v('accent-dark'),
+          fg: v('accent-fg'),
         },
         peach: {
-          DEFAULT: '#FDD7BF',
-          dark: '#F5C9A6',
+          DEFAULT: v('peach'),
+          dark: v('peach-dark'),
         },
-        ivory: '#FEF7F4',
+        ivory: v('ivory'),
         blush: {
-          DEFAULT: '#FDF5EC',
-          light: '#FFF8F4',
-          deep: '#F5E8DC',
+          DEFAULT: v('canvas'),
+          light: v('canvas-light'),
+          deep: v('canvas-deep'),
+          line: v('line'),
         },
-        // Backward-compat aliases (map old names to new brand colors)
-        sgt: {
-          50: '#FEF7F4',
-          100: '#FDD7BF',
-          200: '#F5C9A6',
-          300: '#EFAE73',
-          400: '#E28B22',
-          500: '#C9771B',
-          600: '#841C43',
-          700: '#6E1738',
-          800: '#4A0F26',
-          900: '#232323',
+        gold: {
+          DEFAULT: v('gold'),
+          dark: v('gold-dark'),
+          50: v('gold-50'),
         },
-        primary: {
-          50: '#FEF7F4',
-          100: '#FDD7BF',
-          200: '#F5C9A6',
-          300: '#EFAE73',
-          400: '#E28B22',
-          500: '#C9771B',
-          600: '#841C43',
-          700: '#6E1738',
-          800: '#4A0F26',
-          900: '#232323',
+        ink: {
+          DEFAULT: v('ink'),
+          muted: v('ink-muted'),
+          subtle: v('ink-subtle'),
         },
+        // Highlight on dark surfaces (active nav, counters): amber in Classic Wine
+        hi: v('hi'),
+        // Backward-compat aliases (map old names to the brand scale)
+        sgt: brandScale,
+        primary: brandScale,
         lms: {
-          primary: '#841C43',
-          'primary-dark': '#4A0F26',
-          'primary-mid': '#6E1738',
-          light: '#E28B22',
-          'very-light': '#FDD7BF',
-          background: '#FEF7F4',
+          primary: v('primary'),
+          'primary-dark': v('primary-darker'),
+          'primary-mid': v('primary-dark'),
+          light: v('accent'),
+          'very-light': v('peach'),
+          background: v('ivory'),
         },
         ev: {
-          900: '#232323',
-          800: '#4A0F26',
-          700: '#841C43',
-          400: '#C9771B',
-          200: '#FDD7BF',
-          50:  '#FEF7F4',
-          bg:  '#FEF7F4',
+          900: v('charcoal'),
+          800: v('primary-darker'),
+          700: v('primary'),
+          400: v('accent-dark'),
+          200: v('peach'),
+          50: v('ivory'),
+          bg: v('ivory'),
         },
         // Stat card colors
         card: {
@@ -99,32 +115,39 @@ module.exports = {
           'orange-dark': '#c2410c',
         },
       },
+      // `text-wine` uses the link colour: the primary in light mode, a readable light
+      // tint of it in dark mode (fills keep the primary itself).
+      textColor: {
+        wine: { ...wine, DEFAULT: v('primary-text') },
+      },
       backgroundImage: {
-        'brand-sidebar': 'linear-gradient(180deg, #232323 0%, #4A0F26 100%)',
-        'brand-header': 'linear-gradient(90deg, #232323 0%, #4A0F26 100%)',
-        'brand-gradient': 'linear-gradient(135deg, #841C43 0%, #4A0F26 50%, #232323 100%)',
-        'brand-gradient-light': 'linear-gradient(135deg, #FEF7F4 0%, #E28B22 100%)',
-        'brand-gradient-radial': 'radial-gradient(ellipse at top, #E28B22 0%, #4A0F26 100%)',
+        'brand-sidebar': `linear-gradient(180deg, ${c('charcoal')} 0%, ${c('primary-darker')} 100%)`,
+        'brand-header': `linear-gradient(90deg, ${c('charcoal')} 0%, ${c('primary-darker')} 100%)`,
+        'brand-gradient': `linear-gradient(135deg, ${c('primary')} 0%, ${c('primary-darker')} 50%, ${c('charcoal')} 100%)`,
+        'brand-gradient-light': `linear-gradient(135deg, ${c('ivory')} 0%, ${c('accent')} 100%)`,
+        'brand-gradient-radial': `radial-gradient(ellipse at top, ${c('accent')} 0%, ${c('primary-darker')} 100%)`,
+        // Banner used by analytics/profile headers (was a fixed wine→copper gradient)
+        'brand-banner': `linear-gradient(120deg, ${c('primary-darker')} 0%, ${c('primary')} 45%, ${c('primary-light')} 70%, ${c('accent-dark')} 100%)`,
         // Backward-compat aliases
-        'lms-sidebar': 'linear-gradient(180deg, #232323 0%, #4A0F26 100%)',
-        'lms-header': 'linear-gradient(90deg, #232323 0%, #4A0F26 100%)',
-        'sgt-gradient': 'linear-gradient(135deg, #841C43 0%, #4A0F26 50%, #232323 100%)',
-        'sgt-gradient-light': 'linear-gradient(135deg, #FEF7F4 0%, #E28B22 100%)',
-        'sgt-gradient-radial': 'radial-gradient(ellipse at top, #E28B22 0%, #4A0F26 100%)',
+        'lms-sidebar': `linear-gradient(180deg, ${c('charcoal')} 0%, ${c('primary-darker')} 100%)`,
+        'lms-header': `linear-gradient(90deg, ${c('charcoal')} 0%, ${c('primary-darker')} 100%)`,
+        'sgt-gradient': `linear-gradient(135deg, ${c('primary')} 0%, ${c('primary-darker')} 50%, ${c('charcoal')} 100%)`,
+        'sgt-gradient-light': `linear-gradient(135deg, ${c('ivory')} 0%, ${c('accent')} 100%)`,
+        'sgt-gradient-radial': `radial-gradient(ellipse at top, ${c('accent')} 0%, ${c('primary-darker')} 100%)`,
       },
       boxShadow: {
-        'brand': '0 4px 14px 0 rgba(132, 28, 67, 0.15)',
-        'brand-lg': '0 10px 40px -10px rgba(132, 28, 67, 0.25)',
-        'brand-xl': '0 25px 50px -12px rgba(35, 35, 35, 0.35)',
+        'brand': `0 4px 14px 0 ${c('primary', 0.15)}`,
+        'brand-lg': `0 10px 40px -10px ${c('primary', 0.25)}`,
+        'brand-xl': `0 25px 50px -12px ${c('charcoal', 0.35)}`,
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        'ev': '0 1px 3px 0 rgba(132, 28, 67, 0.08), 0 1px 2px -1px rgba(132, 28, 67, 0.06)',
-        'ev-md': '0 4px 12px -2px rgba(132, 28, 67, 0.10), 0 2px 4px -2px rgba(132, 28, 67, 0.06)',
-        'ev-lg': '0 10px 24px -4px rgba(132, 28, 67, 0.12), 0 4px 8px -4px rgba(132, 28, 67, 0.06)',
+        'ev': `0 1px 3px 0 ${c('primary', 0.08)}, 0 1px 2px -1px ${c('primary', 0.06)}`,
+        'ev-md': `0 4px 12px -2px ${c('primary', 0.1)}, 0 2px 4px -2px ${c('primary', 0.06)}`,
+        'ev-lg': `0 10px 24px -4px ${c('primary', 0.12)}, 0 4px 8px -4px ${c('primary', 0.06)}`,
         // Backward-compat aliases
-        'sgt': '0 4px 14px 0 rgba(132, 28, 67, 0.15)',
-        'sgt-lg': '0 10px 40px -10px rgba(132, 28, 67, 0.25)',
-        'sgt-xl': '0 25px 50px -12px rgba(35, 35, 35, 0.35)',
+        'sgt': `0 4px 14px 0 ${c('primary', 0.15)}`,
+        'sgt-lg': `0 10px 40px -10px ${c('primary', 0.25)}`,
+        'sgt-xl': `0 25px 50px -12px ${c('charcoal', 0.35)}`,
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],

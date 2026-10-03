@@ -28,7 +28,8 @@ const TOOLS = [{
 
 const ENV = { ...process.env };
 beforeEach(() => {
-  process.env = { ...ENV, GROQ_API_KEY: 'test-key', RIP_GROQ_MODEL: 'openai/gpt-oss-120b' };
+  // RIP_GROQ_TPM=0: the client-side TPM throttle is covered in aiRateLimit.test.js
+  process.env = { ...ENV, GROQ_API_KEY: 'test-key', RIP_GROQ_MODEL: 'openai/gpt-oss-120b', RIP_GROQ_TPM: '0' };
   delete process.env.GEMINI_API_KEY;
   global.fetch = jest.fn();
 });

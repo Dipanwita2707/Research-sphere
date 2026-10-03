@@ -214,7 +214,7 @@ export default function PermissionManagementPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button
                         onClick={() => handleEditPermissions(user)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-600 text-wine-fg rounded-lg hover:bg-primary-700 transition-colors"
                       >
                         <Edit className="w-4 h-4" />
                         Manage Permissions

@@ -148,7 +148,7 @@ export default function AdminDashboard() {
               <p className="text-3xl font-bold text-gray-800 mt-1">{totalDepartments}</p>
               <p className="text-xs text-gray-400 mt-2">Total departments</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-[#fce4ec] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-wine-100 flex items-center justify-center">
               <Building className="w-6 h-6 text-[#e91e63]" />
             </div>
           </div>

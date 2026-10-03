@@ -64,8 +64,8 @@ export default function Header({ onMobileMenuClick }: HeaderProps) {
     <header 
       className="fixed top-0 left-0 right-0 z-50 h-14"
       style={{ 
-        background: 'linear-gradient(90deg, #232323 0%, #4A0F26 100%)',
-        boxShadow: '0 2px 12px rgba(132,28,67,0.18)'
+        background: 'linear-gradient(90deg, rgb(var(--brand-charcoal)) 0%, rgb(var(--brand-primary-darker)) 100%)',
+        boxShadow: '0 2px 12px rgb(var(--brand-primary)/0.18)'
       }}
     >
       <div className="h-full px-2 sm:px-4 flex items-center justify-between">

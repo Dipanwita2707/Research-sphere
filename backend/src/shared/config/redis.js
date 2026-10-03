@@ -375,7 +375,22 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
  *   perm:<userId>*            — generic permission cache
  *   noting:perms:<userId>     — noting action-button permissions
  */
+const _userInvalidationListeners = new Set();
+
+/**
+ * Register a callback run on every invalidateUser(userId). Lets per-process in-memory
+ * caches (DRD review scope, analytics access scope) drop a user's entry on the same
+ * write paths that already invalidate the session cache.
+ * @param {(userId: string) => (void|Promise<void>)} fn
+ */
+const onUserInvalidated = (fn) => { if (typeof fn === 'function') _userInvalidationListeners.add(fn); };
+
 const invalidateUser = async (userId) => {
+  await Promise.all([..._userInvalidationListeners].map((fn) =>
+    Promise.resolve()
+      .then(() => fn(userId))
+      .catch((error) => log.error('User invalidation listener error:', error.message))
+  ));
   // Direct key deletes for known key formats
   await del(`${CACHE_KEYS.USER}auth:${userId}`);       // user:auth:<userId>
   await del(`noting:perms:${userId}`);                   // noting:perms:<userId>
@@ -543,6 +558,7 @@ module.exports = {
   flush,
   getOrSet,
   invalidateUser,
+  onUserInvalidated,
   invalidateLists,
   getStats,
   sadd,

@@ -754,7 +754,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               placeholder="Details about your writing progress, draft status, etc."
             />
-            <p className="text-xs text-gray-500 mt-1">💡 Use the "Attach Documents" section below to upload your draft</p>
+            <p className="text-xs text-gray-500 mt-1">💡 Use the &quot;Attach Documents&quot; section below to upload your draft</p>
           </div>
 
           {/* Author Information */}
@@ -1022,7 +1022,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               placeholder="Details about communication, preliminary discussions, etc."
             />
-            <p className="text-xs text-gray-500 mt-1">💡 Use the "Attach Documents" section below to upload communication proof or correspondence</p>
+            <p className="text-xs text-gray-500 mt-1">💡 Use the &quot;Attach Documents&quot; section below to upload communication proof or correspondence</p>
           </div>
 
           {/* Author Information */}
@@ -1241,7 +1241,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               placeholder="Brief update on submission status..."
             />
-            <p className="text-xs text-gray-500 mt-1">💡 Use the "Attach Documents" section below to upload submission confirmation</p>
+            <p className="text-xs text-gray-500 mt-1">💡 Use the &quot;Attach Documents&quot; section below to upload submission confirmation</p>
           </div>
 
           {/* Author Information */}
@@ -1462,7 +1462,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               placeholder="Notes about the acceptance..."
             />
-            <p className="text-xs text-gray-500 mt-1">💡 Use the "Attach Documents" section below to upload acceptance letter</p>
+            <p className="text-xs text-gray-500 mt-1">💡 Use the &quot;Attach Documents&quot; section below to upload acceptance letter</p>
           </div>
 
           {/* Add Other Authors Section */}
@@ -1770,7 +1770,7 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               placeholder="https://..."
               required
             />
-            <p className="text-xs text-gray-500 mt-1">💡 Use the "Attach Documents" section below to upload the published paper</p>
+            <p className="text-xs text-gray-500 mt-1">💡 Use the &quot;Attach Documents&quot; section below to upload the published paper</p>
           </div>
 
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">

@@ -391,7 +391,7 @@ export default function RequestsTab() {
                         {overdue && <span className="ml-1 text-xs">(overdue)</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button type="button" className="text-wine dark:text-amber-400 hover:underline text-sm font-medium" onClick={() => setSelected(r)}>
+                        <button type="button" className="text-wine dark:text-hi hover:underline text-sm font-medium" onClick={() => setSelected(r)}>
                           Open
                         </button>
                       </td>

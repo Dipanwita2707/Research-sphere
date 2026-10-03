@@ -2,6 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import {
   Users,
   Filter,
@@ -20,13 +22,14 @@ import {
 } from 'lucide-react';
 import type { CoAuthor } from '@/shared/types/research-profile.types';
 import { scopusAuthorProfileUrl } from '@/features/research-profile/utils/externalProfileLinks';
+import { useRipAccess } from '@/features/research-intelligence/hooks/useRipAccess';
 
 const CoAuthorNetwork = dynamic(
   () => import('@/features/research-profile/components/CoAuthorNetwork'),
   {
     ssr: false,
     loading: () => (
-      <div className="h-[620px] bg-[#fdf5ec] rounded-xl animate-pulse border border-[#f0e2d2]" />
+      <div className="h-[620px] bg-blush rounded-xl animate-pulse border border-blush-line" />
     ),
   }
 );
@@ -95,6 +98,12 @@ export default function CollaborationNetworkTab({
   coAuthors,
   mainAuthorName,
 }: CollaborationNetworkTabProps) {
+  // The full report is the Research Intelligence collaboration network, focused on this researcher.
+  // Only offered when the viewer holds the knowledge-graph capability.
+  const params = useParams<{ userId?: string }>();
+  const { can } = useRipAccess();
+  const profileUserId = typeof params?.userId === 'string' ? params.userId : null;
+  const networkHref = profileUserId && can('rip_view_knowledge_graph') ? `/research/intelligence/network?userId=${encodeURIComponent(profileUserId)}` : null;
   const [filters, setFilters] = useState<NetworkFilters>({
     minCollaborations: 1,
     timeRange: 'all',
@@ -117,13 +126,13 @@ export default function CollaborationNetworkTab({
             <p className="cn-subtitle">Explore co-authorship connections and collaborative relationships</p>
           </div>
           <div className="cn-count-badge">
-            <Users className="w-4 h-4 text-[#7d1a34]" />
+            <Users className="w-4 h-4 text-wine" />
             0 collaborators
           </div>
         </div>
         <div className="cn-empty">
           <div className="cn-empty-icon">
-            <Users className="w-6 h-6 text-[#7d1a34]" />
+            <Users className="w-6 h-6 text-wine" />
           </div>
           <h3>No collaborations found</h3>
           <p>This researcher hasn&apos;t logged any co-authored publications yet.</p>
@@ -141,7 +150,7 @@ export default function CollaborationNetworkTab({
           <p className="cn-subtitle">Explore co-authorship connections and collaborative relationships</p>
         </div>
         <div className="cn-count-badge">
-          <Users className="w-4 h-4 text-[#7d1a34]" />
+          <Users className="w-4 h-4 text-wine" />
           {coAuthors.length} collaborator{coAuthors.length !== 1 ? 's' : ''}
         </div>
       </div>
@@ -294,12 +303,14 @@ export default function CollaborationNetworkTab({
                 </div>
               );
               })}
-              <div className="cn-report-wrap">
-                <button type="button" className="cn-view-report-btn">
-                  <LineChart className="w-[15px] h-[15px] text-[#7d1a34]" />
-                  View Full Network Report
-                </button>
-              </div>
+              {networkHref && (
+                <div className="cn-report-wrap">
+                  <Link href={networkHref} className="cn-view-report-btn">
+                    <LineChart className="w-[15px] h-[15px] text-wine" aria-hidden />
+                    View Full Network Report
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -361,51 +372,51 @@ export default function CollaborationNetworkTab({
 const NETWORK_CSS = `
 .collab-network-tab { font-family: Arial, Helvetica, sans-serif; }
 .cn-page-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
-.cn-title { font-family: Georgia, serif; font-size: 28px; margin-bottom: 8px; color: #2b1d22; font-weight: 700; }
-.cn-subtitle { color: #7a7178; font-size: 14px; }
+.cn-title { font-family: Georgia, serif; font-size: 28px; margin-bottom: 8px; color: rgb(var(--brand-ink)); font-weight: 700; }
+.cn-subtitle { color: rgb(var(--brand-ink-muted)); font-size: 14px; }
 .cn-count-badge {
   display: flex; align-items: center; gap: 9px; background: #fff;
-  border: 1px solid #f0e2d2; border-radius: 10px; padding: 11px 18px;
-  font-size: 13.5px; font-weight: 700; color: #2b1d22; white-space: nowrap;
+  border: 1px solid rgb(var(--brand-line)); border-radius: 10px; padding: 11px 18px;
+  font-size: 13.5px; font-weight: 700; color: rgb(var(--brand-ink)); white-space: nowrap;
 }
 .cn-main-panel {
-  background: #fff; border: 1px solid #f0e2d2; border-radius: 18px;
+  background: #fff; border: 1px solid rgb(var(--brand-line)); border-radius: 18px;
   padding: 24px 26px; margin-bottom: 20px;
 }
 .cn-toolbar {
   display: flex; align-items: center; gap: 22px; padding-bottom: 20px;
-  border-bottom: 1px solid #f0e2d2; margin-bottom: 10px; flex-wrap: wrap;
+  border-bottom: 1px solid rgb(var(--brand-line)); margin-bottom: 10px; flex-wrap: wrap;
 }
 .cn-filter-label {
-  display: flex; align-items: center; gap: 8px; color: #7d1a34;
+  display: flex; align-items: center; gap: 8px; color: rgb(var(--brand-primary));
   font-weight: 700; font-size: 14px;
 }
 .cn-field {
   display: flex; align-items: center; gap: 10px; font-size: 13.5px;
-  font-weight: 600; color: #2b1d22;
+  font-weight: 600; color: rgb(var(--brand-ink));
 }
 .cn-field select {
-  border: 1px solid #f0e2d2; border-radius: 8px; padding: 7px 10px;
-  font-size: 13px; color: #2b1d22; background: #fff;
+  border: 1px solid rgb(var(--brand-line)); border-radius: 8px; padding: 7px 10px;
+  font-size: 13px; color: rgb(var(--brand-ink)); background: #fff;
 }
 .cn-checkbox {
   display: flex; align-items: center; gap: 8px; font-size: 13.5px;
-  font-weight: 600; cursor: pointer; color: #2b1d22;
+  font-weight: 600; cursor: pointer; color: rgb(var(--brand-ink));
 }
-.cn-checkbox input { width: 16px; height: 16px; accent-color: #7d1a34; }
+.cn-checkbox input { width: 16px; height: 16px; accent-color: rgb(var(--brand-primary)); }
 .cn-toolbar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .cn-tool-icon {
-  width: 38px; height: 38px; border-radius: 9px; border: 1px solid #f0e2d2;
-  display: flex; align-items: center; justify-content: center; color: #7a7178;
+  width: 38px; height: 38px; border-radius: 9px; border: 1px solid rgb(var(--brand-line));
+  display: flex; align-items: center; justify-content: center; color: rgb(var(--brand-ink-muted));
   background: #fff; cursor: pointer;
 }
-.cn-tool-icon:hover { color: #7d1a34; background: #fdf5ec; }
+.cn-tool-icon:hover { color: rgb(var(--brand-primary)); background: rgb(var(--brand-canvas)); }
 .cn-reset-btn {
-  display: flex; align-items: center; gap: 8px; border: 1px solid #f0e2d2;
+  display: flex; align-items: center; gap: 8px; border: 1px solid rgb(var(--brand-line));
   border-radius: 9px; padding: 9px 16px; font-size: 13px; font-weight: 700;
-  color: #2b1d22; background: #fff; cursor: pointer;
+  color: rgb(var(--brand-ink)); background: #fff; cursor: pointer;
 }
-.cn-reset-btn:hover { background: #fdf5ec; color: #7d1a34; }
+.cn-reset-btn:hover { background: rgb(var(--brand-canvas)); color: rgb(var(--brand-primary)); }
 .cn-graph-layout {
   display: grid; grid-template-columns: 2.1fr 1fr; gap: 20px;
 }
@@ -414,56 +425,56 @@ const NETWORK_CSS = `
 }
 .cn-side-panel { display: flex; flex-direction: column; gap: 18px; }
 .cn-overview-card, .cn-top-collab-card {
-  border: 1px solid #f0e2d2; border-radius: 16px; padding: 22px;
+  border: 1px solid rgb(var(--brand-line)); border-radius: 16px; padding: 22px;
 }
 .cn-overview-card h3, .cn-top-collab-card h3 {
-  font-size: 15.5px; font-weight: 700; margin-bottom: 16px; color: #2b1d22;
+  font-size: 15.5px; font-weight: 700; margin-bottom: 16px; color: rgb(var(--brand-ink));
 }
 .cn-ov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .cn-ov-item {
-  border: 1px solid #f0e2d2; border-radius: 12px; padding: 14px;
+  border: 1px solid rgb(var(--brand-line)); border-radius: 12px; padding: 14px;
   display: flex; align-items: center; gap: 10px;
 }
 .cn-ov-icon {
-  width: 36px; height: 36px; border-radius: 9px; background: #fbe3e8;
+  width: 36px; height: 36px; border-radius: 9px; background: rgb(var(--brand-primary-100));
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  color: #7d1a34;
+  color: rgb(var(--brand-primary));
 }
-.cn-ov-value { font-size: 19px; font-weight: 800; color: #7d1a34; line-height: 1; }
-.cn-ov-label { font-size: 10.5px; color: #7a7178; margin-top: 4px; }
+.cn-ov-value { font-size: 19px; font-weight: 800; color: rgb(var(--brand-primary)); line-height: 1; }
+.cn-ov-label { font-size: 10.5px; color: rgb(var(--brand-ink-muted)); margin-top: 4px; }
 .cn-tc-head {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
 }
-.cn-view-all { font-size: 12.5px; font-weight: 700; color: #7d1a34; cursor: pointer; }
+.cn-view-all { font-size: 12.5px; font-weight: 700; color: rgb(var(--brand-primary)); cursor: pointer; }
 .cn-tc-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
-.cn-tc-rank { font-size: 12.5px; color: #9a9198; width: 14px; }
+.cn-tc-rank { font-size: 12.5px; color: rgb(var(--brand-ink-subtle)); width: 14px; }
 .cn-tc-avatar {
-  width: 30px; height: 30px; border-radius: 50%; background: #5e1024; color: #fff;
+  width: 30px; height: 30px; border-radius: 50%; background: rgb(var(--brand-primary-dark)); color: #fff;
   font-size: 12px; font-weight: 700; display: flex; align-items: center;
   justify-content: center; flex-shrink: 0;
 }
 .cn-tc-info { flex: 1; min-width: 0; }
 .cn-tc-name {
-  font-size: 13.5px; font-weight: 600; margin-bottom: 5px; color: #2b1d22;
+  font-size: 13.5px; font-weight: 600; margin-bottom: 5px; color: rgb(var(--brand-ink));
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cn-tc-scopus-link {
   color: inherit; text-decoration: none; border-bottom: 1px solid transparent;
 }
 .cn-tc-scopus-link:hover {
-  color: #7d1a34; border-bottom-color: #c8973f;
+  color: rgb(var(--brand-primary)); border-bottom-color: rgb(var(--brand-gold));
 }
-.cn-tc-bar-track { height: 4px; background: #f1e6e9; border-radius: 2px; overflow: hidden; }
-.cn-tc-bar-fill { height: 100%; background: #7d1a34; border-radius: 2px; }
-.cn-tc-count { font-size: 13px; font-weight: 700; color: #2b1d22; width: 26px; text-align: right; }
+.cn-tc-bar-track { height: 4px; background: rgb(var(--brand-primary-50)); border-radius: 2px; overflow: hidden; }
+.cn-tc-bar-fill { height: 100%; background: rgb(var(--brand-primary)); border-radius: 2px; }
+.cn-tc-count { font-size: 13px; font-weight: 700; color: rgb(var(--brand-ink)); width: 26px; text-align: right; }
 .cn-report-wrap { margin-top: 16px; }
 .cn-view-report-btn {
-  width: 100%; border: 1px solid #f0e2d2; border-radius: 10px; padding: 12px;
-  text-align: center; font-size: 13.5px; font-weight: 700; color: #2b1d22;
+  width: 100%; border: 1px solid rgb(var(--brand-line)); border-radius: 10px; padding: 12px;
+  text-align: center; font-size: 13.5px; font-weight: 700; color: rgb(var(--brand-ink));
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: #fff; cursor: pointer;
+  background: #fff; cursor: pointer; text-decoration: none;
 }
-.cn-view-report-btn:hover { background: #fdf5ec; }
+.cn-view-report-btn:hover { background: rgb(var(--brand-canvas)); }
 .cn-bottom-row {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
 }
@@ -474,27 +485,27 @@ const NETWORK_CSS = `
   .cn-bottom-row { grid-template-columns: 1fr; }
 }
 .cn-bottom-card {
-  background: #fff; border: 1px solid #f0e2d2; border-radius: 16px;
+  background: #fff; border: 1px solid rgb(var(--brand-line)); border-radius: 16px;
   padding: 18px 20px; display: flex; align-items: center; gap: 14px;
 }
 .cn-bc-icon {
-  width: 42px; height: 42px; border-radius: 10px; background: #fbecd2;
+  width: 42px; height: 42px; border-radius: 10px; background: rgb(var(--brand-gold-50));
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  color: #c8973f;
+  color: rgb(var(--brand-gold));
 }
-.cn-bc-label { font-size: 12px; color: #7a7178; margin-bottom: 4px; }
-.cn-bc-value { font-size: 19px; font-weight: 800; color: #2b1d22; }
-.cn-bc-value-sm { font-size: 15px; font-weight: 800; color: #2b1d22; line-height: 1.3; }
-.cn-bc-sub { font-size: 11.5px; color: #9a9198; margin-top: 2px; }
+.cn-bc-label { font-size: 12px; color: rgb(var(--brand-ink-muted)); margin-bottom: 4px; }
+.cn-bc-value { font-size: 19px; font-weight: 800; color: rgb(var(--brand-ink)); }
+.cn-bc-value-sm { font-size: 15px; font-weight: 800; color: rgb(var(--brand-ink)); line-height: 1.3; }
+.cn-bc-sub { font-size: 11.5px; color: rgb(var(--brand-ink-subtle)); margin-top: 2px; }
 .cn-up { color: #28a24d; }
 .cn-empty {
-  text-align: center; background: #fff; border: 1px dashed #f0e2d2;
+  text-align: center; background: #fff; border: 1px dashed rgb(var(--brand-line));
   border-radius: 18px; padding: 56px 24px;
 }
 .cn-empty-icon {
-  width: 48px; height: 48px; border-radius: 50%; background: #fdf5ec;
+  width: 48px; height: 48px; border-radius: 50%; background: rgb(var(--brand-canvas));
   display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;
 }
-.cn-empty h3 { font-size: 14px; font-weight: 600; color: #2b1d22; margin-bottom: 4px; }
-.cn-empty p { font-size: 12px; color: #7a7178; }
+.cn-empty h3 { font-size: 14px; font-weight: 600; color: rgb(var(--brand-ink)); margin-bottom: 4px; }
+.cn-empty p { font-size: 12px; color: rgb(var(--brand-ink-muted)); }
 `;

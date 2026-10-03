@@ -18,19 +18,34 @@ const retrieval = require('./retrieval.service');
 
 const clamp = (n, def, max) => Math.max(1, Math.min(Number(n) || def, max));
 
-async function describeResearchers(ids) {
+async function describeResearchers(ids, { withUnitIds = false } = {}) {
   if (!ids.length) return new Map();
   const users = await prisma.userLogin.findMany({ where: { id: { in: ids } }, select: RESEARCHER_SELECT });
-  return new Map(users.map((u) => [u.id, researcherSummary(u)]));
+  return new Map(
+    users.map((u) => [
+      u.id,
+      withUnitIds
+        ? {
+            ...researcherSummary(u),
+            departmentId: u.employeeDetails?.primaryDepartment?.id || null,
+            schoolId: u.employeeDetails?.primarySchool?.id || null,
+          }
+        : researcherSummary(u),
+    ])
+  );
 }
 
 /**
  * Co-authorship network.
  * - With userId: that researcher, their co-authors, and edges among them (ego network).
  * - Otherwise: the most connected researchers (optionally within a department/school).
+ * - minJointPapers keeps only links with at least that many shared papers; with a threshold
+ *   above 1, researchers left without a qualifying link are dropped (the ego researcher stays).
+ *   Node stats (collaborators, strength) always count every link.
  */
-async function getCollaborationNetwork(tenantId, { userId, departmentId, schoolId, limit = 60 } = {}) {
+async function getCollaborationNetwork(tenantId, { userId, departmentId, schoolId, limit = 60, minJointPapers = 1 } = {}) {
   const max = clamp(limit, 60, 200);
+  const minJoint = clamp(minJointPapers, 1, 1000);
   const scope = [];
   if (departmentId) scope.push(Prisma.sql`ed.primary_department_id = ${departmentId}::uuid`);
   if (schoolId) scope.push(Prisma.sql`ed.primary_school_id = ${schoolId}::uuid`);
@@ -43,6 +58,7 @@ async function getCollaborationNetwork(tenantId, { userId, departmentId, schoolI
         FROM authorship a1 JOIN authorship a2 ON a1.contribution_id = a2.contribution_id AND a1.user_id < a2.user_id
        GROUP BY 1, 2
     ),
+    strong AS (SELECT a, b FROM pairs WHERE w >= ${minJoint}),
     degree AS (
       SELECT u AS user_id, SUM(w)::int AS strength, COUNT(*)::int AS collaborators
         FROM (SELECT a AS u, w FROM pairs UNION ALL SELECT b AS u, w FROM pairs) x GROUP BY u
@@ -53,7 +69,8 @@ async function getCollaborationNetwork(tenantId, { userId, departmentId, schoolI
       LEFT JOIN degree d ON d.user_id = p.user_id
       LEFT JOIN employee_details ed ON ed.user_login_id = p.user_id
      WHERE ${userId ? Prisma.sql`(p.user_id = ${userId}::uuid OR p.user_id IN (
-              SELECT CASE WHEN a = ${userId}::uuid THEN b ELSE a END FROM pairs WHERE a = ${userId}::uuid OR b = ${userId}::uuid))` : Prisma.sql`TRUE`}
+              SELECT CASE WHEN a = ${userId}::uuid THEN b ELSE a END FROM strong WHERE a = ${userId}::uuid OR b = ${userId}::uuid))` : Prisma.sql`TRUE`}
+       ${minJoint > 1 ? Prisma.sql`AND (EXISTS (SELECT 1 FROM strong s WHERE s.a = p.user_id OR s.b = p.user_id) ${userId ? Prisma.sql`OR p.user_id = ${userId}::uuid` : Prisma.empty})` : Prisma.empty}
        ${scopeSql}
      ORDER BY ${userId ? Prisma.sql`(p.user_id = ${userId}::uuid) DESC,` : Prisma.empty} strength DESC, p.pubs DESC
      LIMIT ${max}`;
@@ -65,11 +82,12 @@ async function getCollaborationNetwork(tenantId, { userId, departmentId, schoolI
         SELECT a1.user_id::text AS source, a2.user_id::text AS target, COUNT(*)::int AS weight
           FROM authorship a1 JOIN authorship a2 ON a1.contribution_id = a2.contribution_id AND a1.user_id < a2.user_id
          WHERE a1.user_id = ANY(${ids}::uuid[]) AND a2.user_id = ANY(${ids}::uuid[])
-         GROUP BY 1, 2`
+         GROUP BY 1, 2
+        HAVING COUNT(*) >= ${minJoint}`
     : [];
 
   const [people, profiles] = await Promise.all([
-    describeResearchers(ids),
+    describeResearchers(ids, { withUnitIds: true }),
     prisma.ripResearcherExpertiseProfile.findMany({
       where: { userId: { in: ids } },
       select: { userId: true, hIndex: true, totalCitations: true, primaryCategoryId: true },
@@ -84,6 +102,7 @@ async function getCollaborationNetwork(tenantId, { userId, departmentId, schoolI
 
   return {
     focusUserId: userId || null,
+    minJointPapers: minJoint,
     nodes: nodes.map((n) => {
       const p = profileBy.get(n.id);
       const cat = p?.primaryCategoryId ? catById.get(p.primaryCategoryId) : null;
@@ -112,9 +131,11 @@ async function getKeywordNetwork(tenantId, { categoryId, limit = 60, minWeight =
     : Prisma.empty;
   const nodes = await prisma.$queryRaw`
     SELECT k.id::text AS id, k.canonical_name AS name, k.publication_count AS pubs, k.momentum::float AS momentum,
-           (SELECT c.name FROM rip_keyword_taxonomy_mapping m JOIN rip_taxonomy_category c ON c.id = m.category_id
-             WHERE m.keyword_id = k.id AND m.status = 'approved' ORDER BY m.is_primary DESC LIMIT 1) AS category
+           cat.id AS "categoryId", cat.name AS category
       FROM rip_research_keyword k
+      LEFT JOIN LATERAL (
+        SELECT c.id::text AS id, c.name FROM rip_keyword_taxonomy_mapping m JOIN rip_taxonomy_category c ON c.id = m.category_id
+         WHERE m.keyword_id = k.id AND m.status = 'approved' ORDER BY m.is_primary DESC, c.name LIMIT 1) cat ON TRUE
      WHERE k.university_id = ${tenantId}::uuid AND k.publication_count > 0 ${catFilter}
      ORDER BY k.publication_count DESC
      LIMIT ${max}`;

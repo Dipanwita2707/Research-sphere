@@ -30,9 +30,9 @@ const PUBLICATION_TYPES = [
     label: 'Research Paper', 
     icon: FileText, 
     accent: '#3b82f6',
-    accentBg: 'bg-[#fdf5ec] dark:bg-blue-950/40',
-    accentText: 'text-[#7d1a34] dark:text-[#c8973f]',
-    accentBorder: 'border-[#f0e2d2] dark:border-[#5e1024]',
+    accentBg: 'bg-blush dark:bg-blue-950/40',
+    accentText: 'text-wine dark:text-gold',
+    accentBorder: 'border-blush-line dark:border-wine-dark',
     description: 'Journal articles in indexed publications',
     href: '/research/apply?type=research_paper'
   },
@@ -73,10 +73,10 @@ const PUBLICATION_TYPES = [
 
 const STATUS_CONFIG = {
   draft:             { label: 'Draft',            dot: 'bg-slate-400',   badge: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-  submitted:         { label: 'Submitted',         dot: 'bg-[#7d1a34]',    badge: 'bg-[#fdf5ec] text-[#7d1a34] dark:bg-blue-950/60 dark:text-[#c8973f]' },
+  submitted:         { label: 'Submitted',         dot: 'bg-wine',    badge: 'bg-blush text-wine dark:bg-blue-950/60 dark:text-gold' },
   under_review:      { label: 'Under Review',      dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300' },
   changes_required:  { label: 'Changes Required',  dot: 'bg-orange-500',  badge: 'bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300' },
-  resubmitted:       { label: 'Resubmitted',       dot: 'bg-[#7d1a34]',    badge: 'bg-[#fdf5ec] text-[#7d1a34] dark:bg-blue-950/60 dark:text-[#c8973f]' },
+  resubmitted:       { label: 'Resubmitted',       dot: 'bg-wine',    badge: 'bg-blush text-wine dark:bg-blue-950/60 dark:text-gold' },
   approved:          { label: 'Approved',          dot: 'bg-green-500',   badge: 'bg-green-50 text-green-700 dark:bg-green-950/60 dark:text-green-300' },
   rejected:          { label: 'Rejected',          dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300' },
   completed:         { label: 'Completed',         dot: 'bg-indigo-500',  badge: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300' },
@@ -204,7 +204,7 @@ export default function ResearchDashboard() {
               )}
               <Link
                 href="/research/apply"
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-[#7d1a34] hover:bg-[#5e1024] rounded-lg transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-wine-fg bg-wine hover:bg-wine-dark rounded-lg transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 New Contribution
@@ -222,8 +222,8 @@ export default function ResearchDashboard() {
 
             {/* Total */}
             <div className="p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-[#fdf5ec] dark:bg-blue-950/50 flex items-center justify-center flex-shrink-0">
-                <FileText className="w-5 h-5 text-[#7d1a34] dark:text-[#c8973f]" />
+              <div className="w-10 h-10 rounded-lg bg-blush dark:bg-blue-950/50 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5 text-wine dark:text-gold" />
               </div>
               <div>
                 {loading
@@ -320,7 +320,7 @@ export default function ResearchDashboard() {
               <h2 className="text-base font-semibold text-slate-900 dark:text-white">Recent Contributions</h2>
               <Link 
                 href="/research/my-contributions"
-                className="text-xs font-medium text-[#7d1a34] dark:text-[#c8973f] hover:text-[#7d1a34] dark:hover:text-[#c8973f] flex items-center gap-1 transition-colors"
+                className="text-xs font-medium text-wine dark:text-gold hover:text-wine dark:hover:text-gold flex items-center gap-1 transition-colors"
               >
                 View all <ChevronRight className="w-3.5 h-3.5" />
               </Link>
@@ -346,7 +346,7 @@ export default function ResearchDashboard() {
                         <Icon className="w-4 h-4" style={{ color: pubType?.accent || '#6b7280' }} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate group-hover:text-[#7d1a34] dark:group-hover:text-[#c8973f] transition-colors">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate group-hover:text-wine dark:group-hover:text-gold transition-colors">
                           {contribution.title}
                         </p>
                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
@@ -378,7 +378,7 @@ export default function ResearchDashboard() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Start by filing your first research contribution</p>
             <Link
               href="/research/apply"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#7d1a34] text-white text-sm font-semibold rounded-lg hover:bg-[#5e1024] transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-wine text-wine-fg text-sm font-semibold rounded-lg hover:bg-wine-dark transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
               File New Contribution

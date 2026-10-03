@@ -42,7 +42,7 @@ export default function PublicNav() {
   }, []);
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-[#f0e2d2]' : 'bg-transparent'}`}>
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-blush-line' : 'bg-transparent'}`}>
       <div className="w-full px-5 sm:px-8 lg:px-12 xl:px-16 h-16 sm:h-20 flex items-center justify-between gap-4">
         <Link href="/" className="flex-shrink-0 hover:opacity-90 transition-opacity">
           <Wordmark heightClassName="h-12 sm:h-14" />
@@ -123,7 +123,7 @@ export default function PublicNav() {
           <Link href="/login" className="px-4 py-2 text-sm font-semibold text-wine hover:bg-blush rounded-lg transition-colors">
             Sign In
           </Link>
-          <Link href="/pricing" className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-wine text-white text-sm font-bold rounded-xl hover:bg-wine-dark transition-colors shadow-md shadow-wine/20">
+          <Link href="/pricing" className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-wine text-wine-fg text-sm font-bold rounded-xl hover:bg-wine-dark transition-colors shadow-md shadow-wine/20">
             Get Started
             <ChevronRight className="h-4 w-4" />
           </Link>
@@ -135,7 +135,7 @@ export default function PublicNav() {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-[#f0e2d2] px-4 py-4 space-y-2 shadow-lg">
+        <div className="md:hidden bg-white border-t border-blush-line px-4 py-4 space-y-2 shadow-lg">
           {NAV_LINKS.map(({ label, href }) => (
             <Link key={href} href={href} onClick={() => setMobileOpen(false)}
               className="block px-4 py-3 text-sm font-semibold text-gray-700 hover:text-wine hover:bg-blush rounded-xl transition-all">
@@ -178,7 +178,7 @@ export default function PublicNav() {
               Sign In
             </Link>
             <Link href="/pricing" onClick={() => setMobileOpen(false)}
-              className="block px-4 py-3 text-sm font-bold text-center text-white bg-wine rounded-xl hover:bg-wine-dark transition-colors">
+              className="block px-4 py-3 text-sm font-bold text-center text-wine-fg bg-wine rounded-xl hover:bg-wine-dark transition-colors">
               Get Started
             </Link>
           </div>

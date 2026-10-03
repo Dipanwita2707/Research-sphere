@@ -5,6 +5,7 @@ import Link from 'next/link';
 import PublicNav from '@/shared/components/public/PublicNav';
 import Wordmark from '@/shared/components/brand/Wordmark';
 import api from '@/shared/api/api';
+import { BRAND } from '@/shared/config/brand';
 import { Mail, MapPin, Send, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function ContactPage() {
@@ -71,7 +72,7 @@ export default function ContactPage() {
               Connect With <span className="text-wine">ResearchSphere</span>
             </h1>
             <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
-              Have questions about our platform, enterprise pricing, or custom installations? Drop us a line and our academic consulting team will reach out.
+              Questions about the platform, pricing, a pilot for your institution, or a problem you have hit? Send us a message and our team will get back to you.
             </p>
           </div>
         </section>
@@ -91,12 +92,18 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Email Us</h3>
-                    <a
-                      href="mailto:mrinal11092002@gmail.com"
-                      className="text-sm font-semibold text-charcoal mt-1 hover:text-wine transition-colors block"
-                    >
-                      mrinal11092002@gmail.com
-                    </a>
+                    {BRAND.supportEmail ? (
+                      <a
+                        href={`mailto:${BRAND.supportEmail}`}
+                        className="text-sm font-semibold text-charcoal mt-1 hover:text-wine transition-colors block break-all"
+                      >
+                        {BRAND.supportEmail}
+                      </a>
+                    ) : (
+                      <p className="text-sm text-charcoal/70 mt-1">
+                        Use the form on this page and our team will reply by email.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -184,7 +191,7 @@ export default function ContactPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-wine text-white text-sm font-bold rounded-xl hover:bg-wine-dark transition-all disabled:opacity-55 disabled:cursor-not-allowed shadow-md shadow-wine/20"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-wine text-wine-fg text-sm font-bold rounded-xl hover:bg-wine-dark transition-all disabled:opacity-55 disabled:cursor-not-allowed shadow-md shadow-wine/20"
                   >
                     {isSubmitting ? 'Sending...' : 'Send Message'}
                     <Send className="h-4 w-4" />

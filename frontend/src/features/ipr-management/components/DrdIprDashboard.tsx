@@ -252,7 +252,7 @@ export default function DrdIprDashboard() {
       dean_rejected: 'bg-red-50 text-red-700 ring-red-200',
       recommended_to_head: 'bg-teal-50 text-teal-700 ring-teal-200',
       drd_head_approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      submitted_to_govt: 'bg-[#fdf5ec] text-[#7d1a34] ring-blue-200',
+      submitted_to_govt: 'bg-blush text-wine ring-blue-200',
       govt_application_filed: 'bg-cyan-50 text-cyan-700 ring-cyan-200',
       published: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
       // Kept for backward compatibility
@@ -273,7 +273,7 @@ export default function DrdIprDashboard() {
   const getWorkflowStage = (status: string) => {
     const stages: Record<string, { stage: string; description: string; color: string }> = {
       draft: { stage: 'Draft', description: 'Application being prepared', color: 'text-gray-600' },
-      submitted: { stage: 'DRD Review Queue', description: 'Waiting for DRD team member review', color: 'text-[#7d1a34]' },
+      submitted: { stage: 'DRD Review Queue', description: 'Waiting for DRD team member review', color: 'text-wine' },
       under_drd_review: { stage: 'DRD Review', description: 'Under review by DRD team member', color: 'text-yellow-600' },
       changes_required: { stage: 'Changes Required', description: 'Applicant needs to make revisions', color: 'text-orange-600' },
       resubmitted: { stage: 'DRD Re-review', description: 'Revised application under review', color: 'text-indigo-600' },
@@ -282,7 +282,7 @@ export default function DrdIprDashboard() {
       under_dean_review: { stage: 'DRD Head Review', description: 'Under review by DRD Head', color: 'text-purple-600' },
       dean_approved: { stage: 'Govt Filing Queue', description: 'Approved by DRD Head, ready for government filing', color: 'text-emerald-600' },
       drd_head_approved: { stage: 'Govt Filing Queue', description: 'Approved by DRD Head, ready for government filing', color: 'text-emerald-600' },
-      submitted_to_govt: { stage: 'Submitted to Govt', description: 'Application submitted to government', color: 'text-[#7d1a34]' },
+      submitted_to_govt: { stage: 'Submitted to Govt', description: 'Application submitted to government', color: 'text-wine' },
       govt_application_filed: { stage: 'Govt Filed', description: 'Government application filed successfully', color: 'text-cyan-600' },
       published: { stage: 'Published', description: 'IPR published - Incentives credited automatically', color: 'text-indigo-600' },
       // Kept for backward compatibility
@@ -876,7 +876,7 @@ export default function DrdIprDashboard() {
                       <>
                         <button
                           onClick={() => handleQuickAction(app, 'finance_approve')}
-                          className="p-2.5 bg-[#fdf5ec] text-[#7d1a34] rounded-xl hover:bg-[#fbe2e8] transition-colors"
+                          className="p-2.5 bg-blush text-wine rounded-xl hover:bg-wine-100 transition-colors"
                           title="Process Incentives"
                         >
                           <DollarSign className="w-4 h-4" />
@@ -996,7 +996,7 @@ export default function DrdIprDashboard() {
                     actionType ===
    'changes' ? 'bg-orange-600 hover:bg-orange-700' :
                     actionType ===
-   'finance_audit' ? 'bg-[#7d1a34] hover:bg-[#5e1024]' :
+   'finance_audit' ? 'bg-wine hover:bg-wine-dark' :
                     actionType ===
    'system_override' ? 'bg-gray-600 hover:bg-gray-700' :
                     'bg-amber-600 hover:bg-amber-700'

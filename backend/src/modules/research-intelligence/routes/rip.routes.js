@@ -116,6 +116,8 @@ router.get('/graph/experts', VIEW_GRAPH, h(ctrl.findExperts));
 router.get('/graph/domain-map', VIEW_GRAPH, h(ctrl.getDomainMap));
 router.get('/search/publications', ANY_USE, h(ctrl.searchPublications));
 router.get('/search/entities', ANY_USE, h(ctrl.searchEntities));
+// Schools and departments of the university, for filter dropdowns
+router.get('/units', ANY_USE, h(ctrl.listUnits));
 
 // Pipeline
 router.get('/pipeline/runs', MANAGE, h(ctrl.listPipelineRuns));

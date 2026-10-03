@@ -267,6 +267,28 @@ describe('shared read features', () => {
   });
 });
 
+describe('listing people by access', () => {
+  beforeEach(enable);
+  const whereFor = async (access_) => {
+    const db = require('../../../shared/config/database');
+    db.userLogin.count.mockClear();
+    await access.listUsers({ access: access_ });
+    return db.userLogin.count.mock.calls[0][0].where.AND;
+  };
+  const accessClause = (and) => and.find((c) => c.OR || c.NOT);
+
+  it('counts administrators as having access, matching resolveAccess', async () => {
+    const without = accessClause(await whereFor('without'));
+    expect(without.NOT.OR).toContainEqual({ role: { in: expect.arrayContaining(['admin', 'superadmin']) } });
+    const withAccess = accessClause(await whereFor('with'));
+    expect(withAccess.OR).toContainEqual({ role: { in: expect.arrayContaining(['admin', 'superadmin']) } });
+  });
+
+  it('unknown users get a single "not found" in the message', async () => {
+    await expect(access.setUserRoles('nope', [])).rejects.toThrow('User in this university not found');
+  });
+});
+
 describe('templates', () => {
   it('only contain real keys, are nested, and never include access management', () => {
     for (const t of RIP_TEMPLATES) {

@@ -10,22 +10,98 @@
   box-sizing: border-box;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Brand theme variables — default "Classic Wine" (ResearchSphere).
+   Generated from src/shared/theme (buildTheme(null)); a university's theme
+   overrides them on <html data-brand> (see BrandingProvider / brandingScript).
+   Tailwind's wine/amber/brand/blush/peach… colours read these, so keep the
+   names in sync with tailwind.config.js. Values are "R G B" triplets except
+   the chart tokens (--viz-*), which are hex.
+   ───────────────────────────────────────────────────────────── */
 :root {
-  /* ResearchSphere Brand Color Variables */
-  --brand-charcoal: #232323;
-  --brand-wine: #841C43;
-  --brand-wine-dark: #6E1738;
-  --brand-wine-darker: #4A0F26;
-  --brand-amber: #E28B22;
-  --brand-amber-dark: #C9771B;
-  --brand-peach: #FDD7BF;
-  --brand-ivory: #FEF7F4;
-  /* Backward-compat aliases */
-  --ResearchSphere-lightest: #FEF7F4;
-  --ResearchSphere-light: #E28B22;
-  --ResearchSphere-primary: #841C43;
-  --ResearchSphere-dark: #4A0F26;
-  --ResearchSphere-darkest: #232323;
+  --brand-primary: 132 28 67;
+  --brand-primary-dark: 110 23 56;
+  --brand-primary-darker: 74 15 38;
+  --brand-primary-light: 155 32 64;
+  --brand-primary-50: 246 237 240;
+  --brand-primary-100: 251 226 232;
+  --brand-primary-200: 243 182 200;
+  --brand-primary-300: 192 88 125;
+  --brand-accent: 226 139 34;
+  --brand-accent-dark: 201 119 27;
+  --brand-accent-300: 239 174 115;
+  --brand-gold: 200 151 63;
+  --brand-gold-dark: 150 104 32;
+  --brand-gold-50: 251 232 214;
+  --brand-canvas: 253 245 236;
+  --brand-canvas-light: 255 248 244;
+  --brand-canvas-deep: 245 232 220;
+  --brand-ivory: 254 247 244;
+  --brand-peach: 253 215 191;
+  --brand-peach-dark: 245 201 166;
+  --brand-line: 240 226 210;
+  --brand-ink: 43 29 34;
+  --brand-ink-muted: 122 113 120;
+  --brand-ink-subtle: 154 145 152;
+  --brand-charcoal: 35 35 35;
+  --brand-primary-fg: 255 255 255;
+  --brand-accent-fg: 17 24 39;
+  --brand-primary-text: 132 28 67;
+  --brand-hi: 132 28 67;
+  --viz-1: #2A78D6;
+  --viz-2: #EB6834;
+  --viz-3: #1BAF7A;
+  --viz-4: #EDA100;
+  --viz-5: #E87BA4;
+  --viz-6: #008300;
+  --viz-7: #4A3AA7;
+  --viz-8: #E34948;
+  --viz-brand: #841C43;
+  --viz-brand-soft: #F3B6C8;
+  --viz-seq-lo: #FBE2E8;
+  --viz-seq-hi: #841C43;
+  --viz-surface: #FFFFFF;
+}
+.dark {
+  --brand-primary-text: 243 182 200;
+  --brand-hi: 251 191 36;
+  --viz-brand: #F3B6C8;
+  --viz-brand-soft: #61213F;
+  --viz-seq-lo: #4C233C;
+  --viz-seq-hi: #C0587D;
+  --viz-surface: #1F2937;
+  --viz-1: #3987E5;
+  --viz-2: #D95926;
+  --viz-3: #199E70;
+  --viz-4: #C98500;
+  --viz-5: #D55181;
+  --viz-6: #008300;
+  --viz-7: #9085E9;
+  --viz-8: #E66767;
+}
+/* Collaboration globe markers: legibility over the satellite texture, same in every theme
+   (see src/components/globeColors.ts). */
+:root {
+  --globe-home: #ff7a1a;
+  --globe-domestic: #ffd23f;
+  --globe-international: #2ee6d6;
+  --globe-atmosphere: #7cc4ff;
+}
+
+/* Brand artwork (raster illustrations painted in Classic Wine) is re-tinted to the
+   university's primary hue when another theme is active.
+   The overlay is masked by the artwork itself (--brand-art-mask: url(...)) so only the
+   painted pixels change hue, never the transparent background around them. */
+.brand-art-tint { position: relative; }
+:root[data-brand-tint] .brand-art-tint::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--brand-primary));
+  mix-blend-mode: color;
+  pointer-events: none;
+  -webkit-mask: var(--brand-art-mask) center / contain no-repeat;
+  mask: var(--brand-art-mask) center / contain no-repeat;
 }
 
 body {
@@ -34,7 +110,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #fdf5ec;
+  background: rgb(var(--brand-canvas));
   min-height: 100vh;
 }
 
@@ -49,17 +125,17 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: #FEF7F4;
+  background: rgb(var(--brand-ivory));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #E28B22 0%, #841C43 100%);
+  background: linear-gradient(180deg, rgb(var(--brand-accent)) 0%, rgb(var(--brand-primary)) 100%);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #841C43 0%, #4A0F26 100%);
+  background: linear-gradient(180deg, rgb(var(--brand-primary)) 0%, rgb(var(--brand-primary-darker)) 100%);
 }
 
 /* Animations */
@@ -96,10 +172,10 @@ code {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(132, 28, 67, 0.2);
+    box-shadow: 0 0 5px rgb(var(--brand-primary) / 0.2);
   }
   50% {
-    box-shadow: 0 0 20px rgba(132, 28, 67, 0.4);
+    box-shadow: 0 0 20px rgb(var(--brand-primary) / 0.4);
   }
 }
 
@@ -243,7 +319,7 @@ code {
 
 /* ResearchSphere Gradient Text */
 .text-ResearchSphere-gradient {
-  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
+  background: linear-gradient(135deg, rgb(var(--brand-accent)) 0%, rgb(var(--brand-primary)) 50%, rgb(var(--brand-primary-darker)) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -251,11 +327,11 @@ code {
 
 /* ResearchSphere Gradient Background */
 .bg-ResearchSphere-gradient {
-  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
+  background: linear-gradient(135deg, rgb(var(--brand-accent)) 0%, rgb(var(--brand-primary)) 50%, rgb(var(--brand-primary-darker)) 100%);
 }
 
 .text-brand-gradient {
-  background: linear-gradient(135deg, #E28B22 0%, #841C43 50%, #4A0F26 100%);
+  background: linear-gradient(135deg, rgb(var(--brand-accent)) 0%, rgb(var(--brand-primary)) 50%, rgb(var(--brand-primary-darker)) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -268,7 +344,7 @@ code {
 
 .card-hover:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px -15px rgba(132, 28, 67, 0.2);
+  box-shadow: 0 20px 40px -15px rgb(var(--brand-primary) / 0.2);
 }
 
 /* Glass morphism effect */
@@ -280,10 +356,10 @@ code {
 }
 
 .glass-dark {
-  background: rgba(35, 35, 35, 0.8);
+  background: rgb(var(--brand-charcoal) / 0.8);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 139, 34, 0.3);
+  border: 1px solid rgb(var(--brand-accent) / 0.3);
 }
 
 /* Shimmer loading effect */
@@ -307,8 +383,8 @@ code {
 
 /* Badge styles */
 .badge-ResearchSphere {
-  background: linear-gradient(135deg, #841C43 0%, #4A0F26 100%);
-  color: #FEF7F4;
+  background: linear-gradient(135deg, rgb(var(--brand-primary)) 0%, rgb(var(--brand-primary-darker)) 100%);
+  color: rgb(var(--brand-ivory));
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -316,8 +392,8 @@ code {
 }
 
 .badge-brand {
-  background: linear-gradient(135deg, #841C43 0%, #4A0F26 100%);
-  color: #FEF7F4;
+  background: linear-gradient(135deg, rgb(var(--brand-primary)) 0%, rgb(var(--brand-primary-darker)) 100%);
+  color: rgb(var(--brand-ivory));
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -1006,10 +1082,10 @@ code {
   transition: background 0.2s ease !important;
 }
 .rs-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: rgba(132, 28, 67, 0.2) !important; /* Sleek translucent brand-wine on hover */
+  background: rgb(var(--brand-primary) / 0.2) !important; /* Sleek translucent brand-wine on hover */
 }
 .rs-scrollbar:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(132, 28, 67, 0.4) !important;
+  background: rgb(var(--brand-primary) / 0.4) !important;
 }
 .rs-scrollbar {
   scrollbar-width: none !important; /* Hide on Firefox by default */
@@ -1017,7 +1093,7 @@ code {
 }
 .rs-scrollbar:hover {
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(132, 28, 67, 0.2) transparent !important;
+  scrollbar-color: rgb(var(--brand-primary) / 0.2) transparent !important;
 }
 
 /* Clean Print Layout styles */
@@ -1046,3 +1122,49 @@ code {
     margin: 0 !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Analytics data-viz tokens (components/analytics/theme.ts)
+   Categorical slots validated for CVD separation on #ffffff (light)
+   and #1f2937 (dark). Order is fixed — never cycle or re-sort.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --viz-grid: #eceae6;
+  --viz-axis: #d6d3cd;
+  --viz-ink-muted: #8a8780;
+  --viz-good: #15803d;
+  --viz-warning: #b45309;
+  --viz-critical: #b91c1c;
+}
+.dark {
+  --viz-grid: #2c3441;
+  --viz-axis: #3f4856;
+  --viz-ink-muted: #9aa3b2;
+  --viz-good: #4ade80;
+  --viz-warning: #fbbf24;
+  --viz-critical: #f87171;
+}
+
+/* Legacy hero actions were styled for a dark masthead; re-skin them for the light header. */
+.analytics-hero-actions :is(button, a)[class*="bg-white/"] {
+  background: #fff;
+  border-color: #e7e5e4;
+  color: #44403c;
+}
+.analytics-hero-actions :is(button, a)[class*="bg-white/"]:hover { background: #fafaf9; }
+.dark .analytics-hero-actions :is(button, a)[class*="bg-white/"] {
+  background: #1f2937;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+/* Loose text placed in hero actions (timestamps, counts) sits on the wine header. */
+.analytics-hero-actions > span,
+.analytics-hero-actions > div > span:not([class*="bg-"]) {
+  color: rgba(255, 255, 255, 0.8);
+}
+/* Primary (wine) buttons would vanish on the wine header: switch them to amber there. */
+.analytics-hero-actions .bg-wine {
+  background-color: rgb(var(--brand-accent));
+  color: rgb(var(--brand-accent-fg));
+}
+.analytics-hero-actions .bg-wine:hover { background-color: rgb(var(--brand-accent) / 0.85); }

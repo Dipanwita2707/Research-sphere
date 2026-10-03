@@ -328,3 +328,85 @@ describe('research review.service - extended coverage', () => {
     });
   });
 });
+
+describe('research review.service - approveContribution() and the payout ledger', () => {
+  let tx;
+  let prisma;
+  let contributionRepo;
+  let service;
+  const contribution = {
+    id: 'c-approve',
+    universityId: 'uni-1',
+    applicationNumber: 'RP-2026-0042',
+    title: 'Soil moisture estimation with satellites',
+    publicationType: 'research_paper',
+    doi: 'https://doi.org/10.1234/Soil.42',
+    status: 'under_review',
+    applicantUserId: 'u-applicant',
+    authors: [],
+    applicantUser: { id: 'u-applicant', uid: 'FAC1' },
+  };
+  const authorShares = [
+    { userId: 'u-applicant', name: 'Dr A', authorType: 'first_author', isInternal: true, incentiveShare: 6000, pointsShare: 6 },
+    { userId: 'u-co', name: 'Dr B', authorType: 'co_author', isInternal: true, incentiveShare: 4000, pointsShare: 4 },
+    { userId: null, name: 'External C', authorType: 'co_author', isInternal: false, incentiveShare: 0, pointsShare: 0 },
+  ];
+
+  beforeEach(() => {
+    tx = {
+      researchContribution: {
+        findUnique: jest.fn().mockResolvedValueOnce({ ...contribution }).mockResolvedValue({ ...contribution, status: 'approved' }),
+        findMany: jest.fn().mockResolvedValue([]), // no other active claim
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      researchContributionReview: { create: jest.fn().mockResolvedValue({}) },
+      researchContributionStatusHistory: { create: jest.fn().mockResolvedValue({}) },
+      employeeDetails: { findMany: jest.fn().mockResolvedValue([{ userLoginId: 'u-co', empId: 'EMP-B' }]) },
+      userLogin: { findMany: jest.fn().mockResolvedValue([]) },
+      incentivePayout: {
+        findMany: jest.fn().mockResolvedValue([]),
+        createMany: jest.fn(async ({ data }) => ({ count: data.length })),
+      },
+      incentivePayoutEvent: { create: jest.fn().mockResolvedValue({}) },
+    };
+    prisma = { $transaction: jest.fn(async (cb) => cb(tx)) };
+    contributionRepo = { findById: jest.fn().mockResolvedValue({ ...contribution }) };
+    service = new ReviewService({ create: jest.fn(), findMany: jest.fn().mockResolvedValue([]) }, contributionRepo, null, prisma, null);
+
+    jest.spyOn(service, '_creditIncentivesToAuthors').mockResolvedValue({ totalIncentiveAwarded: 10000, totalPointsAwarded: 10, authorShares });
+    jest.spyOn(service, '_notifyAuthorsOnApproval').mockResolvedValue();
+    jest.spyOn(service, '_notifyApplicantOnApproval').mockResolvedValue();
+    jest.spyOn(service, '_notifyRecommendingReviewers').mockResolvedValue();
+    jest.spyOn(service, '_dispatchStatusAudit').mockResolvedValue();
+    jest.spyOn(service, '_buildIncentiveBreakdown').mockResolvedValue([]);
+  });
+
+  test('creates one payout line per internal author inside the approval transaction', async () => {
+    const result = await service.approveContribution('c-approve', 'drd-head', { comments: 'OK' });
+    expect(result.updated.status).toBe('approved');
+
+    expect(tx.researchContribution.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'approved', workKey: 'doi:10.1234/soil.42' }),
+    }));
+    expect(tx.incentivePayout.createMany).toHaveBeenCalledTimes(1);
+    const { data } = tx.incentivePayout.createMany.mock.calls[0][0];
+    expect(data).toHaveLength(2);
+    expect(data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceType: 'research_contribution', sourceId: 'c-approve', payeeUserId: 'u-applicant', approvedAmount: 6000 }),
+      expect.objectContaining({ payeeUserId: 'u-co', payeeEmployeeId: 'EMP-B', approvedAmount: 4000, points: 4, workKey: 'doi:10.1234/soil.42', referenceNumber: 'RP-2026-0042' }),
+    ]));
+  });
+
+  test('throws DUPLICATE_CLAIM and creates no lines when another active claim holds the work', async () => {
+    tx.researchContribution.findMany.mockResolvedValue([{
+      id: 'c-other', applicationNumber: 'RP-2026-0007', status: 'approved', title: 'Soil moisture', publicationType: 'research_paper',
+      submittedAt: new Date('2026-01-01'), applicantUserId: 'u-co', applicantUser: { uid: 'FAC2', employeeDetails: { displayName: 'Dr B' } },
+    }]);
+
+    await expect(service.approveContribution('c-approve', 'drd-head', {})).rejects.toMatchObject({ code: 'DUPLICATE_CLAIM', statusCode: 409 });
+    expect(service._creditIncentivesToAuthors).not.toHaveBeenCalled();
+    expect(tx.researchContribution.updateMany).not.toHaveBeenCalled();
+    expect(tx.incentivePayout.createMany).not.toHaveBeenCalled();
+    expect(service._notifyAuthorsOnApproval).not.toHaveBeenCalled();
+  });
+});

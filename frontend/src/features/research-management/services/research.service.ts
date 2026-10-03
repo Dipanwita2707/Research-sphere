@@ -1,4 +1,5 @@
 import api from '@/shared/api/api';
+import type { IncentivePreview, IncentivePreviewPayload } from '@/features/research-management/utils/incentivePreview';
 
 // TypeScript Interfaces
 export type ResearchPublicationType = 
@@ -8,8 +9,9 @@ export type ResearchPublicationType =
   | 'conference_paper'
   | 'grant_proposal';
 
-export type ResearchContributionStatus = 
+export type ResearchContributionStatus =
   | 'draft'
+  | 'pending_mentor_approval'
   | 'submitted'
   | 'under_review'
   | 'changes_required'
@@ -160,6 +162,9 @@ export interface ResearchContribution {
   
   // Research paper specific
   journalName?: string;
+  /** UGC-CARE listed journal (null = unknown) and group (only when listed) */
+  ugcCareListed?: boolean | null;
+  ugcCareGroup?: 'group_1' | 'group_2' | null;
   volume?: string;
   issue?: string;
   pageNumbers?: string;
@@ -269,6 +274,8 @@ export interface ResearchApplicantDetails {
   email?: string;
   phone?: string;
   universityDeptName?: string;
+  mentorName?: string;
+  mentorUid?: string;
   metadata?: any;
 }
 
@@ -451,6 +458,15 @@ class ResearchService {
     return response.data;
   }
 
+  /**
+   * Incentive & points per author for an in-progress submission, computed by the server with
+   * the same code that stores the shares on save and credits them at DRD approval.
+   */
+  async previewIncentive(payload: IncentivePreviewPayload, signal?: AbortSignal): Promise<IncentivePreview> {
+    const response = await api.post('/research/incentive-preview', payload, { signal });
+    return response.data.data;
+  }
+
   // =====================================
     // DRD Review (for reviewers)
   // ==============================
@@ -479,7 +495,7 @@ class ResearchService {
     return response.data;
   }
 
-  async approveContribution(id: string, data?: { comments?: string }) {
+  async approveContribution(id: string, data?: { comments?: string; confirmZeroIncentive?: boolean }) {
     const response = await api.post(`/research/${id}/review/approve`, data);
     return response.data;
   }
@@ -497,6 +513,28 @@ class ResearchService {
   async markCompleted(id: string) {
     const response = await api.post(`/research/${id}/review/complete`);
     return response.data;
+  }
+
+  // =====================================
+  // Mentor Approval (student submissions)
+  // =====================================
+  /** Contributions in `pending_mentor_approval` whose applicantDetails.mentorUid is the caller's UID. */
+  async getMentorPendingContributions(): Promise<ResearchContribution[]> {
+    const response = await api.get('/research/mentor/pending');
+    return response.data?.data || [];
+  }
+
+  /** Mentor approves: status becomes `submitted` and the contribution goes to DRD. Comments are optional. */
+  async mentorApproveContribution(id: string, comments?: string): Promise<ResearchContribution> {
+    const body = comments?.trim() ? { comments: comments.trim() } : {};
+    const response = await api.post(`/research/${id}/mentor-approve`, body);
+    return response.data?.data;
+  }
+
+  /** Mentor sends back to the student: status becomes `changes_required`. Comments are required (400 if blank). */
+  async mentorRejectContribution(id: string, comments: string): Promise<ResearchContribution> {
+    const response = await api.post(`/research/${id}/mentor-reject`, { comments: comments.trim() });
+    return response.data?.data;
   }
 
   // =====================================
@@ -568,7 +606,7 @@ class ResearchService {
     return response.data;
   }
 
-  async approveGrant(id: string, data?: { comments?: string }) {
+  async approveGrant(id: string, data?: { comments?: string; confirmZeroIncentive?: boolean }) {
     const response = await api.post(`/grants/${id}/review/approve`, data);
     return response.data;
   }

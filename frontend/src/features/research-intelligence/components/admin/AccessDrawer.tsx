@@ -118,7 +118,7 @@ export function AccessDrawer({ user, overview, canGrantManage, onClose, onSaved 
                       return (
                         <li key={r.id}>
                           <label className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${on ? 'border-brand-500 bg-brand-50/60 ring-1 ring-brand-500 dark:bg-brand-600/10' : 'border-slate-200 hover:border-slate-300 dark:border-white/10'}`}>
-                            <input type="checkbox" className="mt-1 h-4 w-4 accent-[#841C43]" checked={on} onChange={() => toggleRole(r.id)} />
+                            <input type="checkbox" className="mt-1 h-4 w-4 accent-wine" checked={on} onChange={() => toggleRole(r.id)} />
                             <span className="min-w-0">
                               <span className="block text-sm font-medium text-slate-800 dark:text-slate-100">{r.name}</span>
                               <span className="mt-0.5 block text-xs leading-snug text-slate-500">{labelsFor(r.permissions, overview.capabilities).join(' · ')}</span>
@@ -173,7 +173,7 @@ export function AccessDrawer({ user, overview, canGrantManage, onClose, onSaved 
                         return (
                           <li key={c.key}>
                             <label className={`flex items-start gap-3 p-3 ${locked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5'}`}>
-                              <input type="checkbox" className="mt-1 h-4 w-4 accent-[#841C43]" checked={extra.includes(c.key)} disabled={locked} onChange={() => toggleExtra(c.key)} />
+                              <input type="checkbox" className="mt-1 h-4 w-4 accent-wine" checked={extra.includes(c.key)} disabled={locked} onChange={() => toggleExtra(c.key)} />
                               <span>
                                 <span className="block text-sm font-medium text-slate-800 dark:text-slate-100">{c.label}</span>
                                 <span className="block text-xs leading-snug text-slate-500">{locked ? 'Only administrators can give this.' : c.description}</span>
@@ -230,7 +230,7 @@ export function AccessDrawer({ user, overview, canGrantManage, onClose, onSaved 
             <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">
               Cancel
             </button>
-            <button type="button" onClick={save} disabled={busy || !changed} className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-white/10">
+            <button type="button" onClick={save} disabled={busy || !changed} className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-wine-fg hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-white/10">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
             </button>
           </footer>

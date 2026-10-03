@@ -4,8 +4,19 @@
  * Dependencies injected via constructor for testability.
  */
 
-const { analyzeAuthorComposition, IncentiveCalculator } = require('./incentive-calculator');
+const tenantContext = require('../../../shared/tenancy/tenantContext');
+const logger = require('../../../shared/utils/logger');
+const { isAffiliationMatch } = require('../../../shared/utils/affiliationEngine');
+const { getUniversityAffiliationVariants } = require('../../core/services/affiliation.service');
+const { assertNoActiveClaim } = require('./duplicateClaim.service');
+const { toIncentiveInput } = require('../utils/incentiveInput');
+const { IncentiveCalculator } = require('./incentive-calculator');
+const { computeAuthorShares, storedAuthorsForShares, NO_POLICY_WARNING_MESSAGE } = require('./authorShares');
 const { canViewContribution, canViewGrant, notFound, CONTRIBUTION_ACCESS_INCLUDE } = require('../utils/objectAccess');
+const {
+  APPLICANT_EDITABLE_FIELDS, APPLICANT_DETAILS_EDITABLE_FIELDS, AUTHOR_EDITABLE_FIELDS, pickAllowed,
+} = require('../utils/editableFields');
+const { normalizeUgcCare, resolveUgcCare, ugcCareFromIndexing } = require('../utils/ugcCare');
 
 class ContributionService {
   /**
@@ -32,14 +43,18 @@ class ContributionService {
    */
   async createContribution(data, files = {}) {
     await this.validateContributionData(data);
+    // Fail fast (400) on an invalid UGC-CARE pair before any other work
+    if (data.publicationType === 'research_paper') resolveUgcCare(data.ugcCareListed, data.ugcCareGroup, data.indexingCategories);
 
-    const incentiveCalculation = await this._calculateApplicantIncentives(data);
+    // Pool and every author's share in one pass (the same computation the form previews).
+    const submittedShares = await this._computeSubmittedShares(data);
+    const incentiveCalculation = this._poolResult(submittedShares.shares);
     const resolvedIds = await this._resolveSchoolAndDepartment(data);
 
     let contribution;
     let attempts = 0;
     while (attempts < 5) {
-      const applicationNumber = await this._generateApplicationNumber(data.publicationType);
+      const applicationNumber = await this._generateApplicationNumber(data.publicationType, attempts);
       try {
         contribution = await this.repo.create(
           this._buildContributionPayload(data, files, applicationNumber, incentiveCalculation, resolvedIds)
@@ -47,7 +62,10 @@ class ContributionService {
         break;
       } catch (err) {
         // P2002 on application_number = concurrent sync generated the same sequence number
-        if (err.code === 'P2002' && err.meta?.target?.includes('application_number') && attempts < 4) {
+        // Prisma 7 driver adapters don't set meta.target; the constraint name lives elsewhere in meta/message.
+        const onAppNumber = err.code === 'P2002'
+          && /application_?number/i.test(`${JSON.stringify(err.meta || {})} ${err.message || ''}`);
+        if (onAppNumber && attempts < 4) {
           attempts++;
           continue;
         }
@@ -55,8 +73,8 @@ class ContributionService {
       }
     }
 
-    await this._createApplicantDetails(contribution.id, data.applicantDetails);
-    await this._createAuthors(contribution.id, data);
+    await this._createApplicantDetails(contribution.id, this._withTopLevelMentor(data.applicantDetails, data));
+    await this._createAuthors(contribution.id, data, submittedShares);
     await this._createStatusHistory(contribution.id, null, 'draft', data.userId, 'Research contribution created');
 
     const fullContribution = await this.repo.findById(contribution.id, {
@@ -68,7 +86,64 @@ class ContributionService {
     });
 
     await this.dispatchPostCreationSideEffects(fullContribution, data.userId, data.request);
-    return fullContribution;
+    const incentiveWarning = this._incentiveWarningFrom(incentiveCalculation);
+    return incentiveWarning ? { ...fullContribution, incentiveWarning } : fullContribution;
+  }
+
+  /**
+   * Incentive preview for the submission form: exactly what saving this payload would store
+   * per author (same normalisation, same computeAuthorShares call), without writing anything.
+   * @param {object} data  form payload + userId/userRole of the applicant
+   */
+  async previewIncentiveShares(data) {
+    const { enriched, shares } = await this._computeSubmittedShares(data);
+    return {
+      ...shares,
+      authors: shares.authors.map((share, i) => ({
+        ...share,
+        name: enriched[i].author.name || null,
+        uid: enriched[i].author.registrationNumber || enriched[i].author.uid || null,
+        authorType: enriched[i].mappedAuthorType,
+        authorCategory: enriched[i].authorCategory,
+      })),
+    };
+  }
+
+  /** Calculator-shaped pool result (contribution columns + incentiveWarning) from shares. */
+  _poolResult(shares) {
+    return {
+      totalPoolAmount: shares.pool.amount,
+      totalPoolPoints: shares.pool.points,
+      policyFound: shares.policy.found,
+      usedDefaultPolicy: shares.policy.usedDefault,
+      reason: shares.policy.reason,
+    };
+  }
+
+  /** incentiveWarning for a calculator result, or null when a policy applies. */
+  _incentiveWarningFrom(result) {
+    if (!result || result.policyFound !== false) return null;
+    return { code: 'NO_INCENTIVE_POLICY', message: NO_POLICY_WARNING_MESSAGE, reason: result.reason || null };
+  }
+
+  /** Re-check policy coverage for a stored contribution (after an edit). */
+  async _incentiveWarningFor(contribution) {
+    if (!contribution) return null;
+    try {
+      const calculator = new IncentiveCalculator(this.prisma);
+      const result = await calculator.calculate({
+        contributionData: toIncentiveInput(contribution),
+        publicationType: contribution.publicationType,
+        authorRole: 'first_and_corresponding_author',
+        totalAuthors: 1,
+        isInternal: true,
+      });
+      return this._incentiveWarningFrom(result);
+    } catch (error) {
+      // The edit is already saved; a failed coverage check must not turn it into an error.
+      logger.error?.('[ContributionService] incentive policy check failed', { id: contribution.id, error: error.message });
+      return null;
+    }
   }
 
   // ─── Validation ──────────────────────────────────────────────────────────
@@ -223,7 +298,7 @@ class ContributionService {
 
   // ─── Private helpers ─────────────────────────────────────────────────────
 
-  async _generateApplicationNumber(publicationType) {
+  async _generateApplicationNumber(publicationType, bump = 0) {
     const typePrefix = {
       research_paper: 'RP', book: 'BK', book_chapter: 'BC',
       conference_paper: 'CP', grant_proposal: 'GP'
@@ -241,48 +316,8 @@ class ContributionService {
       const parts = latest.applicationNumber.split('-');
       sequence = parseInt(parts[2]) + 1;
     }
-    return `${prefix}-${year}-${sequence.toString().padStart(4, '0')}`;
-  }
-
-  async _calculateApplicantIncentives(data) {
-    const activePolicy = await this.prisma.researchIncentivePolicy.findFirst({
-      where: { publicationType: 'research_paper', isActive: true },
-      select: { first_author_percentage: true, corresponding_author_percentage: true }
-    });
-
-    if (!activePolicy?.first_author_percentage || !activePolicy?.corresponding_author_percentage) {
-      // Missing setup, not a server fault: 409 tells the client an admin must configure a policy first.
-      const err = new Error('No active research policy configured. Please configure policy in admin panel.');
-      err.statusCode = 409;
-      throw err;
-    }
-
-    const authorsList = data.authors || [];
-    const totalAuthorCount = authorsList.length || 1;
-    const applicantAuthorRole = authorsList[0]?.authorRole || 'co_author';
-    const effectiveApplicantRole = totalAuthorCount === 1 ? 'first_and_corresponding_author' : applicantAuthorRole;
-
-    const applicantType = this._resolveApplicantType(data.userRole);
-    const authorComposition = analyzeAuthorComposition(
-      authorsList, applicantType, effectiveApplicantRole,
-      Number(activePolicy.first_author_percentage),
-      Number(activePolicy.corresponding_author_percentage)
-    );
-
-    const calculator = new IncentiveCalculator(this.prisma);
-    return calculator.calculate({
-      contributionData: this._buildIncentiveContributionData(data),
-      publicationType: data.publicationType,
-      authorRole: effectiveApplicantRole,
-      isStudent: data.userRole === 'student',
-      sjrValue: Number(data.sjr) || 0,
-      coAuthorCount: authorComposition.internalCoAuthorCount + authorComposition.externalCoAuthorCount,
-      totalAuthors: totalAuthorCount,
-      isInternal: true,
-      internalCoAuthorCount: authorComposition.internalCoAuthorCount,
-      externalFirstCorrespondingPct: authorComposition.externalFirstCorrespondingPct,
-      internalEmployeeCoAuthorCount: authorComposition.internalEmployeeCoAuthorCount
-    });
+    // bump skips ahead on a retry after a collision so a stuck sequence cannot collide forever
+    return `${prefix}-${year}-${(sequence + bump).toString().padStart(4, '0')}`;
   }
 
   _resolveApplicantType(userRole) {
@@ -292,24 +327,7 @@ class ContributionService {
   }
 
   _buildIncentiveContributionData(data) {
-    const normalizedBookType = data.bookType || data.bookPublicationType || null;
-    const subsidiaryIF = data.subsidiaryImpactFactor ||
-      ((data.indexingCategories || []).includes('subsidiary_if_above_20') ? data.impactFactor : null);
-    return {
-      publicationDate: data.publicationDate,
-      quartile: data.quartile,
-      conferenceSubType: data.conferenceSubType,
-      proceedingsQuartile: data.proceedingsQuartile,
-      bookType: normalizedBookType,
-      indexingCategories: data.indexingCategories || [],
-      impactFactor: data.impactFactor ? Number(data.impactFactor) : null,
-      sjr: Number(data.sjr) || 0,
-      naasRating: data.naasRating ? Number(data.naasRating) : null,
-      subsidiaryImpactFactor: subsidiaryIF ? Number(subsidiaryIF) : null,
-      conferenceType: data.conferenceType,
-      conferenceBestPaperAward: data.conferenceBestPaperAward,
-      isInternational: data.isInternational
-    };
+    return toIncentiveInput(data);
   }
 
   async _resolveSchoolAndDepartment(data) {
@@ -445,6 +463,11 @@ class ContributionService {
       manuscriptFilePath: t(files.manuscriptFilePath || data.manuscriptFilePath, 512),
       supportingDocsFilePaths: files.supportingDocsFilePaths || data.supportingDocsFilePaths,
       indexingDetails: data.indexingDetails,
+      // UGC-CARE listing applies to journal papers only (validated in createContribution)
+      // Scopus / Web of Science indexing settles it (Group II); otherwise the author's answer.
+      ...(data.publicationType === 'research_paper'
+        ? resolveUgcCare(data.ugcCareListed, data.ugcCareGroup, data.indexingCategories)
+        : { ugcCareListed: null, ugcCareGroup: null }),
       sdg_goals: sdgGoals,
       calculatedIncentiveAmount: incentiveCalc.totalPoolAmount,
       calculatedPoints: incentiveCalc.totalPoolPoints,
@@ -460,6 +483,41 @@ class ContributionService {
       fieldProvenance: data.fieldProvenance || {},
       importMetadata: data.importMetadata || {},
     };
+  }
+
+  /** The submission form sends mentorUid/mentorName at the top level; fold them into applicantDetails. */
+  _withTopLevelMentor(applicantDetails, data = {}) {
+    const details = { ...(applicantDetails || {}) };
+    if (!details.mentorUid && data.mentorUid) details.mentorUid = data.mentorUid;
+    if (!details.mentorName && data.mentorName) details.mentorName = data.mentorName;
+    return Object.keys(details).length ? details : null;
+  }
+
+  /**
+   * The mentor a student's work goes to. Must be an active faculty/staff member of this
+   * university, never the student themselves, and — when the student has an assigned mentor
+   * on record — that mentor. With no mentor typed, the assigned mentor is used.
+   * @returns {Promise<{ id: string, uid: string } | null>}
+   */
+  async _resolveStudentMentor(applicantUserId, typedMentorUid) {
+    const student = await this.prisma.studentDetails.findFirst({
+      where: { userLoginId: applicantUserId },
+      select: { mentorId: true },
+    });
+    const assigned = student?.mentorId
+      ? await this.prisma.userLogin.findFirst({ where: { id: student.mentorId }, select: { id: true, uid: true, role: true, status: true } })
+      : null;
+    const uid = typedMentorUid ? String(typedMentorUid).trim() : null;
+    if (!uid) return assigned && assigned.status === 'active' ? { id: assigned.id, uid: assigned.uid } : null;
+
+    const mentor = await this.prisma.userLogin.findFirst({ where: { uid }, select: { id: true, uid: true, role: true, status: true } });
+    const fail = (message) => { const e = new Error(message); e.statusCode = 400; e.code = 'INVALID_MENTOR'; throw e; };
+    if (!mentor) fail(`Mentor ${uid} was not found at this university`);
+    if (mentor.id === applicantUserId) fail('You cannot be your own mentor');
+    if (!['faculty', 'staff'].includes(mentor.role)) fail('The mentor must be a faculty or staff member');
+    if (mentor.status !== 'active') fail('The selected mentor account is not active');
+    if (assigned && assigned.id !== mentor.id) fail(`Your assigned mentor is ${assigned.uid}; submit to them or ask the admin to change your mentor`);
+    return { id: mentor.id, uid: mentor.uid };
   }
 
   async _createApplicantDetails(contributionId, applicantDetails) {
@@ -493,96 +551,80 @@ class ContributionService {
     });
   }
 
-  async _createAuthors(contributionId, data) {
-    const { authors = [], userId, publicationType, indexingCategories, impactFactor,
-      sjr, naasRating, subsidiaryImpactFactor, publicationDate, quartile,
-      conferenceSubType, proceedingsQuartile, userRole } = data;
-    const bookType = data.bookType || data.bookPublicationType || null;
-
-    if (!authors.length) return;
-
-    const authorsList = authors;
-    const totalAuthorCount = authorsList.length || 1;
-    const applicantType = this._resolveApplicantType(userRole);
-    const applicantAuthorRole = authorsList[0]?.authorRole || 'co_author';
-    const effectiveApplicantRole = totalAuthorCount === 1 ? 'first_and_corresponding_author' : applicantAuthorRole;
-
-    const activePolicy = await this.prisma.researchIncentivePolicy.findFirst({
-      where: { publicationType: 'research_paper', isActive: true },
-      select: { first_author_percentage: true, corresponding_author_percentage: true }
-    });
-
-    const policyFirstPct = Number(activePolicy?.first_author_percentage || 40);
-    const policyCorrespondingPct = Number(activePolicy?.corresponding_author_percentage || 40);
-
-    const authorComposition = analyzeAuthorComposition(
-      authorsList, applicantType, effectiveApplicantRole, policyFirstPct, policyCorrespondingPct
-    );
-
-    const subsidiaryIF = subsidiaryImpactFactor ||
-      ((indexingCategories || []).includes('subsidiary_if_above_20') ? impactFactor : null);
-
-    const incentiveContributionData = {
-      publicationDate, quartile, conferenceSubType, proceedingsQuartile, bookType,
-      indexingCategories: indexingCategories || [],
-      impactFactor: impactFactor ? Number(impactFactor) : null,
-      sjr: Number(sjr) || 0,
-      naasRating: naasRating ? Number(naasRating) : null,
-      subsidiaryImpactFactor: subsidiaryIF ? Number(subsidiaryIF) : null
-    };
-
-    const calculator = new IncentiveCalculator(this.prisma);
-    const t = (v, max) => (v ? String(v).substring(0, max) : v);
+  /**
+   * Resolve the submitted authors (linked accounts, internal/external, student) and split the
+   * pool among them with computeAuthorShares. Read-only: used by create/edit before the rows
+   * are written and by the form preview, so the preview is what gets saved.
+   * @returns {Promise<{ enriched: Array, shares: object }>}
+   */
+  async _computeSubmittedShares(data) {
+    const authorsList = Array.isArray(data.authors) ? data.authors : [];
 
     // Batch-resolve all author UIDs in a single query instead of one per author
-    const authorUids = authorsList
-      .map(a => a.registrationNumber || a.uid)
-      .filter(Boolean);
+    const authorUids = [...new Set(authorsList.map((a) => a.registrationNumber || a.uid).filter(Boolean))];
     const resolvedUsers = authorUids.length
       ? await this.prisma.userLogin.findMany({
           where: { uid: { in: authorUids } },
-          select: { id: true, uid: true }
+          select: { id: true, uid: true, role: true }
         })
       : [];
-    const uidToUserId = Object.fromEntries(resolvedUsers.map(u => [u.uid, u.id]));
+    const usersByUid = Object.fromEntries(resolvedUsers.map((u) => [u.uid, u]));
 
-    // Compute per-author data (incentive calc remains async — run in parallel)
-    const enrichedAuthors = await Promise.all(
-      authorsList.map(async (author) => {
-        const uidKey = author.registrationNumber || author.uid;
-        const authorUserId = (uidKey && uidToUserId[uidKey]) || null;
+    // "Internal" means the author belongs to this university: an internal_* author type, a
+    // linked account, or an affiliation matching the university's name variants. Any external_*
+    // type is external, whatever the affiliation says ("Stanford University" is not internal).
+    const { variants: homeVariants } = authorsList.length
+      ? await getUniversityAffiliationVariants(tenantContext.getTenantId())
+      : { variants: [] };
 
-        const mappedAuthorType = this._mapAuthorRole(author);
-        const isInternalAuthor = author.authorType?.startsWith('internal_') ||
-          author.affiliation?.toLowerCase().includes('sgt') ||
-          author.affiliation?.toLowerCase().includes('university') || false;
-        const authorIsStudent = author.authorType === 'internal_student';
-        const authorCategory = this._resolveAuthorCategory(author.authorType);
+    const enriched = authorsList.map((author) => {
+      const uidKey = author.registrationNumber || author.uid;
+      const linkedUser = (uidKey && usersByUid[uidKey]) || null;
+      const isInternalAuthor = author.authorType?.startsWith('external') || author.isInternal === false
+        ? false
+        : Boolean(
+            author.authorType?.startsWith('internal_') ||
+            linkedUser ||
+            author.isInternal === true ||
+            (author.affiliation && homeVariants.length && isAffiliationMatch(author.affiliation, homeVariants))
+          );
+      return {
+        author,
+        authorUserId: linkedUser?.id || null,
+        mappedAuthorType: this._mapAuthorRole(author),
+        isInternalAuthor,
+        // Students earn money but no points: a student author type or a linked student account.
+        isStudent: author.authorType === 'internal_student' || author.isStudent === true || linkedUser?.role === 'student',
+        authorCategory: this._resolveAuthorCategory(author.authorType),
+        // Same value that is stored as authorPosition, which approval reads back.
+        position: Number(author.authorPosition || author.orderNumber || 1) || 1,
+      };
+    });
 
-        const authorIncentive = await calculator.calculate({
-          contributionData: incentiveContributionData,
-          publicationType,
-          authorRole: mappedAuthorType,
-          isStudent: authorIsStudent,
-          sjrValue: Number(sjr) || 0,
-          coAuthorCount: authorComposition.internalCoAuthorCount + authorComposition.externalCoAuthorCount,
-          totalAuthors: totalAuthorCount,
-          isInternal: isInternalAuthor,
-          internalCoAuthorCount: authorComposition.internalCoAuthorCount,
-          externalFirstCorrespondingPct: authorComposition.externalFirstCorrespondingPct,
-          internalEmployeeCoAuthorCount: authorComposition.internalEmployeeCoAuthorCount
-        });
+    const shares = await computeAuthorShares(this.prisma, {
+      contributionData: toIncentiveInput(data),
+      publicationType: data.publicationType,
+      authors: enriched.map((e) => ({
+        role: e.mappedAuthorType, isInternal: e.isInternalAuthor, isStudent: e.isStudent, position: e.position,
+      })),
+    });
+    return { enriched, shares };
+  }
 
-        return {
-          authorUserId,
-          mappedAuthorType,
-          isInternalAuthor,
-          authorCategory,
-          authorIncentive,
-          author,
-        };
-      })
-    );
+  /**
+   * Write the author rows with their shares. `submitted` is a _computeSubmittedShares result
+   * already computed for this data (create); otherwise it is computed here (edit, import).
+   */
+  async _createAuthors(contributionId, data, submitted = null) {
+    const { authors = [], userId } = data;
+    if (!authors.length) return;
+
+    const { enriched, shares } = submitted || await this._computeSubmittedShares(data);
+    const t = (v, max) => (v ? String(v).substring(0, max) : v);
+    const enrichedAuthors = enriched.map((e, i) => ({
+      ...e,
+      authorIncentive: { incentiveAmount: shares.authors[i].incentive, points: shares.authors[i].points },
+    }));
 
     // Batch insert all authors with createMany (single DB round-trip)
     await this.prisma.researchContributionAuthor.createMany({
@@ -724,8 +766,10 @@ class ContributionService {
       updateData.subsidiaryImpactFactor = updateData.impactFactor;
     }
 
-    const { authors, applicantDetails, mentorUid, schoolId, departmentId,
-      targetedResearchType: _t, citationIndex: _c, ...contributionData } = updateData;
+    const { authors, applicantDetails, mentorUid } = updateData;
+    // Mass-assignment guard: only applicant-editable publication fields reach the update.
+    // School/department go through _resolveSchoolAndDepartment below.
+    const contributionData = pickAllowed(updateData, APPLICANT_EDITABLE_FIELDS);
 
     const booleanFields = ['communicatedWithOfficialId','isPresenter','virtualConference','fullPaper',
       'conferenceHeldAtSgt','conferenceBestPaperAward','industryCollaboration','centralFacilityUsed',
@@ -738,6 +782,20 @@ class ContributionService {
       delete contributionData.sdgGoals;
     }
     if (contributionData.quartile) contributionData.quartile = this._normalizeQuartile(contributionData.quartile);
+    if ('ugcCareListed' in contributionData || 'ugcCareGroup' in contributionData) {
+      const { ugcCareListed, ugcCareGroup } = contributionData;
+      delete contributionData.ugcCareListed;
+      delete contributionData.ugcCareGroup;
+      // A group can only be sent together with "listed" (or when it is already listed)
+      const listed = ugcCareListed !== undefined ? ugcCareListed
+        : (ugcCareGroup ? (contribution.ugcCareListed === true ? true : undefined) : undefined);
+      Object.assign(contributionData, normalizeUgcCare(listed, ugcCareGroup, { partial: true }));
+    }
+    // Scopus / Web of Science indexing implies UGC-CARE Group II, whatever was sent.
+    if (contribution.publicationType === 'research_paper') {
+      const implied = ugcCareFromIndexing(contributionData.indexingCategories ?? contribution.indexingCategories);
+      if (implied) Object.assign(contributionData, implied);
+    }
 
     const resolvedIds = await this._resolveSchoolAndDepartment({ ...updateData, userId });
     let schoolOperation = {};
@@ -753,16 +811,24 @@ class ContributionService {
       ...contributionData, ...schoolOperation, ...departmentOperation, updatedAt: new Date()
     }, { applicantDetails: true, authors: { orderBy: { authorOrder: 'asc' } }, school: true, department: true });
 
-    const updatedApplicantDetails = { ...(applicantDetails || {}), ...(mentorUid !== undefined ? { mentorUid } : {}) };
+    const updatedApplicantDetails = {
+      ...pickAllowed(applicantDetails, APPLICANT_DETAILS_EDITABLE_FIELDS),
+      ...(mentorUid !== undefined ? { mentorUid } : {}),
+    };
     if (Object.keys(updatedApplicantDetails).length > 0 && contribution.applicantDetails) {
       await this.prisma.researchContributionApplicantDetails.update({
         where: { id: contribution.applicantDetails.id }, data: updatedApplicantDetails
       });
+    } else if (Object.keys(updatedApplicantDetails).length > 0) {
+      await this._createApplicantDetails(id, updatedApplicantDetails);
     }
 
     if (authors && Array.isArray(authors)) {
       await this.prisma.researchContributionAuthor.deleteMany({ where: { researchContributionId: id } });
-      await this._createAuthors(id, { ...updateData, userId, publicationType: contribution.publicationType });
+      // Shares are computed from the saved publication fields overlaid with this edit, so a
+      // partial edit (authors only) still uses the stored indexing / date / book fields.
+      const { authors: _storedAuthors, applicantDetails: _storedDetails, ...storedFields } = contribution;
+      await this._createAuthors(id, { ...storedFields, ...updateData, userId, publicationType: contribution.publicationType });
     }
 
     // Audit: log update
@@ -770,9 +836,11 @@ class ContributionService {
       this.auditLogger.logResearchUpdate(contribution, updated, userId, null, 'Updated research contribution').catch(() => {});
     }
 
-    return this.repo.findById(id, {
+    const result = await this.repo.findById(id, {
       applicantDetails: true, authors: { orderBy: { authorOrder: 'asc' } }, school: true, department: true
     });
+    const incentiveWarning = await this._incentiveWarningFor(result);
+    return incentiveWarning ? { ...result, incentiveWarning } : result;
   }
 
   // ─── Submit ──────────────────────────────────────────────────────────────
@@ -786,17 +854,30 @@ class ContributionService {
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can submit this contribution'); e.statusCode = 403; throw e; }
     if (contribution.status !== 'draft') { const e = new Error(`Cannot submit contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
+    // One claim per work per university: a co-author's earlier claim blocks this one.
+    const { workKey, titleWorkKey } = await assertNoActiveClaim(contribution, this.prisma ? { client: this.prisma } : undefined);
+
     const isStudent = contribution.applicantUser?.studentLogin?.id || contribution.applicantUser?.role?.toLowerCase() === 'student';
-    const hasMentor = contribution.applicantDetails?.mentorUid || contribution.applicantDetails?.mentorName;
     let newStatus = 'submitted';
     let statusMessage = 'Submitted for DRD review';
     let mentorId = null;
 
-    if (isStudent && hasMentor && contribution.applicantDetails?.mentorUid) {
-      newStatus = 'pending_mentor_approval';
-      statusMessage = 'Submitted for mentor approval';
-      const mentor = await this.prisma.userLogin.findFirst({ where: { uid: contribution.applicantDetails.mentorUid } });
-      if (mentor) mentorId = mentor.id;
+    if (isStudent) {
+      const mentor = await this._resolveStudentMentor(contribution.applicantUserId, contribution.applicantDetails?.mentorUid);
+      if (mentor) {
+        newStatus = 'pending_mentor_approval';
+        statusMessage = 'Submitted for mentor approval';
+        mentorId = mentor.id;
+        if (contribution.applicantDetails?.mentorUid !== mentor.uid) {
+          // Record the (assigned) mentor so the mentor's queue and checks find it.
+          if (contribution.applicantDetails?.id) {
+            await this.prisma.researchContributionApplicantDetails.update({ where: { id: contribution.applicantDetails.id }, data: { mentorUid: mentor.uid } });
+          } else {
+            await this._createApplicantDetails(id, { mentorUid: mentor.uid });
+          }
+          contribution.applicantDetails = { ...(contribution.applicantDetails || {}), mentorUid: mentor.uid };
+        }
+      }
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -809,7 +890,10 @@ class ContributionService {
         data: {
           status: newStatus,
           submittedAt: new Date(),
-          ...(mentorId && { mentorId }),
+          workKey,
+          titleWorkKey,
+          // The mentor is identified by applicantDetails.mentorUid; there is no mentorId column
+          // on ResearchContribution (writing one made every student-with-mentor submission fail).
         },
       });
 
@@ -845,11 +929,57 @@ class ContributionService {
     }
 
     await this._dispatchStatusAudit(updated, 'draft', newStatus, userId, request, statusMessage);
+    if (newStatus === 'submitted') await this._notifyDrdOfSubmission({ ...contribution, ...updated });
 
     return {
-      message: isStudent && hasMentor ? 'Research contribution submitted to mentor for approval' : 'Research contribution submitted for DRD review',
+      message: newStatus === 'pending_mentor_approval' ? 'Research contribution submitted to mentor for approval' : 'Research contribution submitted for DRD review',
       data: updated
     };
+  }
+
+
+  /**
+   * Tell DRD a contribution is waiting in their queue: every active DRD member holding the
+   * review or approve permission for this publication type, limited to their assigned schools
+   * when they have any. Never the applicant. Failures are logged, never thrown.
+   */
+  async _notifyDrdOfSubmission(contribution, { resubmitted = false } = {}) {
+    try {
+      const type = contribution.publicationType;
+      const keyPrefix = { research_paper: 'research', book: 'book', book_chapter: 'book', conference_paper: 'conference', grant_proposal: 'grant' }[type] || 'research';
+      const schoolField = { research: 'assignedResearchSchoolIds', book: 'assignedBookSchoolIds', conference: 'assignedConferenceSchoolIds', grant: 'assignedGrantSchoolIds' }[keyPrefix];
+      const drd = await this.prisma.centralDepartment.findFirst({
+        where: { OR: [{ departmentCode: 'DRD' }, { departmentCode: 'drd' }, { shortName: 'DRD' }] },
+        select: { id: true },
+      });
+      if (!drd) return;
+      const rows = await this.prisma.centralDepartmentPermission.findMany({
+        where: { centralDeptId: drd.id, isActive: true, user: { status: 'active' } },
+        select: { userId: true, permissions: true, [schoolField]: true },
+      });
+      const label = { research_paper: 'Research paper', book: 'Book', book_chapter: 'Book chapter', conference_paper: 'Conference paper', grant_proposal: 'Grant proposal' }[type] || 'Contribution';
+      const recipients = rows.filter((r) => {
+        if (r.userId === contribution.applicantUserId) return false;
+        const perms = r.permissions || {};
+        // DRD staff review every publication type under research_*; type-specific keys also count.
+        const canAct = perms[`${keyPrefix}_review`] || perms[`${keyPrefix}_approve`] || perms.research_review || perms.research_approve;
+        if (!canAct) return false;
+        const schools = (r[schoolField] || []).filter(Boolean);
+        return schools.length === 0 || (contribution.schoolId && schools.includes(contribution.schoolId));
+      });
+      for (const r of recipients) {
+        await this._dispatchNotification({
+          userId: r.userId,
+          type: resubmitted ? 'research_resubmitted_for_review' : 'research_submitted_for_review',
+          title: resubmitted ? `${label} resubmitted` : `New ${label.toLowerCase()} to review`,
+          message: `"${contribution.title}" (${contribution.applicationNumber || 'new'}) is waiting for DRD review.`,
+          metadata: { contributionId: contribution.id, applicationType: 'research_contribution', applicationNumber: contribution.applicationNumber },
+        });
+      }
+    } catch (error) {
+      // Notifications must never block a submission.
+      logger.warn('[research] DRD submission notification failed:', error.message);
+    }
   }
 
   // ─── Mentor actions ──────────────────────────────────────────────────────
@@ -860,7 +990,7 @@ class ContributionService {
     if (contribution.status !== 'pending_mentor_approval') { const e = new Error(`Cannot approve contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
     const mentor = await this.prisma.userLogin.findUnique({ where: { id: mentorId } });
-    if (!mentor || mentor.uid !== contribution.applicantDetails?.mentorUid) {
+    if (!mentor || mentor.uid !== contribution.applicantDetails?.mentorUid || mentor.id === contribution.applicantUserId) {
       const e = new Error('Only the assigned mentor can approve this contribution'); e.statusCode = 403; throw e;
     }
 
@@ -910,6 +1040,7 @@ class ContributionService {
       request,
       comments || 'Approved by mentor, forwarded to DRD'
     );
+    await this._notifyDrdOfSubmission({ ...contribution, ...updated });
     return updated;
   }
 
@@ -919,7 +1050,7 @@ class ContributionService {
     if (contribution.status !== 'pending_mentor_approval') { const e = new Error(`Cannot reject contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
     const mentor = await this.prisma.userLogin.findUnique({ where: { id: mentorId } });
-    if (!mentor || mentor.uid !== contribution.applicantDetails?.mentorUid) {
+    if (!mentor || mentor.uid !== contribution.applicantDetails?.mentorUid || mentor.id === contribution.applicantUserId) {
       const e = new Error('Only the assigned mentor can reject this contribution'); e.statusCode = 403; throw e;
     }
 
@@ -972,8 +1103,23 @@ class ContributionService {
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can resubmit this contribution'); e.statusCode = 403; throw e; }
     if (contribution.status !== 'changes_required') { const e = new Error(`Cannot resubmit contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
+    // Who asked for the changes? If it was the mentor, the work goes back to the mentor, not DRD.
+    const lastChangeRequest = await this.prisma.researchContributionStatusHistory.findFirst({
+      where: { researchContributionId: id, toStatus: 'changes_required' },
+      orderBy: { changedAt: 'desc' },
+      select: { changedById: true },
+    });
+    const details = await this.prisma.researchContributionApplicantDetails.findFirst({
+      where: { researchContributionId: id }, select: { mentorUid: true },
+    });
+    const mentorUser = details?.mentorUid
+      ? await this.prisma.userLogin.findFirst({ where: { uid: details.mentorUid }, select: { id: true } })
+      : null;
+    const backToMentor = Boolean(mentorUser && lastChangeRequest?.changedById === mentorUser.id);
+    const nextStatus = backToMentor ? 'pending_mentor_approval' : 'resubmitted';
+
     // Find the last reviewer who requested changes so they are auto-assigned for re-review
-    const lastChangesReview = await this.prisma.researchContributionReview.findFirst({
+    const lastChangesReview = backToMentor ? null : await this.prisma.researchContributionReview.findFirst({
       where: { researchContributionId: id, decision: 'changes_required' },
       orderBy: { reviewedAt: 'desc' },
     });
@@ -987,7 +1133,7 @@ class ContributionService {
           status: 'changes_required',
         },
         data: {
-          status: 'resubmitted',
+          status: nextStatus,
           revisionCount: (contribution.revisionCount || 0) + 1,
           currentReviewerId: originalReviewerId,
         },
@@ -1003,9 +1149,9 @@ class ContributionService {
         data: {
           researchContributionId: id,
           fromStatus: 'changes_required',
-          toStatus: 'resubmitted',
+          toStatus: nextStatus,
           changedById: userId,
-          comments: comments || 'Resubmitted after making requested changes',
+          comments: comments || (backToMentor ? 'Resubmitted to mentor after making requested changes' : 'Resubmitted after making requested changes'),
         },
       });
 
@@ -1013,7 +1159,24 @@ class ContributionService {
     });
 
     // Audit: log resubmission status change
-    this._dispatchStatusAudit(updated, 'changes_required', 'resubmitted', userId, null, comments || 'Resubmitted after making requested changes').catch(() => {});
+    this._dispatchStatusAudit(updated, 'changes_required', nextStatus, userId, null, comments || 'Resubmitted after making requested changes').catch(() => {});
+    if (backToMentor) {
+      await this._dispatchNotification({
+        userId: mentorUser.id, type: 'research_mentor_review',
+        title: 'Research resubmitted for your approval',
+        message: `"${contribution.title}" was updated by the student and is waiting for your approval again.`,
+        metadata: { contributionId: id, applicationType: 'research_contribution', applicationNumber: contribution.applicationNumber },
+      }).catch(() => {});
+    } else if (originalReviewerId) {
+      await this._dispatchNotification({
+        userId: originalReviewerId, type: 'research_resubmitted_for_review',
+        title: 'Changes made — ready for re-review',
+        message: `"${contribution.title}" (${contribution.applicationNumber}) was resubmitted after the changes you requested.`,
+        metadata: { contributionId: id, applicationType: 'research_contribution', applicationNumber: contribution.applicationNumber },
+      }).catch(() => {});
+    } else {
+      await this._notifyDrdOfSubmission({ ...contribution, ...updated }, { resubmitted: true });
+    }
 
     return updated;
   }
@@ -1045,25 +1208,6 @@ class ContributionService {
       if (user) authorUserId = user.id;
     }
 
-    const activePolicy = await this.prisma.researchIncentivePolicy.findFirst({
-      where: { publicationType: 'research_paper', isActive: true },
-      select: { first_author_percentage: true, corresponding_author_percentage: true }
-    });
-    if (!activePolicy?.first_author_percentage || !activePolicy?.corresponding_author_percentage) {
-      const e = new Error('No active research policy configured. Please configure policy in admin panel.'); e.statusCode = 500; throw e;
-    }
-
-    const calculator = new IncentiveCalculator(this.prisma);
-    const authorIncentive = await calculator.calculate({
-      contributionData: contribution,
-      publicationType: contribution.publicationType,
-      authorRole: authorData.authorRole || 'co_author',
-      isStudent: authorData.authorType === 'internal_student',
-      sjrValue: Number(contribution.sjr) || 0,
-      coAuthorCount: 1, totalAuthors: 2, isInternal: authorData.authorType?.startsWith('internal_') !== false,
-      internalCoAuthorCount: 1, externalFirstCorrespondingPct: 0, internalEmployeeCoAuthorCount: 1
-    });
-
     const author = await this.prisma.researchContributionAuthor.create({
       data: {
         researchContributionId: id, userId: authorUserId,
@@ -1079,10 +1223,14 @@ class ContributionService {
         addressesEnvironmental: authorData.addressesEnvironmental || false, addressesIndustrial: authorData.addressesIndustrial || false,
         addressesBusiness: authorData.addressesBusiness || false, addressesConceptual: authorData.addressesConceptual || false,
         isNewsworthy: authorData.isNewsworthy || false,
-        incentiveShare: authorIncentive.incentiveAmount, pointsShare: authorIncentive.points,
+        incentiveShare: 0, pointsShare: 0,
         canView: true, canEdit: false
       }
     });
+    // Every author's share depends on the whole author list, so all of them are recomputed.
+    const shares = await this._recomputeStoredShares(id);
+    const share = shares?.find((s) => s.id === author.id);
+    if (share) Object.assign(author, { incentiveShare: share.incentiveShare, pointsShare: share.pointsShare });
 
     const authorCount = await this.prisma.researchContributionAuthor.count({ where: { researchContributionId: id } });
     await this.repo.update(id, { totalAuthors: authorCount + 1 });
@@ -1105,7 +1253,14 @@ class ContributionService {
   async updateAuthor(id, authorId, userId, data) {
     const contribution = await this.repo.findFirst({ id, applicantUserId: userId, status: { in: ['draft', 'changes_required'] } });
     if (!contribution) { const e = new Error('Contribution not found or cannot be edited'); e.statusCode = 404; throw e; }
-    const updatedAuthor = await this.prisma.researchContributionAuthor.update({ where: { id: authorId }, data });
+    // The author must belong to THIS contribution (not any author row in the university)
+    const author = await this.prisma.researchContributionAuthor.findFirst({
+      where: { id: authorId, researchContributionId: id }, select: { id: true }
+    });
+    if (!author) { const e = new Error('Author not found'); e.statusCode = 404; throw e; }
+    const updatedAuthor = await this.prisma.researchContributionAuthor.update({
+      where: { id: author.id }, data: pickAllowed(data, AUTHOR_EDITABLE_FIELDS)
+    });
 
     // Audit: log author update
     if (this.auditLogger?.logResearchUpdate) {
@@ -1119,15 +1274,47 @@ class ContributionService {
     const contribution = await this.repo.findById(id);
     if (!contribution) { const e = new Error('Research contribution not found'); e.statusCode = 404; throw e; }
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can remove authors'); e.statusCode = 403; throw e; }
-    const removedAuthor = await this.prisma.researchContributionAuthor.findUnique({ where: { id: authorId }, select: { name: true, uid: true } });
-    await this.prisma.researchContributionAuthor.delete({ where: { id: authorId } });
+    // The author must belong to THIS contribution (not any author row in the university)
+    const removedAuthor = await this.prisma.researchContributionAuthor.findFirst({
+      where: { id: authorId, researchContributionId: id }, select: { id: true, name: true, uid: true }
+    });
+    if (!removedAuthor) { const e = new Error('Author not found'); e.statusCode = 404; throw e; }
+    await this.prisma.researchContributionAuthor.delete({ where: { id: removedAuthor.id } });
     const authorCount = await this.prisma.researchContributionAuthor.count({ where: { researchContributionId: id } });
     await this.repo.update(id, { totalAuthors: authorCount + 1 });
+    await this._recomputeStoredShares(id);
 
     // Audit: log author removal
     if (this.auditLogger?.logResearchUpdate) {
       this.auditLogger.logResearchUpdate({ id, title: contribution.title }, { id, authorRemoved: removedAuthor?.name || removedAuthor?.uid || authorId }, userId, null, `Removed author: ${removedAuthor?.name || removedAuthor?.uid || authorId}`).catch(() => {});
     }
+  }
+
+  /**
+   * Recompute and store every author's share of a contribution from its stored rows (after
+   * an author is added or removed), with the same computation approval uses.
+   * @returns {Promise<Array<{id, incentiveShare, pointsShare}>|null>}
+   */
+  async _recomputeStoredShares(contributionId) {
+    const contribution = await this.prisma.researchContribution.findUnique({
+      where: { id: contributionId },
+      include: { authors: { orderBy: { authorOrder: 'asc' } } },
+    });
+    if (!contribution?.authors?.length) return null;
+    const shares = await computeAuthorShares(this.prisma, {
+      contributionData: toIncentiveInput(contribution),
+      publicationType: contribution.publicationType,
+      authors: await storedAuthorsForShares(this.prisma, contribution.authors),
+    });
+    const updated = contribution.authors.map((a, i) => ({
+      id: a.id, incentiveShare: shares.authors[i].incentive, pointsShare: shares.authors[i].points,
+    }));
+    for (const row of updated) {
+      await this.prisma.researchContributionAuthor.update({
+        where: { id: row.id }, data: { incentiveShare: row.incentiveShare, pointsShare: row.pointsShare },
+      });
+    }
+    return updated;
   }
 
   // ─── Lookup ──────────────────────────────────────────────────────────────

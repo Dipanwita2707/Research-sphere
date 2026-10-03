@@ -212,7 +212,7 @@ export function PeopleTab({ overview, isAdmin, roleFilter, onRoleFilterChange, o
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-white/10">
                 <th className="w-10 py-3 pl-4">
-                  <input type="checkbox" aria-label="Select all on this page" className="h-4 w-4 accent-[#841C43]" checked={allSelected} disabled={!selectable.length} onChange={toggleAll} />
+                  <input type="checkbox" aria-label="Select all on this page" className="h-4 w-4 accent-wine" checked={allSelected} disabled={!selectable.length} onChange={toggleAll} />
                 </th>
                 <th className="py-3 pr-3 font-semibold">Person</th>
                 <th className="hidden py-3 pr-3 font-semibold sm:table-cell">Type</th>
@@ -226,7 +226,7 @@ export function PeopleTab({ overview, isAdmin, roleFilter, onRoleFilterChange, o
               {rows.map((r) => (
                 <tr key={r.userId} className={selected.has(r.userId) ? 'bg-brand-50/40 dark:bg-brand-600/5' : 'hover:bg-slate-50/70 dark:hover:bg-white/[0.02]'}>
                   <td className="py-3 pl-4">
-                    <input type="checkbox" aria-label={`Select ${r.name}`} className="h-4 w-4 accent-[#841C43] disabled:opacity-30" checked={selected.has(r.userId)} disabled={r.isAdmin} onChange={() => toggleRow(r.userId)} />
+                    <input type="checkbox" aria-label={`Select ${r.name}`} className="h-4 w-4 accent-wine disabled:opacity-30" checked={selected.has(r.userId)} disabled={r.isAdmin} onChange={() => toggleRow(r.userId)} />
                   </td>
                   <td className="py-3 pr-3">
                     <button type="button" onClick={() => setDrawerUser(r)} className="flex items-center gap-3 text-left">
@@ -293,7 +293,7 @@ export function PeopleTab({ overview, isAdmin, roleFilter, onRoleFilterChange, o
               </option>
             ))}
           </select>
-          <button type="button" onClick={() => runBulk('add')} disabled={!bulkRole || bulkBusy} className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400">
+          <button type="button" onClick={() => runBulk('add')} disabled={!bulkRole || bulkBusy} className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-medium text-wine-fg hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400">
             {bulkBusy && <Loader2 className="h-4 w-4 animate-spin" />} Give role
           </button>
           <button type="button" onClick={() => runBulk('remove')} disabled={!bulkRole || bulkBusy} className="h-9 rounded-lg px-3 text-sm text-red-600 hover:bg-red-50 disabled:opacity-40 dark:hover:bg-red-500/10">

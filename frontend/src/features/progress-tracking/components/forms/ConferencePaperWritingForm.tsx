@@ -139,7 +139,7 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Total No. of Presenter's</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Total No. of Presenter&apos;s</label>
                   <input
                     type="number"
                     value={(data.totalPresenters as number) || ''}
@@ -401,7 +401,7 @@ export default function ConferencePaperWritingForm({ data, onChange }: Conferenc
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
                     placeholder="Enter your personal email address"
                   />
-                  <p className="text-xs text-orange-600 mt-1">Since you haven't communicated with official ID, please provide your personal email.</p>
+                  <p className="text-xs text-orange-600 mt-1">Since you haven&apos;t communicated with official ID, please provide your personal email.</p>
                 </div>
               )}
             </div>

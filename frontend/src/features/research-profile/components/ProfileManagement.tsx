@@ -18,7 +18,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import type { ProfileData, Publication } from '@/shared/types/research-profile.types';
-import { mockResearchProfileAPI } from '@/mocks/research-profile-api';
+import ProfilePrivacySettings from './ProfilePrivacySettings';
 import {
   researchProfileService,
   type ManualProfileImportPublication,
@@ -73,7 +73,7 @@ export default function ProfileManagement({
   };
 
   const tabs = [
-    { id: 'visibility' as ManagementTab, label: 'Privacy & Visibility', icon: <Eye className="w-4 h-4" /> },
+    { id: 'visibility' as ManagementTab, label: 'Profile & privacy', icon: <Eye className="w-4 h-4" /> },
     { id: 'publications' as ManagementTab, label: 'Publications', icon: <FileText className="w-4 h-4" /> },
     { id: 'sync' as ManagementTab, label: 'Sync Settings', icon: <Sync className="w-4 h-4" /> },
     { id: 'export' as ManagementTab, label: 'Export Data', icon: <Download className="w-4 h-4" /> },
@@ -115,7 +115,7 @@ export default function ProfileManagement({
               onClick={() => setActiveTab(tab.id)}
               className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-[#7d1a34] text-[#7d1a34] dark:text-[#c8973f]'
+                  ? 'border-wine text-wine dark:text-gold'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
@@ -129,12 +129,9 @@ export default function ProfileManagement({
       {/* Tab Content */}
       <div className="p-6">
         {activeTab === 'visibility' && (
-          <VisibilitySettings 
-            profileData={profileData}
-            onUpdate={onProfileUpdate}
+          <ProfilePrivacySettings
+            userId={currentUserId}
             onMessage={showMessage}
-            loading={loading}
-            setLoading={setLoading}
           />
         )}
         
@@ -170,142 +167,6 @@ export default function ProfileManagement({
             setLoading={setLoading}
           />
         )}
-      </div>
-    </div>
-  );
-}
-
-// Visibility Settings Component
-function VisibilitySettings({ 
-  profileData, 
-  onUpdate, 
-  onMessage, 
-  loading, 
-  setLoading 
-}: {
-  profileData: ProfileData;
-  onUpdate: (profile: ProfileData) => void;
-  onMessage: (type: 'success' | 'error', text: string) => void;
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-}) {
-  const [settings, setSettings] = useState(profileData.profile.visibility);
-
-  const handleSave = async () => {
-    try {
-      setLoading(true);
-      const updated = await mockResearchProfileAPI.updateVisibilitySettings(
-        profileData.user.uid, 
-        settings
-      );
-      onUpdate(updated);
-      onMessage('success', 'Visibility settings updated successfully');
-    } catch (error) {
-      logger.error('Failed to update visibility settings:', error);
-      onMessage('error', 'Failed to update visibility settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const visibilityOptions = [
-    { value: 'public', label: 'Public', description: 'Visible to everyone' },
-    { value: 'institution', label: 'Institution Only', description: 'Visible to ResearchSphere members only' },
-    { value: 'private', label: 'Private', description: 'Only visible to you' },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Profile Visibility
-        </h3>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Overall Profile Visibility
-            </label>
-            <div className="space-y-2">
-              {visibilityOptions.map((option) => (
-                <label key={option.value} className="flex items-start gap-3">
-                  <input
-                    type="radio"
-                    name="profileVisibility"
-                    value={option.value}
-                    checked={settings.profile === option.value}
-                    onChange={(e) => setSettings(prev => ({ ...prev, profile: e.target.value as any }))}
-                    className="mt-1 text-[#7d1a34] focus:ring-[#7d1a34]"
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {option.label}
-                    </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      {option.description}
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-              Section Visibility
-            </h4>
-            <div className="space-y-3">
-              {[
-                { key: 'showEmail', label: 'Email Address' },
-                { key: 'showPhone', label: 'Phone Number' },
-                { key: 'showResearchInterests', label: 'Research Interests' },
-                { key: 'showPublications', label: 'Publications List' },
-                { key: 'showCoAuthors', label: 'Co-Authors Network' },
-                { key: 'showMetrics', label: 'Citation Metrics' },
-              ].map((item) => (
-                <label key={item.key} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {item.label}
-                  </span>
-                  <button
-                    onClick={() => setSettings(prev => ({ 
-                      ...prev, 
-                      [item.key]: !prev[item.key as keyof typeof prev] 
-                    }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      settings[item.key as keyof typeof settings]
-                        ? 'bg-[#7d1a34]'
-                        : 'bg-gray-200 dark:bg-gray-700'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        settings[item.key as keyof typeof settings]
-                          ? 'translate-x-6'
-                          : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
-        >
-          {loading ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {loading ? 'Saving...' : 'Save Changes'}
-        </button>
       </div>
     </div>
   );
@@ -410,7 +271,7 @@ function PublicationManagement({
         </h3>
         <button
           onClick={() => setShowAddForm(true)}
-          className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] flex items-center gap-2"
+          className="px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Add Publication
@@ -432,7 +293,7 @@ function PublicationManagement({
                     return (
                       <span
                         key={idx}
-                        className="hover:text-[#7d1a34] dark:hover:text-[#c8973f] cursor-help transition-colors text-sm"
+                        className="hover:text-wine dark:hover:text-gold cursor-help transition-colors text-sm"
                         title={a.affiliation || 'No affiliation data'}
                       >
                         {a.name}{!isLast && ','}
@@ -493,7 +354,7 @@ function PublicationManagement({
             type="button"
             disabled={loading}
             onClick={() => bibInputRef.current?.click()}
-            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#7d1a34] transition-colors disabled:opacity-50"
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-wine transition-colors disabled:opacity-50"
           >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">BibTeX</div>
@@ -503,7 +364,7 @@ function PublicationManagement({
             type="button"
             disabled={loading}
             onClick={() => risInputRef.current?.click()}
-            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#7d1a34] transition-colors disabled:opacity-50"
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-wine transition-colors disabled:opacity-50"
           >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">RIS</div>
@@ -513,7 +374,7 @@ function PublicationManagement({
             type="button"
             disabled={loading}
             onClick={() => csvInputRef.current?.click()}
-            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#7d1a34] transition-colors disabled:opacity-50"
+            className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-wine transition-colors disabled:opacity-50"
           >
             <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <div className="text-sm font-medium text-gray-900 dark:text-white">CSV</div>
@@ -636,7 +497,7 @@ function SyncSettings({
   const handleManualSync = async (source: 'orcid' | 'scopus' | 'openalex' | 'all') => {
     try {
       setLoading(true);
-      // Persist filter/sync toggles before sync so a checked "SGT only" box
+      // Persist filter/sync toggles before sync so a checked "my university only" box
       // is applied even if the user did not click Save Settings first.
       const settingsPayload = canEditResearchIdentityIds
         ? formState
@@ -659,9 +520,12 @@ function SyncSettings({
         syncError: result.failedCount > 0 ? `${result.failedCount} publication(s) failed during sync` : null,
       });
       await loadImportRuns();
+      const skippedSources = (result.errors || [])
+        .filter((item: { skipped?: boolean; message?: string }) => item.skipped && item.message)
+        .map((item: { message?: string }) => item.message);
       onMessage(
         'success',
-        `Sync completed: ${result.createdCount} created, ${result.updatedCount} updated, ${result.skippedCount || 0} skipped (non-SGT), ${result.specialReviewCount} flagged for special review`
+        `Sync completed: ${result.createdCount} created, ${result.updatedCount} updated, ${result.skippedCount || 0} skipped (unchanged, or not affiliated with your university), ${result.specialReviewCount} flagged for special review${skippedSources.length ? `. ${skippedSources.join(' ')}` : ''}`
       );
     } catch (error) {
       logger.error('Sync failed:', error);
@@ -678,14 +542,14 @@ function SyncSettings({
           Publication Automation
         </h3>
         
-        <div className="bg-[#fdf5ec] dark:bg-[#7d1a34]/10 border border-[#f0e2d2] dark:border-[#5e1024] rounded-lg p-4 mb-6">
+        <div className="bg-blush dark:bg-wine/10 border border-blush-line dark:border-wine-dark rounded-lg p-4 mb-6">
           <div className="flex items-start gap-3">
-            <Clock className="w-5 h-5 text-[#7d1a34] dark:text-[#c8973f] mt-0.5" />
+            <Clock className="w-5 h-5 text-wine dark:text-gold mt-0.5" />
             <div>
-              <div className="text-sm font-medium text-[#7d1a34] dark:text-[#c8973f]">
+              <div className="text-sm font-medium text-wine dark:text-gold">
                 Last Sync: {profileData.profile.lastSyncedAt ? new Date(profileData.profile.lastSyncedAt).toLocaleString() : 'Never'}
               </div>
-              <div className="text-xs text-[#7d1a34] dark:text-[#c8973f] mt-1">
+              <div className="text-xs text-wine dark:text-gold mt-1">
                 Status: {profileData.profile.syncStatus}
               </div>
             </div>
@@ -709,7 +573,7 @@ function SyncSettings({
               value={formState.orcid}
               onChange={(e) => setFormState((prev) => ({ ...prev, orcid: e.target.value }))}
               placeholder="0000-0000-0000-0000"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-wine focus:outline-none focus:ring-2 focus:ring-blue-100 ${
                 !canEditResearchIdentityIds ? 'bg-gray-50 text-gray-600 cursor-not-allowed dark:bg-gray-900/40' : ''
               }`}
             />
@@ -724,7 +588,7 @@ function SyncSettings({
               value={formState.scopusAuthorId}
               onChange={(e) => setFormState((prev) => ({ ...prev, scopusAuthorId: e.target.value }))}
               placeholder="Scopus author identifier"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-wine focus:outline-none focus:ring-2 focus:ring-blue-100 ${
                 !canEditResearchIdentityIds ? 'bg-gray-50 text-gray-600 cursor-not-allowed dark:bg-gray-900/40' : ''
               }`}
             />
@@ -739,7 +603,7 @@ function SyncSettings({
               value={formState.webOfScienceId}
               onChange={(e) => setFormState((prev) => ({ ...prev, webOfScienceId: e.target.value }))}
               placeholder="Optional reviewer reference"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-wine focus:outline-none focus:ring-2 focus:ring-blue-100 ${
                 !canEditResearchIdentityIds ? 'bg-gray-50 text-gray-600 cursor-not-allowed dark:bg-gray-900/40' : ''
               }`}
             />
@@ -754,14 +618,14 @@ function SyncSettings({
                 min={1}
                 value={formState.syncFrequencyDays}
                 onChange={(e) => setFormState((prev) => ({ ...prev, syncFrequencyDays: Number(e.target.value) || 1 }))}
-                className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#7d1a34] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-wine focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
               <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                 <input
                   type="checkbox"
                   checked={formState.autoSyncEnabled}
                   onChange={(e) => setFormState((prev) => ({ ...prev, autoSyncEnabled: e.target.checked }))}
-                  className="rounded border-gray-300 text-[#7d1a34] focus:ring-[#7d1a34]"
+                  className="rounded border-gray-300 text-wine focus:ring-wine"
                 />
                 Enable auto sync
               </label>
@@ -770,9 +634,9 @@ function SyncSettings({
                   type="checkbox"
                   checked={formState.filterSgtOnly}
                   onChange={(e) => setFormState((prev) => ({ ...prev, filterSgtOnly: e.target.checked }))}
-                  className="rounded border-gray-300 text-[#7d1a34] focus:ring-[#7d1a34]"
+                  className="rounded border-gray-300 text-wine focus:ring-wine"
                 />
-                Filter SGT affiliated publications only
+                Only import publications affiliated with my university
               </label>
             </div>
           </div>
@@ -812,7 +676,7 @@ function SyncSettings({
               <button
                 onClick={() => handleManualSync('orcid')}
                 disabled={loading || !formState.orcid}
-                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -838,7 +702,7 @@ function SyncSettings({
               <button
                 onClick={() => handleManualSync('scopus')}
                 disabled={loading || !formState.scopusAuthorId}
-                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -855,13 +719,13 @@ function SyncSettings({
               <div>
                 <h4 className="font-medium text-gray-900 dark:text-white">OpenAlex</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Searches publications by faculty name and university affiliation.
+                  Finds your OpenAlex author profile through your ORCID or Scopus ID (never by name alone).
                 </p>
               </div>
               <button
                 onClick={() => handleManualSync('openalex')}
                 disabled={loading}
-                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -884,7 +748,7 @@ function SyncSettings({
               <button
                 onClick={() => handleManualSync('all')}
                 disabled={loading}
-                className="px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark disabled:opacity-50 flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -911,7 +775,7 @@ function SyncSettings({
                   <div key={run.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">{run.triggerType}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-[#fdf5ec] text-[#7d1a34] text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-blush text-wine text-xs">
                         {run.sourceSystems.join(', ') || 'manual'}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs ${

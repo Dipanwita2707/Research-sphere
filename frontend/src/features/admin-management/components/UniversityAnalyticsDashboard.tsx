@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3,
-  TrendingUp,
   Users,
   School,
   Building2,
@@ -12,17 +11,15 @@ import {
   FileText,
   Award,
   Presentation,
-  Calendar,
-  Filter,
   RefreshCw,
-  Download,
-  ChevronDown,
   Lightbulb,
   BookMarked,
   Shield,
   GraduationCap,
-  Trophy,
   FlaskConical,
+  RotateCcw,
+  SlidersHorizontal,
+  CalendarDays,
 } from 'lucide-react';
 import {
   analyticsService,
@@ -38,8 +35,16 @@ import {
 import { schoolService, School as SchoolType } from '@/features/admin-management/services/school.service';
 import { departmentService, Department } from '@/features/admin-management/services/department.service';
 import logger from '@/shared/utils/logger';
+import { AnalyticsBarChart, AnalyticsHero, AnalyticsPanel, AnalyticsShell, KpiCardGrid } from '@/components/analytics';
+import type { KpiCard } from '@/components/analytics/KpiCardGrid';
+import { VIZ, ui } from '@/components/analytics/theme';
 
 type ActiveTab = 'overview' | 'research' | 'ipr' | 'schools' | 'departments';
+
+const theadCls = 'bg-stone-50 dark:bg-gray-900/40';
+const tbodyCls = 'divide-y divide-stone-100 dark:divide-gray-700';
+const trCls = 'transition-colors hover:bg-stone-50 dark:hover:bg-gray-700/40';
+const numTd = 'px-4 py-3 text-right text-sm tabular-nums text-stone-700 dark:text-gray-200';
 
 export default function UniversityAnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
@@ -150,602 +155,580 @@ export default function UniversityAnalyticsDashboard() {
 
   if (loading && !overview) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-          <p className="text-gray-500 mt-3">Loading analytics...</p>
+      <AnalyticsShell>
+        <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8" aria-busy="true" aria-label="Loading analytics">
+          <div className="h-44 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+          <div className="h-14 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-24 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+            ))}
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="h-80 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+            <div className="h-80 animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+          </div>
         </div>
-      </div>
+      </AnalyticsShell>
     );
   }
 
+  const fmt = (n: number | undefined | null) => (n ?? 0).toLocaleString('en-IN');
+  const selectCls = `${ui.input} w-full min-w-0 sm:w-auto sm:max-w-[16rem] disabled:cursor-not-allowed disabled:opacity-60`;
+
+  const tabs: Array<{ id: ActiveTab; label: string; icon: React.ElementType }> = [
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'research', label: 'Research', icon: FlaskConical },
+    { id: 'ipr', label: 'IPR', icon: Lightbulb },
+    { id: 'schools', label: 'School-wise', icon: School },
+    { id: 'departments', label: 'Department-wise', icon: Building2 },
+  ];
+
+  const kpi = (icon: React.ElementType, label: string, value: number): KpiCard => {
+    const Icon = icon;
+    return { icon: <Icon />, label, value };
+  };
+
+  const iprTrendData = monthlyTrend.map((m) => ({ label: m.monthName, values: { ipr: m.total } }));
+  const categoryTrendKeys = [
+    { key: 'research', label: 'Papers' },
+    { key: 'book', label: 'Books' },
+    { key: 'chapters', label: 'Chapters' },
+    { key: 'conference', label: 'Conferences' },
+    { key: 'grants', label: 'Grants' },
+    { key: 'ipr', label: 'IPR' },
+  ];
+  const categoryTrendData = categoryTrend.map((m) => ({
+    label: m.monthName,
+    values: {
+      research: m.researchPapers,
+      book: m.books,
+      chapters: m.bookChapters,
+      conference: m.conferencePapers,
+      grants: m.grants,
+      ipr: m.ipr,
+    },
+  }));
+
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <BarChart3 className="w-7 h-7 text-blue-600" />
-            University Analytics Dashboard
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Comprehensive insights across schools, departments, research papers, books, conferences, grants, and IPR filings
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => fetchInitialData()}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+    <AnalyticsShell>
+      <AnalyticsHero
+        eyebrow="University analytics"
+        title="Research and IPR across the university"
+        description="Insights across schools, departments, research papers, books, conferences, grants and IPR filings."
+        actions={
+          <button onClick={() => fetchInitialData()} disabled={loading} className={ui.btnSecondary}>
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-        </div>
-      </div>
+        }
+        chips={
+          overview
+            ? [
+                { label: 'Schools', value: fmt(overview.university.schools.total) },
+                { label: 'Faculty', value: fmt(overview.users.employees.total) },
+                { label: 'Research papers', value: fmt(overview.categories?.researchPapers) },
+                { label: 'IPR filings', value: fmt(overview.ipr.total) },
+              ]
+            : undefined
+        }
+      />
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">School</label>
-            <div className="relative">
-              <School className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={selectedSchool}
-                onChange={(e) => setSelectedSchool(e.target.value)}
-                className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none bg-white text-sm"
-              >
-                <option value="">All Schools</option>
-                {schools.map(school => (
-                  <option key={school.id} value={school.id}>
-                    {school.shortName || school.facultyName}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+      <div className="sticky top-20 z-30 border-b border-stone-200 bg-white/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:border-gray-700 dark:bg-gray-800/90 sm:top-[5.5rem] sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500 dark:text-gray-400">
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filter
+          </span>
+          <select aria-label="School" value={selectedSchool} onChange={(e) => setSelectedSchool(e.target.value)} className={selectCls}>
+            <option value="">All schools</option>
+            {schools.map((school) => (
+              <option key={school.id} value={school.id}>
+                {school.shortName || school.facultyName}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Department"
+            value={selectedDepartment}
+            onChange={(e) => setSelectedDepartment(e.target.value)}
+            disabled={!selectedSchool}
+            className={selectCls}
+          >
+            <option value="">All departments</option>
+            {departments.map((dept) => (
+              <option key={dept.id} value={dept.id}>
+                {dept.departmentName}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4 text-stone-400 dark:text-gray-500" />
+            <input type="date" aria-label="From date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={ui.input} />
+            <span className="text-xs text-stone-400 dark:text-gray-500">to</span>
+            <input type="date" aria-label="To date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={ui.input} />
           </div>
-
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-                disabled={!selectedSchool}
-                className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none bg-white text-sm disabled:bg-gray-100"
-              >
-                <option value="">All Departments</option>
-                {departments.map(dept => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.departmentName}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-
-          <div className="flex-1 min-w-[140px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
-
-          <div className="flex-1 min-w-[140px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={applyFilters}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-            >
-              Apply
-            </button>
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm"
-            >
+          <div className="ml-auto flex items-center gap-2">
+            <button onClick={clearFilters} className={ui.btnSecondary}>
+              <RotateCcw className="h-3.5 w-3.5" />
               Clear
+            </button>
+            <button onClick={applyFilters} className={ui.btnPrimary}>
+              Apply
             </button>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 border-b border-gray-200 overflow-x-auto">
-        {[
-          { id: 'overview', label: 'Overview', icon: BarChart3 },
-          { id: 'research', label: 'Research Analytics', icon: FlaskConical },
-          { id: 'ipr', label: 'IPR Analytics', icon: Lightbulb },
-          { id: 'schools', label: 'School-wise', icon: School },
-          { id: 'departments', label: 'Department-wise', icon: Building2 },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as ActiveTab)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Overview Tab */}
-      {activeTab === 'overview' && overview && (
-        <div className="space-y-6">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <StatCard icon={School} label="Schools" value={overview.university.schools.total} color="blue" />
-            <StatCard icon={Building2} label="Departments" value={overview.university.departments.total} color="indigo" />
-            <StatCard icon={BookOpen} label="Programmes" value={overview.university.programmes.total} color="purple" />
-            <StatCard icon={Users} label="Faculty" value={overview.users.employees.total} color="green" />
-            <StatCard icon={GraduationCap} label="Students" value={overview.users.students.total} color="orange" />
-            <StatCard icon={FileText} label="IPR Filings" value={overview.ipr.total} color="pink" />
+      <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        {/* Tab navigation */}
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <div className="flex min-w-max gap-1 border-b border-stone-200 dark:border-gray-700" role="tablist" aria-label="Analytics sections">
+            {tabs.map((tab) => {
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                    active
+                      ? 'border-wine text-wine dark:border-amber dark:text-amber'
+                      : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          {/* Research output categories */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Research Output Categories</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <StatCard icon={FileText} label="Research Papers" value={overview.categories?.researchPapers || 0} color="blue" />
-              <StatCard icon={BookOpen} label="Books" value={overview.categories?.books || 0} color="purple" />
-              <StatCard icon={BookChapterIcon} label="Book Chapters" value={overview.categories?.bookChapters || 0} color="indigo" />
-              <StatCard icon={Presentation} label="Conference Papers" value={overview.categories?.conferencePapers || 0} color="green" />
-              <StatCard icon={Award} label="Grants" value={overview.categories?.grants || 0} color="orange" />
-              <StatCard icon={Lightbulb} label="IPR Filings" value={overview.categories?.ipr.total || 0} color="pink" />
-            </div>
-          </div>
+        {/* Overview tab */}
+        {activeTab === 'overview' && overview && (
+          <div className="space-y-6">
+            <section aria-label="University footprint">
+              <h3 className={`mb-3 ${ui.label}`}>University footprint</h3>
+              <KpiCardGrid
+                cards={[
+                  kpi(School, 'Schools', overview.university.schools.total),
+                  kpi(Building2, 'Departments', overview.university.departments.total),
+                  kpi(BookOpen, 'Programmes', overview.university.programmes.total),
+                  kpi(Users, 'Faculty', overview.users.employees.total),
+                  kpi(GraduationCap, 'Students', overview.users.students.total),
+                  kpi(FileText, 'IPR filings', overview.ipr.total),
+                ]}
+              />
+            </section>
 
-          {/* Charts Row */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Monthly Trend */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-                IPR Filing Trend (Last 12 Months)
-              </h3>
-              <div className="space-y-3">
-                {monthlyTrend.slice(-6).map((month, idx) => {
-                  const maxCount = Math.max(...monthlyTrend.map(m => m.total), 1);
-                  const percentage = (month.total / maxCount) * 100;
-                  return (
-                    <div key={idx} className="flex items-center gap-3">
-                      <span className="text-sm text-gray-500 w-20">{month.monthName}</span>
-                      <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-end pr-2"
-                          style={{ width: `${Math.max(percentage, 10)}%` }}
+            <section aria-label="Research output categories">
+              <h3 className={`mb-3 ${ui.label}`}>Research output categories</h3>
+              <KpiCardGrid
+                cards={[
+                  kpi(FileText, 'Research papers', overview.categories?.researchPapers || 0),
+                  kpi(BookOpen, 'Books', overview.categories?.books || 0),
+                  kpi(BookChapterIcon, 'Book chapters', overview.categories?.bookChapters || 0),
+                  kpi(Presentation, 'Conference papers', overview.categories?.conferencePapers || 0),
+                  kpi(Award, 'Grants', overview.categories?.grants || 0),
+                  kpi(Lightbulb, 'IPR filings', overview.categories?.ipr.total || 0),
+                ]}
+              />
+            </section>
+
+            <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+              <AnalyticsBarChart
+                title="IPR filing trend"
+                subtitle="Filings per month, last 12 months."
+                data={iprTrendData}
+                keys={[{ key: 'ipr', label: 'IPR filings' }]}
+                height={280}
+              />
+
+              <AnalyticsPanel title="Top IPR contributors" subtitle="Ranked by total IPR filings.">
+                {topPerformers.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-stone-500 dark:text-gray-400">No data for this period.</p>
+                ) : (
+                  <ol className="-my-2 divide-y divide-stone-100 dark:divide-gray-700">
+                    {topPerformers.slice(0, 5).map((performer, idx) => (
+                      <li key={performer.userId} className="flex items-center gap-3 py-2.5">
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold tabular-nums ${
+                            idx === 0
+                              ? 'bg-wine/10 text-wine dark:bg-wine/30 dark:text-amber'
+                              : 'bg-stone-100 text-stone-600 dark:bg-gray-700 dark:text-gray-300'
+                          }`}
                         >
-                          <span className="text-xs font-medium text-white">{month.total}</span>
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-stone-900 dark:text-white">{performer.name}</p>
+                          <p className="text-xs capitalize text-stone-500 dark:text-gray-400">{performer.type}</p>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                        <div className="text-right">
+                          <p className={`text-sm ${ui.value}`}>{fmt(performer.total)}</p>
+                          <p className="text-xs text-stone-500 dark:text-gray-400">IPRs</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </AnalyticsPanel>
             </div>
 
-            {/* Top Performers */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                Top IPR Contributors
-              </h3>
-              <div className="space-y-3">
-                {topPerformers.slice(0, 5).map((performer, idx) => (
-                  <div key={performer.userId} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                      idx === 0 ? 'bg-yellow-100 text-yellow-700' :
-                      idx === 1 ? 'bg-gray-100 text-gray-700' :
-                      idx === 2 ? 'bg-orange-100 text-orange-700' :
-                      'bg-blue-50 text-blue-600'
-                    }`}>
-                      {idx + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{performer.name}</p>
-                      <p className="text-xs text-gray-500">{performer.type}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900">{performer.total}</p>
-                      <p className="text-xs text-gray-500">IPRs</p>
+            {categoryTrend.length > 0 && (
+              <>
+                <AnalyticsBarChart
+                  title="Research output trend"
+                  subtitle="Monthly output by category, last 12 months."
+                  data={categoryTrendData}
+                  keys={categoryTrendKeys}
+                  stacked
+                  height={300}
+                />
+
+                <section className={`overflow-hidden ${ui.card}`}>
+                  <div className={ui.cardHeader}>
+                    <div>
+                      <h3 className={ui.title}>Last six months by category</h3>
+                      <p className={ui.subtitle}>Exact monthly counts behind the trend.</p>
                     </div>
                   </div>
-                ))}
-                {topPerformers.length === 0 && (
-                  <p className="text-center text-gray-500 py-4">No data available</p>
-                )}
-              </div>
-            </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className={theadCls}>
+                        <tr>
+                          <th className={ui.th}>Month</th>
+                          {categoryTrendKeys.map((k) => (
+                            <th key={k.key} className={`${ui.th} text-right`}>{k.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className={tbodyCls}>
+                        {categoryTrend.slice(-6).map((month, idx) => (
+                          <tr key={idx} className={trCls}>
+                            <td className={`${ui.td} font-medium text-stone-900 dark:text-white`}>{month.monthName}</td>
+                            {[month.researchPapers, month.books, month.bookChapters, month.conferencePapers, month.grants, month.ipr].map((v, i) => (
+                              <td key={i} className={numTd}><Count value={v} /></td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
           </div>
+        )}
 
-          {/* Category Trend Chart */}
-          {categoryTrend.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-                Research Output Trend (Last 12 Months)
-              </h3>
+        {/* Research tab */}
+        {activeTab === 'research' && categoryAnalytics && (
+          <div className="space-y-6">
+            <KpiCardGrid
+              cols={4}
+              cards={[
+                kpi(FileText, 'Research papers', categoryAnalytics.researchPapers),
+                kpi(BookOpen, 'Books', categoryAnalytics.books),
+                kpi(BookChapterIcon, 'Book chapters', categoryAnalytics.bookChapters),
+                kpi(Presentation, 'Conference papers', categoryAnalytics.conferencePapers),
+                kpi(Award, 'Grants', categoryAnalytics.grants.total),
+              ]}
+            />
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <AnalyticsPanel title="Research contributions by status" subtitle="Share of all contributions in each workflow state.">
+                <StatusList entries={categoryAnalytics.byStatus || {}} />
+              </AnalyticsPanel>
+              <AnalyticsPanel title="Grants by status" subtitle="Share of all grant applications in each state.">
+                <StatusList entries={categoryAnalytics.grants.byStatus || {}} />
+              </AnalyticsPanel>
+            </div>
+
+            <section className={`overflow-hidden ${ui.card}`}>
+              <div className={ui.cardHeader}>
+                <div>
+                  <h3 className={ui.title}>Recent research contributions</h3>
+                  <p className={ui.subtitle}>Latest submissions in the current filter.</p>
+                </div>
+              </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs font-medium text-gray-500 uppercase">
-                      <th className="py-2 pr-4">Month</th>
-                      <th className="py-2 pr-4 text-center">Papers</th>
-                      <th className="py-2 pr-4 text-center">Books</th>
-                      <th className="py-2 pr-4 text-center">Chapters</th>
-                      <th className="py-2 pr-4 text-center">Conferences</th>
-                      <th className="py-2 pr-4 text-center">Grants</th>
-                      <th className="py-2 pr-4 text-center">IPR</th>
+                <table className="min-w-full">
+                  <thead className={theadCls}>
+                    <tr>
+                      <th className={ui.th}>Title</th>
+                      <th className={ui.th}>Type</th>
+                      <th className={ui.th}>School</th>
+                      <th className={ui.th}>Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {categoryTrend.slice(-6).map((month, idx) => (
-                      <tr key={idx}>
-                        <td className="py-2 pr-4 text-gray-700">{month.monthName}</td>
-                        <td className="py-2 pr-4 text-center font-medium">{month.researchPapers}</td>
-                        <td className="py-2 pr-4 text-center font-medium">{month.books}</td>
-                        <td className="py-2 pr-4 text-center font-medium">{month.bookChapters}</td>
-                        <td className="py-2 pr-4 text-center font-medium">{month.conferencePapers}</td>
-                        <td className="py-2 pr-4 text-center font-medium">{month.grants}</td>
-                        <td className="py-2 pr-4 text-center font-medium">{month.ipr}</td>
+                  <tbody className={tbodyCls}>
+                    {categoryAnalytics.recentContributions.map((item) => (
+                      <tr key={item.id} className={trCls}>
+                        <td className={`${ui.td} max-w-xs truncate font-medium text-stone-900 dark:text-white`} title={item.title}>{item.title}</td>
+                        <td className={`${ui.td} text-stone-500 dark:text-gray-400`}>{formatStatus(item.publicationType)}</td>
+                        <td className={`${ui.td} text-stone-500 dark:text-gray-400`}>{item.school?.facultyName || '—'}</td>
+                        <td className="px-4 py-3"><StatusPill status={item.status} /></td>
                       </tr>
                     ))}
+                    {categoryAnalytics.recentContributions.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-10 text-center text-sm text-stone-500 dark:text-gray-400">
+                          No research contributions found.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Research Analytics Tab */}
-      {activeTab === 'research' && categoryAnalytics && (
-        <div className="space-y-6">
-          {/* Category Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <StatCard icon={FileText} label="Research Papers" value={categoryAnalytics.researchPapers} color="blue" />
-            <StatCard icon={BookOpen} label="Books" value={categoryAnalytics.books} color="purple" />
-            <StatCard icon={BookChapterIcon} label="Book Chapters" value={categoryAnalytics.bookChapters} color="indigo" />
-            <StatCard icon={Presentation} label="Conference Papers" value={categoryAnalytics.conferencePapers} color="green" />
-            <StatCard icon={Award} label="Grants" value={categoryAnalytics.grants.total} color="orange" />
+            </section>
           </div>
+        )}
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Research Contributions by Status</h3>
-              <div className="space-y-4">
-                {Object.entries(categoryAnalytics.byStatus || {}).map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full ${getStatusColor(status)}`} />
-                      <span className="text-sm text-gray-700">{formatStatus(status)}</span>
-                    </div>
-                    <span className="font-medium text-gray-900">{count as number}</span>
-                  </div>
-                ))}
-                {Object.keys(categoryAnalytics.byStatus || {}).length === 0 && (
-                  <p className="text-center text-gray-500 py-4">No data available</p>
-                )}
-              </div>
-            </div>
+        {/* IPR tab */}
+        {activeTab === 'ipr' && iprAnalytics && (
+          <div className="space-y-6">
+            <KpiCardGrid
+              cols={4}
+              cards={[
+                kpi(FileText, 'Total IPRs', iprAnalytics.total),
+                kpi(Lightbulb, 'Patents', iprAnalytics.byType?.patent || 0),
+                kpi(BookMarked, 'Copyrights', iprAnalytics.byType?.copyright || 0),
+                kpi(Shield, 'Trademarks', iprAnalytics.byType?.trademark || 0),
+                kpi(FlaskConical, 'Designs', iprAnalytics.byType?.design || 0),
+              ]}
+            />
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Grants by Status</h3>
-              <div className="space-y-4">
-                {Object.entries(categoryAnalytics.grants.byStatus || {}).map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full ${getStatusColor(status)}`} />
-                      <span className="text-sm text-gray-700">{formatStatus(status)}</span>
-                    </div>
-                    <span className="font-medium text-gray-900">{count as number}</span>
-                  </div>
-                ))}
-                {Object.keys(categoryAnalytics.grants.byStatus || {}).length === 0 && (
-                  <p className="text-center text-gray-500 py-4">No data available</p>
-                )}
-              </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <AnalyticsPanel title="IPR by status" subtitle="Share of all filings in each state.">
+                <StatusList entries={iprAnalytics.byStatus || {}} />
+              </AnalyticsPanel>
+
+              <AnalyticsPanel title="IPR by user type" subtitle="Who is filing.">
+                {(() => {
+                  const faculty = iprAnalytics.byUserType?.faculty || 0;
+                  const student = iprAnalytics.byUserType?.student || 0;
+                  const total = faculty + student || 1;
+                  return (
+                    <ul className="space-y-4">
+                      {[
+                        { label: 'Faculty', value: faculty, Icon: Users, color: VIZ[0] },
+                        { label: 'Students', value: student, Icon: GraduationCap, color: VIZ[1] },
+                      ].map(({ label, value, Icon, color }) => (
+                        <li key={label}>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-gray-200">
+                              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
+                              <Icon className="h-4 w-4 text-stone-400 dark:text-gray-500" />
+                              {label}
+                            </span>
+                            <span className="text-sm tabular-nums">
+                              <span className="font-semibold text-stone-900 dark:text-white">{fmt(value)}</span>
+                              <span className="ml-1.5 text-stone-500 dark:text-gray-400">{Math.round((value / total) * 100)}%</span>
+                            </span>
+                          </div>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-gray-700">
+                            <div className="h-full rounded-full" style={{ width: `${(value / total) * 100}%`, backgroundColor: color }} />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </AnalyticsPanel>
             </div>
           </div>
+        )}
 
-          {/* Recent Contributions */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Recent Research Contributions</h3>
+        {/* School-wise tab */}
+        {activeTab === 'schools' && (
+          <section className={`overflow-hidden ${ui.card}`}>
+            <div className={ui.cardHeader}>
+              <div>
+                <h3 className={ui.title}>School-wise statistics</h3>
+                <p className={ui.subtitle}>Structure, staff and research output per school.</p>
+              </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+              <table className="min-w-full">
+                <thead className={theadCls}>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">School</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className={ui.th}>School</th>
+                    {['Departments', 'Programmes', 'Faculty', 'Papers', 'Books', 'Conferences', 'Grants', 'IPRs'].map((h) => (
+                      <th key={h} className={`${ui.th} text-right`}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {categoryAnalytics.recentContributions.map(item => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{item.title}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{formatStatus(item.publicationType)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{item.school?.facultyName || '-'}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {formatStatus(item.status)}
-                        </span>
+                <tbody className={tbodyCls}>
+                  {schoolStats.map((school) => (
+                    <tr key={school.id} className={trCls}>
+                      <td className={ui.td}>
+                        <p className="font-medium text-stone-900 dark:text-white">{school.name}</p>
+                        <p className="text-xs text-stone-500 dark:text-gray-400">{school.code}</p>
                       </td>
+                      <td className={numTd}><Count value={school.departments} /></td>
+                      <td className={numTd}><Count value={school.programmes} /></td>
+                      <td className={numTd}><Count value={school.employees} /></td>
+                      <td className={numTd}><Count value={school.categories?.researchPapers} /></td>
+                      <td className={numTd}>
+                        <Count value={school.categories ? (school.categories.books ?? 0) + (school.categories.bookChapters ?? 0) : undefined} />
+                      </td>
+                      <td className={numTd}><Count value={school.categories?.conferencePapers} /></td>
+                      <td className={numTd}><Count value={school.categories?.grants} /></td>
+                      <td className={`${numTd} font-semibold`}><Count value={school.ipr.total} /></td>
                     </tr>
                   ))}
-                  {categoryAnalytics.recentContributions.length === 0 && (
+                  {schoolStats.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                        No research contributions found
+                      <td colSpan={9} className="px-4 py-10 text-center text-sm text-stone-500 dark:text-gray-400">
+                        No school data available.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      )}
+          </section>
+        )}
 
-      {/* IPR Analytics Tab */}
-      {activeTab === 'ipr' && iprAnalytics && (
-        <div className="space-y-6">
-          {/* IPR Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <StatCard icon={FileText} label="Total IPRs" value={iprAnalytics.total} color="blue" />
-            <StatCard icon={Lightbulb} label="Patents" value={iprAnalytics.byType?.patent || 0} color="yellow" />
-            <StatCard icon={BookMarked} label="Copyrights" value={iprAnalytics.byType?.copyright || 0} color="purple" />
-            <StatCard icon={Shield} label="Trademarks" value={iprAnalytics.byType?.trademark || 0} color="green" />
-            <StatCard icon={FlaskConical} label="Designs" value={iprAnalytics.byType?.design || 0} color="indigo" />
-          </div>
-
-          {/* IPR by Status */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">IPR by Status</h3>
-              <div className="space-y-4">
-                {Object.entries(iprAnalytics.byStatus || {}).map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full ${getStatusColor(status)}`} />
-                      <span className="text-sm text-gray-700">{formatStatus(status)}</span>
-                    </div>
-                    <span className="font-medium text-gray-900">{count as number}</span>
-                  </div>
-                ))}
+        {/* Department-wise tab */}
+        {activeTab === 'departments' && (
+          <div className="space-y-4">
+            {!selectedSchool && (
+              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
+                <School className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>Select a school in the filter bar above to see department-wise statistics.</p>
               </div>
-            </div>
+            )}
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">IPR by User Type</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm text-gray-700">Faculty</span>
+            {selectedSchool && departmentStats.length > 0 && (
+              <section className={`overflow-hidden ${ui.card}`}>
+                <div className={ui.cardHeader}>
+                  <div>
+                    <h3 className={ui.title}>Department-wise statistics</h3>
+                    <p className={ui.subtitle}>{schools.find((s) => s.id === selectedSchool)?.facultyName}</p>
                   </div>
-                  <span className="font-medium text-gray-900">{iprAnalytics.byUserType?.faculty || 0}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-gray-700">Students</span>
-                  </div>
-                  <span className="font-medium text-gray-900">{iprAnalytics.byUserType?.student || 0}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* School-wise Tab */}
-      {activeTab === 'schools' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">School-wise Statistics</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">School</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Departments</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Programmes</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Faculty</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Papers</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Books</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Conferences</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Grants</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">IPRs</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {schoolStats.map(school => (
-                  <tr key={school.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{school.name}</p>
-                        <p className="text-sm text-gray-500">{school.code}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center font-medium">{school.departments}</td>
-                    <td className="px-6 py-4 text-center font-medium">{school.programmes}</td>
-                    <td className="px-6 py-4 text-center font-medium">{school.employees}</td>
-                    <td className="px-6 py-4 text-center font-medium">{school.categories?.researchPapers ?? '-'}</td>
-                    <td className="px-6 py-4 text-center font-medium">
-                      {(school.categories?.books ?? 0) + (school.categories?.bookChapters ?? 0) || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-center font-medium">{school.categories?.conferencePapers ?? '-'}</td>
-                    <td className="px-6 py-4 text-center font-medium">{school.categories?.grants ?? '-'}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {school.ipr.total}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {schoolStats.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                      No school data available
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Department-wise Tab */}
-      {activeTab === 'departments' && (
-        <div className="space-y-4">
-          {!selectedSchool && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-yellow-800">
-              <p className="text-sm">Please select a school from the filter above to view department-wise statistics.</p>
-            </div>
-          )}
-
-          {selectedSchool && departmentStats.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="font-semibold text-gray-900">
-                  Department-wise Statistics - {schools.find(s => s.id === selectedSchool)?.facultyName}
-                </h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Programmes</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Faculty</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Papers</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Books</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Conferences</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Grants</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">IPRs</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {departmentStats.map(dept => (
-                      <tr key={dept.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-gray-900">{dept.name}</p>
-                            <p className="text-sm text-gray-500">{dept.code}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center font-medium">{dept.programmes}</td>
-                        <td className="px-6 py-4 text-center font-medium">{dept.employees}</td>
-                        <td className="px-6 py-4 text-center font-medium">{dept.categories?.researchPapers ?? '-'}</td>
-                        <td className="px-6 py-4 text-center font-medium">
-                          {(dept.categories?.books ?? 0) + (dept.categories?.bookChapters ?? 0) || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-center font-medium">{dept.categories?.conferencePapers ?? '-'}</td>
-                        <td className="px-6 py-4 text-center font-medium">{dept.categories?.grants ?? '-'}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {dept.ipr.total}
-                          </span>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead className={theadCls}>
+                      <tr>
+                        <th className={ui.th}>Department</th>
+                        {['Programmes', 'Faculty', 'Papers', 'Books', 'Conferences', 'Grants', 'IPRs'].map((h) => (
+                          <th key={h} className={`${ui.th} text-right`}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className={tbodyCls}>
+                      {departmentStats.map((dept) => (
+                        <tr key={dept.id} className={trCls}>
+                          <td className={ui.td}>
+                            <p className="font-medium text-stone-900 dark:text-white">{dept.name}</p>
+                            <p className="text-xs text-stone-500 dark:text-gray-400">{dept.code}</p>
+                          </td>
+                          <td className={numTd}><Count value={dept.programmes} /></td>
+                          <td className={numTd}><Count value={dept.employees} /></td>
+                          <td className={numTd}><Count value={dept.categories?.researchPapers} /></td>
+                          <td className={numTd}>
+                            <Count value={dept.categories ? (dept.categories.books ?? 0) + (dept.categories.bookChapters ?? 0) : undefined} />
+                          </td>
+                          <td className={numTd}><Count value={dept.categories?.conferencePapers} /></td>
+                          <td className={numTd}><Count value={dept.categories?.grants} /></td>
+                          <td className={`${numTd} font-semibold`}><Count value={dept.ipr.total} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {selectedSchool && departmentStats.length === 0 && (
+              <div className={`${ui.card} px-6 py-12 text-center`}>
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-stone-100 text-stone-500 dark:bg-gray-700 dark:text-gray-300">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-semibold text-stone-900 dark:text-white">No department data</h3>
+                <p className="mt-1 text-sm text-stone-500 dark:text-gray-400">No departments found for the selected school.</p>
               </div>
-            </div>
-          )}
-
-          {selectedSchool && departmentStats.length === 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
-              <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No department data</h3>
-              <p className="text-gray-500">No departments found for the selected school</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number; color: string }) {
-  const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
-    purple: 'bg-purple-50 text-purple-600',
-    green: 'bg-green-50 text-green-600',
-    orange: 'bg-orange-50 text-orange-600',
-    pink: 'bg-pink-50 text-pink-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorClasses[color]}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value.toLocaleString()}</p>
-          <p className="text-xs text-gray-500">{label}</p>
-        </div>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+    </AnalyticsShell>
   );
 }
 
-function getStatusColor(status: string): string {
-  const colors: Record<string, string> = {
-    DRAFT: 'bg-gray-400',
-    draft: 'bg-gray-400',
-    PENDING_HOD_APPROVAL: 'bg-yellow-400',
-    PENDING_DEAN_APPROVAL: 'bg-orange-400',
-    PENDING_CENTRAL_APPROVAL: 'bg-blue-400',
-    submitted: 'bg-blue-400',
-    under_review: 'bg-yellow-400',
-    changes_required: 'bg-orange-400',
-    resubmitted: 'bg-orange-400',
-    recommended: 'bg-indigo-400',
-    APPROVED: 'bg-green-400',
-    approved: 'bg-green-400',
-    REJECTED: 'bg-red-400',
-    rejected: 'bg-red-400',
-    completed: 'bg-emerald-500',
-    cancelled: 'bg-gray-400',
-    FILED: 'bg-purple-400',
-    GRANTED: 'bg-emerald-500',
-  };
-  return colors[status] || 'bg-gray-400';
+/** Table count: zeros recede, missing values show an em dash. */
+function Count({ value }: { value: number | undefined | null }) {
+  if (value === undefined || value === null) return <span className="text-stone-300 dark:text-gray-600">—</span>;
+  if (value === 0) return <span className="text-stone-300 dark:text-gray-600">0</span>;
+  return <>{value.toLocaleString('en-IN')}</>;
+}
+
+type StatusTone = 'good' | 'bad' | 'wait' | 'neutral';
+
+function getStatusTone(status: string): StatusTone {
+  const s = status.toLowerCase();
+  if (['approved', 'completed', 'granted', 'published', 'credited'].includes(s)) return 'good';
+  if (['rejected', 'cancelled'].includes(s)) return 'bad';
+  if (s.startsWith('pending') || ['submitted', 'under_review', 'changes_required', 'resubmitted', 'recommended', 'filed'].includes(s)) return 'wait';
+  return 'neutral';
+}
+
+const TONE_CLS: Record<StatusTone, string> = {
+  good: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  bad: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  wait: 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  neutral: 'bg-stone-100 text-stone-600 dark:bg-gray-700 dark:text-gray-300',
+};
+
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span className={`inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ${TONE_CLS[getStatusTone(status)]}`}>
+      {formatStatus(status)}
+    </span>
+  );
+}
+
+/** Status breakdown: labelled pill, count, share, and a thin share bar. */
+function StatusList({ entries }: { entries: Record<string, number> }) {
+  const rows = Object.entries(entries) as Array<[string, number]>;
+  if (rows.length === 0) {
+    return <p className="py-6 text-center text-sm text-stone-500 dark:text-gray-400">No data for this period.</p>;
+  }
+  const total = rows.reduce((s, [, c]) => s + (c || 0), 0) || 1;
+  return (
+    <ul className="space-y-3.5">
+      {rows
+        .slice()
+        .sort((a, b) => (b[1] || 0) - (a[1] || 0))
+        .map(([status, count]) => {
+          const pct = ((count || 0) / total) * 100;
+          return (
+            <li key={status}>
+              <div className="flex items-center justify-between gap-3">
+                <StatusPill status={status} />
+                <span className="text-sm tabular-nums">
+                  <span className="font-semibold text-stone-900 dark:text-white">{(count || 0).toLocaleString('en-IN')}</span>
+                  <span className="ml-1.5 text-stone-500 dark:text-gray-400">{Math.round(pct)}%</span>
+                </span>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-gray-700">
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: VIZ[0] }} />
+              </div>
+            </li>
+          );
+        })}
+    </ul>
+  );
 }
 
 function formatStatus(status: string): string {
   return status
     .replace(/_/g, ' ')
     .toLowerCase()
-    .replace(/\b\w/g, c => c.toUpperCase());
+    .replace(/^\w/, (c) => c.toUpperCase());
 }

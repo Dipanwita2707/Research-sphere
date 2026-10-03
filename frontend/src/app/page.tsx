@@ -15,7 +15,6 @@ import {
   Building2,
   ArrowRight,
   CheckCircle,
-  Star,
   Globe,
   Zap,
   Award,
@@ -31,26 +30,27 @@ import {
   Layers,
   LineChart,
   Shield,
-  Clock,
   Landmark,
 } from 'lucide-react';
 
 /* ─────────────────── DATA ─────────────────── */
+// Every claim on this page must describe something the product does today.
 const FEATURES = [
-  { icon: BookOpen, gradient: 'from-blue-500 to-indigo-600', title: 'Research Management', description: 'Track every paper, chapter, and conference contribution from submission to publication in one intelligent workspace.' },
-  { icon: Lightbulb, gradient: 'from-amber-500 to-orange-500', title: 'IPR & Patent Tracking', description: 'File, manage, and monitor intellectual property rights and patent applications with automated workflow routing.' },
-  { icon: DollarSign, gradient: 'from-emerald-500 to-teal-600', title: 'Grants Management', description: 'Apply for research grants, track funding status, and manage grant-related workflows end-to-end.' },
-  { icon: BarChart3, gradient: 'from-violet-500 to-purple-600', title: 'Advanced Analytics', description: 'Gain insights on publication output, citation trends, IPR filings, and researcher performance across your institution.' },
-  { icon: Workflow, gradient: 'from-rose-500 to-pink-600', title: 'Smart Workflow Engine', description: 'Automate review, approval, and assignment workflows with configurable multi-step routing and delegation.' },
-  { icon: Users, gradient: 'from-sky-500 to-blue-600', title: 'Collaboration Network', description: 'Connect researchers across departments, track mentor approvals, and build collaborative research teams.' },
-  { icon: FileText, gradient: 'from-teal-500 to-cyan-600', title: 'Document Repository', description: 'Centralized storage for all research documents, agreements, patent certificates, and compliance records.' },
-  { icon: ShieldCheck, gradient: 'from-slate-600 to-gray-700', title: 'Enterprise Security', description: 'Multi-tenant architecture with strict data isolation, role-based access control, and full audit trails.' },
+  { icon: BookOpen, gradient: 'from-blue-500 to-indigo-600', title: 'Research Management', description: 'Papers, books, chapters and conference papers move from submission through review to approval in one workspace.' },
+  { icon: Lightbulb, gradient: 'from-amber-500 to-orange-500', title: 'IPR & Patent Workflow', description: 'File patents, copyrights, trademarks and designs, and follow each application through mentor, DRD and dean review to filing.' },
+  { icon: DollarSign, gradient: 'from-emerald-500 to-teal-600', title: 'Grant Applications', description: 'Submit grant proposals with investigators and consortium partners, and route them through review and approval.' },
+  { icon: BarChart3, gradient: 'from-violet-500 to-purple-600', title: 'DRD Analytics', description: 'Dashboards for submissions, outcomes and reviewer turnaround by school, department and person, with CSV export.' },
+  { icon: Workflow, gradient: 'from-rose-500 to-pink-600', title: 'Review Workflows', description: 'Multi-stage review and approval with school-wise routing of IPR, research, book, conference and grant submissions.' },
+  { icon: Award, gradient: 'from-sky-500 to-blue-600', title: 'Incentive Policies', description: 'Configure incentive amounts and points per contribution type; they are calculated automatically when work is approved.' },
+  { icon: Users, gradient: 'from-teal-500 to-cyan-600', title: 'Researcher Profiles', description: 'Public researcher profiles, with publications synced from ORCID, Scopus and OpenAlex.' },
+  { icon: ShieldCheck, gradient: 'from-slate-600 to-gray-700', title: 'Security & DPDP', description: 'Tenant data isolation, role-based access control, audit logs, and tools for India’s DPDP Act.' },
 ];
 
-const TESTIMONIALS = [
-  { name: 'Dr. Priya Sharma', role: 'Dean of Research', initials: 'PS', color: 'bg-wine', quote: 'ResearchSphere transformed how we manage our research output. What used to take weeks now happens in days. The workflow automation alone saved us 40+ hours per month.', stars: 5 },
-  { name: 'Prof. Anil Mehta', role: 'Head, DRD Committee', initials: 'AM', color: 'bg-amber', quote: 'The IPR and patent tracking module is exceptional. Our faculty can file applications in minutes and track progress transparently. The analytics give us real data to present to leadership.', stars: 5 },
-  { name: 'Dr. Kavitha Nair', role: 'Research Coordinator', initials: 'KN', color: 'bg-emerald-600', quote: 'Managing grants across 6 departments used to be a nightmare. ResearchSphere centralizes everything. The audit trail feature is invaluable for compliance reporting.', stars: 5 },
+const AUDIENCES = [
+  { icon: GraduationCap, title: 'Researchers & students', desc: 'Submit work once, see exactly where it is in review, respond to change requests, and keep a public profile up to date.' },
+  { icon: Workflow, title: 'DRD reviewers', desc: 'Work from a queue of assigned submissions, suggest edits, request changes and record decisions with a full history.' },
+  { icon: LineChart, title: 'Deans & leadership', desc: 'Approve what reaches you and follow output and turnaround across schools and departments in the analytics dashboards.' },
+  { icon: Landmark, title: 'Finance & administrators', desc: 'Set incentive policies, process IPR incentive payments, manage users and roles, and handle DPDP requests.' },
 ];
 
 const HOW_IT_WORKS = [
@@ -66,65 +66,34 @@ const MODULES = [
   { label: 'IPR / Patents', icon: Lightbulb },
   { label: 'Grants Management', icon: DollarSign },
   { label: 'DRD Analytics', icon: BarChart3 },
-  { label: 'Staff Management', icon: Users },
-  { label: 'Student Portal', icon: GraduationCap },
-  { label: 'Fee Management', icon: Award },
+  { label: 'Incentive Policies', icon: Award },
+  { label: 'Researcher Profiles', icon: Users },
+  { label: 'Student Submissions', icon: GraduationCap },
   { label: 'Bulk Uploads', icon: Zap },
-  { label: 'AI Insights', icon: BrainCircuit },
+  { label: 'Research Intelligence (AI)', icon: BrainCircuit },
+  { label: 'DPDP Compliance', icon: Shield },
   { label: 'Multi-Tenant SaaS', icon: Layers },
 ];
 
+/* Facts about the product's scope (not usage figures), animated by CountUp. */
 const HERO_STAT_BAR = [
-  { icon: Landmark, end: 500, suffix: '+', label: 'Universities', color: 'bg-rose-50 text-rose-600' },
-  { icon: Users, end: 25, suffix: 'K+', label: 'Researchers', color: 'bg-amber-50 text-amber-600' },
-  { icon: FileText, end: 80, suffix: 'K+', label: 'Publications', color: 'bg-violet-50 text-violet-600' },
-  { icon: ShieldCheck, end: 120, suffix: 'K+', label: 'Patents Filed', color: 'bg-emerald-50 text-emerald-600' },
+  { icon: FileText, end: 5, suffix: '', label: 'Contribution types', color: 'bg-rose-50 text-rose-600' },
+  { icon: Lightbulb, end: 4, suffix: '', label: 'IPR types', color: 'bg-amber-50 text-amber-600' },
+  { icon: Globe, end: 3, suffix: '', label: 'Publication sources synced', color: 'bg-violet-50 text-violet-600' },
+  { icon: ShieldCheck, end: 6, suffix: '', label: 'DPDP request types', color: 'bg-emerald-50 text-emerald-600' },
 ];
 
 const TRUST_BADGES = [
-  { icon: Shield, label: 'No credit card required' },
-  { icon: CheckCircle, label: 'NAAC & UGC ready' },
-  { icon: Clock, label: 'Setup in under 2 hours' },
+  { icon: CheckCircle, label: 'ORCID · Scopus · OpenAlex sync' },
+  { icon: Shield, label: 'DPDP compliance tools' },
+  { icon: Building2, label: 'Isolated multi-tenant data' },
 ];
-
-const UNIVERSITY_CRESTS = [
-  { bg: '#7A1F3D', icon: Landmark },
-  { bg: '#1E3A5F', icon: ShieldCheck },
-  { bg: '#2B6CA3', icon: Building2 },
-  { bg: '#C9A227', icon: Award },
-  { bg: '#1B4B43', icon: Landmark },
-  { bg: '#2E4057', icon: ShieldCheck },
-  { bg: '#B5651D', icon: Building2 },
-];
-
-/* Simple laurel-wreath glyph used to flank the "trusted by" row, mirrored via CSS */
-function LaurelWreath({ flip = false }: { flip?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 40 40"
-      className="w-8 h-8 text-peach-dark/70"
-      style={{ transform: flip ? 'scaleX(-1)' : undefined }}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-    >
-      <path d="M36 6C30 10 26 18 26 26c0 4 1.5 7 3 9" strokeLinecap="round" />
-      {[0, 1, 2, 3, 4].map((i) => (
-        <path
-          key={i}
-          d={`M${33 - i * 2.2} ${8 + i * 4.2} l-6 -2.4`}
-          strokeLinecap="round"
-        />
-      ))}
-    </svg>
-  );
-}
 
 const PLATFORM_HIGHLIGHTS = [
-  { icon: BrainCircuit, title: 'AI-Powered Insights', desc: 'Smart recommendations and automated categorization using machine learning models.' },
-  { icon: LineChart, title: 'Real-Time Dashboards', desc: 'Live KPIs, citation metrics, and impact scores across your entire institution.' },
-  { icon: Lock, title: 'Zero-Trust Security', desc: 'Granular RBAC, full audit trails, encrypted data storage, and SOC-2 alignment.' },
-  { icon: Globe, title: 'Global Compliance', desc: 'Built for universities with international and national accreditation reporting standards.' },
+  { icon: BrainCircuit, title: 'Research Intelligence', desc: 'An AI assistant that answers questions about experts, publications, topics and trends across your institution.' },
+  { icon: LineChart, title: 'Analytics Dashboards', desc: 'Submission, outcome and reviewer-turnaround analytics by school, department and person, exportable to CSV.' },
+  { icon: Lock, title: 'Role-Based Security', desc: 'Granular roles and permissions, per-university data isolation, and audit logs of administrative actions.' },
+  { icon: Shield, title: 'DPDP Compliance Tools', desc: 'Consent notices, data-principal requests, breach records and retention policies for India’s DPDP Act.' },
 ];
 /* ─────────────────── FADE-IN ─────────────────── */
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
@@ -300,7 +269,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-1">
                 <Link
                   href="/pricing"
-                  className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 xl:px-8 xl:py-4 bg-wine text-white text-sm sm:text-base font-bold rounded-2xl hover:bg-wine-dark transition-all duration-200 shadow-lg shadow-wine/20 hover:shadow-xl hover:shadow-wine/30 hover:-translate-y-0.5"
+                  className="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 xl:px-8 xl:py-4 bg-wine text-wine-fg text-sm sm:text-base font-bold rounded-2xl hover:bg-wine-dark transition-all duration-200 shadow-lg shadow-wine/20 hover:shadow-xl hover:shadow-wine/30 hover:-translate-y-0.5"
                 >
                   View Plans & Pricing
                   <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -357,23 +326,6 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-
-            <div className="mt-10 sm:mt-12 text-center">
-              <p className="text-xs font-bold uppercase tracking-widest text-charcoal/35 mb-6">Trusted by Leading Universities</p>
-              <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-8">
-                <LaurelWreath />
-                {UNIVERSITY_CRESTS.map(({ bg, icon: Icon }, i) => (
-                  <div
-                    key={i}
-                    className="w-11 h-11 rounded-full flex items-center justify-center shadow-sm ring-4 ring-white flex-shrink-0"
-                    style={{ backgroundColor: bg }}
-                  >
-                    <Icon className="h-5 w-5 text-white/90" strokeWidth={1.8} />
-                  </div>
-                ))}
-                <LaurelWreath flip />
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -392,7 +344,7 @@ export default function LandingPage() {
       </div>
 
       {/* ═══════════ PLATFORM HIGHLIGHTS ═══════════ */}
-      <section className="py-28 bg-gradient-to-br from-[#4A0F26] via-[#6b1535] to-wine">
+      <section className="py-28 bg-gradient-to-br from-wine-darker via-wine-dark to-wine">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Decorative texture */}
           <div
@@ -473,9 +425,9 @@ export default function LandingPage() {
               How It Works
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold text-charcoal tracking-tight leading-tight mb-4">
-              Up & Running in Hours,<br />Not Months
+              Simple to<br />Roll Out
             </h2>
-            <p className="text-charcoal/50 text-lg">Get your institution fully onboarded and productive the same day.</p>
+            <p className="text-charcoal/50 text-lg">Set up your structure, bring in your people, and start filing — bulk import helps with the first load.</p>
           </FadeIn>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -486,7 +438,7 @@ export default function LandingPage() {
               <FadeIn key={step} delay={i * 150}>
                 <div className="relative bg-white rounded-3xl p-8 border border-white shadow-sm hover:shadow-xl hover:shadow-wine/5 transition-all duration-300 hover:-translate-y-1">
                   {/* Step circle */}
-                  <div className="relative z-10 inline-flex items-center justify-center w-14 h-14 bg-wine text-white font-extrabold text-lg rounded-2xl shadow-lg shadow-wine/30 mb-6">
+                  <div className="relative z-10 inline-flex items-center justify-center w-14 h-14 bg-wine text-wine-fg font-extrabold text-lg rounded-2xl shadow-lg shadow-wine/30 mb-6">
                     {step}
                   </div>
                   <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-5">
@@ -501,40 +453,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════ TESTIMONIALS ═══════════ */}
+      {/* ═══════════ WHO IT'S FOR ═══════════ */}
       <section className="py-28 bg-ivory">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn className="text-center max-w-2xl mx-auto mb-20">
             <div className="inline-flex items-center gap-2 bg-amber/10 border border-amber/25 text-amber-700 text-xs font-bold px-4 py-2 rounded-full mb-5">
-              <Star className="h-3.5 w-3.5 fill-amber text-amber" />
-              Trusted by Academia
+              <Users className="h-3.5 w-3.5 text-amber" />
+              Built for the Whole Research Office
             </div>
-            <h2 className="text-4xl sm:text-5xl font-extrabold text-charcoal tracking-tight mb-4">What Our Users Say</h2>
-            <p className="text-charcoal/50 text-lg">Real experiences from researchers and administrators across India.</p>
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-charcoal tracking-tight mb-4">One Platform, Every Role</h2>
+            <p className="text-charcoal/50 text-lg">Each person sees the work that is theirs to do, and nothing they shouldn&apos;t.</p>
           </FadeIn>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map(({ name, role, initials, color, quote, stars }, i) => (
-              <FadeIn key={name} delay={i * 120}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {AUDIENCES.map(({ icon: Icon, title, desc }, i) => (
+              <FadeIn key={title} delay={i * 100}>
                 <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-wine/5 transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
-                  {/* Stars */}
-                  <div className="flex gap-0.5 mb-5">
-                    {Array.from({ length: stars }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-amber text-amber" />
-                    ))}
+                  <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-5">
+                    <Icon className="h-6 w-6 text-wine" />
                   </div>
-                  <blockquote className="text-charcoal/60 text-[15px] leading-relaxed flex-1 mb-6">
-                    &ldquo;{quote}&rdquo;
-                  </blockquote>
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-50">
-                    <div className={`w-10 h-10 rounded-full ${color} text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-sm`}>
-                      {initials}
-                    </div>
-                    <div>
-                      <div className="font-bold text-charcoal text-sm">{name}</div>
-                      <div className="text-xs text-charcoal/40 mt-0.5">{role}</div>
-                    </div>
-                  </div>
+                  <h3 className="text-lg font-bold text-charcoal mb-3">{title}</h3>
+                  <p className="text-charcoal/55 text-[15px] leading-relaxed">{desc}</p>
                 </div>
               </FadeIn>
             ))}
@@ -546,14 +485,14 @@ export default function LandingPage() {
       <section className="py-16 bg-white border-y border-gray-100">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <FadeIn>
-            <p className="text-xs font-semibold uppercase tracking-widest text-charcoal/30 mb-10">Enterprise-Grade Security & Compliance</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-charcoal/30 mb-10">Security & Compliance</p>
             <div className="flex flex-wrap justify-center gap-8 items-center">
               {[
-                { icon: ShieldCheck, label: 'SOC-2 Aligned' },
-                { icon: Lock, label: 'AES-256 Encryption' },
-                { icon: Globe, label: 'NAAC / UGC Ready' },
-                { icon: Award, label: 'NIRF Reporting' },
-                { icon: CheckCircle, label: '99.8% Uptime' },
+                { icon: ShieldCheck, label: 'Tenant Data Isolation' },
+                { icon: Lock, label: 'Role-Based Access Control' },
+                { icon: FileText, label: 'Audit Logs' },
+                { icon: Shield, label: 'DPDP Act Tools' },
+                { icon: BarChart3, label: 'CSV Data Export' },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="flex items-center gap-2.5 text-sm font-semibold text-charcoal/40 hover:text-wine transition-colors">
                   <Icon className="h-5 w-5 text-wine/50" />
@@ -568,7 +507,7 @@ export default function LandingPage() {
       {/* ═══════════ CTA BANNER ═══════════ */}
       <section className="py-10 px-4 sm:px-8 lg:px-16 bg-ivory">
         <FadeIn>
-          <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-[#4A0F26] via-wine to-[#9b2040]">
+          <div className="relative rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-wine-darker via-wine to-wine-light">
             {/* Glow blob */}
             <div className="pointer-events-none absolute -top-1/2 right-0 w-[600px] h-[600px] rounded-full bg-amber/15 blur-[100px]" />
             <div className="pointer-events-none absolute -bottom-1/2 left-0 w-[500px] h-[500px] rounded-full bg-peach/10 blur-[80px]" />
@@ -581,14 +520,14 @@ export default function LandingPage() {
             <div className="relative py-24 px-6 text-center max-w-3xl mx-auto">
               <div className="inline-flex items-center gap-2 border border-white/15 bg-white/8 text-white/60 text-xs font-semibold px-4 py-2 rounded-full mb-8">
                 <Zap className="h-3.5 w-3.5 text-amber" />
-                Start your free trial today
+                Pilots available for institutions
               </div>
               <h2 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-6 tracking-tight leading-[1.1]">
                 Ready to Transform Your<br />
                 <span className="text-amber">Research Management?</span>
               </h2>
               <p className="text-white/55 text-lg mb-12 leading-relaxed max-w-xl mx-auto">
-                Join leading universities already using ResearchSphere to power their research ecosystems. Set up in under 2 hours.
+                Bring research, IPR and grant workflows, incentive policies and analytics into one place. Tell us about your institution and we&apos;ll help you get started.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
@@ -605,7 +544,6 @@ export default function LandingPage() {
                   Sign In
                 </Link>
               </div>
-              <p className="mt-8 text-white/30 text-sm">No credit card required · Cancel anytime</p>
             </div>
           </div>
         </FadeIn>

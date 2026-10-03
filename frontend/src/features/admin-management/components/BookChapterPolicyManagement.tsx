@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import api from '@/shared/api/api';
+import PolicyCycleField, { PolicyPeriod, defaultPolicyDates } from './PolicyCycleField';
+import { useCycles } from '@/features/finance/budget/useBudget';
 
 interface BookIncentivePolicy {
   id: string;
@@ -63,6 +65,7 @@ export default function BookChapterPolicyManagement() {
   const [success, setSuccess] = useState('');
 
   // Form state
+  const cyclesQ = useCycles();
   const [formData, setFormData] = useState<{
     publicationType: 'book' | 'book_chapter';
     policyName: string;
@@ -141,8 +144,7 @@ export default function BookChapterPolicyManagement() {
         nonIndexedBonus: '0',
         ResearchSpherePublicationHouseBonus: '1000',
         internationalBonus: '3000',
-        effectiveFrom: new Date().toISOString().split('T')[0],
-        effectiveTo: '',
+        ...defaultPolicyDates(cyclesQ.data?.cycles),
       });
     }
     setShowModal(true);
@@ -357,15 +359,7 @@ export default function BookChapterPolicyManagement() {
                   </div>
 
                   <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Effective: {new Date(policy.effectiveFrom).toLocaleDateString()}
-                    </div>
-                    {policy.effectiveTo && (
-                      <div>
-                        to {new Date(policy.effectiveTo).toLocaleDateString()}
-                      </div>
-                    )}
+                    <PolicyPeriod effectiveFrom={policy.effectiveFrom} effectiveTo={policy.effectiveTo} />
                   </div>
                 </div>
 
@@ -604,31 +598,11 @@ export default function BookChapterPolicyManagement() {
 
               {/* Effective Dates */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900">Effective Period</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Effective From *
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.effectiveFrom}
-                      onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Effective To (Optional)
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.effectiveTo}
-                      onChange={(e) => setFormData({ ...formData, effectiveTo: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
+                <PolicyCycleField
+                value={{ effectiveFrom: formData.effectiveFrom, effectiveTo: formData.effectiveTo }}
+                onChange={(d) => setFormData({ ...formData, ...d })}
+                inputClassName="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { countAxisMax, formatTick, seriesColors, ui } from './theme';
 
 export interface BarChartDataPoint {
   label: string;
@@ -10,7 +11,8 @@ export interface BarChartDataPoint {
 export interface BarChartSeries {
   key: string;
   label: string;
-  color: string;
+  /** Ignored — colours come from the shared palette so entities match across charts. */
+  color?: string;
 }
 
 interface Props {
@@ -20,183 +22,168 @@ interface Props {
   subtitle?: string;
   height?: number;
   className?: string;
+  /** Stack series inside one bar per group (part-to-whole) instead of side by side. */
+  stacked?: boolean;
+  /** Optional click handler per group, e.g. to drill into a school. */
+  onBarClick?: (point: BarChartDataPoint, index: number) => void;
 }
 
-const MARGIN = { top: 20, right: 28, bottom: 44, left: 48 };
-const YTICK_COUNT = 5;
+const MARGIN = { top: 12, right: 8, bottom: 36, left: 40 };
+const TICKS = 4;
+const GAP = 2; // surface gap between adjacent fills
 
-function niceMax(val: number): number {
-  if (val <= 0) return 5;
-  const mag = Math.pow(10, Math.floor(Math.log10(val)));
-  for (const n of [1, 2, 2.5, 5, 10]) {
-    if (n * mag >= val) return n * mag;
-  }
-  return Math.ceil(val / mag) * mag;
-}
-
-function formatTick(val: number): string {
-  if (val >= 1000) return `${(val / 1000).toFixed(val % 1000 ===
-   0 ? 0 : 1)}k`;
-  return String(val);
+/** Bar with 4px rounded data-end and a square baseline end. */
+function barPath(x: number, y: number, w: number, h: number, roundTop: boolean) {
+  if (h <= 0 || w <= 0) return '';
+  const r = roundTop ? Math.min(4, w / 2, h) : 0;
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
 }
 
 export default function AnalyticsBarChart({
-  data, keys, title, subtitle, height = 320, className = '',
+  data, keys, title, subtitle, height = 320, className = '', stacked = false, onBarClick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [svgWidth, setSvgWidth] = useState(600);
-  const [tooltip, setTooltip] = useState<{ gxCenter: number; d: BarChartDataPoint } | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
+  const [width, setWidth] = useState(600);
+  const [hover, setHover] = useState<number | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const obs = new ResizeObserver((entries) => setSvgWidth(entries[0].contentRect.width));
+    const obs = new ResizeObserver((entries) => setWidth(entries[0].contentRect.width));
     obs.observe(el);
-    setSvgWidth(el.clientWidth);
+    setWidth(el.clientWidth);
     return () => obs.disconnect();
   }, []);
 
+  const colors = seriesColors(keys.map((k) => k.key));
+
+  const header = (title || subtitle || keys.length > 1) && (
+    <div className={ui.cardHeader}>
+      <div className="min-w-0">
+        {title && <h3 className={ui.title}>{title}</h3>}
+        {subtitle && <p className={ui.subtitle}>{subtitle}</p>}
+      </div>
+      {keys.length > 1 && (
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label="Legend">
+          {keys.map((k) => (
+            <li key={k.key} className="inline-flex items-center gap-1.5 text-xs text-stone-600 dark:text-gray-300">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: colors[k.key] }} />
+              {k.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
   if (!data.length) {
     return (
-      <div className={`flex h-40 items-center justify-center rounded-3xl border border-slate-200/50 bg-gradient-to-br from-slate-50 to-white text-sm text-slate-400 ${className}`}>
-        No data available.
+      <div className={`${ui.card} ${className}`}>
+        {header}
+        <div className="flex h-40 items-center justify-center text-sm text-stone-400 dark:text-gray-500">No data for this period.</div>
       </div>
     );
   }
 
-  const plotW = Math.max(svgWidth - MARGIN.left - MARGIN.right, 1);
+  const plotW = Math.max(width - MARGIN.left - MARGIN.right, 1);
   const plotH = height - MARGIN.top - MARGIN.bottom;
-  const maxVal = Math.max(1, ...data.flatMap((d) => keys.map((k) => d.values[k.key] || 0)));
-  const yMax = niceMax(maxVal);
-  const groupW = plotW / Math.max(data.length, 1);
-  const barsW = groupW * 0.68;
-  const barW = Math.max(barsW / keys.length - 2, 3);
+  const groupTotal = (d: BarChartDataPoint) => keys.reduce((s, k) => s + (d.values[k.key] || 0), 0);
+  const maxVal = Math.max(
+    1,
+    ...data.map((d) => (stacked ? groupTotal(d) : Math.max(...keys.map((k) => d.values[k.key] || 0)))),
+  );
+  const yMax = countAxisMax(maxVal, TICKS);
+  const y = (v: number) => plotH - (v / yMax) * plotH;
+  const groupW = plotW / data.length;
+  const innerW = Math.min(groupW * (stacked ? 0.56 : 0.72), stacked ? 48 : 22 * keys.length);
+  const barW = stacked ? innerW : Math.max((innerW - GAP * (keys.length - 1)) / keys.length, 2);
+  const maxChars = Math.max(4, Math.floor(groupW / 6.2));
+
+  const hovered = hover !== null ? data[hover] : null;
+  const tipLeft = hover !== null ? MARGIN.left + hover * groupW + groupW / 2 : 0;
 
   return (
-    <div className={`group/chart relative overflow-hidden rounded-3xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-800/90 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.07)] ${className}`}>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_0%_-20%,rgba(99,102,241,0.03),transparent),radial-gradient(ellipse_60%_50%_at_100%_120%,rgba(16,185,129,0.03),transparent)]" />
-      <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-slate-100/80 dark:border-slate-700/50 px-6 py-4">
-        <div>
-          {title && <h3 className="text-[13px] font-semibold tracking-tight text-slate-800 dark:text-slate-100">{title}</h3>}
-          {subtitle && <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">{subtitle}</p>}
-        </div>
-        <div className="flex flex-wrap items-center gap-4">
-          {keys.map((k) => (
-            <span key={k.key} className="inline-flex items-center gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: k.color, boxShadow: `0 0 6px ${k.color}40` }} />
-              {k.label}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="relative px-3 pb-4 pt-3" ref={containerRef}>
-        <svg width="100%" height={height} style={{ overflow: 'visible', display: 'block' }}>
-          <defs>
-            {keys.map((k) => (
-              <linearGradient key={k.key} id={`bg-${k.key}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={k.color} stopOpacity={1} />
-                <stop offset="55%" stopColor={k.color} stopOpacity={0.9} />
-                <stop offset="100%" stopColor={k.color} stopOpacity={0.65} />
-              </linearGradient>
-            ))}
-            <linearGradient id="tt-accent" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#10b981" />
-            </linearGradient>
-            {/* Isometric side-face: darken by 52% */}
-            <filter id="face-darken" colorInterpolationFilters="sRGB">
-              <feColorMatrix type="matrix" values="0.48 0 0 0 0  0 0.48 0 0 0  0 0 0.48 0 0  0 0 0 1 0" />
-            </filter>
-            {/* Isometric top-face: brighten + add white */}
-            <filter id="face-lighten" colorInterpolationFilters="sRGB">
-              <feColorMatrix type="matrix" values="1.12 0 0 0 0.22  0 1.12 0 0 0.22  0 0 1.12 0 0.30  0 0 0 1 0" />
-            </filter>
-            <filter id="bar-shadow" x="-15%" y="-15%" width="145%" height="145%">
-              <feDropShadow dx="3" dy="5" stdDeviation="4" floodOpacity="0.18" />
-            </filter>
-          </defs>
+    <div className={`${ui.card} ${className}`}>
+      {header}
+      <div className="relative px-3 pb-3 pt-2" ref={containerRef}>
+        <svg width="100%" height={height} role="img" aria-label={title || 'Bar chart'} style={{ display: 'block', overflow: 'visible' }}>
           <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-            {Array.from({ length: YTICK_COUNT + 1 }).map((_, i) => {
-              const frac = i / YTICK_COUNT;
-              const y = plotH * (1 - frac);
+            {Array.from({ length: TICKS + 1 }).map((_, i) => {
+              const v = (yMax / TICKS) * i;
               return (
                 <g key={i}>
-                  <line x1={0} y1={y} x2={plotW} y2={y} stroke={i ===
-   0 ? '#e2e8f0' : '#f1f5f9'} strokeDasharray={i > 0 ? '4 4' : undefined} />
-                  <text x={-12} y={y} textAnchor="end" dominantBaseline="middle" fontSize={10} fill="#94a3b8" fontWeight={500}>{formatTick(Math.round(yMax * frac))}</text>
-                </g>
-              );
-            })}
-            {data.map((d, di) => {
-              const gx = di * groupW;
-              const barsOffset = (groupW - barsW) / 2;
-              const isHovered = tooltip?.d ===
-   d;
-              return (
-                <g key={di}>
-                  {isHovered && <rect x={gx + 1} y={-4} width={groupW - 2} height={plotH + 8} fill="#f8fafc" rx={8} opacity={0.7} />}
-                  {keys.map((k, ki) => {
-                    const val = d.values[k.key] || 0;
-                    const targetH = Math.max((val / yMax) * plotH, val > 0 ? 3 : 0);
-                    const bh = targetH;
-                    const bx = gx + barsOffset + ki * (barW + 2);
-                    const by = plotH - bh;
-                    return (
-                      <g key={k.key}>
-                        {(() => {
-                          const D  = Math.max(Math.min(barW * 0.32, 12), 4);
-                          const DX = D; const DY = -(D * 0.52);
-                          const frontPts = `${bx},${by} ${bx+barW},${by} ${bx+barW},${by+bh} ${bx},${by+bh}`;
-                          const sidePts  = `${bx+barW},${by} ${bx+barW+DX},${by+DY} ${bx+barW+DX},${by+bh+DY} ${bx+barW},${by+bh}`;
-                          const topPts   = `${bx},${by} ${bx+barW},${by} ${bx+barW+DX},${by+DY} ${bx+DX},${by+DY}`;
-                          return (
-                            <g filter="url(#bar-shadow)">
-                              {bh > 2 && <polygon points={sidePts}  fill={`url(#bg-${k.key})`} filter="url(#face-darken)"  style={{ pointerEvents: 'none' }} />}
-                              {bh > 2 && <polygon points={topPts}   fill={`url(#bg-${k.key})`} filter="url(#face-lighten)" style={{ pointerEvents: 'none' }} />}
-                              <polygon points={frontPts} fill={`url(#bg-${k.key})`}
-                                fillOpacity={isHovered ? 1 : 0.93}
-                                style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => setTooltip({ gxCenter: gx + groupW / 2, d })}
-                                onMouseLeave={() => setTooltip(null)}
-                              />
-                              {isHovered && val > 0 && (
-                                <text x={bx + barW / 2} y={by + DY - 5} textAnchor="middle" fontSize={9} fontWeight={700} fill={k.color}>{val.toLocaleString()}</text>
-                              )}
-                            </g>
-                          );
-                        })()}
-                      </g>
-                    );
-                  })}
-                  <text x={gx + groupW / 2} y={plotH + 20} textAnchor="middle" fontSize={10} fill="#94a3b8" fontWeight={500}>
-                    {d.label.length > 10 ? d.label.slice(0, 9) + '…' : d.label}
+                  <line x1={0} x2={plotW} y1={y(v)} y2={y(v)} style={{ stroke: i === 0 ? 'var(--viz-axis)' : 'var(--viz-grid)' }} />
+                  <text x={-8} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize={11} style={{ fill: 'var(--viz-ink-muted)' }}>
+                    {formatTick(Math.round(v))}
                   </text>
                 </g>
               );
             })}
-            {tooltip && (() => {
-              const TW = 180; const TH = 38 + keys.length * 24;
-              const tx = Math.min(Math.max(tooltip.gxCenter - TW / 2, 0), plotW - TW);
+
+            {data.map((d, di) => {
+              const gx = di * groupW;
+              const x0 = gx + (groupW - innerW) / 2;
+              const dim = hover !== null && hover !== di;
+              let acc = 0;
+              const visibleStack = keys.filter((k) => (d.values[k.key] || 0) > 0);
+              const topKey = visibleStack[visibleStack.length - 1]?.key;
               return (
-                <g style={{ pointerEvents: 'none' }}>
-                  <rect x={tx} y={0} width={TW} height={TH} rx={14} fill="rgba(255,255,255,0.95)" stroke="rgba(148,163,184,0.15)" filter="drop-shadow(0 8px 24px rgba(0,0,0,0.1))" />
-                  <rect x={tx} y={0} width={TW} height={3} rx={1} fill="url(#tt-accent)" />
-                  <text x={tx + 14} y={22} fontSize={11} fontWeight={700} fill="#0f172a">{tooltip.d.label}</text>
-                  {keys.map((k, ki) => (
-                    <g key={k.key}>
-                      <circle cx={tx + 18} cy={41 + ki * 22} r={4} fill={k.color} />
-                      <text x={tx + 30} y={44 + ki * 22} fontSize={10.5} fill="#64748b" fontWeight={500}>{k.label}</text>
-                      <text x={tx + TW - 14} y={44 + ki * 22} textAnchor="end" fontSize={11} fontWeight={700} fill="#0f172a">{(tooltip.d.values[k.key] || 0).toLocaleString()}</text>
-                    </g>
-                  ))}
+                <g key={di} style={{ opacity: dim ? 0.45 : 1, transition: 'opacity 120ms' }}>
+                  {keys.map((k, ki) => {
+                    const v = d.values[k.key] || 0;
+                    if (v <= 0) return null;
+                    if (stacked) {
+                      const yTop = y(acc + v);
+                      const h = y(acc) - yTop - (acc > 0 ? GAP : 0);
+                      acc += v;
+                      return <path key={k.key} d={barPath(x0, yTop, barW, Math.max(h, 1), k.key === topKey)} style={{ fill: colors[k.key] }} />;
+                    }
+                    const h = plotH - y(v);
+                    return <path key={k.key} d={barPath(x0 + ki * (barW + GAP), y(v), barW, Math.max(h, 1), true)} style={{ fill: colors[k.key] }} />;
+                  })}
+                  <text x={gx + groupW / 2} y={plotH + 18} textAnchor="middle" fontSize={11} style={{ fill: 'var(--viz-ink-muted)' }}>
+                    <title>{d.label}</title>
+                    {d.label.length > maxChars ? `${d.label.slice(0, maxChars - 1)}…` : d.label}
+                  </text>
+                  {/* Hit target: the whole column, larger than the marks */}
+                  <rect
+                    x={gx} y={0} width={groupW} height={plotH + 24} fill="transparent"
+                    style={{ cursor: onBarClick ? 'pointer' : 'default' }}
+                    onMouseEnter={() => setHover(di)}
+                    onMouseLeave={() => setHover(null)}
+                    onClick={() => onBarClick?.(d, di)}
+                  />
                 </g>
               );
-            })()}
+            })}
           </g>
         </svg>
+
+        {hovered && (
+          <div
+            className="pointer-events-none absolute top-2 z-10 min-w-[170px] -translate-x-1/2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-900"
+            style={{ left: Math.min(Math.max(tipLeft, 95), width - 95) }}
+          >
+            <p className="mb-1.5 font-semibold text-stone-900 dark:text-white">{hovered.label}</p>
+            <ul className="space-y-1">
+              {keys.map((k) => (
+                <li key={k.key} className="flex items-center justify-between gap-4">
+                  <span className="inline-flex items-center gap-1.5 text-stone-600 dark:text-gray-300">
+                    <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: colors[k.key] }} />
+                    {k.label}
+                  </span>
+                  <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{(hovered.values[k.key] || 0).toLocaleString('en-IN')}</span>
+                </li>
+              ))}
+              {stacked && keys.length > 1 && (
+                <li className="mt-1 flex justify-between border-t border-stone-100 pt-1 dark:border-gray-700">
+                  <span className="text-stone-500 dark:text-gray-400">Total</span>
+                  <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{groupTotal(hovered).toLocaleString('en-IN')}</span>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

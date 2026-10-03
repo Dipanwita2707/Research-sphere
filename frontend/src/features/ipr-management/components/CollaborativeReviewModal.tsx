@@ -209,7 +209,7 @@ export default function CollaborativeReviewModal({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-xl p-6 shadow-2xl">
           <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#7d1a34]"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wine"></div>
             <span>Loading review interface...</span>
           </div>
         </div>
@@ -221,11 +221,11 @@ export default function CollaborativeReviewModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-[#fdf5ec] to-indigo-50">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blush to-indigo-50">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                <Edit3 className="w-6 h-6 text-[#7d1a34]" />
+                <Edit3 className="w-6 h-6 text-wine" />
                 Collaborative Review: {application.title}
               </h2>
               <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -264,8 +264,8 @@ export default function CollaborativeReviewModal({
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   reviewMode ===
    'collaborative'
-                    ? 'bg-[#7d1a34] text-white'
-                    : 'text-gray-600 hover:text-[#7d1a34]'
+                    ? 'bg-wine text-wine-fg'
+                    : 'text-gray-600 hover:text-wine'
                 }`}
               >
                 <MessageSquare className="w-4 h-4 inline mr-2" />
@@ -276,8 +276,8 @@ export default function CollaborativeReviewModal({
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   reviewMode ===
    'traditional'
-                    ? 'bg-[#7d1a34] text-white'
-                    : 'text-gray-600 hover:text-[#7d1a34]'
+                    ? 'bg-wine text-wine-fg'
+                    : 'text-gray-600 hover:text-wine'
                 }`}
               >
                 <FileText className="w-4 h-4 inline mr-2" />
@@ -295,14 +295,14 @@ export default function CollaborativeReviewModal({
    'collaborative' ? (
               // Collaborative Editing Mode
               <div className="space-y-6">
-                <div className="bg-[#fdf5ec] border border-[#f0e2d2] rounded-lg p-4">
-                  <h3 className="font-medium text-[#7d1a34] mb-2 flex items-center gap-2">
+                <div className="bg-blush border border-blush-line rounded-lg p-4">
+                  <h3 className="font-medium text-wine mb-2 flex items-center gap-2">
                     <MessageSquare className="w-5 h-5" />
                     Collaborative Review Instructions
                   </h3>
-                  <p className="text-[#7d1a34] text-sm">
+                  <p className="text-wine text-sm">
                     In this mode, you can directly suggest edits to any field. The applicant will see your suggestions 
-                    and can accept or reject them. Click "Suggest Edit" on any field to make changes with explanations.
+                    and can accept or reject them. Click &quot;Suggest Edit&quot; on any field to make changes with explanations.
                   </p>
                 </div>
 
@@ -391,7 +391,7 @@ export default function CollaborativeReviewModal({
                     </h3>
                     <div className="grid grid-cols-4 gap-4 text-center">
                       <div className="bg-white rounded-lg p-3 border">
-                        <div className="text-2xl font-bold text-[#7d1a34]">{editSuggestions.length}</div>
+                        <div className="text-2xl font-bold text-wine">{editSuggestions.length}</div>
                         <div className="text-sm text-gray-600">Total</div>
                       </div>
                       <div className="bg-white rounded-lg p-3 border">
@@ -449,7 +449,7 @@ export default function CollaborativeReviewModal({
                   </label>
                   {/* Permission Info */}
                   {!canApprove && (
-                    <div className="mb-2 p-2 bg-[#fdf5ec] border border-[#f0e2d2] rounded-md text-sm text-[#7d1a34]">
+                    <div className="mb-2 p-2 bg-blush border border-blush-line rounded-md text-sm text-wine">
                       <Shield className="w-4 h-4 inline mr-1" />
                       You can <strong>Recommend</strong> applications. Only DRD Head can give final approval.
                     </div>
@@ -457,7 +457,7 @@ export default function CollaborativeReviewModal({
                   <select
                     value={reviewData.decision}
                     onChange={(e) => setReviewData({ ...reviewData, decision: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-wine focus:border-wine"
                   >
                     {canApprove ? (
                       <>
@@ -492,7 +492,7 @@ export default function CollaborativeReviewModal({
                     value={reviewData.comments}
                     onChange={(e) => setReviewData({ ...reviewData, comments: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-wine focus:border-wine"
                     placeholder={
                       reviewMode ===
    'collaborative' 
@@ -528,7 +528,7 @@ export default function CollaborativeReviewModal({
           <button
             onClick={handleCollaborativeReview}
             disabled={submitting}
-            className="flex-2 px-8 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-2 px-8 py-3 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>

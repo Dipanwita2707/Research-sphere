@@ -137,7 +137,15 @@ class ContributionRepository {
         applicantDetails: true,
         authors: true,
         school: true,
-        department: true
+        department: true,
+        // The mentor needs to know whose work this is even if the student isn't listed as an author.
+        applicantUser: {
+          select: {
+            uid: true,
+            email: true,
+            studentLogin: { select: { firstName: true, lastName: true, displayName: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' }
     });

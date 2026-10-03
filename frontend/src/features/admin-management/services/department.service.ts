@@ -12,7 +12,6 @@ export interface Department {
   contactEmail?: string;
   contactPhone?: string;
   officeLocation?: string;
-  budgetAllocation?: number;
   isActive: boolean;
   metadata?: any;
   createdAt: string;
@@ -57,7 +56,6 @@ export interface CreateDepartmentDto {
   contactEmail?: string;
   contactPhone?: string;
   officeLocation?: string;
-  budgetAllocation?: number;
   metadata?: any;
 }
 

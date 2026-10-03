@@ -132,6 +132,22 @@ describe('research workflow lifecycle', () => {
           return { count: 1 };
         }),
         findUnique: jest.fn(async () => clone(state.contribution)),
+        // duplicate-claim check: no other active claim on the same work
+        findMany: jest.fn(async () => []),
+      },
+      employeeDetails: {
+        findMany: jest.fn(async () => []),
+      },
+      userLogin: { findMany: jest.fn(async () => []) },
+      incentivePayout: {
+        findMany: jest.fn(async () => []),
+        createMany: jest.fn(async ({ data }) => {
+          state.payouts = [...(state.payouts || []), ...data];
+          return { count: data.length };
+        }),
+      },
+      incentivePayoutEvent: {
+        create: jest.fn(async ({ data }) => data),
       },
       researchContributionStatusHistory: {
         create: jest.fn(async ({ data }) => {
@@ -164,11 +180,33 @@ describe('research workflow lifecycle', () => {
 
     prisma = {
       $transaction: jest.fn(async (callback) => callback(transactionClient)),
+      researchContribution: {
+        findMany: jest.fn(async () => []),
+      },
       researchContributionStatusHistory: {
         create: jest.fn(async ({ data }) => {
           state.statusHistory.push(data);
           return data;
         }),
+        // resubmitContribution checks who requested the changes (mentor vs DRD)
+        findFirst: jest.fn(async ({ where }) =>
+          [...state.statusHistory].reverse().find((h) => h.toStatus === where.toStatus) || null
+        ),
+      },
+      researchContributionApplicantDetails: {
+        findFirst: jest.fn(async () => state.contribution.applicantDetails || null),
+        update: jest.fn(async ({ data }) => {
+          state.contribution.applicantDetails = { ...(state.contribution.applicantDetails || {}), ...data };
+          return state.contribution.applicantDetails;
+        }),
+        create: jest.fn(async ({ data }) => {
+          state.contribution.applicantDetails = data;
+          return data;
+        }),
+      },
+      studentDetails: {
+        // no mentor assigned on record: the typed mentor is used
+        findFirst: jest.fn(async () => null),
       },
       researchContributionEditSuggestion: {
         create: jest.fn(async ({ data }) => {
@@ -197,8 +235,11 @@ describe('research workflow lifecycle', () => {
         })),
       },
       userLogin: {
+        findMany: jest.fn(async () => []),
         findFirst: jest.fn(async ({ where }) =>
-          where.uid === 'MENTOR001' ? { id: 'mentor-1', uid: 'MENTOR001' } : null
+          where.uid === 'MENTOR001' || where.id === 'mentor-1'
+            ? { id: 'mentor-1', uid: 'MENTOR001', role: 'faculty', status: 'active' }
+            : null
         ),
         findUnique: jest.fn(async ({ where }) =>
           where.id === 'mentor-1' ? { id: 'mentor-1', uid: 'MENTOR001' } : null
@@ -268,6 +309,9 @@ describe('research workflow lifecycle', () => {
       comments: 'Approved',
     });
     expect(approval.updated.status).toBe('approved');
+    expect(state.payouts).toEqual([
+      expect.objectContaining({ sourceType: 'research_contribution', payeeUserId: 'applicant-1', calculatedAmount: 100, points: 10 }),
+    ]);
     expect(state.contribution.currentReviewerId).toBeNull();
     expect(state.notifications.some((entry) => entry.type === 'research_approved')).toBe(true);
 

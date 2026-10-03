@@ -276,7 +276,7 @@ export default function MyRequestsCard({ onRequestNominee }: { onRequestNominee?
                   </button>
                 </div>
               ))}
-              <button type="button" className="text-sm text-wine dark:text-amber-400 hover:underline" onClick={() => setRows((rs) => [...rs, emptyRow()])}>
+              <button type="button" className="text-sm text-wine dark:text-hi hover:underline" onClick={() => setRows((rs) => [...rs, emptyRow()])}>
                 + Add another field
               </button>
             </fieldset>

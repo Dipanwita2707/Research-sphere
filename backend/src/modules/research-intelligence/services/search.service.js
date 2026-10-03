@@ -23,6 +23,7 @@ const clampLimit = (n, def = 10, max = 25) => Math.max(1, Math.min(Number(n) || 
 
 const QUARTILES = ['Top 1%', 'Top 5%', 'Q1', 'Q2', 'Q3', 'Q4'];
 const PUB_TYPES = ['research_paper', 'book', 'book_chapter', 'conference_paper', 'grant_proposal'];
+const MAX_PAGE_SIZE = 100;
 
 /**
  * @param {string} tenantId
@@ -39,7 +40,11 @@ const PUB_TYPES = ['research_paper', 'book', 'book_chapter', 'conference_paper',
  */
 async function searchPublications(tenantId, f = {}) {
   const query = String(f.query || '').trim().slice(0, 300);
-  const limit = clampLimit(f.limit);
+  // Paged when the caller asks for it (UI: page + pageSize up to 100); otherwise the original top-N limit (chat tools).
+  const paged = f.page !== undefined || f.pageSize !== undefined;
+  const limit = paged ? clampLimit(f.pageSize, 20, MAX_PAGE_SIZE) : clampLimit(f.limit);
+  const page = paged ? Math.max(1, Math.floor(Number(f.page)) || 1) : 1;
+  const offset = (page - 1) * limit;
   const conds = [countedRc(tenantId)];
 
   if (f.yearFrom) conds.push(Prisma.sql`${YEAR} >= ${Number(f.yearFrom)}`);
@@ -105,15 +110,21 @@ async function searchPublications(tenantId, f = {}) {
            ${relevance} AS relevance, ${via} AS matched_via, COUNT(*) OVER()::int AS total
       FROM ${from}
      WHERE ${Prisma.join(conds, ' AND ')}
-     ORDER BY ${order}
-     LIMIT ${limit}`;
+     ORDER BY ${order}, rc.id
+     LIMIT ${limit} OFFSET ${offset}`;
 
   const explain = expansion?.explain || null;
-  if (!rows.length) return { total: 0, results: [], expansion: explain };
+  const pageInfo = (total) => (paged ? { page, pageSize: limit, pages: Math.max(1, Math.ceil(total / limit)) } : {});
+  if (!rows.length) {
+    // Past the last page: COUNT(*) OVER() has no row to ride on, so ask page 1 for the total.
+    const total = offset > 0 ? (await searchPublications(tenantId, { ...f, page: 1, pageSize: 1 })).total : 0;
+    return { total, ...pageInfo(total), results: [], expansion: explain };
+  }
   const details = await prisma.researchContribution.findMany({
     where: { id: { in: rows.map((r) => r.id) } },
     select: {
       id: true,
+      abstract: true,
       department: { select: { departmentName: true } },
       school: { select: { facultyName: true } },
       authors: { select: { name: true, userId: true, isInternal: true, affiliation: true }, orderBy: { authorOrder: 'asc' }, take: 8 },
@@ -123,6 +134,7 @@ async function searchPublications(tenantId, f = {}) {
   const byId = new Map(details.map((d) => [d.id, d]));
   return {
     total: rows[0].total,
+    ...pageInfo(rows[0].total),
     expansion: explain,
     results: rows.map((r) => {
       const d = byId.get(r.id) || {};
@@ -139,6 +151,7 @@ async function searchPublications(tenantId, f = {}) {
         department: d.department?.departmentName || null,
         school: d.school?.facultyName || null,
         authors,
+        abstract: d.abstract || null,
         matchedVia: [...new Set(r.matched_via || [])],
         relevance: Math.round(Number(r.relevance) * 1000) / 1000,
       };
@@ -151,6 +164,32 @@ async function searchPublications(tenantId, f = {}) {
 const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9& ]+/g, ' ').trim();
 
 /** Departments whose name, short name or code matches the text (e.g. "CSE", "computer science"). */
+/** The tenant's schools with their departments, for filter dropdowns. */
+async function listUnits(tenantId) {
+  const schools = await prisma.facultySchoolList.findMany({
+    where: { universityId: tenantId, isActive: true },
+    orderBy: { facultyName: 'asc' },
+    select: {
+      id: true,
+      facultyName: true,
+      shortName: true,
+      departments: {
+        where: { isActive: true },
+        orderBy: { departmentName: 'asc' },
+        select: { id: true, departmentName: true, shortName: true },
+      },
+    },
+  });
+  return {
+    schools: schools.map((s) => ({
+      id: s.id,
+      name: s.facultyName,
+      shortName: s.shortName || null,
+      departments: s.departments.map((d) => ({ id: d.id, name: d.departmentName, shortName: d.shortName || null })),
+    })),
+  };
+}
+
 async function resolveDepartments(text, take = 5) {
   const t = String(text || '').trim();
   if (!t) return [];
@@ -243,6 +282,7 @@ async function resolveKeywords(text, take = 10) {
 
 module.exports = {
   searchPublications,
+  listUnits,
   resolveDepartments,
   resolveSchools,
   resolveResearchers,

@@ -26,12 +26,12 @@ export default function ApplicantProfilePage() {
   // Show loading while redirecting
   return (
     <ProtectedRoute>
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center border">
-          <Loader2 className="w-10 h-10 text-blue-600 mx-auto mb-4 animate-spin" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Redirecting...</h2>
-          <p className="text-gray-500 text-sm">
-            Taking you to the research profile page.
+      <div className="flex min-h-screen items-center justify-center bg-[#faf8f6] p-6 dark:bg-gray-900">
+        <div className="w-full max-w-sm rounded-xl border border-stone-200 bg-white p-8 text-center shadow-[0_1px_2px_rgba(28,25,23,0.04)] dark:border-gray-700 dark:bg-gray-800">
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-wine dark:text-amber" aria-hidden="true" />
+          <h2 className="mb-1.5 text-base font-semibold text-stone-900 dark:text-gray-100">Opening research profile</h2>
+          <p className="text-sm text-stone-500 dark:text-gray-400">
+            Analytics for this person now live on their research profile.
           </p>
         </div>
       </div>

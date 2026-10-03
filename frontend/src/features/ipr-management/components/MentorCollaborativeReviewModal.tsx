@@ -231,7 +231,7 @@ export default function MentorCollaborativeReviewModal({
                   </h3>
                   <p className="text-purple-800 text-sm">
                     As a mentor, you can directly suggest edits to any field. Your student will see your suggestions 
-                    and can accept or reject them. Click "Suggest Edit" on any field to make changes with explanations.
+                    and can accept or reject them. Click &quot;Suggest Edit&quot; on any field to make changes with explanations.
                   </p>
                 </div>
 

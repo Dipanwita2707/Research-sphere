@@ -3,6 +3,7 @@
  * Centralizes all Prisma calls for grant-related models.
  * Accepts a prisma client via constructor for testability.
  */
+const { policyWindowWhere } = require('../../research/utils/policyWindow');
 
 class GrantRepository {
   constructor(prisma) {
@@ -198,15 +199,14 @@ class GrantRepository {
    * @param {string} projectCategory
    * @param {string} projectType
    */
-  async findActivePolicy(projectCategory, projectType) {
-    const currentDate = new Date();
+  async findActivePolicy(projectCategory, projectType, onDate = new Date()) {
+    // Enabled and in force on `onDate` (the grant's policy date; same day-granular window
+    // rule as every other policy type).
     return this.prisma.grantIncentivePolicy.findFirst({
       where: {
         projectCategory,
         projectType,
-        isActive: true,
-        effectiveFrom: { lte: currentDate },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: currentDate } }],
+        ...policyWindowWhere(onDate),
       },
       orderBy: { effectiveFrom: 'desc' },
     });

@@ -3,6 +3,29 @@ const prisma = require('../../../shared/config/database');
 const { protect } = require('../../../shared/middleware/auth');
 
 const router = express.Router();
+const reviewScope = require('../../research/services/reviewScope');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * School scope for the legacy register: a manager with assigned IPR schools only reaches items
+ * created by staff of those schools (creator/approver keep access). 'view' answers 404 like a
+ * missing item; 'act' answers 403 OUT_OF_ASSIGNED_SCHOOLS.
+ */
+const legacyScope = (mode) => async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!UUID_RE.test(id || '')) return next();
+    const item = await prisma.iPR.findUnique({ where: { id }, select: { id: true, createdById: true, approvedById: true } });
+    if (!item || (await reviewScope.canAccessLegacyIpr(req.user, item))) return next();
+    if (mode === 'view') return res.status(404).json({ success: false, message: 'IPR item not found' });
+    const err = reviewScope.outOfScopeError('ipr');
+    return res.status(403).json({ success: false, code: err.code, message: err.message });
+  } catch (error) {
+    console.error('Legacy IPR scope check error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to verify review scope' });
+  }
+};
 
 // Legacy IPR register: admins/staff manage every item of their university; everyone else
 // only the items they created (or approved). Tenant isolation itself is automatic.
@@ -44,6 +67,12 @@ router.get('/', protect, async (req, res) => {
     // If user can only view their own IPR, filter by creator
     if (!hasViewAll && hasViewOwn) {
       whereClause.createdById = userId;
+    } else if (hasViewAll) {
+      // Managers with assigned IPR schools see their schools' items plus their own
+      const scope = await reviewScope.getViewScope(req.user, 'ipr');
+      if (!scope.all) {
+        whereClause.AND = [{ OR: [{ createdById: userId }, { approvedById: userId }, reviewScope.legacyIprSchoolWhere(scope.schoolIds)] }];
+      }
     }
     
     if (type && type !== 'all') {
@@ -148,7 +177,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Get single IPR item
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, legacyScope('view'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -330,7 +359,7 @@ router.post('/', protect, async (req, res) => {
 });
 
 // Update IPR item
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, legacyScope('act'), async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = Object.fromEntries(
@@ -419,7 +448,7 @@ router.put('/:id', protect, async (req, res) => {
 });
 
 // Submit IPR item for review
-router.post('/:id/submit', protect, async (req, res) => {
+router.post('/:id/submit', protect, legacyScope('act'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -472,7 +501,7 @@ router.post('/:id/submit', protect, async (req, res) => {
 });
 
 // Approve/Reject IPR item
-router.post('/:id/review', protect, async (req, res) => {
+router.post('/:id/review', protect, legacyScope('act'), async (req, res) => {
   try {
     const { id } = req.params;
     const { action, comments, reviewerNotes } = req.body;
@@ -657,7 +686,7 @@ router.get('/analytics/dashboard', protect, async (req, res) => {
 });
 
 // Delete IPR item
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, legacyScope('act'), async (req, res) => {
   try {
     const { id } = req.params;
 

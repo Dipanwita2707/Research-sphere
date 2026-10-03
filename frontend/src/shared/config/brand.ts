@@ -8,7 +8,12 @@ export const BRAND = {
   shortName: 'ResearchSphere',
   tagline: 'Research Management Platform',
   description: 'Research Management Platform',
-  supportEmail: 'mrinal11092002@gmail.com',
+  /**
+   * Public support address, set per deployment via NEXT_PUBLIC_SUPPORT_EMAIL.
+   * null when not configured: callers must then send people to the contact form
+   * (SUPPORT_CONTACT_PATH) instead of rendering a mailto link.
+   */
+  supportEmail: (process.env.NEXT_PUBLIC_SUPPORT_EMAIL || '').trim() || null,
   websiteUrl: '#',
   social: {
     facebook: '#',
@@ -29,5 +34,8 @@ export const BRAND = {
     blushDeep: '#F5E8DC',
   },
 } as const;
+
+/** In-app route that always works for reaching support, even without a configured email. */
+export const SUPPORT_CONTACT_PATH = '/contact';
 
 export type BrandPalette = typeof BRAND.palette;

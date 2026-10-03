@@ -245,7 +245,6 @@ exports.createDepartment = async (req, res) => {
       contactEmail,
       contactPhone,
       officeLocation,
-      budgetAllocation,
       metadata,
     } = req.body;
 
@@ -314,7 +313,6 @@ exports.createDepartment = async (req, res) => {
         contactEmail,
         contactPhone,
         officeLocation,
-        budgetAllocation,
         metadata: metadata || {},
         isActive: true,
         // Note: Department inherits university scope through its school (FacultySchoolList.universityId).
@@ -381,7 +379,6 @@ exports.updateDepartment = async (req, res) => {
       contactEmail,
       contactPhone,
       officeLocation,
-      budgetAllocation,
       metadata,
     } = req.body;
 
@@ -435,7 +432,6 @@ exports.updateDepartment = async (req, res) => {
         contactEmail,
         contactPhone,
         officeLocation,
-        budgetAllocation,
         metadata: metadata || existing.metadata,
       },
       include: {

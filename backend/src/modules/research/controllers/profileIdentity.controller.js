@@ -89,16 +89,26 @@ exports.updateProfileIdentity = async (req, res) => {
       }
     }
 
-    // 5. Return response with sync status
+    // 5. Ids saved without registry confirmation are reported as unverified.
+    const verification = identity?.identityVerification && typeof identity.identityVerification === 'object'
+      ? identity.identityVerification
+      : {};
+    const unverified = Object.entries(verification)
+      .filter(([, v]) => v && v.status === 'unverified')
+      .map(([key, v]) => `${key === 'orcid' ? 'ORCID' : 'Scopus ID'} saved but not verified (${v.reason || 'registry unavailable'})`);
+
+    // 6. Return response with sync status
+    const baseMessage = syncTriggered
+      ? 'Research profile identity updated and sync initiated'
+      : 'Research profile identity updated successfully';
     res.status(200).json({
       success: true,
-      message: syncTriggered 
-        ? 'Research profile identity updated and sync initiated'
-        : 'Research profile identity updated successfully',
+      message: unverified.length > 0 ? `${baseMessage}. ${unverified.join('; ')}.` : baseMessage,
       data: {
         ...identity,
         syncTriggered,
         syncError,
+        unverifiedIds: unverified,
       },
     });
   } catch (error) {

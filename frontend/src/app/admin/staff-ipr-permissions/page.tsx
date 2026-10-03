@@ -426,7 +426,7 @@ export default function StaffIPRPermissions() {
                   {selectedStaff.permissions.length ===
    0 && (
                     <p className="text-sm text-amber-600 mt-1">
-                      ⚠️ No IPR permissions assigned. Staff member won't be able to access IPR features.
+                      ⚠️ No IPR permissions assigned. Staff member won&apos;t be able to access IPR features.
                     </p>
                   )}
                 </div>

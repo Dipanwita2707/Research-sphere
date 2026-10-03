@@ -1,3 +1,4 @@
+import { brandRgb } from '@/shared/theme/cssVars';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { Users, Filter, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
@@ -19,14 +20,15 @@ interface CoAuthorNetworkProps {
   onZoomReady?: (handlers: { zoomIn: () => void; zoomOut: () => void; reset: () => void }) => void;
 }
 
+// Theme colours, resolved at draw time (d3 writes SVG attributes, which cannot use CSS variables)
 const COLORS = {
-  maroon: '#7d1a34',
-  gold: '#c8973f',
+  get maroon() { return brandRgb('primary', '#7d1a34'); },
+  get gold() { return brandRgb('gold', '#c8973f'); },
   purple: '#8b6fc0',
-  gray: '#8a7f86',
-  grayLight: '#b5abb2',
-  textDark: '#2b1d22',
-  textGray: '#7a7178',
+  get gray() { return brandRgb('ink-subtle', '#8a7f86'); },
+  get grayLight() { return brandRgb('ink-subtle', '#b5abb2'); },
+  get textDark() { return brandRgb('ink', '#2b1d22'); },
+  get textGray() { return brandRgb('ink-muted', '#7a7178'); },
 };
 
 type NodeTier = 'main' | 'high' | 'medium' | 'low';
@@ -225,15 +227,15 @@ function showTooltip(event: MouseEvent, d: SimNode) {
   d3.selectAll('.net-tooltip').remove();
   const tierColors: Record<NodeTier, string> = { main: COLORS.gold, high: COLORS.maroon, medium: COLORS.purple, low: COLORS.gray };
   const scopusUrl = scopusAuthorProfileUrl(d.scopusAuthorId);
-  let html = `<div style="border-bottom:1px solid #f0e2d2;padding-bottom:6px;margin-bottom:6px;">`;
+  let html = `<div style="border-bottom:1px solid rgb(var(--brand-line));padding-bottom:6px;margin-bottom:6px;">`;
   if (scopusUrl && !d.isMainAuthor) {
     html += `<a href="${scopusUrl}" target="_blank" rel="noopener noreferrer" style="color:${tierColors[d.tier]};font-size:13px;font-weight:700;text-decoration:none;">${d.name}</a>`;
-    html += `<div style="color:#7a7178;font-size:10px;margin-top:4px;">Open Scopus profile ↗</div>`;
+    html += `<div style="color:rgb(var(--brand-ink-muted));font-size:10px;margin-top:4px;">Open Scopus profile ↗</div>`;
   } else {
     html += `<strong style="color:${tierColors[d.tier]};font-size:13px;">${d.name}</strong>`;
   }
   html += `</div>`;
-  html += `<div style="color:#7a7178;font-size:11px;margin-bottom:4px;">${d.affiliation}</div>`;
+  html += `<div style="color:rgb(var(--brand-ink-muted));font-size:11px;margin-bottom:4px;">${d.affiliation}</div>`;
   if (!d.isMainAuthor) {
     html += `<div style="color:${COLORS.maroon};font-weight:600;font-size:11px;">${d.collaborationCount} collaboration${d.collaborationCount !== 1 ? 's' : ''}</div>`;
   }
@@ -242,7 +244,7 @@ function showTooltip(event: MouseEvent, d: SimNode) {
     .style('position', 'fixed').style('background', '#fff').style('color', COLORS.textDark)
     .style('padding', '12px 14px').style('border-radius', '8px').style('font-size', '12px')
     .style('pointer-events', scopusUrl && !d.isMainAuthor ? 'auto' : 'none').style('z-index', '9999')
-    .style('border', '1px solid #f0e2d2').style('box-shadow', '0 8px 20px rgba(0,0,0,0.08)')
+    .style('border', '1px solid rgb(var(--brand-line))').style('box-shadow', '0 8px 20px rgba(0,0,0,0.08)')
     .style('max-width', '220px').html(html)
     .style('left', `${event.clientX + 14}px`).style('top', `${event.clientY - 14}px`);
 }
@@ -330,13 +332,13 @@ export default function CoAuthorNetwork({
     svg.attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
 
     const defs = svg.append('defs');
-    makeSphereGradient(defs, 'sphere-gold', '#f5d89a', COLORS.gold, '#8a6420');
-    makeSphereGradient(defs, 'sphere-maroon', '#c4567a', COLORS.maroon, '#4a0f22');
+    makeSphereGradient(defs, 'sphere-gold', brandRgb('gold-50', '#f5d89a'), COLORS.gold, brandRgb('gold-dark', '#8a6420'));
+    makeSphereGradient(defs, 'sphere-maroon', brandRgb('primary-300', '#c4567a'), COLORS.maroon, brandRgb('primary-darker', '#400b18'));
     makeSphereGradient(defs, 'sphere-purple', '#e8dff5', '#9b7fd4', '#5c4688');
-    makeSphereGradient(defs, 'sphere-gray', '#ece6ea', '#a3949c', '#6b5f66');
+    makeSphereGradient(defs, 'sphere-gray', brandRgb('primary-50', '#f1e6e9'), brandRgb('ink-subtle', '#b0a5ab'), brandRgb('ink-muted', '#7a7178'));
 
     const shadow = defs.append('filter').attr('id', 'node-shadow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
-    shadow.append('feDropShadow').attr('dx', 0).attr('dy', 3).attr('stdDeviation', 4).attr('flood-color', '#2b1d22').attr('flood-opacity', 0.18);
+    shadow.append('feDropShadow').attr('dx', 0).attr('dy', 3).attr('stdDeviation', 4).attr('flood-color', brandRgb('ink', '#2b1d22')).attr('flood-opacity', 0.18);
 
     const glow = defs.append('filter').attr('id', 'node-glow').attr('x', '-80%').attr('y', '-80%').attr('width', '260%').attr('height', '260%');
     glow.append('feGaussianBlur').attr('stdDeviation', 6).attr('result', 'blur');
@@ -418,13 +420,13 @@ export default function CoAuthorNetwork({
       .attr('stroke', d => (d.tier === 'medium' ? COLORS.purple : COLORS.grayLight))
       .attr('stroke-width', 1.5).attr('opacity', d => (d.tier === 'medium' ? 0.55 : 0.65));
     nodeGroups.append('circle').attr('class', 'node-shadow')
-      .attr('r', d => d.radius * 0.95).attr('fill', '#2b1d22').attr('opacity', d => (d.tier === 'low' ? 0.18 : 0.12))
+      .attr('r', d => d.radius * 0.95).attr('fill', brandRgb('ink', '#2b1d22')).attr('opacity', d => (d.tier === 'low' ? 0.18 : 0.12))
       .attr('transform', 'translate(2, 4)');
     nodeGroups.append('circle').attr('class', 'node-circle').attr('r', 0)
       .attr('fill', d => getGradientId(d.tier))
       .attr('stroke', d => {
         if (d.tier === 'main') return '#fff';
-        if (d.tier === 'high') return '#f2d9df';
+        if (d.tier === 'high') return brandRgb('primary-100', '#fbe2e8');
         if (d.tier === 'medium') return '#ece4f4';
         return '#ffffff';
       })
@@ -626,18 +628,18 @@ export default function CoAuthorNetwork({
   if (coAuthors.length === 0) {
     return (
       <div className="py-14 text-center">
-        <div className="w-14 h-14 rounded-full bg-[#fdf5ec] flex items-center justify-center mx-auto mb-3">
-          <Users className="w-7 h-7 text-[#7a7178]" />
+        <div className="w-14 h-14 rounded-full bg-blush flex items-center justify-center mx-auto mb-3">
+          <Users className="w-7 h-7 text-ink-muted" />
         </div>
-        <h3 className="text-sm font-semibold text-[#2b1d22] mb-1">No co-authors yet</h3>
-        <p className="text-xs text-[#7a7178]">Co-author network will appear once publications with multiple authors are added.</p>
+        <h3 className="text-sm font-semibold text-ink mb-1">No co-authors yet</h3>
+        <p className="text-xs text-ink-muted">Co-author network will appear once publications with multiple authors are added.</p>
       </div>
     );
   }
 
   const graphContent = (
     <div ref={containerRef} className="cn-graph-wrap relative pt-4 pl-[130px]" style={{ perspective: '900px' }}>
-      <div className="cn-legend absolute left-0 top-[14px] z-[2] flex flex-col gap-2.5 text-[12.5px] text-[#2b1d22]">
+      <div className="cn-legend absolute left-0 top-[14px] z-[2] flex flex-col gap-2.5 text-[12.5px] text-ink">
         {[
           [COLORS.gold, 'You (Main Author)'],
           [COLORS.maroon, 'Co-authors (High Collaboration)'],
@@ -650,7 +652,7 @@ export default function CoAuthorNetwork({
           </div>
         ))}
       </div>
-      <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-[#9a9198] pointer-events-none select-none z-[2]">
+      <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-ink-subtle pointer-events-none select-none z-[2]">
         Curved links · 3D float · Drag nodes · Scroll to zoom · Hover to highlight
       </p>
       <svg ref={svgRef} className="w-full cursor-grab active:cursor-grabbing" style={{ minHeight: 720 }} />
@@ -661,23 +663,23 @@ export default function CoAuthorNetwork({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-white border border-[#f0e2d2] rounded-lg">
-        <Filter className="w-3.5 h-3.5 text-[#7d1a34] shrink-0" />
-        <span className="text-xs font-semibold text-[#7d1a34] mr-1">Filter &amp; Settings</span>
-        <select value={internalFilters.minCollaborations} onChange={e => setInternalFilters(p => ({ ...p, minCollaborations: parseInt(e.target.value, 10) }))} className="text-xs border border-[#f0e2d2] rounded px-2.5 py-1 bg-white text-[#2b1d22]">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-white border border-blush-line rounded-lg">
+        <Filter className="w-3.5 h-3.5 text-wine shrink-0" />
+        <span className="text-xs font-semibold text-wine mr-1">Filter &amp; Settings</span>
+        <select value={internalFilters.minCollaborations} onChange={e => setInternalFilters(p => ({ ...p, minCollaborations: parseInt(e.target.value, 10) }))} className="text-xs border border-blush-line rounded px-2.5 py-1 bg-white text-ink">
           <option value={1}>1+</option><option value={2}>2+</option><option value={5}>5+</option><option value={10}>10+</option>
         </select>
-        <select value={internalFilters.timeRange} onChange={e => setInternalFilters(p => ({ ...p, timeRange: e.target.value as NetworkFilters['timeRange'] }))} className="text-xs border border-[#f0e2d2] rounded px-2.5 py-1 bg-white text-[#2b1d22]">
+        <select value={internalFilters.timeRange} onChange={e => setInternalFilters(p => ({ ...p, timeRange: e.target.value as NetworkFilters['timeRange'] }))} className="text-xs border border-blush-line rounded px-2.5 py-1 bg-white text-ink">
           <option value="all">All time</option><option value="last5years">Last 5 years</option><option value="recent">Last year</option>
         </select>
-        <label className="flex items-center gap-1.5 cursor-pointer text-[#2b1d22]">
-          <input type="checkbox" checked={internalFilters.showLabels} onChange={e => setInternalFilters(p => ({ ...p, showLabels: e.target.checked }))} className="rounded border-[#f0e2d2] accent-[#7d1a34] w-4 h-4" />
+        <label className="flex items-center gap-1.5 cursor-pointer text-ink">
+          <input type="checkbox" checked={internalFilters.showLabels} onChange={e => setInternalFilters(p => ({ ...p, showLabels: e.target.checked }))} className="rounded border-blush-line accent-wine w-4 h-4" />
           <span className="text-xs font-semibold">Show Labels</span>
         </label>
         <div className="ml-auto flex items-center gap-1">
-          <button type="button" onClick={() => handleZoom('in')} className="p-1.5 rounded border border-[#f0e2d2] text-[#7a7178] hover:text-[#7d1a34] hover:bg-[#fdf5ec]"><ZoomIn className="w-3.5 h-3.5" /></button>
-          <button type="button" onClick={() => handleZoom('out')} className="p-1.5 rounded border border-[#f0e2d2] text-[#7a7178] hover:text-[#7d1a34] hover:bg-[#fdf5ec]"><ZoomOut className="w-3.5 h-3.5" /></button>
-          <button type="button" onClick={resetZoom} className="flex items-center gap-1 px-2.5 py-1 text-xs rounded border border-[#f0e2d2] text-[#7a7178] hover:text-[#7d1a34] hover:bg-[#fdf5ec]"><RotateCcw className="w-3 h-3" /> Reset</button>
+          <button type="button" onClick={() => handleZoom('in')} className="p-1.5 rounded border border-blush-line text-ink-muted hover:text-wine hover:bg-blush"><ZoomIn className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => handleZoom('out')} className="p-1.5 rounded border border-blush-line text-ink-muted hover:text-wine hover:bg-blush"><ZoomOut className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={resetZoom} className="flex items-center gap-1 px-2.5 py-1 text-xs rounded border border-blush-line text-ink-muted hover:text-wine hover:bg-blush"><RotateCcw className="w-3 h-3" /> Reset</button>
         </div>
       </div>
       {graphContent}

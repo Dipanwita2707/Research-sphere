@@ -1,12 +1,13 @@
 /**
- * AWS S3 Utility Module
- * Handles file uploads, downloads, and deletions from AWS S3
+ * File storage module (local disk by default, AWS S3 when STORAGE_DRIVER=s3)
+ * Handles file uploads, downloads, and deletions
  */
 
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const crypto = require('crypto');
 const path = require('path');
+const { contentTypeFor } = require('./fileTypes');
 
 // Initialize S3 client
 const s3Client = new S3Client({
@@ -18,6 +19,38 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'sgt-ums';
+
+/**
+ * Storage driver. `local` (the default) keeps every file on this server's disk under
+ * backend/src/uploads/<key>; `s3` uses the bucket above. Keys have the same shape either way
+ * (`folder/userId/timestamp-rand-name.ext`), so callers never need to know which is in use.
+ */
+const fs = require('fs');
+
+const storageDriver = () => (String(process.env.STORAGE_DRIVER || 'local').toLowerCase() === 's3' ? 's3' : 'local');
+const isLocalStorage = () => storageDriver() === 'local';
+
+const BACKEND_ROOT = path.join(__dirname, '..', '..', '..');
+const LOCAL_ROOT = path.join(BACKEND_ROOT, 'src', 'uploads');
+// Older uploads were written to these folders too; reads look in all of them.
+const LOCAL_READ_ROOTS = [LOCAL_ROOT, path.join(BACKEND_ROOT, 'uploads'), path.join(BACKEND_ROOT, 'src', 'modules', 'uploads')];
+
+/** Absolute path for a key inside `root`, or null when the key would escape it. */
+const localPathFor = (key, root = LOCAL_ROOT) => {
+  const segments = String(key || '').split(/[\/]+/).filter(Boolean);
+  if (!segments.length || segments.some((s) => s === '..')) return null;
+  const full = path.resolve(root, ...segments);
+  return full.startsWith(root + path.sep) ? full : null;
+};
+
+const findLocalFile = (key) => {
+  for (const root of LOCAL_READ_ROOTS) {
+    const full = localPathFor(key, root);
+    if (!full) return null;
+    try { if (fs.statSync(full).isFile()) return full; } catch (_) { /* not in this root */ }
+  }
+  return null;
+};
 
 /**
  * Generate unique S3 key for file
@@ -41,10 +74,18 @@ const generateS3Key = (folder, userId, originalName) => {
  * @param {string} folder - Folder name (e.g., 'ipr', 'research', 'grants')
  * @param {string} userId - User ID
  * @param {string} originalName - Original filename
- * @param {string} mimeType - File MIME type
+ * @param {string} [_mimeType] - ignored: the client-declared type is never stored (see below)
  * @returns {Promise<Object>} - Upload result with key, location, etc.
  */
-const uploadToS3 = async (fileBuffer, folder, userId, originalName, mimeType) => {
+const uploadToS3 = async (fileBuffer, folder, userId, originalName, _mimeType) => {
+  if (isLocalStorage()) {
+    const key = generateS3Key(folder, userId, originalName);
+    const full = localPathFor(key);
+    if (!full) throw new Error('Invalid storage path');
+    await fs.promises.mkdir(path.dirname(full), { recursive: true });
+    await fs.promises.writeFile(full, fileBuffer);
+    return { key, bucket: null, location: null, etag: null, storage: 'local' };
+  }
   try {
     const key = generateS3Key(folder, userId, originalName);
     
@@ -54,7 +95,9 @@ const uploadToS3 = async (fileBuffer, folder, userId, originalName, mimeType) =>
         Bucket: BUCKET_NAME,
         Key: key,
         Body: fileBuffer,
-        ContentType: mimeType,
+        // Derived from the extension, never the uploader's claim: a stored "image/png"
+        // that is really HTML must not be served as HTML anywhere (bucket URL included).
+        ContentType: contentTypeFor(key),
         ServerSideEncryption: 'AES256',
       },
     });
@@ -79,6 +122,18 @@ const uploadToS3 = async (fileBuffer, folder, userId, originalName, mimeType) =>
  * @returns {Promise<Object>} - Object with file stream and metadata
  */
 const downloadFromS3 = async (key) => {
+  if (isLocalStorage()) {
+    const full = findLocalFile(key);
+    if (!full) throw new Error('File not found in S3');
+    const stat = await fs.promises.stat(full);
+    return {
+      stream: fs.createReadStream(full),
+      contentType: contentTypeFor(full),
+      contentLength: stat.size,
+      lastModified: stat.mtime,
+      metadata: {},
+    };
+  }
   try {
     const command = new GetObjectCommand({
       Bucket: BUCKET_NAME,
@@ -109,6 +164,11 @@ const downloadFromS3 = async (key) => {
  * @returns {Promise<void>}
  */
 const deleteFromS3 = async (key) => {
+  if (isLocalStorage()) {
+    const full = findLocalFile(key);
+    if (full) await fs.promises.unlink(full);
+    return;
+  }
   try {
     const command = new DeleteObjectCommand({
       Bucket: BUCKET_NAME,
@@ -129,6 +189,7 @@ const deleteFromS3 = async (key) => {
  * @returns {Promise<boolean>}
  */
 const fileExistsInS3 = async (key) => {
+  if (isLocalStorage()) return Boolean(findLocalFile(key));
   try {
     const command = new HeadObjectCommand({
       Bucket: BUCKET_NAME,
@@ -151,6 +212,12 @@ const fileExistsInS3 = async (key) => {
  * @returns {Promise<Object>} - File metadata
  */
 const getS3FileMetadata = async (key) => {
+  if (isLocalStorage()) {
+    const full = findLocalFile(key);
+    if (!full) throw new Error('File not found in S3');
+    const stat = await fs.promises.stat(full);
+    return { contentType: contentTypeFor(full), contentLength: stat.size, lastModified: stat.mtime, etag: null, metadata: {} };
+  }
   try {
     const command = new HeadObjectCommand({
       Bucket: BUCKET_NAME,
@@ -185,6 +252,7 @@ const getS3FileMetadata = async (key) => {
  * @returns {Promise<string>} - Signed URL
  */
 const getSignedUrl = async (key, expiresIn = 3600) => {
+  if (isLocalStorage()) throw new Error('Signed URLs are not available with local file storage');
   const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
   
   try {
@@ -211,4 +279,7 @@ module.exports = {
   getSignedUrl,
   generateS3Key,
   BUCKET_NAME,
+  storageDriver,
+  isLocalStorage,
+  LOCAL_ROOT,
 };

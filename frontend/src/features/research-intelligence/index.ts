@@ -5,3 +5,5 @@ export { UniversityModulesCard } from './components/admin/UniversityModulesCard'
 export { useRipAccess, RIP_ACCESS_QUERY_KEY } from './hooks/useRipAccess';
 export { researchIntelligenceService } from './services/researchIntelligence.service';
 export * from './types';
+export { knowledgeGraphService } from './services/knowledgeGraph.service';
+export { RIP_VIEWS, visibleRipViews, hasAnyCapability } from './utils/graphUtils';

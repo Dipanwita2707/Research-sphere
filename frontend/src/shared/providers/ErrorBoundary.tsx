@@ -1,7 +1,9 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { BRAND, SUPPORT_CONTACT_PATH } from '@/shared/config/brand';
 
 interface Props {
   children: ReactNode;
@@ -134,12 +136,19 @@ class ErrorBoundary extends Component<Props, State> {
             {/* Support Link */}
             <p className="text-sm text-gray-500 mt-6">
               If the problem persists, please contact{' '}
-              <a
-                href="mailto:mrinal11092002@gmail.com"
-                className="text-blue-600 hover:underline"
-              >
-                IT Support
-              </a>
+              {BRAND.supportEmail ? (
+                <a
+                  href={`mailto:${BRAND.supportEmail}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  support ({BRAND.supportEmail})
+                </a>
+              ) : (
+                <Link href={SUPPORT_CONTACT_PATH} className="text-blue-600 hover:underline">
+                  support via the contact form
+                </Link>
+              )}
+              .
             </p>
           </div>
         </div>

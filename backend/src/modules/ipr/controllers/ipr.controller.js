@@ -5,6 +5,8 @@
  */
 
 const { iprService } = require('../services');
+const reviewScope = require('../../research/services/reviewScope');
+const { isIprParticipant } = require('../../research/utils/objectAccess');
 
 // ─── Create Application ────────────────────────────────────────────────────
 
@@ -53,6 +55,11 @@ const getAllIprApplications = async (req, res) => {
 const getIprApplicationById = async (req, res) => {
   try {
     const application = await iprService.getApplicationById(req.params.id, req.user);
+    // DRD reviewers may open IPR applications only inside their assigned IPR schools
+    await reviewScope.assertCanViewInScope(req.user, 'ipr', application.schoolId, {
+      participant: isIprParticipant(req.user, application),
+      notFoundMessage: 'IPR application not found',
+    });
     res.json({ success: true, data: application });
   } catch (error) {
     console.error('Get IPR application error:', error);

@@ -154,7 +154,7 @@ export function BugReportForm({ isOpen, onClose }: BugReportFormProps) {
           </div>
           <h3 id="success-title" className="text-xl font-semibold text-gray-900 mb-2">Bug Report Submitted!</h3>
           <p id="success-description" className="text-gray-600">
-            Thank you for helping us improve the system. We'll review your report soon.
+            Thank you for helping us improve the system. We&apos;ll review your report soon.
           </p>
         </div>
       </div>

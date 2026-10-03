@@ -17,10 +17,12 @@ async function fetchAuthUserData(userId) {
       email: true,
       role: true,
       status: true,
+      universityId: true,
       assignedRoleIds: true,
       centralDeptPermissions: {
         where: { isActive: true },
         select: {
+          universityId: true,
           centralDeptId: true,
           permissions: true,
           isPrimary: true,
@@ -35,6 +37,7 @@ async function fetchAuthUserData(userId) {
       schoolDeptPermissions: {
         where: { isActive: true },
         select: {
+          universityId: true,
           departmentId: true,
           permissions: true,
           isPrimary: true,
@@ -45,11 +48,21 @@ async function fetchAuthUserData(userId) {
 
   if (!userData) return null;
 
+  // Same rule as protect: only permission rows and roles of the user's own university count.
+  const isSuperadmin = userData.role === 'superadmin';
+  const ownTenant = (row) => isSuperadmin || row.universityId === userData.universityId;
+  userData.centralDeptPermissions = (userData.centralDeptPermissions || []).filter(ownTenant);
+  userData.schoolDeptPermissions = (userData.schoolDeptPermissions || []).filter(ownTenant);
+
   const roleIds = userData.assignedRoleIds || [];
   let rolesWithPermissions = [];
   if (Array.isArray(roleIds) && roleIds.length > 0) {
     rolesWithPermissions = await prisma.role.findMany({
-      where: { id: { in: roleIds }, isActive: true },
+      where: {
+        id: { in: roleIds },
+        isActive: true,
+        ...(isSuperadmin ? {} : { OR: [{ universityId: userData.universityId }, { universityId: null }] }),
+      },
       select: {
         id: true,
         name: true,

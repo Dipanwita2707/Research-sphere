@@ -1,6 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
+import { createLogger } from '@/shared/utils/logger';
+
+// Monitoring is opt-in (dev, or NEXT_PUBLIC_ENABLE_PERFORMANCE_MONITORING), so once it runs its
+// metrics should be visible in production builds too, where the default level hides info logs.
+const perfLogger = createLogger('Performance');
+perfLogger.setLevel('info');
 
 interface PerformanceMonitorProps {
   pageName: string;
@@ -18,16 +24,16 @@ export default function PerformanceMonitor({ pageName }: PerformanceMonitorProps
       
       entries.forEach((entry) => {
         if (entry.entryType === 'largest-contentful-paint') {
-          console.log(`[${pageName}] LCP: ${entry.startTime.toFixed(2)}ms`);
+          perfLogger.info(`[${pageName}] LCP: ${entry.startTime.toFixed(2)}ms`);
         }
         
         if (entry.entryType === 'first-input') {
           const eventTiming = entry as PerformanceEventTiming;
-          console.log(`[${pageName}] FID: ${eventTiming.processingStart - entry.startTime}ms`);
+          perfLogger.info(`[${pageName}] FID: ${eventTiming.processingStart - entry.startTime}ms`);
         }
         
         if (entry.entryType === 'layout-shift') {
-          console.log(`[${pageName}] CLS: ${(entry as any).value}`);
+          perfLogger.info(`[${pageName}] CLS: ${(entry as any).value}`);
         }
       });
     });
@@ -39,7 +45,7 @@ export default function PerformanceMonitor({ pageName }: PerformanceMonitorProps
     const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
     if (navigationEntry) {
       const loadTime = navigationEntry.loadEventEnd - navigationEntry.fetchStart;
-      console.log(`[${pageName}] Page Load Time: ${loadTime.toFixed(2)}ms`);
+      perfLogger.info(`[${pageName}] Page Load Time: ${loadTime.toFixed(2)}ms`);
     }
 
     return () => {

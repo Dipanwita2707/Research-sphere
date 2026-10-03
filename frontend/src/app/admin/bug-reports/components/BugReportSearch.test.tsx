@@ -479,11 +479,11 @@ describe('BugReportSearch', () => {
       expect(input.tagName).toBe('INPUT');
     });
 
-    it('should have text input type', () => {
+    it('should use a search input type', () => {
       render(<BugReportSearch {...defaultProps} />);
 
       const input = screen.getByPlaceholderText(/search by user/i);
-      expect(input).toHaveAttribute('type', 'text');
+      expect(input).toHaveAttribute('type', 'search');
     });
 
     it('should have descriptive placeholder', () => {

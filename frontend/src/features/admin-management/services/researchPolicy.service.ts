@@ -30,6 +30,48 @@ export interface PositionPercentage {
 // Distribution method determines how incentives are split among authors
 export type DistributionMethod = 'author_role_based' | 'author_position_based';
 
+/**
+ * Role split as the calculator pays it: the first/corresponding columns win over the copy in
+ * indexingBonuses.rolePercentages (older saves only wrote the JSON copy).
+ */
+export function storedRolePercentages(
+  policy: Pick<ResearchIncentivePolicy, 'first_author_percentage' | 'corresponding_author_percentage' | 'indexingBonuses'>,
+  fallback: RolePercentage[],
+): RolePercentage[] {
+  const first = policy.first_author_percentage;
+  const corresponding = policy.corresponding_author_percentage;
+  if (first !== null && first !== undefined && corresponding !== null && corresponding !== undefined) {
+    return [
+      { role: 'first_author', percentage: Number(first) },
+      { role: 'corresponding_author', percentage: Number(corresponding) },
+    ];
+  }
+  return (policy.indexingBonuses?.rolePercentages as RolePercentage[] | undefined) || fallback;
+}
+
+/** Position split as the calculator pays it (positionBasedDistribution column first). */
+export function storedPositionPercentages(
+  policy: Pick<ResearchIncentivePolicy, 'positionBasedDistribution' | 'indexingBonuses'>,
+  fallback: PositionPercentage[],
+): PositionPercentage[] {
+  const dist = policy.positionBasedDistribution;
+  if (dist && Object.keys(dist).some((k) => /^\d+$/.test(k))) {
+    return Object.entries(dist)
+      .filter(([k]) => /^\d+$/.test(k))
+      .map(([k, v]) => ({ position: Number(k), percentage: Number(v) }))
+      .sort((a, b) => a.position - b.position);
+  }
+  return (policy.indexingBonuses?.positionPercentages as PositionPercentage[] | undefined) || fallback;
+}
+
+/** { "1": 40, …, "6+": 0 } for the positionBasedDistribution column. */
+export function toPositionDistribution(positions: PositionPercentage[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of positions) out[String(p.position)] = Number(p.percentage) || 0;
+  out['6+'] = 0;
+  return out;
+}
+
 // Indexing categories for research papers (multi-select) - 11 Target Research Categories
 export type IndexingCategory =
   | 'nature_science_lancet_cell_nejm'    // 1. Nature/Science/The Lancet/Cell/NEJM
@@ -39,7 +81,7 @@ export type IndexingCategory =
   | 'pubmed'                              // 5. PubMed
   | 'naas_rating_6_plus'                  // 6. NAAS (Rating ≥ 6) - requires rating
   | 'abdc_scopus_wos'                     // 7. ABDC Journals indexed in SCOPUS/WOS
-  | 'sgtu_in_house'                       // 9. ResearchSphere In-House Journal
+  | 'sgtu_in_house'                       // 9. University In-House Journal
   | 'case_centre_uk';                     // 10. The Case Centre UK
 
 // Category metadata defining required sub-fields for each category
@@ -112,7 +154,7 @@ export const INDEXING_CATEGORIES: CategoryMetadata[] = [
   },
   { 
     value: 'sgtu_in_house', 
-    label: 'ResearchSphere In-House Journal', 
+    label: 'University In-House Journal', 
     description: 'ResearchSphere in-house publications',
     nestedIncentives: false
   },
@@ -205,6 +247,11 @@ export interface ResearchIncentivePolicy {
   splitPolicy: 'percentage_based' | 'equal' | 'author_role_based' | 'weighted';
   distributionMethod?: DistributionMethod;
   primaryAuthorShare?: number;
+  /** Author split the calculator pays with (Decimal columns arrive as strings). */
+  first_author_percentage?: number | string | null;
+  corresponding_author_percentage?: number | string | null;
+  /** Position-based split: { "1": 40, "2": 30, …, "6+": 0 }. */
+  positionBasedDistribution?: Record<string, number> | null;
   // Deprecated fields
   authorTypeMultipliers?: Record<string, number>;
   indexingBonuses?: IndexingBonuses;
@@ -238,6 +285,9 @@ export interface CreateResearchPolicyData {
   splitPolicy?: 'percentage_based' | 'equal' | 'author_role_based' | 'weighted';
   distributionMethod?: DistributionMethod;
   primaryAuthorShare?: number;
+  first_author_percentage?: number;
+  corresponding_author_percentage?: number;
+  positionBasedDistribution?: Record<string, number>;
   // Deprecated fields
   authorTypeMultipliers?: Record<string, number>;
   indexingBonuses?: IndexingBonuses;

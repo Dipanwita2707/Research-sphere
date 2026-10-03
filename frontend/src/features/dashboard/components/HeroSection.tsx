@@ -37,7 +37,7 @@ export default function HeroSection({ userName, userType }: HeroSectionProps) {
     <div className="flex items-center justify-between gap-4 flex-wrap">
       <div className="flex items-center gap-4 min-w-0">
         <div className="relative flex-shrink-0">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-wine to-[#4A0F26] flex items-center justify-center shadow-lg shadow-wine/20">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-wine to-wine-darker flex items-center justify-center shadow-lg shadow-wine/20">
             <span className="text-sm font-bold text-white tracking-wide">{getUserInitials()}</span>
           </div>
           <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-900" />

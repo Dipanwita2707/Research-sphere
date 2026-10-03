@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Download } from 'lucide-react';
+import { ui } from './theme';
 
 interface Props {
   data: any[];
@@ -17,11 +18,8 @@ export default function ExportActions({ data, filename = 'analytics-export', col
     const rows = data.map((row) =>
       cols.map((c) => {
         const val = row[c.key];
-        if (val ===
-   null || val ===
-   undefined) return '';
-        if (typeof val ===
-   'object') return JSON.stringify(val).replace(/,/g, ';');
+        if (val === null || val === undefined) return '';
+        if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';');
         return String(val).replace(/,/g, ';');
       }).join(',')
     );
@@ -37,11 +35,13 @@ export default function ExportActions({ data, filename = 'analytics-export', col
 
   return (
     <button
+      type="button"
       onClick={handleExportCSV}
       disabled={!data.length}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      title={data.length ? `Download ${data.length.toLocaleString('en-IN')} rows as CSV` : 'Nothing to export'}
+      className={`${ui.btnSecondary} disabled:cursor-not-allowed disabled:opacity-50`}
     >
-      <Download className="w-3.5 h-3.5" />
+      <Download className="h-4 w-4" />
       Export CSV
     </button>
   );

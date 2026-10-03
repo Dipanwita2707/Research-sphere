@@ -18,8 +18,21 @@ const { AsyncLocalStorage } = require('async_hooks');
 
 const storage = new AsyncLocalStorage();
 
-/** Run fn inside a tenant context. */
-const run = (ctx, fn) => storage.run(Object.freeze({ ...ctx }), fn);
+/**
+ * Run fn inside a tenant context.
+ *
+ * Prisma queries are lazy: `prisma.x.findMany()` does nothing until something calls
+ * `.then()`. With `runAsSystem(() => prisma.x.findMany())` that call happens in the
+ * caller's `await`, OUTSIDE this context, so the query would silently run with the
+ * caller's scope. Starting any returned thenable here keeps it inside the context.
+ */
+const run = (ctx, fn) =>
+  storage.run(Object.freeze({ ...ctx }), () => {
+    const result = fn();
+    return result && typeof result.then === 'function' && !(result instanceof Promise)
+      ? Promise.resolve(result)
+      : result;
+  });
 
 /** Current context, or undefined outside any request/job scope. */
 const get = () => storage.getStore();

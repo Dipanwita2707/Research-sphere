@@ -1,5 +1,6 @@
 'use client';
 
+import { PRESETS } from '@/shared/theme/presets';
 import React, { useEffect, useState } from 'react';
 import { superadminService, University } from '@/shared/services/superadmin.service';
 import { 
@@ -143,7 +144,7 @@ export default function UniversitiesManagement() {
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                   {uni.logoUrl ? (
-                    <img src={uni.logoUrl} alt={uni.name} className="h-full w-full object-cover rounded-xl" />
+                    <img src={uni.logoUrl} alt={uni.name} className="h-full w-full object-contain rounded-xl bg-white p-1" />
                   ) : (
                     <Building2 className="h-6 w-6" />
                   )}
@@ -152,7 +153,7 @@ export default function UniversitiesManagement() {
                   <h3 className="font-bold text-gray-950 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                     {uni.name}
                   </h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{uni.code} &bull; {uni.slug}.sgt-ums.com</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{uni.code} &bull; {uni.slug}{uni.themePreset ? <> &bull; {PRESETS[uni.themePreset as keyof typeof PRESETS]?.label ?? uni.themePreset}</> : null}</p>
                 </div>
               </div>
 

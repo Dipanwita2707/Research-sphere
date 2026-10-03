@@ -25,7 +25,9 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
-import { researchPolicyService, ResearchIncentivePolicy, IndexingBonuses, QuartileBonuses, DistributionMethod, PositionPercentage, INDEXING_CATEGORIES } from '@/features/admin-management/services/researchPolicy.service';
+import { researchPolicyService, ResearchIncentivePolicy, IndexingBonuses, QuartileBonuses, DistributionMethod, PositionPercentage, INDEXING_CATEGORIES, storedRolePercentages, storedPositionPercentages, toPositionDistribution } from '@/features/admin-management/services/researchPolicy.service';
+import PolicyCycleField, { PolicyPeriod, defaultPolicyDates } from './PolicyCycleField';
+import { useCycles } from '@/features/finance/budget/useBudget';
 
 const PUBLICATION_TYPES = [
   { value: 'research_paper', label: 'Research Paper', icon: '📄' },
@@ -124,6 +126,7 @@ export default function ResearchPolicyManagement() {
   type QuartileValue = 'Top 1%' | 'Top 5%' | 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
   // Form state
+  const cyclesQ = useCycles();
   const [formData, setFormData] = useState<{
     publicationType: string;
     policyName: string;
@@ -206,9 +209,10 @@ export default function ResearchPolicyManagement() {
       // Extract data from stored policy
       const quartileData = (policy.indexingBonuses as any)?.quartileIncentives || DEFAULT_QUARTILE_INCENTIVES;
       const distributionMethodData = policy.distributionMethod || 'author_role_based';
-      const positionPercentagesData = (policy.indexingBonuses as any)?.positionPercentages || DEFAULT_POSITION_PERCENTAGES;
+      // Load the split the calculator actually pays with (columns), not only the JSON copy.
+      const positionPercentagesData = storedPositionPercentages(policy, DEFAULT_POSITION_PERCENTAGES);
       const sjrData = (policy.indexingBonuses as any)?.sjrRanges || [];
-      const rolePercentagesData = (policy.indexingBonuses as any)?.rolePercentages || DEFAULT_ROLE_PERCENTAGES;
+      const rolePercentagesData = storedRolePercentages(policy, DEFAULT_ROLE_PERCENTAGES);
       
       // Extract nested category incentives
       const nestedIncentives = (policy.indexingBonuses as any)?.nestedCategoryIncentives || {};
@@ -301,8 +305,7 @@ export default function ResearchPolicyManagement() {
           { minRating: 8, maxRating: 9.99, incentiveAmount: 20000, points: 20 },
           { minRating: 6, maxRating: 7.99, incentiveAmount: 10000, points: 10 },
         ],
-        effectiveFrom: new Date().toISOString().split('T')[0],
-        effectiveTo: '',
+        ...defaultPolicyDates(cyclesQ.data?.cycles),
       });
     }
     setShowModal(true);
@@ -381,6 +384,10 @@ export default function ResearchPolicyManagement() {
       const q1Incentive = formData.quartileIncentives.find(q => q.quartile ===
    'Q1') || formData.quartileIncentives[0];
 
+      // The calculator pays with these columns; the JSON copy above is for display only.
+      const firstAuthorPct = formData.rolePercentages.find(rp => rp.role === 'first_author')?.percentage ?? 0;
+      const correspondingAuthorPct = formData.rolePercentages.find(rp => rp.role === 'corresponding_author')?.percentage ?? 0;
+
       const policyData = {
         publicationType: formData.publicationType,
         policyName: formData.policyName,
@@ -388,6 +395,9 @@ export default function ResearchPolicyManagement() {
         basePoints: q1Incentive.points,
         splitPolicy: formData.splitPolicy,
         distributionMethod: formData.distributionMethod,
+        first_author_percentage: firstAuthorPct,
+        corresponding_author_percentage: correspondingAuthorPct,
+        positionBasedDistribution: toPositionDistribution(formData.positionPercentages),
         indexingBonuses: indexingBonusesData,
         effectiveFrom: new Date(formData.effectiveFrom).toISOString(),
         effectiveTo: formData.effectiveTo ? new Date(formData.effectiveTo).toISOString() : null,
@@ -523,7 +533,14 @@ export default function ResearchPolicyManagement() {
         {PUBLICATION_TYPES.map(pubType => {
           const typePolicies = policies.filter(p => p.publicationType ===
    pubType.value);
-          const activePolicy = typePolicies.find(p => p.isActive);
+          // Enabled policies are versions with effective windows: show the one in force today
+          // (or the next upcoming one), and list the other enabled versions below.
+          const today = new Date().toISOString().slice(0, 10);
+          const enabledPolicies = typePolicies.filter(p => p.isActive);
+          const activePolicy = enabledPolicies.find(p =>
+            (p.effectiveFrom || '').slice(0, 10) <= today && (!p.effectiveTo || p.effectiveTo.slice(0, 10) >= today)
+          ) || enabledPolicies[0];
+          const otherEnabledPolicies = enabledPolicies.filter(p => p !== activePolicy);
 
           return (
             <div key={pubType.value} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -563,11 +580,8 @@ export default function ResearchPolicyManagement() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       {/* Validity Period */}
-                      <div className="mb-4 flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">
-                          Valid: {formatDate(activePolicy.effectiveFrom)} → {formatDate(activePolicy.effectiveTo)}
-                        </span>
+                      <div className="mb-4">
+                        <PolicyPeriod effectiveFrom={activePolicy.effectiveFrom} effectiveTo={activePolicy.effectiveTo} />
                       </div>
 
                       {/* Quartile Incentives */}
@@ -644,7 +658,7 @@ export default function ResearchPolicyManagement() {
                       <div className="mb-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Author Role Percentages</h4>
                         <div className="space-y-2">
-                          {((activePolicy.indexingBonuses as any)?.rolePercentages || DEFAULT_ROLE_PERCENTAGES).map((rp: RolePercentage) => {
+                          {storedRolePercentages(activePolicy, DEFAULT_ROLE_PERCENTAGES).map((rp: RolePercentage) => {
                             const roleInfo = AUTHOR_ROLES.find(r => r.value ===
    rp.role);
                             return (
@@ -656,7 +670,7 @@ export default function ResearchPolicyManagement() {
                           })}
                           {/* Show calculated Co-Author percentage */}
                           {(() => {
-                            const rolePercentages = (activePolicy.indexingBonuses as any)?.rolePercentages || DEFAULT_ROLE_PERCENTAGES;
+                            const rolePercentages = storedRolePercentages(activePolicy, DEFAULT_ROLE_PERCENTAGES);
                             const firstPct = rolePercentages.find((r: RolePercentage) => r.role ===
    'first_author')?.percentage || 0;
                             const corrPct = rolePercentages.find((r: RolePercentage) => r.role ===
@@ -679,7 +693,7 @@ export default function ResearchPolicyManagement() {
                       <div className="mb-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Author Position Percentages</h4>
                         <div className="space-y-2">
-                          {((activePolicy.indexingBonuses as any)?.positionPercentages || DEFAULT_POSITION_PERCENTAGES).map((pp: PositionPercentage) => {
+                          {storedPositionPercentages(activePolicy, DEFAULT_POSITION_PERCENTAGES).map((pp: PositionPercentage) => {
                             const positionInfo = AUTHOR_POSITIONS.find(p => p.position ===
    pp.position);
                             return (
@@ -730,6 +744,18 @@ export default function ResearchPolicyManagement() {
                   <p className="text-sm text-gray-500 text-center">
                     No active policy. Create one to set incentives for this publication type.
                   </p>
+                </div>
+              )}
+
+              {/* Other enabled versions (earlier or later effective windows) */}
+              {otherEnabledPolicies.length > 0 && (
+                <div className="border-t border-gray-200 px-6 py-3 bg-gray-50 space-y-1">
+                  {otherEnabledPolicies.map(p => (
+                    <div key={p.id} className="flex items-center justify-between text-xs text-gray-600">
+                      <span className="flex flex-wrap items-center gap-2">{p.policyName}: <PolicyPeriod effectiveFrom={p.effectiveFrom} effectiveTo={p.effectiveTo} className="text-xs" /></span>
+                      <button onClick={() => handleOpenModal(p)} className="text-blue-600 hover:underline">Edit</button>
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -812,40 +838,12 @@ export default function ResearchPolicyManagement() {
               </div>
 
               {/* Validity Period */}
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  Policy Validity Period
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Incentives will be calculated based on this policy if the publication date falls within this period.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Effective From <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.effectiveFrom}
-                      onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Effective To <span className="text-gray-400">(Optional)</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.effectiveTo}
-                      onChange={(e) => setFormData({ ...formData, effectiveTo: e.target.value })}
-                      min={formData.effectiveFrom}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Leave empty for no end date</p>
-                  </div>
-                </div>
+              <div>
+                <PolicyCycleField
+                value={{ effectiveFrom: formData.effectiveFrom, effectiveTo: formData.effectiveTo }}
+                onChange={(d) => setFormData({ ...formData, ...d })}
+                inputClassName="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
               </div>
 
               {/* Quartile-Based Incentives (Mandatory) */}

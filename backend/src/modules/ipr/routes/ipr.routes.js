@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const iprController = require('../controllers/ipr.controller');
+const iprGrantController = require('../controllers/iprGrant.controller');
+const { requireSchoolScope } = require('../../research/services/reviewScope');
 const { protect, restrictTo, requirePermission, requireAnyPermission, checkIprFilePermission, checkIprTenantAccess } = require('../../../shared/middleware/auth');
 
 // All routes require authentication
@@ -29,6 +31,8 @@ router.post('/mentor/:id/reject', restrictTo('faculty', 'admin'), checkIprTenant
 // Admin/DRD routes - require appropriate permissions
 router.get('/statistics', requireAnyPermission('central-department', ['ipr_analytics', 'ipr_all_dashboard']), iprController.getIprStatistics);
 router.get('/stats', requireAnyPermission('central-department', ['ipr_analytics', 'ipr_all_dashboard']), iprController.getIprStatistics);
+// Patent granted by the patent office (NIRF): DRD IPR approvers (ipr_approve) or admin
+router.patch('/:id/granted', iprGrantController.requireIprGrantManager, checkIprTenantAccess, requireSchoolScope('ipr'), iprGrantController.markGranted);
 router.get('/:id', requireAnyPermission('central-department', ['ipr_all_dashboard', 'ipr_own_dashboard', 'ipr_review', 'ipr_approve']), checkIprTenantAccess, iprController.getIprApplicationById);
 router.get('/', requireAnyPermission('central-department', ['ipr_all_dashboard', 'ipr_own_dashboard', 'ipr_review', 'ipr_approve']), iprController.getAllIprApplications);
 

@@ -282,8 +282,9 @@ export default function PermissionManagement() {
           return permissionDefs.centralDepartments['drd'] || [];
         }
         
-        // For other departments, try direct match
-        return permissionDefs.centralDepartments[deptCode] || [];
+        // Otherwise the department's type (e.g. "finance"), then its code
+        const deptType = (centralDept as CentralDepartment & { departmentType?: string }).departmentType?.toLowerCase();
+        return (deptType && permissionDefs.centralDepartments[deptType]) || permissionDefs.centralDepartments[deptCode] || [];
       }
       
       return [];

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CalendarDays, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ui } from './theme';
 
 interface FilterOption {
   value: string;
@@ -39,10 +40,8 @@ const DEFAULT_QUICK_FILTERS = [
   { label: 'Last year', from: `${new Date().getFullYear() - 1}-01-01`, to: `${new Date().getFullYear() - 1}-12-31` },
 ];
 
-const INPUT_CLS =
-  'h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-700 px-3 text-sm text-slate-700 dark:text-gray-200 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:focus:ring-slate-700';
-const SELECT_CLS =
-  'h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-700 pl-3 pr-7 text-sm text-slate-700 dark:text-gray-200 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:focus:ring-slate-700 appearance-none';
+const INPUT_CLS = ui.input;
+const SELECT_CLS = `${ui.input} appearance-none pr-8 bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")] bg-[length:12px] bg-[right_0.6rem_center] bg-no-repeat`;
 
 export default function AnalyticsFilterBar({
   fromDate,
@@ -63,66 +62,49 @@ export default function AnalyticsFilterBar({
   quickFilters = DEFAULT_QUICK_FILTERS,
   children,
 }: AnalyticsFilterBarProps) {
+  const activeQuick = quickFilters.find((qf) => qf.from === fromDate && qf.to === toDate)?.label;
   return (
-    <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 px-6 py-3 sm:px-8 lg:px-12 xl:px-16">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        {/* Filter icon label */}
-        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-slate-400">
+    <div className="sticky top-20 sm:top-[5.5rem] z-30 border-b border-stone-200 bg-white/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:border-gray-700 dark:bg-gray-800/90 sm:px-6 lg:px-8">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500 dark:text-gray-400">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          Period
         </span>
 
-        {/* Quick filter pills */}
-        <div className="flex flex-wrap gap-1.5">
-          {quickFilters.map((qf) => (
-            <button
-              key={qf.label}
-              onClick={() => {
-                onFromDateChange(qf.from);
-                onToDateChange(qf.to);
-                setTimeout(onApply, 0);
-              }}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-                fromDate ===
-   qf.from && toDate ===
-   qf.to
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:border-slate-300 hover:bg-white dark:hover:bg-gray-600'
-              }`}
-            >
-              {qf.label}
-            </button>
-          ))}
+        {/* Quick ranges — segmented control */}
+        <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-gray-600 dark:bg-gray-900/50" role="group" aria-label="Quick date ranges">
+          {quickFilters.map((qf) => {
+            const active = activeQuick === qf.label;
+            return (
+              <button
+                key={qf.label}
+                aria-pressed={active}
+                onClick={() => {
+                  onFromDateChange(qf.from);
+                  onToDateChange(qf.to);
+                  setTimeout(onApply, 0);
+                }}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-white text-wine shadow-sm dark:bg-gray-700 dark:text-amber'
+                    : 'text-stone-600 hover:text-stone-900 dark:text-gray-300 dark:hover:text-white'
+                }`}
+              >
+                {qf.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Divider */}
-        <div className="hidden h-5 w-px bg-slate-200 sm:block" />
-
-        {/* Date range */}
-        <div className="flex items-center gap-2">
-          <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => onFromDateChange(e.target.value)}
-            className={INPUT_CLS}
-          />
-          <span className="text-xs text-slate-400">→</span>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => onToDateChange(e.target.value)}
-            className={INPUT_CLS}
-          />
+        <div className="flex items-center gap-1.5">
+          <CalendarDays className="h-4 w-4 text-stone-400" />
+          <input type="date" aria-label="From date" value={fromDate} onChange={(e) => onFromDateChange(e.target.value)} className={INPUT_CLS} />
+          <span className="text-xs text-stone-400">to</span>
+          <input type="date" aria-label="To date" value={toDate} onChange={(e) => onToDateChange(e.target.value)} className={INPUT_CLS} />
         </div>
 
-        {/* Category */}
         {categoryOptions && onCategoryChange && (
-          <select
-            value={category || 'all'}
-            onChange={(e) => onCategoryChange(e.target.value)}
-            className={SELECT_CLS}
-          >
+          <select aria-label="Category" value={category || 'all'} onChange={(e) => onCategoryChange(e.target.value)} className={SELECT_CLS}>
             <option value="all">All categories</option>
             {categoryOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -130,13 +112,8 @@ export default function AnalyticsFilterBar({
           </select>
         )}
 
-        {/* School */}
         {schoolOptions && onSchoolChange && (
-          <select
-            value={schoolId || ''}
-            onChange={(e) => onSchoolChange(e.target.value)}
-            className={SELECT_CLS}
-          >
+          <select aria-label="School" value={schoolId || ''} onChange={(e) => onSchoolChange(e.target.value)} className={SELECT_CLS}>
             <option value="">All schools</option>
             {schoolOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -144,13 +121,8 @@ export default function AnalyticsFilterBar({
           </select>
         )}
 
-        {/* Department */}
         {departmentOptions && onDepartmentChange && (
-          <select
-            value={departmentId || ''}
-            onChange={(e) => onDepartmentChange(e.target.value)}
-            className={SELECT_CLS}
-          >
+          <select aria-label="Department" value={departmentId || ''} onChange={(e) => onDepartmentChange(e.target.value)} className={SELECT_CLS}>
             <option value="">All departments</option>
             {departmentOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -158,21 +130,14 @@ export default function AnalyticsFilterBar({
           </select>
         )}
 
-        {/* Actions */}
         <div className="ml-auto flex items-center gap-2">
           {onReset && (
-            <button
-              onClick={onReset}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-700 px-3.5 text-xs font-medium text-slate-500 dark:text-gray-400 transition-colors hover:bg-slate-50 dark:hover:bg-gray-600"
-            >
+            <button onClick={onReset} className={ui.btnSecondary}>
               <RotateCcw className="h-3.5 w-3.5" />
               Reset
             </button>
           )}
-          <button
-            onClick={onApply}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white transition-colors hover:bg-slate-800"
-          >
+          <button onClick={onApply} className={ui.btnPrimary}>
             Apply
           </button>
         </div>

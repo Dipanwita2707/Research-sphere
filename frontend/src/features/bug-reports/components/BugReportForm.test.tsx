@@ -565,7 +565,7 @@ describe('BugReportForm', () => {
     it('should have close button with aria-label', () => {
       render(<BugReportForm isOpen={true} onClose={mockOnClose} />);
       
-      const closeButton = screen.getByLabelText('Close');
+      const closeButton = screen.getByLabelText('Close bug report form');
       expect(closeButton).toBeInTheDocument();
     });
   });

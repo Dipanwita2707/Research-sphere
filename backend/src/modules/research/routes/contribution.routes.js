@@ -11,7 +11,18 @@ const path = require('path');
 const researchContributionController = require('../controllers/contribution.controller');
 const researchReviewController = require('../controllers/review.controller');
 const { protect, requirePermission, checkResearchFilePermission } = require('../../../shared/middleware/auth');
+const ugcCareController = require('../controllers/ugcCare.controller');
 const prisma = require('../../../shared/config/database');
+const { requireSchoolScope, requireReviewAccess, requireViewScope } = require('../services/reviewScope');
+const { skipNonUuidParam } = require('../../../shared/utils/uuidParam');
+
+// Every :id here is a contribution UUID; any other value skips these routes and ends in a
+// 404 instead of a Prisma "invalid uuid" 500.
+router.param('id', skipNonUuidParam);
+
+// DRD actions: the item's own category permission (book_* / conference_* / research_*, with the
+// deprecated research_* fallback), and only inside the reviewer's assigned schools
+const requireReviewSchoolScope = requireSchoolScope('research');
 
 // Configure multer with memory storage for S3 uploads
 const memoryStorage = multer.memoryStorage();
@@ -98,6 +109,29 @@ const requireResearchAccess = async (req, res, next) => {
 // =====================================
 // Research Contribution Routes (Filing)
 // =====================================
+// Live duplicate check for the submission form: is this work already claimed at this university?
+router.get('/duplicates/check', protect, async (req, res) => {
+  try {
+    const { checkDuplicate } = require('../services/duplicateClaim.service');
+    const q = req.query || {};
+    const result = await checkDuplicate(
+      {
+        publicationType: q.publicationType,
+        doi: q.doi,
+        paperDoi: q.paperDoi,
+        isbn: q.isbn,
+        title: q.title,
+        publicationDate: q.publicationDate,
+      },
+      { excludeId: q.excludeId || null },
+    );
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Duplicate check failed' });
+  }
+});
+
+// =====================================
 // Get my research contributions
 router.get(
   '/my-contributions',
@@ -131,6 +165,14 @@ router.get(
   '/incentive-policies',
   protect,
   researchContributionController.getIncentivePolicies
+);
+
+// Incentive & points preview for the submission form (read-only; same computation as save
+// and DRD approval)
+router.post(
+  '/incentive-preview',
+  protect,
+  researchContributionController.previewIncentive
 );
 
 // Create new research contribution
@@ -219,6 +261,7 @@ router.post(
 router.get(
   '/:id/documents/:type/:filename',
   protect,
+  requireViewScope('research'),
   researchContributionController.downloadDocument
 );
 
@@ -284,7 +327,8 @@ router.get(
 router.post(
   '/:id/review/start',
   protect,
-  requirePermission('central-department', 'research_review'),
+  requireReviewAccess('research', 'review'),
+  requireReviewSchoolScope,
   researchReviewController.startReview
 );
 
@@ -292,7 +336,8 @@ router.post(
 router.post(
   '/:id/review/request-changes',
   protect,
-  requirePermission('central-department', 'research_review'),
+  requireReviewAccess('research', 'review'),
+  requireReviewSchoolScope,
   researchReviewController.requestChanges
 );
 
@@ -300,7 +345,8 @@ router.post(
 router.post(
   '/:id/review/recommend',
   protect,
-  requirePermission('central-department', 'research_review'),
+  requireReviewAccess('research', 'review'),
+  requireReviewSchoolScope,
   researchReviewController.recommendForApproval
 );
 
@@ -308,7 +354,8 @@ router.post(
 router.post(
   '/:id/review/approve',
   protect,
-  requirePermission('central-department', 'research_approve'),
+  requireReviewAccess('research', 'approve'),
+  requireReviewSchoolScope,
   researchReviewController.approveContribution
 );
 
@@ -316,7 +363,8 @@ router.post(
 router.post(
   '/:id/review/reject',
   protect,
-  requirePermission('central-department', 'research_approve'),
+  requireReviewAccess('research', 'approve'),
+  requireReviewSchoolScope,
   researchReviewController.rejectContribution
 );
 
@@ -324,8 +372,18 @@ router.post(
 router.post(
   '/:id/review/complete',
   protect,
-  requirePermission('central-department', 'research_approve'),
+  requireReviewAccess('research', 'approve'),
+  requireReviewSchoolScope,
   researchReviewController.markCompleted
+);
+
+// DRD confirms / corrects the UGC-CARE listing of a journal paper (NAAC 3.3.1)
+router.patch(
+  '/:id/ugc-care',
+  protect,
+  requireReviewAccess('research', 'any'),
+  requireReviewSchoolScope,
+  ugcCareController.updateUgcCare
 );
 
 // =====================================

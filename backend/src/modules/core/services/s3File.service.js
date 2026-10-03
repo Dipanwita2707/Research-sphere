@@ -9,7 +9,8 @@ const crypto = require('crypto');
 const multer = require('multer');
 const path = require('path');
 const { uploadToS3, downloadFromS3, deleteFromS3, getS3FileMetadata } = require('../../../shared/utils/s3');
-const { resolveLocalFile, sendResolvedFile } = require('../../uploads/fileAccess.service');
+const { resolveLocalFile, sendResolvedFile, setSafeFileHeaders } = require('../../uploads/fileAccess.service');
+const { checkUploadMetadata, contentMatchesExtension, contentTypeFor } = require('../../../shared/utils/fileTypes');
 const { safeUploadFolder, authorizeFileKey, canDeleteFile } = require('../utils/uploadPaths');
 
 const UPLOADS_DIR = path.join(__dirname, '../../../uploads');
@@ -36,51 +37,35 @@ function saveToLocal(fileBuffer, folder, userId, originalName) {
 }
 
 /**
- * File filter for multer - allow common document types including ZIP
+ * File filter for multer - common document types including ZIP.
+ * The extension must be allowlisted AND the declared MIME type must fit it
+ * (see shared/utils/fileTypes); the magic bytes are checked after the body is read.
  */
 const fileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'text/plain',
-    'application/zip',
-    'application/x-zip-compressed',
-    'application/x-zip',
-  ];
-
-  const ext = path.extname(file.originalname).toLowerCase();
-  
-  if (allowedMimeTypes.includes(file.mimetype) || ext === '.zip') {
-    cb(null, true);
-  } else {
-    cb(new Error(`File type ${file.mimetype} is not allowed`), false);
-  }
+  const error = checkUploadMetadata(file);
+  if (error) cb(new Error(error), false);
+  else cb(null, true);
 };
 
 /**
  * File filter for prototype ZIP uploads - only allow ZIP files
  */
 const prototypeFileFilter = (req, file, cb) => {
-  const allowedMimeTypes = [
-    'application/zip',
-    'application/x-zip-compressed',
-    'application/x-zip',
-    'application/octet-stream',
-  ];
-
-  const ext = path.extname(file.originalname).toLowerCase();
-  
-  if (allowedMimeTypes.includes(file.mimetype) || ext === '.zip') {
-    cb(null, true);
-  } else {
+  if (checkUploadMetadata(file, ['.zip'])) {
     cb(new Error('Only ZIP files are allowed for prototype uploads'), false);
+  } else {
+    cb(null, true);
   }
+};
+
+/** 400 when the uploaded bytes do not match the file's extension. Returns true if a response was sent. */
+const rejectMismatchedContent = (req, res) => {
+  if (contentMatchesExtension(req.file)) return false;
+  res.status(400).json({
+    success: false,
+    message: 'File content does not match its file type',
+  });
+  return true;
 };
 
 /**
@@ -125,6 +110,7 @@ const uploadFile = async (req, res) => {
         message: 'No file uploaded',
       });
     }
+    if (rejectMismatchedContent(req, res)) return;
 
     const folder = safeUploadFolder(req.body.folder, 'documents');
     if (!folder) {
@@ -139,7 +125,7 @@ const uploadFile = async (req, res) => {
         folder,
         userId,
         req.file.originalname,
-        req.file.mimetype
+        contentTypeFor(req.file.originalname)
       );
     } catch (s3Error) {
       if (isS3CredentialError(s3Error)) {
@@ -160,7 +146,7 @@ const uploadFile = async (req, res) => {
         filePath: key,
         s3Key: key,
         fileSize: req.file.size,
-        mimeType: req.file.mimetype,
+        mimeType: contentTypeFor(req.file.originalname),
         location: result.location || null,
       },
     });
@@ -184,6 +170,7 @@ const uploadPrototypeFile = async (req, res) => {
         message: 'No file uploaded',
       });
     }
+    if (rejectMismatchedContent(req, res)) return;
 
     const folder = safeUploadFolder(req.body.folder, 'ipr/prototypes');
     if (!folder) {
@@ -198,7 +185,7 @@ const uploadPrototypeFile = async (req, res) => {
         folder,
         userId,
         req.file.originalname,
-        req.file.mimetype
+        contentTypeFor(req.file.originalname)
       );
     } catch (s3Error) {
       if (isS3CredentialError(s3Error)) {
@@ -219,7 +206,7 @@ const uploadPrototypeFile = async (req, res) => {
         filePath: key,
         s3Key: key,
         fileSize: req.file.size,
-        mimeType: req.file.mimetype,
+        mimeType: contentTypeFor(req.file.originalname),
         location: result.location || null,
       },
     });
@@ -260,12 +247,13 @@ const downloadFile = async (req, res, next) => {
     if (localPath) return sendResolvedFile(res, localPath, next);
 
     const result = await downloadFromS3(access.key);
-    const fileName = path.basename(access.key).replace(/[^\w.\-]/g, '_');
-    res.setHeader('Content-Type', result.contentType);
-    res.setHeader('Content-Length', result.contentLength);
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'private, max-age=300'); // Cache 5 min for repeat loads (e.g. sponsor logos)
+    const fileName = path.basename(access.key);
+    // Same headers as local files: inline only for images/PDF, attachment otherwise,
+    // nosniff + sandbox CSP. Content-Type comes from the extension, never from the
+    // Content-Type stored with the object (that was the uploader's claim).
+    setSafeFileHeaders(res, fileName);
+    res.setHeader('Content-Type', contentTypeFor(fileName));
+    if (result.contentLength) res.setHeader('Content-Length', result.contentLength);
     result.stream.pipe(res);
   } catch (error) {
     console.error('File download error:', error);
@@ -306,7 +294,7 @@ const getFileInfo = async (req, res) => {
         data: {
           s3Key: access.key,
           fileName: path.basename(access.key),
-          contentType: 'application/octet-stream',
+          contentType: contentTypeFor(access.key),
           size: stat.size,
           lastModified: stat.mtime,
           etag: null,
@@ -320,7 +308,7 @@ const getFileInfo = async (req, res) => {
       data: {
         s3Key: access.key,
         fileName: path.basename(access.key),
-        contentType: metadata.contentType,
+        contentType: contentTypeFor(access.key),
         size: metadata.contentLength,
         lastModified: metadata.lastModified,
         etag: metadata.etag,

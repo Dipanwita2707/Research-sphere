@@ -26,6 +26,12 @@ import { useAffiliation } from '@/shared/hooks/useAffiliation';
 import api from '@/shared/api/api';
 import { logger } from '@/shared/utils/logger';
 import { extractErrorMessage } from '@/shared/types/api.types';
+import UgcCareFields, { UgcCareGroupValue, UgcCareListedValue, toUgcCareListedValue, ugcCarePayload } from '@/features/research-management/components/UgcCareFields';
+import DuplicateClaimWarning from '@/features/research-management/components/DuplicateClaimWarning';
+import { getDuplicateClaimError, useDuplicateClaimCheck } from '@/features/research-management/services/duplicateClaim';
+import { incentiveWarningOf, policyNoticeOf } from '@/shared/utils/zeroIncentive';
+import { useIncentivePreview } from '@/features/research-management/hooks/useIncentivePreview';
+import { formatRupees, incentivePolicyLabel, toIncentivePreviewPayload } from '@/features/research-management/utils/incentivePreview';
 
 interface Props {
   publicationType: ResearchPublicationType;
@@ -111,7 +117,7 @@ const INDEXING_CATEGORIES = [
   },
   { 
     value: 'sgtu_in_house', 
-    label: 'ResearchSphere In-House Journal',
+    label: 'University In-House Journal',
     description: 'ResearchSphere in-house publications',
     requiredFields: [] as string[]
   },
@@ -181,6 +187,9 @@ export default function ResearchContributionForm({ publicationType, contribution
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // Set when the server finds no incentive policy for this publication date/type (₹0 incentive).
+  const [incentiveWarning, setIncentiveWarning] = useState<string | null>(null);
+  const incentiveWarningRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<'entry' | 'process'>('entry');
   const [myContributions, setMyContributions] = useState<any[]>([]);
   const [loadingContributions, setLoadingContributions] = useState(false);
@@ -195,16 +204,10 @@ export default function ResearchContributionForm({ publicationType, contribution
   const mentorSuggestionsRef = useRef<HTMLDivElement>(null);
   
   // Policy state - fetch from backend
+  // Only the distribution method is used here (table layout: reorder handles for role-based,
+  // position labels for position-based). Amounts come from the server preview.
   const [policyData, setPolicyData] = useState<{
-    quartileIncentives: Array<{ quartile: string; incentiveAmount: number; points: number }>;
-    sjrRanges: Array<{ minSJR: number; maxSJR: number; incentiveAmount: number; points: number }>;
-    rolePercentages: Array<{ role: string; percentage: number }>;
     distributionMethod: 'author_role_based' | 'author_position_based';
-    positionPercentages: Array<{ position: number; percentage: number }>;
-    indexingBonuses?: any;
-    positionBasedDistribution?: Record<string, number>;
-    effectiveFrom?: string;
-    effectiveTo?: string;
   } | null>(null);
   
   // Book and Book Chapter policy states
@@ -212,6 +215,9 @@ export default function ResearchContributionForm({ publicationType, contribution
   const [bookChapterPolicy, setBookChapterPolicy] = useState<any>(null);
   const [conferencePolicy, setConferencePolicy] = useState<any>(null);
   const [policyLoading, setPolicyLoading] = useState(false);
+  // What the incentive preview is based on, from the policy endpoints: "no policy → ₹0" or
+  // "built-in default policy" (the same answer the server-side calculator gives).
+  const [policyNotice, setPolicyNotice] = useState<string | null>(null);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -229,6 +235,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     isInterdisciplinary: 'yes' as 'yes' | 'no',
     hasLpuStudents: 'yes' as 'yes' | 'no',
     journalName: '',
+    ugcCareListed: '' as UgcCareListedValue, // '' = unknown
+    ugcCareGroup: '' as UgcCareGroupValue,
     sdgGoals: [] as string[],
     
     // Publication Details
@@ -326,1003 +334,10 @@ export default function ResearchContributionForm({ publicationType, contribution
   // Check if any authors have been added (to lock author count fields)
   const hasAuthorsAdded = coAuthors.some(a => a.name);
   
-  // Helper function to analyze author composition for incentive calculation
-  const analyzeAuthorCompositionFrontend = () => {
-    let internalCoAuthorCount = 0;
-    let internalEmployeeCoAuthorCount = 0; // NEW: Track employee co-authors separately
-    let externalCoAuthorCount = 0;
-    let externalFirstCorrespondingPct = 0;
-    
-    // Role percentages from policy (default)
-    const firstAuthorPct = 35;
-    const correspondingAuthorPct = 30;
+  // Incentive & points are computed by the server (POST /research/incentive-preview, see
+  // useIncentivePreview below): the same code that stores the shares on save and credits
+  // them at DRD approval. Nothing is calculated in the browser.
 
-    // Check if applicant (you) is a co-author - if so, count them
-    const applicantIsCoAuthor = userAuthorType ===
-   'co_author';
-    const applicantIsStudent = user?.userType ===
-   'student';
-    if (applicantIsCoAuthor) {
-      internalCoAuthorCount++;
-      if (!applicantIsStudent) {
-        internalEmployeeCoAuthorCount++;
-      }
-    }
-
-    // Analyze all OTHER co-authors (not including applicant)
-    for (const author of coAuthors) {
-      if (!author.name) continue;
-      
-      const isInternal = author.authorCategory ===
-   'Internal';
-      const isStudent = author.authorType ===
-   'Student';
-      const role = author.authorRole;
-      
-      if (isInternal) {
-        if (role ===
-   'co_author' || role ===
-   'co') {
-          internalCoAuthorCount++;
-          // Track employee co-authors separately (exclude students)
-          if (!isStudent) {
-            internalEmployeeCoAuthorCount++;
-          }
-        }
-      } else {
-        if (role ===
-   'co_author' || role ===
-   'co') {
-          externalCoAuthorCount++;
-        }
-        // Check if external author is first/corresponding - their share is LOST
-        if (role ===
-   'first_and_corresponding_author' || role ===
-   'first_and_corresponding') {
-          externalFirstCorrespondingPct += firstAuthorPct + correspondingAuthorPct;
-        } else if (role ===
-   'first_author' || role ===
-   'first') {
-          externalFirstCorrespondingPct += firstAuthorPct;
-        } else if (role ===
-   'corresponding_author' || role ===
-   'corresponding') {
-          externalFirstCorrespondingPct += correspondingAuthorPct;
-        }
-      }
-    }
-
-    return {
-      internalCoAuthorCount,
-      internalEmployeeCoAuthorCount, // NEW: Return employee co-author count
-      externalCoAuthorCount,
-      externalFirstCorrespondingPct
-    };
-  };
-  
-  // Helper function to calculate incentive and points for an author
-  // Updated with NEW RULES:
-  // - External authors get ZERO incentives and points
-  // - Students get incentives but ZERO points
-  // - External first/corresponding author percentages are LOST (not redistributed)
-  // - External co-author percentages are redistributed to internal co-authors
-  // =====================================
-    // SEPARATE CALCULATION FUNCTIONS FOR EACH TYPE
-  // ==============================
-    /**
-   * Calculate incentive for CONFERENCE PAPER authors
-   */
-  const calculateConferenceIncentive = (authorType: string, authorCategory: string, authorRole: string) => {
-    // External authors get ZERO
-    if (authorCategory ===
-   'External') {
-      return { incentive: 0, points: 0 };
-    }
-
-    // Check if we have conference policy
-    if (!conferencePolicy) {
-      return { incentive: 0, points: 0 };
-    }
-
-    const subType = formData.conferenceSubType;
-    let totalIncentive = 0;
-    let totalPoints = 0;
-
-    // For Scopus-indexed conferences - use quartile-based calculation
-    if (subType ===
-   'paper_indexed_scopus') {
-      const proceedingsQuartile = formData.proceedingsQuartile?.toUpperCase() || '';
-      
-      if (proceedingsQuartile && conferencePolicy.quartileIncentives) {
-        const quartileMatch = conferencePolicy.quartileIncentives.find(
-          (q: any) => q.quartile.toUpperCase() ===
-   proceedingsQuartile
-        );
-        if (quartileMatch) {
-          totalIncentive = Number(quartileMatch.incentiveAmount) || 0;
-          totalPoints = Number(quartileMatch.points) || 0;
-        }
-      }
-
-      // Apply bonuses
-      if (formData.conferenceType ===
-   'international' && conferencePolicy.internationalBonus) {
-        totalIncentive += Number(conferencePolicy.internationalBonus);
-      }
-      if (formData.conferenceBestPaperAward ===
-   'yes' && conferencePolicy.bestPaperAwardBonus) {
-        totalIncentive += Number(conferencePolicy.bestPaperAwardBonus);
-      }
-
-      // Use role percentages for distribution
-      const firstAuthorPct = conferencePolicy.rolePercentages?.find((r: any) => r.role ===
-   'first_author')?.percentage || 35;
-      const correspondingAuthorPct = conferencePolicy.rolePercentages?.find((r: any) => r.role ===
-   'corresponding_author')?.percentage || 30;
-      const coAuthorTotalPct = 100 - firstAuthorPct - correspondingAuthorPct;
-
-      const composition = analyzeAuthorCompositionFrontend();
-      const otherAuthorsCount = coAuthors.filter(a => a.name).length;
-      const totalAuthorCount = otherAuthorsCount + 1;
-
-      let rolePercentage = 0;
-      if (totalAuthorCount ===
-   1) {
-        rolePercentage = 100;
-      } else if (authorRole ===
-   'first_and_corresponding_author' || authorRole ===
-   'first_and_corresponding') {
-        rolePercentage = firstAuthorPct + correspondingAuthorPct;
-      } else if (authorRole ===
-   'first_author' || authorRole ===
-   'first') {
-        rolePercentage = firstAuthorPct;
-      } else if (authorRole ===
-   'corresponding_author' || authorRole ===
-   'corresponding') {
-        rolePercentage = correspondingAuthorPct;
-      } else if (authorRole ===
-   'co_author' || authorRole ===
-   'co') {
-        const effectiveInternalCoAuthorCount = Math.max(composition.internalCoAuthorCount, 1);
-        rolePercentage = coAuthorTotalPct / effectiveInternalCoAuthorCount;
-      }
-
-      const authorIncentive = Math.round((totalIncentive * rolePercentage) / 100);
-      const authorPoints = Math.round((totalPoints * rolePercentage) / 100);
-
-      if (authorType ===
-   'Student') {
-        return { incentive: authorIncentive, points: 0 };
-      }
-      return { incentive: authorIncentive, points: authorPoints };
-    } 
-    // For other conference types - use flat incentive
-    else {
-      // Special handling for paper_not_indexed: If not a presenter, no incentives
-      if (subType ===
-   'paper_not_indexed' && formData.isPresenter ===
-   'no') {
-        return { incentive: 0, points: 0 };
-      }
-
-      // Default incentives based on national vs international
-      const defaultFlatIncentive: Record<string, { national: { incentiveAmount: number, points: number }, international: { incentiveAmount: number, points: number } }> = {
-        'paper_not_indexed': {
-          national: { incentiveAmount: 10000, points: 10 },
-          international: { incentiveAmount: 15000, points: 15 }
-        },
-        'keynote_speaker_invited_talks': {
-          national: { incentiveAmount: 10000, points: 10 },
-          international: { incentiveAmount: 20000, points: 20 }
-        },
-        'organizer_coordinator_member': {
-          national: { incentiveAmount: 5000, points: 5 },
-          international: { incentiveAmount: 10000, points: 10 }
-        }
-      };
-
-      // Check if international based on conferenceType or conferenceHeldLocation
-      const isInternational = 
-        formData.conferenceType ===
-   'international' ||
-        formData.conferenceHeldLocation ===
-   'abroad';
-
-      // Use policy if available, otherwise use defaults
-      if (conferencePolicy && conferencePolicy.flatIncentiveAmount && conferencePolicy.flatPoints) {
-        totalIncentive = Number(conferencePolicy.flatIncentiveAmount) || 0;
-        totalPoints = Number(conferencePolicy.flatPoints) || 0;
-        
-        // Apply international bonus from policy
-        if (isInternational && conferencePolicy.internationalBonus) {
-          totalIncentive += Number(conferencePolicy.internationalBonus);
-        }
-      } else {
-        // Use defaults based on sub-type and national/international status
-        const subTypeDefaults = defaultFlatIncentive[subType];
-        if (subTypeDefaults) {
-          const levelDefaults = isInternational ? subTypeDefaults.international : subTypeDefaults.national;
-          totalIncentive = levelDefaults.incentiveAmount;
-          totalPoints = levelDefaults.points;
-        } else {
-          // Fallback
-          const levelDefaults = isInternational ? 
-            defaultFlatIncentive['paper_not_indexed'].international : 
-            defaultFlatIncentive['paper_not_indexed'].national;
-          totalIncentive = levelDefaults.incentiveAmount;
-          totalPoints = levelDefaults.points;
-        }
-      }
-
-      // For keynote speakers and organizers: single person gets full amount (no split)
-      // For paper_not_indexed: split equally among all authors
-      let authorIncentive = 0;
-      let authorPoints = 0;
-
-      if (subType ===
-   'keynote_speaker_invited_talks' || subType ===
-   'organizer_coordinator_member') {
-        // Single presenter/organizer gets full amount
-        authorIncentive = totalIncentive;
-        authorPoints = totalPoints;
-      } else {
-        // paper_not_indexed: divide equally among all authors
-        const otherAuthorsCount = coAuthors.filter(a => a.name).length;
-        const totalAuthorCount = otherAuthorsCount + 1;
-        authorIncentive = Math.round(totalIncentive / totalAuthorCount);
-        authorPoints = Math.round(totalPoints / totalAuthorCount);
-      }
-
-      if (authorType ===
-   'Student') {
-        return { incentive: authorIncentive, points: 0 };
-      }
-      return { incentive: authorIncentive, points: authorPoints };
-    }
-  };
-
-  /**
-   * Calculate incentive for BOOK authors
-   */
-  const calculateBookIncentive = (authorType: string, authorCategory: string) => {
-    // External authors get ZERO
-    if (authorCategory ===
-   'External') {
-      return { incentive: 0, points: 0 };
-    }
-
-    if (!bookPolicy) {
-      return { incentive: 0, points: 0 };
-    }
-
-    const bookType = formData.bookPublicationType || 'authored';
-    let baseIncentive = bookType ===
-   'authored' 
-      ? Number(bookPolicy.authoredIncentiveAmount) || 0
-      : Number(bookPolicy.editedIncentiveAmount) || 0;
-    let basePoints = bookType ===
-   'authored'
-      ? Number(bookPolicy.authoredPoints) || 0
-      : Number(bookPolicy.editedPoints) || 0;
-
-    // Apply indexing bonuses
-    if (formData.bookIndexingType ===
-   'scopus_indexed' && bookPolicy.indexingBonuses?.scopus_indexed) {
-      baseIncentive += Number(bookPolicy.indexingBonuses.scopus_indexed);
-    } else if (formData.bookIndexingType ===
-   'sgt_publication_house' && bookPolicy.indexingBonuses?.sgt_publication_house) {
-      baseIncentive += Number(bookPolicy.indexingBonuses.sgt_publication_house);
-    }
-
-    // Apply international bonus
-    if (formData.nationalInternational ===
-   'international' && bookPolicy.internationalBonus) {
-      baseIncentive += Number(bookPolicy.internationalBonus);
-    }
-
-    // Divide among all authors
-    const otherAuthorsCount = coAuthors.filter(a => a.name).length;
-    const totalAuthorCount = otherAuthorsCount + 1;
-    const authorIncentive = Math.round(baseIncentive / totalAuthorCount);
-    const authorPoints = Math.round(basePoints / totalAuthorCount);
-
-    if (authorType ===
-   'Student') {
-      return { incentive: authorIncentive, points: 0 };
-    }
-    return { incentive: authorIncentive, points: authorPoints };
-  };
-
-  /**
-   * Calculate incentive for BOOK CHAPTER authors
-   */
-  const calculateBookChapterIncentive = (authorType: string, authorCategory: string) => {
-    // External authors get ZERO
-    if (authorCategory ===
-   'External') {
-      return { incentive: 0, points: 0 };
-    }
-
-    if (!bookChapterPolicy) {
-      return { incentive: 0, points: 0 };
-    }
-
-    const bookType = formData.bookPublicationType || 'authored';
-    let baseIncentive = bookType ===
-   'authored'
-      ? Number(bookChapterPolicy.authoredIncentiveAmount) || 0
-      : Number(bookChapterPolicy.editedIncentiveAmount) || 0;
-    let basePoints = bookType ===
-   'authored'
-      ? Number(bookChapterPolicy.authoredPoints) || 0
-      : Number(bookChapterPolicy.editedPoints) || 0;
-
-    // Apply indexing bonuses
-    if (formData.bookIndexingType ===
-   'scopus_indexed' && bookChapterPolicy.indexingBonuses?.scopus_indexed) {
-      baseIncentive += Number(bookChapterPolicy.indexingBonuses.scopus_indexed);
-    } else if (formData.bookIndexingType ===
-   'sgt_publication_house' && bookChapterPolicy.indexingBonuses?.sgt_publication_house) {
-      baseIncentive += Number(bookChapterPolicy.indexingBonuses.sgt_publication_house);
-    }
-
-    // Apply international bonus
-    if (formData.nationalInternational ===
-   'international' && bookChapterPolicy.internationalBonus) {
-      baseIncentive += Number(bookChapterPolicy.internationalBonus);
-    }
-
-    // Divide among all authors
-    const otherAuthorsCount = coAuthors.filter(a => a.name).length;
-    const totalAuthorCount = otherAuthorsCount + 1;
-    const authorIncentive = Math.round(baseIncentive / totalAuthorCount);
-    const authorPoints = Math.round(basePoints / totalAuthorCount);
-
-    if (authorType ===
-   'Student') {
-      return { incentive: authorIncentive, points: 0 };
-    }
-    return { incentive: authorIncentive, points: authorPoints };
-  };
-
-  /**
-   * Calculate incentive for RESEARCH PAPER authors
-   */
-  const calculateResearchPaperIncentive = (authorType: string, authorCategory: string, authorRole: string, authorUid?: string) => {
-    // External authors get ZERO
-    if (authorCategory ===
-   'External') {
-      return { incentive: 0, points: 0 };
-    }
-
-    // Check if policy exists and publication date is within policy validity period
-    if (!policyData) {
-      logger.debug('[calculateResearchPaperIncentive] No policy data available');
-      return { incentive: 0, points: 0 };
-    }
-
-    // Check if publication date is provided
-    if (!formData.publicationDate) {
-      logger.debug('[calculateResearchPaperIncentive] ❌ No publication date provided - returning ₹0');
-      return { incentive: 0, points: 0 };
-    }
-
-    // Validate publication date against policy validity period
-    if (formData.publicationDate) {
-      const pubDate = new Date(formData.publicationDate);
-      const effectiveFrom = policyData.effectiveFrom ? new Date(policyData.effectiveFrom) : null;
-      const effectiveTo = policyData.effectiveTo ? new Date(policyData.effectiveTo) : null;
-      
-      // CRITICAL: Only accept policies that start from 2026 onwards (new policy system)
-      const minPolicyDate = new Date('2026-01-01T00:00:00.000Z');
-      const isPolicyFor2026OrLater = effectiveFrom && effectiveFrom >= minPolicyDate;
-      
-      logger.debug('[calculateResearchPaperIncentive] Date validation:', {
-        publicationDate: formData.publicationDate,
-        pubDate: pubDate.toISOString(),
-        effectiveFrom: effectiveFrom?.toISOString(),
-        effectiveTo: effectiveTo?.toISOString(),
-        isPolicyFor2026OrLater,
-        isBeforeEffectiveFrom: effectiveFrom ? pubDate < effectiveFrom : false,
-        isAfterEffectiveTo: effectiveTo ? pubDate > effectiveTo : false
-      });
-      
-      // Only use 2026+ policies
-      if (!isPolicyFor2026OrLater) {
-        logger.debug('[calculateResearchPaperIncentive] ❌ Policy is from before 2026 (old policy) - returning ₹0');
-        return { incentive: 0, points: 0 };
-      }
-      
-      if (effectiveFrom && pubDate < effectiveFrom) {
-        logger.debug('[calculateResearchPaperIncentive] ❌ Publication date BEFORE policy effective date - returning ₹0');
-        return { incentive: 0, points: 0 };
-      }
-      
-      if (effectiveTo && pubDate > effectiveTo) {
-        logger.debug('[calculateResearchPaperIncentive] ❌ Publication date AFTER policy end date - returning ₹0');
-        return { incentive: 0, points: 0 };
-      }
-      
-      logger.debug('[calculateResearchPaperIncentive] ✅ Publication date within policy validity period');
-    }
-
-    // Get indexing bonuses from policy (10-category system)
-    const indexingBonuses = (policyData?.indexingBonuses as any) || {};
-    const indexingCategoryBonuses = indexingBonuses.indexingCategoryBonuses || [];
-    const quartileIncentives = indexingBonuses.quartileIncentives || [];
-    const sjrRanges = indexingBonuses.sjrRanges || [];
-    const naasRatingIncentives = indexingBonuses.nestedCategoryIncentives?.naasRatingIncentives || [];
-    
-    // Get distribution method and percentages
-    const distributionMethod = policyData?.distributionMethod || 'author_role_based';
-    const rolePercentages = indexingBonuses.rolePercentages || [];
-    const positionDistribution = policyData?.positionBasedDistribution || {};
-    
-    logger.debug('[calculateResearchPaperIncentive] Starting calculation:', {
-      authorType,
-      authorCategory,
-      authorRole,
-      distributionMethod,
-      positionDistribution,
-      selectedCategories: formData.indexingCategories,
-      policyData: policyData
-    });
-    
-    // Role percentages for role-based distribution
-    const firstAuthorPct = rolePercentages.find((r: any) => r.role ===
-   'first_author')?.percentage || 35;
-    const correspondingAuthorPct = rolePercentages.find((r: any) => r.role ===
-   'corresponding_author')?.percentage || 30;
-    const coAuthorTotalPct = 100 - firstAuthorPct - correspondingAuthorPct;
-    
-    // Calculate incentives from selected indexing categories
-    // NEW LOGIC: Use the HIGHEST category incentive, not the sum of all
-    const categoryIncentives: Array<{category: string, amount: number, points: number}> = [];
-    
-    const selectedCategories = formData.indexingCategories || [];
-    
-    logger.debug('[calculateResearchPaperIncentive] Processing categories:', selectedCategories);
-    
-    selectedCategories.forEach(category => {
-      // SCOPUS - Uses quartile-based incentives and SJR
-      if (category ===
-   'scopus' && formData.quartile) {
-        const quartileVal = formData.quartile.toLowerCase();
-        const quartileMatch = quartileIncentives.find((q: any) => 
-          q.quartile.toLowerCase() ===
-   quartileVal ||
-          q.quartile.toLowerCase() ===
-   quartileVal.replace('_', ' ')
-        );
-        if (quartileMatch) {
-          let scopusAmount = Number(quartileMatch.incentiveAmount) || 0;
-          let scopusPoints = Number(quartileMatch.points) || 0;
-          logger.debug('[calculateResearchPaperIncentive] SCOPUS quartile:', quartileVal, 'amount:', quartileMatch.incentiveAmount);
-          
-          // Also check SJR if provided for SCOPUS
-          if (formData.sjr) {
-            const sjrVal = Number(formData.sjr);
-            const sjrMatch = sjrRanges.find((r: any) => sjrVal >= r.minSJR && sjrVal <= r.maxSJR);
-            if (sjrMatch) {
-              // For SCOPUS with SJR, use SJR value if higher than quartile
-              const sjrAmount = Number(sjrMatch.incentiveAmount) || 0;
-              const sjrPoints = Number(sjrMatch.points) || 0;
-              if (sjrAmount > scopusAmount) {
-                scopusAmount = sjrAmount;
-                scopusPoints = sjrPoints;
-                logger.debug('[calculateResearchPaperIncentive] SCOPUS using SJR (higher):', sjrVal, 'amount:', sjrAmount);
-              }
-            }
-          }
-          
-          categoryIncentives.push({ category: 'scopus', amount: scopusAmount, points: scopusPoints });
-        }
-      }
-      // SCIE/WOS - Basic indexing
-      else if (category ===
-   'scie_wos') {
-        const bonus = indexingCategoryBonuses.find((b: any) => b.category ===
-   category);
-        if (bonus) {
-          categoryIncentives.push({ 
-            category: 'scie_wos', 
-            amount: Number(bonus.incentiveAmount) || 0, 
-            points: Number(bonus.points) || 0 
-          });
-          logger.debug('[calculateResearchPaperIncentive] SCIE/WOS:', bonus.incentiveAmount);
-        }
-      }
-      // NAAS - Uses rating-based incentives
-      else if (category ===
-   'naas_rating_6_plus' && formData.naasRating) {
-        const naasRating = Number(formData.naasRating);
-        if (naasRating >= 6) {
-          const naasMatch = naasRatingIncentives.find((r: any) => naasRating >= r.minRating && naasRating <= r.maxRating);
-          if (naasMatch) {
-            categoryIncentives.push({ 
-              category: 'naas_rating_6_plus', 
-              amount: Number(naasMatch.incentiveAmount) || 0, 
-              points: Number(naasMatch.points) || 0 
-            });
-            logger.debug('[calculateResearchPaperIncentive] NAAS rating:', naasRating, 'amount:', naasMatch.incentiveAmount);
-          }
-        }
-      }
-      // Subsidiary Journals - requires IF > 20
-      else if (category ===
-   'subsidiary_if_above_20' && formData.impactFactor) {
-        const subsidiaryIF = Number(formData.impactFactor);
-        if (subsidiaryIF > 20) {
-          const bonus = indexingCategoryBonuses.find((b: any) => b.category ===
-   category);
-          if (bonus) {
-            categoryIncentives.push({ 
-              category: 'subsidiary_if_above_20', 
-              amount: Number(bonus.incentiveAmount) || 0, 
-              points: Number(bonus.points) || 0 
-            });
-            logger.debug('[calculateResearchPaperIncentive] Subsidiary IF>20:', subsidiaryIF, 'amount:', bonus.incentiveAmount);
-          }
-        }
-      }
-      // All other flat categories
-      else {
-        const bonus = indexingCategoryBonuses.find((b: any) => b.category ===
-   category);
-        if (bonus) {
-          categoryIncentives.push({ 
-            category, 
-            amount: Number(bonus.incentiveAmount) || 0, 
-            points: Number(bonus.points) || 0 
-          });
-          logger.debug('[calculateResearchPaperIncentive] Flat category:', category, 'amount:', bonus.incentiveAmount);
-        }
-      }
-    });
-    
-    // Find the highest incentive category
-    let totalAmount = 0;
-    let totalPoints = 0;
-    let highestCategory = '';
-    
-    if (categoryIncentives.length > 0) {
-      const highest = categoryIncentives.reduce((max, curr) => 
-        curr.amount > max.amount ? curr : max
-      );
-      totalAmount = highest.amount;
-      totalPoints = highest.points;
-      highestCategory = highest.category;
-      
-      logger.debug('[calculateResearchPaperIncentive] Selected highest category:', highestCategory, 'amount:', totalAmount, 'points:', totalPoints);
-      logger.debug('[calculateResearchPaperIncentive] All categories evaluated:', categoryIncentives);
-    }
-    
-    logger.debug('[calculateResearchPaperIncentive] Final pool (highest only):', { totalAmount, totalPoints, highestCategory });
-    
-    // If no categories or no amount, return zero
-    if (totalAmount ===
-   0) {
-      logger.debug('[calculateResearchPaperIncentive] No amount calculated, returning 0');
-      return { incentive: 0, points: 0 };
-    }
-    
-    // Get total authors count
-    const composition = analyzeAuthorCompositionFrontend();
-    const otherAuthorsCount = coAuthors.filter(a => a.name).length;
-    const totalAuthorCount = otherAuthorsCount + 1;
-    
-    // Calculate percentage based on distribution method
-    let rolePercentage = 0;
-    
-    if (distributionMethod ===
-   'author_position_based') {
-      // POSITION-BASED DISTRIBUTION (ResearchSphere authors in first 5 positions only)
-      // Rules:
-      // 1. Single ResearchSphere author in first 5 → 100%
-      // 2. Two ResearchSphere authors in first 5 → First/First&Corresponding: 60%, Second: 40% (or 50-50 if second is corresponding)
-      // 3. More than two ResearchSphere authors in first 5 → First&Corresponding same: 80%, Rest: 20% divided | First&Corresponding different: 40% each, Rest: 20% divided
-      
-      const position = authorRole.startsWith('position_') 
-        ? (authorRole ===
-   'position_6_plus' ? 6 : parseInt(authorRole.replace('position_', ''), 10))
-        : null;
-      
-      logger.debug('[calculateResearchPaperIncentive] Position-based:', { authorRole, position, positionDistribution });
-      
-      if (position ===
-   null || position >= 6) {
-        logger.debug('[calculateResearchPaperIncentive] Position 6+ gets nothing');
-        return { incentive: 0, points: 0 }; // 6+ gets nothing
-      }
-      
-      // Count ResearchSphere authors in first 5 positions (including this author)
-      const sgtAuthorsInFirst5 = 1 + coAuthors.filter(a => 
-        a.name && 
-        a.authorCategory ===
-   'Internal' && 
-        a.authorRole?.startsWith('position_') &&
-        a.authorRole !== 'position_6_plus'
-      ).length;
-      
-      logger.debug('[calculateResearchPaperIncentive] ResearchSphere authors in first 5:', sgtAuthorsInFirst5);
-      
-      // Determine role from userAuthorType
-      const isFirstAuthor = position ===
-   1;
-      const isCorrespondingAuthor = userAuthorType ===
-   'first_and_corresponding' || authorRole ===
-   'first_and_corresponding';
-      const isFirstAndCorresponding = position ===
-   1 && isCorrespondingAuthor;
-      
-      if (sgtAuthorsInFirst5 ===
-   1) {
-        // Rule 1: Single ResearchSphere author gets 100%
-        rolePercentage = 100;
-        logger.debug('[calculateResearchPaperIncentive] Single ResearchSphere author: 100%');
-      } else if (sgtAuthorsInFirst5 ===
-   2) {
-        // Rule 2: Two ResearchSphere authors
-        // Check if second author is corresponding
-        const secondAuthor = coAuthors.find(a => a.authorRole ===
-   'position_2' && a.authorCategory ===
-   'Internal');
-        const secondIsCorresponding = secondAuthor && (secondAuthor.authorRole ===
-   'first_and_corresponding' || userAuthorType ===
-   'corresponding');
-        
-        if (secondIsCorresponding || isCorrespondingAuthor) {
-          // Equal distribution 50-50
-          rolePercentage = 50;
-          logger.debug('[calculateResearchPaperIncentive] Two ResearchSphere authors, second is corresponding: 50-50');
-        } else {
-          // First: 60%, Second: 40%
-          rolePercentage = position ===
-   1 ? 60 : 40;
-          logger.debug('[calculateResearchPaperIncentive] Two ResearchSphere authors: First 60%, Second 40%');
-        }
-      } else {
-        // Rule 3: More than two ResearchSphere authors
-        // Check if first and corresponding are the same person
-        const firstAuthorIsCorresponding = coAuthors.some(a => 
-          a.authorRole ===
-   'position_1' && 
-          a.authorCategory ===
-   'Internal' &&
-          (userAuthorType ===
-   'first_and_corresponding' || userAuthorType ===
-   'corresponding')
-        ) || (position ===
-   1 && isCorrespondingAuthor);
-        
-        if (firstAuthorIsCorresponding || isFirstAndCorresponding) {
-          // First & Corresponding same person: 80%, Rest: 20% divided
-          if (isFirstAndCorresponding) {
-            rolePercentage = 80;
-            logger.debug('[calculateResearchPaperIncentive] First & Corresponding same: 80%');
-          } else {
-            // Other authors split 20%
-            const othersgtAuthors = sgtAuthorsInFirst5 - 1;
-            rolePercentage = 20 / othersgtAuthors;
-            logger.debug('[calculateResearchPaperIncentive] Other author share of 20%:', rolePercentage);
-          }
-        } else {
-          // First and Corresponding are different: 40% each, Rest: 20% divided
-          const firstAuthor = coAuthors.find(a => a.authorRole ===
-   'position_1' && a.authorCategory ===
-   'Internal');
-          const correspondingAuthor = coAuthors.find(a => 
-            a.authorCategory ===
-   'Internal' && 
-            (userAuthorType ===
-   'corresponding' || userAuthorType ===
-   'first_and_corresponding')
-          );
-          
-          if (isFirstAuthor) {
-            rolePercentage = 40;
-            logger.debug('[calculateResearchPaperIncentive] First author (different from corresponding): 40%');
-          } else if (isCorrespondingAuthor) {
-            rolePercentage = 40;
-            logger.debug('[calculateResearchPaperIncentive] Corresponding author (different from first): 40%');
-          } else {
-            // Other authors split 20%
-            const othersgtAuthors = sgtAuthorsInFirst5 - 2; // Minus first and corresponding
-            rolePercentage = 20 / othersgtAuthors;
-            logger.debug('[calculateResearchPaperIncentive] Other author share of 20%:', rolePercentage);
-          }
-        }
-      }
-      
-      logger.debug('[calculateResearchPaperIncentive] Final position percentage:', rolePercentage);
-    } else {
-      // ROLE-BASED DISTRIBUTION with First-5-Position constraint (positions 1-5 in PAPER, not just among internals)
-      // Following ACTUAL POLICY RULES from Research Promotion Policy 2025
-      logger.debug('[calculateResearchPaperIncentive] Role-based distribution');
-      
-      // Calculate user's display order (same logic as table rendering)
-      const isUserFirstAuthor = userAuthorType ===
-   'first_author' || userAuthorType ===
-   'first' || 
-                               userAuthorType ===
-   'first_and_corresponding' || userAuthorType ===
-   'first_and_corresponding_author';
-      const hasFirstAuthorCoAuthor = coAuthors.some(a => 
-        a.name && (
-          a.authorRole ===
-   'first_author' || a.authorRole ===
-   'first' ||
-          a.authorRole ===
-   'first_and_corresponding' || a.authorRole ===
-   'first_and_corresponding_author'
-        )
-      );
-      const calculatedUserDisplayOrder = isUserFirstAuthor ? 2 : (hasFirstAuthorCoAuthor ? 3 : 2);
-      const userDisplayOrder = userDisplayOrderOverride !== null ? userDisplayOrderOverride : calculatedUserDisplayOrder;
-      
-      // Check if this author is in the first 5 positions in the PAPER (including all authors)
-      // Identify current author's display order
-      let currentAuthorDisplayOrder = userDisplayOrder; // Use calculated user display order
-      
-      if (authorUid && authorUid !== user?.uid) {
-        // This is a co-author, find their display order
-        const coAuthor = coAuthors.find(a => a.uid ===
-   authorUid || a.email ===
-   authorUid);
-        currentAuthorDisplayOrder = coAuthor?.displayOrder || 999;
-      }
-      
-      // Get ALL authors (internal + external) sorted by display order to determine PAPER POSITION
-      const allAuthors = [
-        { uid: user?.uid, displayOrder: userDisplayOrder, category: 'Internal', role: userAuthorType },
-        ...coAuthors.filter(a => a.name).map(a => ({
-          uid: a.uid,
-          displayOrder: a.displayOrder || 999,
-          category: a.authorCategory,
-          role: a.authorRole
-        }))
-      ].sort((a, b) => a.displayOrder - b.displayOrder);
-      
-      const paperPosition = allAuthors.findIndex(a => a.displayOrder ===
-   currentAuthorDisplayOrder) + 1;
-      
-      // Count INTERNAL authors in first 5 positions (ResearchSphere affiliated authors)
-      const internalAuthorsInFirst5 = allAuthors.slice(0, 5).filter(a => a.category ===
-   'Internal');
-      const numInternalInFirst5 = internalAuthorsInFirst5.length;
-      
-      logger.debug('[calculateResearchPaperIncentive] Author PAPER position:', {
-        authorUid,
-        currentAuthorDisplayOrder,
-        paperPosition,
-        numInternalInFirst5,
-        allAuthors
-      });
-      
-      // If this internal author is beyond 5th PAPER POSITION, return 0
-      if (authorCategory ===
-   'Internal' && paperPosition > 5) {
-        logger.debug('[calculateResearchPaperIncentive] ❌ Internal author beyond paper position 5 - returning ₹0');
-        return { incentive: 0, points: 0 };
-      }
-      
-      // Check for First/Corresponding roles among ALL authors (including external) in first 5
-      const allAuthorsInFirst5 = allAuthors.slice(0, 5);
-      const firstAuthor = allAuthorsInFirst5.find(a => 
-        a.role ===
-   'first_author' || a.role ===
-   'first' || a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-      );
-      const correspondingAuthor = allAuthorsInFirst5.find(a => 
-        a.role ===
-   'corresponding_author' || a.role ===
-   'corresponding' || a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-      );
-      const hasDistinctFirstAndCorresponding = firstAuthor && correspondingAuthor && firstAuthor.uid !== correspondingAuthor.uid;
-      
-      logger.debug('[calculateResearchPaperIncentive] Role detection (ALL authors including external):', {
-        numInternalInFirst5,
-        hasFirstAuthor: !!firstAuthor,
-        hasCorresponding: !!correspondingAuthor,
-        hasDistinctFirstAndCorresponding,
-        firstAuthorCategory: firstAuthor?.category,
-        correspondingCategory: correspondingAuthor?.category
-      });
-      
-      // APPLY POLICY RULES
-      if (numInternalInFirst5 ===
-   1) {
-        // RULE 1: Single author with ResearchSphere affiliation → 100% amount
-        rolePercentage = 100;
-        logger.debug('[calculateResearchPaperIncentive] RULE 1: Single ResearchSphere author gets 100%');
-      } 
-      else if (numInternalInFirst5 ===
-   2 && !hasDistinctFirstAndCorresponding) {
-        // RULE 2: Two ResearchSphere authors AND no distinct First+Corresponding roles exist
-        const hasFirstAuthor = internalAuthorsInFirst5.some(a => 
-          a.role ===
-   'first_author' || a.role ===
-   'first' || a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-        );
-        const hasCorrespondingAuthor = internalAuthorsInFirst5.some(a => 
-          a.role ===
-   'corresponding_author' || a.role ===
-   'corresponding' || a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-        );
-        const firstAndCorrespondingSame = internalAuthorsInFirst5.some(a => 
-          a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-        );
-        
-        // If one is First+Corresponding (same person), or if second is corresponding, split equally
-        if (firstAndCorrespondingSame || (hasFirstAuthor && hasCorrespondingAuthor)) {
-          rolePercentage = 50; // Equal split
-          logger.debug('[calculateResearchPaperIncentive] RULE 2: Two ResearchSphere authors - equal split 50-50');
-        } else {
-          // First author 60%, Second author 40%
-          const isFirstAuthor = authorRole ===
-   'first_author' || authorRole ===
-   'first';
-          rolePercentage = isFirstAuthor ? 60 : 40;
-          logger.debug('[calculateResearchPaperIncentive] RULE 2: Two ResearchSphere authors - First 60%, Second 40%');
-        }
-      }
-      else if (numInternalInFirst5 > 2 || (numInternalInFirst5 ===
-   2 && hasDistinctFirstAndCorresponding)) {
-        // RULE 3: More than 2 ResearchSphere authors OR 2 ResearchSphere authors with distinct First+Corresponding roles (40-40-20)
-        const firstAndCorrespondingSame = allAuthorsInFirst5.some(a => 
-          a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-        );
-        
-        logger.debug('[calculateResearchPaperIncentive] RULE 3 Detection:', {
-          numInternalInFirst5,
-          firstAuthor: firstAuthor?.role,
-          correspondingAuthor: correspondingAuthor?.role,
-          firstAndCorrespondingSame,
-          currentAuthorRole: authorRole
-        });
-        
-        if (firstAndCorrespondingSame) {
-          // If First/Corresponding author is same → 80%
-          if (authorRole ===
-   'first_and_corresponding' || authorRole ===
-   'first_and_corresponding_author') {
-            rolePercentage = 80;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: First+Corresponding same person gets 80%');
-          } else {
-            // Rest authors share 20%
-            const numRestAuthors = numInternalInFirst5 - 1;
-            rolePercentage = 20 / numRestAuthors;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: Rest authors share 20%');
-          }
-        } 
-        else if (firstAuthor && correspondingAuthor && firstAuthor.uid !== correspondingAuthor.uid) {
-          // If First and Corresponding are different → 40% each, Rest share 20%
-          if (authorRole ===
-   'first_author' || authorRole ===
-   'first') {
-            rolePercentage = 40;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: First author gets 40%');
-          } else if (authorRole ===
-   'corresponding_author' || authorRole ===
-   'corresponding') {
-            rolePercentage = 40;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: Corresponding author gets 40%');
-          } else {
-            // Co-Authors share remaining 20% equally
-            // Only subtract INTERNAL First/Corresponding from count
-            const internalFirstExists = internalAuthorsInFirst5.some(a => 
-              a.role ===
-   'first_author' || a.role ===
-   'first' || a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-            );
-            const internalCorrespondingExists = internalAuthorsInFirst5.some(a => 
-              a.role ===
-   'corresponding_author' || a.role ===
-   'corresponding' || a.role ===
-   'first_and_corresponding' || a.role ===
-   'first_and_corresponding_author'
-            );
-            const numInternalPrimaryRoles = (internalFirstExists ? 1 : 0) + (internalCorrespondingExists ? 1 : 0);
-            const numCoAuthors = numInternalInFirst5 - numInternalPrimaryRoles;
-            rolePercentage = numCoAuthors > 0 ? 20 / numCoAuthors : 0;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: Co-Authors share 20%, internal primary roles:', numInternalPrimaryRoles, 'co-author count:', numCoAuthors, 'each gets:', rolePercentage, '%');
-          }
-        }
-        else {
-          // When First or Corresponding exists (but not both among internal authors)
-          // STRICT POLICY: Always apply 40-40-20, forfeited shares are NOT redistributed
-          if (authorRole ===
-   'first_author' || authorRole ===
-   'first') {
-            rolePercentage = 40;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: First author gets 40%');
-          } else if (authorRole ===
-   'corresponding_author' || authorRole ===
-   'corresponding') {
-            rolePercentage = 40;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: Corresponding author gets 40%');
-          } else {
-            // Co-authors ALWAYS share only 20% (not redistributed from missing roles)
-            const numCoAuthors = numInternalInFirst5 - (firstAuthor ? 1 : 0) - (correspondingAuthor ? 1 : 0);
-            rolePercentage = numCoAuthors > 0 ? 20 / numCoAuthors : 0;
-            logger.debug('[calculateResearchPaperIncentive] RULE 3: Co-Authors share 20% (strict), count:', numCoAuthors, 'each gets:', rolePercentage, '%');
-          }
-        }
-      }
-      else {
-        // No internal authors? Should not happen but fallback
-        rolePercentage = 0;
-      }
-    }
-    
-    logger.debug('[calculateResearchPaperIncentive] Role percentage:', rolePercentage);
-    
-    // Calculate this author's share - use Math.floor to prevent total from exceeding base amount
-    const authorIncentive = Math.floor((totalAmount * rolePercentage) / 100);
-    
-    // For points: use employee count (excludes students)
-    let pointRolePercentage = rolePercentage;
-    if ((authorRole ===
-   'co_author' || authorRole ===
-   'co') && distributionMethod ===
-   'author_role_based') {
-      const effectiveEmployeeCoAuthorCount = Math.max(composition.internalEmployeeCoAuthorCount, 1);
-      pointRolePercentage = coAuthorTotalPct / effectiveEmployeeCoAuthorCount;
-    }
-    const authorPoints = Math.floor((totalPoints * pointRolePercentage) / 100);
-    
-    logger.debug('[calculateResearchPaperIncentive] Final result:', { authorIncentive, authorPoints });
-    
-    // Students get only incentives, no points
-    if (authorType ===
-   'Student') {
-      return { incentive: authorIncentive, points: 0 };
-    }
-    
-    // Faculty/Employees get both incentives and points
-    return { incentive: authorIncentive, points: authorPoints };
-  };
-
-  /**
-   * MAIN DISPATCHER: Routes to appropriate calculation function based on publication type
-   */
-  const calculateAuthorIncentivePoints = (authorType: string, authorCategory: string, authorRole: string, authorUid?: string) => {
-    const pubType = formData.publicationType;
-
-    // Route to appropriate calculation function
-    if (pubType ===
-   'conference_paper') {
-      return calculateConferenceIncentive(authorType, authorCategory, authorRole);
-    } else if (pubType ===
-   'book') {
-      return calculateBookIncentive(authorType, authorCategory);
-    } else if (pubType ===
-   'book_chapter') {
-      return calculateBookChapterIncentive(authorType, authorCategory);
-    } else if (pubType ===
-   'research_paper') {
-      return calculateResearchPaperIncentive(authorType, authorCategory, authorRole, authorUid);
-    }
-
-    // Fallback: no calculation possible
-    return { incentive: 0, points: 0 };
-  };
-  
   // Document upload state
   const [researchDocument, setResearchDocument] = useState<File | null>(null);
   const [supportingDocuments, setSupportingDocuments] = useState<File[]>([]);
@@ -1704,18 +719,25 @@ export default function ResearchContributionForm({ publicationType, contribution
   const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   
-  // Incentive calculation preview
-  const [incentivePreview, setIncentivePreview] = useState({
-    baseIncentive: 0,
-    basePoints: 0,
-    multiplier: 1,
-    totalIncentive: 0,
-    totalPoints: 0,
-  });
   
   // Current contribution ID (after first save)
   const [currentId, setCurrentId] = useState<string | null>(contributionId || null);
   const currentIdRef = useRef<string | null>(contributionId || null);
+
+  // Live duplicate-claim check (debounced): is this work already claimed at this university?
+  const [duplicateSubmitMessage, setDuplicateSubmitMessage] = useState<string | null>(null);
+  const { claims: duplicateClaims } = useDuplicateClaimCheck(
+    {
+      publicationType,
+      doi: formData.doi,
+      paperDoi: formData.paperDoi,
+      isbn: formData.isbn,
+      title: formData.title,
+      publicationDate: formData.publicationDate,
+      excludeId: currentId,
+    },
+    { enabled: publicationType !== 'grant_proposal', delay: 600 },
+  );
   const createRequestRef = useRef<Promise<string> | null>(null);
   const submitLockRef = useRef(false);
   
@@ -1731,13 +753,17 @@ export default function ResearchContributionForm({ publicationType, contribution
 
   const persistContributionDraft = useCallback(async (data: ReturnType<typeof buildSubmitData>) => {
     if (currentIdRef.current) {
-      await researchService.updateContribution(currentIdRef.current, data);
+      const updateResponse = await researchService.updateContribution(currentIdRef.current, data);
+      incentiveWarningRef.current = incentiveWarningOf(updateResponse)?.message ?? null;
+      setIncentiveWarning(incentiveWarningRef.current);
       return currentIdRef.current;
     }
 
     if (!createRequestRef.current) {
       createRequestRef.current = (async () => {
         const createResponse = await researchService.createContribution(data);
+        incentiveWarningRef.current = incentiveWarningOf(createResponse)?.message ?? null;
+        setIncentiveWarning(incentiveWarningRef.current);
         const newId = createResponse.data?.id;
 
         if (!newId) {
@@ -1775,11 +801,13 @@ export default function ResearchContributionForm({ publicationType, contribution
     // Don't auto-add current user - let them add authors manually
   }, [contributionId, trackerId, user]);
 
-  // Refetch policy when publication date changes (for research papers only)
+  // Refetch policy when publication date changes: the server picks the policy by that date
   useEffect(() => {
-    if (publicationType ===
-   'research_paper' && formData.publicationDate) {
+    if (!formData.publicationDate) return;
+    if (publicationType === 'research_paper' || publicationType === 'book' || publicationType === 'book_chapter') {
       fetchPolicy(formData.publicationDate);
+    } else if (publicationType === 'conference_paper' && formData.conferenceSubType) {
+      fetchConferencePolicy(formData.conferenceSubType);
     }
   }, [formData.publicationDate, publicationType]);
 
@@ -1897,55 +925,28 @@ export default function ResearchContributionForm({ publicationType, contribution
         
         const response = await api.get(url);
         logger.debug('[fetchPolicy] API response:', response.data);
-        if (response.data.success && response.data.data) {
+        setPolicyNotice(policyNoticeOf(response.data));
+        if (response.data.success && response.data.policyFound === false) {
+          // No policy covers this date: the server pays ₹0, so the preview shows ₹0 too.
+          setPolicyData(null);
+        } else if (response.data.success && response.data.data) {
           const policy = response.data.data;
-          logger.debug('[fetchPolicy] Policy data received:', policy);
-          logger.debug('[fetchPolicy] Distribution method:', policy.distributionMethod);
-          logger.debug('[fetchPolicy] Position distribution:', policy.positionBasedDistribution);
-          logger.debug('[fetchPolicy] Policy validity:', {
-            effectiveFrom: policy.effectiveFrom,
-            effectiveTo: policy.effectiveTo,
-            publicationDate: publicationDate
-          });
-          if (policy.indexingBonuses) {
-            setPolicyData({
-              quartileIncentives: policy.indexingBonuses.quartileIncentives || [],
-              sjrRanges: policy.indexingBonuses.sjrRanges || [],
-              rolePercentages: policy.indexingBonuses.rolePercentages || [],
-              distributionMethod: policy.distributionMethod || 'author_role_based',
-              positionPercentages: policy.indexingBonuses.positionPercentages || [
-                { position: 1, percentage: 40 },
-                { position: 2, percentage: 25 },
-                { position: 3, percentage: 15 },
-                { position: 4, percentage: 12 },
-                { position: 5, percentage: 8 },
-              ],
-              indexingBonuses: policy.indexingBonuses, // Include full indexingBonuses object
-              positionBasedDistribution: policy.positionBasedDistribution || {}, // Include position distribution
-              effectiveFrom: policy.effectiveFrom, // Include policy validity dates
-              effectiveTo: policy.effectiveTo, // Include policy validity dates
-            });
-            logger.debug('[fetchPolicy] Policy state set:', {
-              distributionMethod: policy.distributionMethod,
-              positionBasedDistribution: policy.positionBasedDistribution,
-              hasIndexingBonuses: !!policy.indexingBonuses
-            });
-          } else {
-            logger.warn('[fetchPolicy] No indexingBonuses in policy!');
-          }
+          setPolicyData({ distributionMethod: policy.distributionMethod || 'author_role_based' });
         } else {
           logger.warn('[fetchPolicy] No policy data in response');
         }
       } else if (publicationType ===
    'book') {
-        const response = await api.get('/book-policies/active/book');
+        const response = await api.get('/book-policies/active/book', { params: publicationDate ? { publicationDate } : {} });
+        setPolicyNotice(policyNoticeOf(response.data));
         if (response.data.success && response.data.data) {
           setBookPolicy(response.data.data);
           logger.debug('Book policy loaded:', response.data.data);
         }
       } else if (publicationType ===
    'book_chapter') {
-        const response = await api.get('/book-policies/active/book_chapter');
+        const response = await api.get('/book-policies/active/book_chapter', { params: publicationDate ? { publicationDate } : {} });
+        setPolicyNotice(policyNoticeOf(response.data));
         if (response.data.success && response.data.data) {
           setBookChapterPolicy(response.data.data);
           logger.debug('Book chapter policy loaded:', response.data.data);
@@ -1979,7 +980,10 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     try {
       setPolicyLoading(true);
-      const response = await api.get(`/conference-policies/active/${subType}`);
+      const response = await api.get(`/conference-policies/active/${subType}`, {
+        params: formData.publicationDate ? { publicationDate: formData.publicationDate } : {},
+      });
+      setPolicyNotice(policyNoticeOf(response.data));
       if (response.data.success && response.data.data) {
         setConferencePolicy(response.data.data);
         logger.debug('Conference policy loaded:', response.data.data);
@@ -2031,6 +1035,16 @@ export default function ResearchContributionForm({ publicationType, contribution
           isInterdisciplinary: contrib.interdisciplinaryFromSgt ? 'yes' : 'no',
           hasLpuStudents: contrib.studentsFromSgt ? 'yes' : 'no',
           journalName: contrib.journalName || '',
+          // Fields the incentive depends on: without them an edited draft would preview (and
+          // re-save) with no indexing category / book type.
+          indexingCategories: Array.isArray(contrib.indexingCategories) ? contrib.indexingCategories : [],
+          naasRating: contrib.naasRating?.toString() || '',
+          bookPublicationType: contrib.bookPublicationType || formData.bookPublicationType,
+          bookIndexingType: contrib.bookIndexingType || formData.bookIndexingType,
+          nationalInternational: contrib.nationalInternational || formData.nationalInternational,
+          conferenceHeldLocation: contrib.conferenceHeldLocation || formData.conferenceHeldLocation,
+          ugcCareListed: toUgcCareListedValue(contrib.ugcCareListed),
+          ugcCareGroup: contrib.ugcCareListed === true && (contrib.ugcCareGroup === 'group_1' || contrib.ugcCareGroup === 'group_2') ? contrib.ugcCareGroup : '',
           // Conference fields
           conferenceSubType: contrib.conferenceSubType || '',
           conferenceName: contrib.conferenceName || '',
@@ -2058,6 +1072,16 @@ export default function ResearchContributionForm({ publicationType, contribution
         if (contrib.sgtAffiliatedAuthors) setTotalInternalAuthors(contrib.sgtAffiliatedAuthors);
         if (contrib.internalCoAuthors) setTotalInternalCoAuthors(contrib.internalCoAuthors);
         
+        // The applicant is saved first: restore their role so the preview and re-save keep it.
+        const applicantRole = contrib.authors?.[0]?.authorType;
+        const userRoleByAuthorType: Record<string, string> = {
+          first_and_corresponding_author: 'first_and_corresponding',
+          first_author: 'first',
+          corresponding_author: 'corresponding',
+          co_author: 'co_author',
+        };
+        if (applicantRole && userRoleByAuthorType[applicantRole]) setUserAuthorType(userRoleByAuthorType[applicantRole]);
+
         // Load co-authors (excluding current user)
         if (contrib.authors && contrib.authors.length > 1) {
           const otherAuthors = contrib.authors.slice(1).map((a: any) => {
@@ -3123,24 +2147,6 @@ export default function ResearchContributionForm({ publicationType, contribution
     const internalAuthorsCount = authors.filter(a => a.authorType?.startsWith('internal_')).length;
     const internalCoAuthorsCount = internalAuthorsCount - 1; // Exclude current user
     
-    logger.debug('[Frontend Submission] Conference fields being sent:', {
-      conferenceSubType: formData.conferenceSubType,
-      conferenceSubType_length: formData.conferenceSubType?.length,
-      conferenceSubType_type: typeof formData.conferenceSubType,
-      conferenceSubType_JSON: JSON.stringify(formData.conferenceSubType),
-      proceedingsQuartile: formData.proceedingsQuartile,
-      conferenceType: formData.conferenceType,
-      conferenceBestPaperAward: formData.conferenceBestPaperAward
-    });
-
-    logger.debug('[Frontend Submission] Full formData state:', {
-      publicationType: formData.publicationType,
-      conferenceSubType: formData.conferenceSubType,
-      conferenceName: formData.conferenceName,
-      proceedingsQuartile: formData.proceedingsQuartile,
-      conferenceType: formData.conferenceType
-    });
-
     const data: any = {
       publicationType: formData.publicationType,
       title: formData.title,
@@ -3154,6 +2160,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       internalCoAuthors: internalCoAuthorsCount,
       // Research paper specific fields (map to schema field names and convert types)
       journalName: formData.journalName,
+      ...(formData.publicationType === 'research_paper' ? ugcCarePayload(formData.ugcCareListed, formData.ugcCareGroup, formData.indexingCategories) : {}),
       targetedResearchType: formData.targetedResearchType,
       indexingCategories: formData.indexingCategories, // Multi-select indexing categories
       internationalAuthor: formData.hasInternationalAuthor ===
@@ -3223,18 +2230,26 @@ export default function ResearchContributionForm({ publicationType, contribution
       sdgGoals: formData.sdgGoals.length > 0 ? formData.sdgGoals : null,
     };
     
-    logger.debug('[Frontend buildSubmitData] Final data object:', {
-      conferenceSubType: data.conferenceSubType,
-      conferenceSubType_JSON: JSON.stringify(data.conferenceSubType),
-      conferenceSubType_fromFormData: formData.conferenceSubType,
-      proceedingsQuartile: data.proceedingsQuartile,
-      conferenceType: data.conferenceType,
-      publicationType: data.publicationType,
-      conferenceName: data.conferenceName
-    });
-
     return data;
   };
+
+  // Incentive & points preview: computed by the server from exactly what saving would send
+  // (debounced). Shown for research papers with an indexing category, Scopus conference
+  // papers with a proceedings quartile, and books / book chapters.
+  const showIncentivePreview =
+    (formData.publicationType === 'research_paper' && formData.indexingCategories.length > 0) ||
+    (formData.publicationType === 'conference_paper' && formData.conferenceSubType === 'paper_indexed_scopus' && Boolean(formData.proceedingsQuartile)) ||
+    formData.publicationType === 'book' ||
+    formData.publicationType === 'book_chapter';
+  const incentivePreview = useIncentivePreview(
+    showIncentivePreview ? toIncentivePreviewPayload(buildSubmitData()) : null
+  );
+  // buildSubmitData lists the applicant first, then the named co-authors in array order.
+  const namedCoAuthorIndexes = coAuthors.map((a, i) => (a.name ? i : -1)).filter((i) => i >= 0);
+  const previewShareFor = (isUser: boolean, coAuthorIndex: number) =>
+    isUser ? incentivePreview.data?.authors[0]
+      : namedCoAuthorIndexes.includes(coAuthorIndex) ? incentivePreview.data?.authors[1 + namedCoAuthorIndexes.indexOf(coAuthorIndex)]
+      : undefined;
 
   const handleSaveDraft = async () => {
     if (!formData.title) {
@@ -3260,6 +2275,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           setCurrentId(contributionId);
         }
       }
+      incentiveWarningRef.current = incentiveWarningOf(response)?.message ?? null;
+      setIncentiveWarning(incentiveWarningRef.current);
       
       // Upload documents if any
       if (contributionId && (researchDocument || supportingDocuments.length > 0 || presenterCertificate)) {
@@ -3385,6 +2402,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       submitLockRef.current = true;
       setSubmitting(true);
       setError(null);
+      setDuplicateSubmitMessage(null);
 
       const data = buildSubmitData();
 
@@ -3418,12 +2436,19 @@ export default function ResearchContributionForm({ publicationType, contribution
       await researchService.submitContribution(id);
       
       setSuccess('Contribution submitted successfully!');
+      // Leave time to read a "no incentive policy" warning before navigating away.
       setTimeout(() => {
         if (onSuccess) onSuccess();
-      }, 1500);
+      }, incentiveWarningRef.current ? 6000 : 1500);
     } catch (error: unknown) {
       logger.error('Error submitting contribution:', error);
-      setError(extractErrorMessage(error));
+      const duplicate = getDuplicateClaimError(error);
+      if (duplicate) {
+        // 409 DUPLICATE_CLAIM: explain who holds the claim instead of a generic error
+        setDuplicateSubmitMessage(duplicate.message);
+      } else {
+        setError(extractErrorMessage(error));
+      }
     } finally {
       setSubmitting(false);
       submitLockRef.current = false;
@@ -3444,7 +2469,7 @@ export default function ResearchContributionForm({ publicationType, contribution
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-[#7d1a34]" />
+        <Loader2 className="w-8 h-8 animate-spin text-wine" />
       </div>
     );
   }
@@ -3465,7 +2490,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           <button
             className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
    'entry'
-                ? 'bg-[#fdf5ec] dark:bg-[#7d1a34]/10 text-[#7d1a34] border-b-2 border-[#7d1a34]'
+                ? 'bg-blush dark:bg-wine/10 text-wine border-b-2 border-wine'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white dark:hover:bg-gray-700'
             }`}
             onClick={() => setActiveTab('entry')}
@@ -3475,7 +2500,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           <button
             className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
    'process'
-                ? 'bg-[#fdf5ec] dark:bg-[#7d1a34]/10 text-[#7d1a34] border-b-2 border-[#7d1a34]'
+                ? 'bg-blush dark:bg-wine/10 text-wine border-b-2 border-wine'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white dark:hover:bg-gray-700'
             }`}
             onClick={() => setActiveTab('process')}
@@ -3503,12 +2528,33 @@ export default function ResearchContributionForm({ publicationType, contribution
         </div>
       )}
 
+      {policyNotice && !incentiveWarning && (
+        <div role="status" className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3 flex items-center shadow-sm">
+          <AlertCircle className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0" />
+          <p className="text-amber-800 dark:text-amber-200 flex-1">{policyNotice}</p>
+        </div>
+      )}
+
+      {incentiveWarning && (
+        <div role="alert" className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3 flex items-center shadow-sm">
+          <AlertCircle className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0" />
+          <p className="text-amber-800 dark:text-amber-200 flex-1">{incentiveWarning}</p>
+          <button onClick={() => setIncentiveWarning(null)} aria-label="Dismiss" className="ml-2 p-1 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg transition-colors">
+            <X className="w-4 h-4 text-amber-600" />
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'entry' && !success && (
+        <DuplicateClaimWarning claims={duplicateClaims} message={duplicateSubmitMessage} />
+      )}
+
       {activeTab ===
    'entry' && (
         <>
           {/* Publication Form - Professional */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="bg-gradient-to-r from-[#7d1a34] to-[#5e1024] px-6 py-4">
+            <div className="bg-gradient-to-r from-wine to-wine-dark px-6 py-4">
               <h2 className="text-lg font-semibold text-white">Publication Details</h2>
             </div>
             <div className="p-6 space-y-5">
@@ -3526,7 +2572,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   value={formData.title}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                  className="w-full px-4 py-3 border border-blush-line dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 hover:bg-white dark:hover:bg-gray-600 transition-colors"
                   placeholder={publicationType ===
    'book' ? 'Enter the complete title of your book' : 
                                publicationType ===
@@ -3540,7 +2586,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'research_paper' && (
           <>
           {/* Research Details - All in One Box */}
-          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec] dark:from-slate-800/50 dark:to-[#7d1a34]/10 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-blush dark:from-slate-800/50 dark:to-wine/10 rounded-xl border border-blush-line dark:border-slate-700 space-y-5">
             {/* Indexing Categories - Multi-Select */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -3551,8 +2597,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {INDEXING_CATEGORIES.map(cat => (
                   <label key={cat.value} className={`inline-flex items-center text-sm cursor-pointer p-2 rounded-lg border transition-colors ${
                     formData.indexingCategories.includes(cat.value) 
-                      ? 'bg-[#fdf5ec] dark:bg-[#7d1a34]/20 border-[#f0e2d2] dark:border-[#7d1a34]' 
-                      : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-[#f0e2d2] dark:hover:border-[#7d1a34]'
+                      ? 'bg-blush dark:bg-wine/20 border-blush-line dark:border-wine' 
+                      : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-blush-line dark:hover:border-wine'
                   }`}>
                     <input 
                       type="checkbox" 
@@ -3572,7 +2618,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           }));
                         }
                       }}
-                      className="w-4 h-4 text-[#7d1a34] rounded border-[#f0e2d2]"
+                      className="w-4 h-4 text-wine rounded border-blush-line"
                     />
                     <span className="ml-2 text-gray-700 dark:text-gray-300">{cat.label}</span>
                   </label>
@@ -3597,7 +2643,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         checked={formData.isInterdisciplinary ===
    v}
                         onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -3614,15 +2660,15 @@ export default function ResearchContributionForm({ publicationType, contribution
               formData.indexingCategories.includes('subsidiary_if_above_20') ||
               formData.indexingCategories.includes('nature_science_lancet_cell_nejm') ||
               formData.indexingCategories.includes('abdc_scopus_wos')) && (
-              <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700">
-                <h4 className="text-sm font-semibold text-[#7d1a34] mb-3 flex items-center">
-                  <span className="w-2 h-2 bg-[#7d1a34] rounded-full mr-2"></span>
+              <div className="pt-3 border-t border-blush-line dark:border-slate-700">
+                <h4 className="text-sm font-semibold text-wine mb-3 flex items-center">
+                  <span className="w-2 h-2 bg-wine rounded-full mr-2"></span>
                   Journal Metrics
                   <span className="text-red-500 ml-1">*</span>
                 </h4>
                 
                 {/* Show which categories require these fields */}
-                <div className="mb-3 text-xs text-gray-600 dark:text-gray-400 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 p-2 rounded">
+                <div className="mb-3 text-xs text-gray-600 dark:text-gray-400 bg-blush dark:bg-wine/10 p-2 rounded">
                   Required for: {[
                     formData.indexingCategories.includes('scopus') && 'SCOPUS',
                     formData.indexingCategories.includes('scie_wos') && 'SCIE/SCI (WOS)',
@@ -3638,7 +2684,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Quartile <span className="text-red-500">*</span>
-                        <span className="text-xs text-[#7d1a34] ml-1">
+                        <span className="text-xs text-wine ml-1">
                           ({[
                             formData.indexingCategories.includes('scopus') && 'SCOPUS',
                             formData.indexingCategories.includes('abdc_scopus_wos') && 'ABDC'
@@ -3659,7 +2705,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                               checked={formData.quartile ===
    q.value}
                               onChange={handleInputChange}
-                              className="w-4 h-4 text-[#7d1a34]"
+                              className="w-4 h-4 text-wine"
                             />
                             <span className="ml-1 text-gray-700 dark:text-gray-300">{q.label}</span>
                           </label>
@@ -3680,7 +2726,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Impact Factor <span className="text-red-500">*</span>
                         {formData.indexingCategories.includes('subsidiary_if_above_20') && (
-                          <span className="text-xs text-[#7d1a34] ml-1">(must be &gt;20 for Subsidiary)</span>
+                          <span className="text-xs text-wine ml-1">(must be &gt;20 for Subsidiary)</span>
                         )}
                       </label>
                       <input 
@@ -3689,11 +2735,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                         name="impactFactor" 
                         value={formData.impactFactor} 
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 ${
+                        className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 ${
                           formData.indexingCategories.includes('subsidiary_if_above_20') && 
                           formData.impactFactor && 
                           parseFloat(formData.impactFactor) <= 20 
-                            ? 'border-red-500' : 'border-[#f0e2d2]'
+                            ? 'border-red-500' : 'border-blush-line'
                         }`}
                         placeholder={formData.indexingCategories.includes('subsidiary_if_above_20') ? "e.g. 25.5 (>20)" : "e.g. 2.5"}
                         min={formData.indexingCategories.includes('subsidiary_if_above_20') ? "20.01" : undefined}
@@ -3714,7 +2760,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         SJR (Scimago Journal Rank) <span className="text-red-500">*</span>
-                        <span className="text-xs text-[#7d1a34] ml-1">
+                        <span className="text-xs text-wine ml-1">
                           ({[
                             formData.indexingCategories.includes('scopus') && 'SCOPUS',
                             formData.indexingCategories.includes('abdc_scopus_wos') && 'ABDC'
@@ -3727,7 +2773,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         name="sjr" 
                         value={formData.sjr} 
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                        className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                         placeholder="e.g. 0.5"
                       />
                       {!formData.sjr && (
@@ -3741,8 +2787,8 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* NAAS (Rating ≥ 6) - Separate section as it's independent */}
             {formData.indexingCategories.includes('naas_rating_6_plus') && (
-              <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700">
-                <h4 className="text-sm font-semibold text-[#7d1a34] mb-3 flex items-center">
+              <div className="pt-3 border-t border-blush-line dark:border-slate-700">
+                <h4 className="text-sm font-semibold text-wine mb-3 flex items-center">
                   <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
                   NAAS Details <span className="text-red-500 ml-1">*</span>
                 </h4>
@@ -3752,9 +2798,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                       NAAS Rating (must be ≥ 6) <span className="text-red-500">*</span>
                     </label>
                     <input type="number" step="0.01" name="naasRating" value={formData.naasRating} onChange={handleInputChange}
-                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 ${
+                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100 ${
                         formData.naasRating && parseFloat(formData.naasRating) < 6 
-                          ? 'border-red-500' : 'border-[#f0e2d2]'
+                          ? 'border-red-500' : 'border-blush-line'
                       }`}
                       placeholder="e.g. 6.5"
                       min="6"
@@ -3783,10 +2829,18 @@ export default function ResearchContributionForm({ publicationType, contribution
               value={formData.journalName}
               onChange={handleInputChange}
               required
-              className="w-full px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-600 transition-colors"
+              className="w-full px-4 py-3 border border-blush-line dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-wine bg-white dark:bg-gray-700 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-600 transition-colors"
               placeholder="Enter the journal name"
             />
           </div>
+
+          {/* UGC-CARE listing (NAAC) */}
+          <UgcCareFields
+            listed={formData.ugcCareListed}
+            group={formData.ugcCareGroup}
+            indexingCategories={formData.indexingCategories}
+            onChange={(ugcCareListed, ugcCareGroup) => setFormData((prev) => ({ ...prev, ugcCareListed, ugcCareGroup }))}
+          />
           </>
           )}
 
@@ -3799,9 +2853,9 @@ export default function ResearchContributionForm({ publicationType, contribution
           {(publicationType ===
    'book' && bookPolicy) || (publicationType ===
    'book_chapter' && bookChapterPolicy) ? (
-            <div className="p-5 bg-gradient-to-r from-[#fdf5ec] to-[#fdf5ec]/30 dark:from-[#7d1a34]/10 dark:to-[#7d1a34]/5 rounded-xl border border-[#f0e2d2] dark:border-[#5e1024] space-y-4">
+            <div className="p-5 bg-gradient-to-r from-blush to-blush/30 dark:from-wine/10 dark:to-wine/5 rounded-xl border border-blush-line dark:border-wine-dark space-y-4">
               <div className="flex items-center gap-2 mb-3">
-                <BookOpen className="w-5 h-5 text-[#7d1a34]" />
+                <BookOpen className="w-5 h-5 text-wine" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Current {publicationType ===
    'book' ? 'Book' : 'Book Chapter'} Policy
@@ -3816,11 +2870,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-[#7d1a34]">{bookPolicy.authoredPoints}</span>
+                        <span className="font-semibold text-wine">{bookPolicy.authoredPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3829,11 +2883,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.editedIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookPolicy.editedIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-[#7d1a34]">{bookPolicy.editedPoints}</span>
+                        <span className="font-semibold text-wine">{bookPolicy.editedPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3842,15 +2896,15 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">Scopus Indexed</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">ResearchSphere Publication</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">International</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookPolicy.internationalBonus?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookPolicy.internationalBonus?.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -3865,11 +2919,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookChapterPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-[#7d1a34]">{bookChapterPolicy.authoredPoints}</span>
+                        <span className="font-semibold text-wine">{bookChapterPolicy.authoredPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3878,11 +2932,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.editedIncentiveAmount?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookChapterPolicy.editedIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-[#7d1a34]">{bookChapterPolicy.editedPoints}</span>
+                        <span className="font-semibold text-wine">{bookChapterPolicy.editedPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -3891,15 +2945,15 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">Scopus Indexed</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookChapterPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">ResearchSphere Publication</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookChapterPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
                         <span className="block text-gray-600 dark:text-gray-400 mb-1">International</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{bookChapterPolicy.internationalBonus?.toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{bookChapterPolicy.internationalBonus?.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -3912,7 +2966,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             </div>
           ) : policyLoading ? (
             <div className="p-5 bg-white dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
-              <Loader2 className="w-6 h-6 animate-spin text-[#7d1a34] mx-auto mb-2" />
+              <Loader2 className="w-6 h-6 animate-spin text-wine mx-auto mb-2" />
               <p className="text-sm text-gray-600 dark:text-gray-400">Loading policy information...</p>
             </div>
           ) : (
@@ -3931,7 +2985,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           )}
           
           {/* Book Details - All in One Box */}
-          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-green-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-blush/30 dark:from-slate-800/50 dark:to-green-900/20 rounded-xl border border-blush-line dark:border-slate-700 space-y-5">
             {/* Row 1: Publication Type (Scopus/Non-indexed/ResearchSphere Publication House) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -3942,12 +2996,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                   name="bookIndexingType"
                   value={formData.bookIndexingType}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="scopus_indexed">Scopus Indexed</option>
                   <option value="non_indexed">Non-Indexed</option>
-                  <option value="sgt_publication_house">ResearchSphere Publication House</option>
+                  <option value="sgt_publication_house">University Publication House</option>
                 </select>
               </div>
 
@@ -3964,7 +3018,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       checked={formData.bookLetter ===
    'yes'}
                       onChange={handleInputChange}
-                      className="w-4 h-4 text-[#7d1a34]"
+                      className="w-4 h-4 text-wine"
                       readOnly
                     />
                     <span className="ml-1.5 text-gray-700 dark:text-gray-300">Yes</span>
@@ -3991,7 +3045,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   name="bookPublicationType"
                   value={formData.bookPublicationType}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="authored">Authored</option>
@@ -4014,7 +3068,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         checked={formData.isInterdisciplinary ===
    v}
                         onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4033,7 +3087,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         checked={formData.communicatedWithOfficialId ===
    v}
                         onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4050,24 +3104,24 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Your Personal Email ID <span className="text-red-500">*</span>
                 </label>
                 <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter your personal email address"
                   required
                 />
-                <p className="text-xs text-orange-600 mt-1">Since you haven't communicated with official ID, please provide your personal email.</p>
+                <p className="text-xs text-orange-600 mt-1">Since you haven&apos;t communicated with official ID, please provide your personal email.</p>
               </div>
             )}
 
             {/* Book Chapter Specific: Book Title and Chapter Details */}
             {publicationType ===
    'book_chapter' && (
-              <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700 space-y-4">
+              <div className="pt-3 border-t border-blush-line dark:border-slate-700 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Book Title <span className="text-red-500">*</span>
                   </label>
                   <input type="text" name="bookTitle" value={formData.bookTitle} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter the title of the book containing your chapter"
                     required
                   />
@@ -4076,14 +3130,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Chapter Number</label>
                     <input type="text" name="chapterNumber" value={formData.chapterNumber} onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g. Chapter 5"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Page Numbers</label>
                     <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                      className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g. 100-125"
                     />
                   </div>
@@ -4091,7 +3145,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Editors</label>
                   <input type="text" name="editors" value={formData.editors} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter editor names (comma separated)"
                   />
                 </div>
@@ -4099,14 +3153,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
 
             {/* Publisher Details & National/International */}
-            <div className="pt-3 border-t border-[#f0e2d2] dark:border-slate-700 space-y-4">
+            <div className="pt-3 border-t border-blush-line dark:border-slate-700 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Publisher <span className="text-red-500">*</span>
                   </label>
                   <input type="text" name="publisherName" value={formData.publisherName} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter publisher name"
                     required
                   />
@@ -4119,7 +3173,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     name="nationalInternational"
                     value={formData.nationalInternational}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                    className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                     required
                   >
                     <option value="">-- Select --</option>
@@ -4137,7 +3191,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   ISBN <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="isbn" value={formData.isbn} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="978-xxx-xxx-xxxx-x"
                   required
                 />
@@ -4147,7 +3201,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Publication Date <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
@@ -4162,7 +3216,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 value={formData.facultyRemarks} 
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100 resize-none"
+                className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100 resize-none"
                 placeholder="Any additional remarks or comments about the publication..."
               />
             </div>
@@ -4175,7 +3229,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'conference_paper' && (
           <>
           {/* Conference Type Selection */}
-          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-blush/30 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-blush-line dark:border-slate-700 space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Please Select Conference Type <span className="text-red-500">*</span>
@@ -4184,7 +3238,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 name="conferenceSubType"
                 value={formData.conferenceSubType}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                className="w-full px-4 py-3 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                 required
               >
                 <option value="">-- Please Select --</option>
@@ -4199,7 +3253,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {formData.conferenceSubType && conferencePolicy && (
               <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-800">
                 <div className="flex items-center gap-2 mb-3">
-                  <Award className="w-5 h-5 text-[#7d1a34]" />
+                  <Award className="w-5 h-5 text-wine" />
                   <h4 className="font-semibold text-gray-900 dark:text-white">Current Incentive Policy</h4>
                 </div>
                 
@@ -4210,7 +3264,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                       {conferencePolicy.quartileIncentives.map((qi: any) => (
                         <div key={qi.quartile} className="text-center p-2 bg-purple-50 rounded-lg">
-                          <div className="text-xs font-medium text-[#7d1a34]">{qi.quartile}</div>
+                          <div className="text-xs font-medium text-wine">{qi.quartile}</div>
                           <div className="text-sm font-semibold text-gray-900 dark:text-white">₹{Number(qi.incentiveAmount).toLocaleString()}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{qi.points} pts</div>
                         </div>
@@ -4220,13 +3274,13 @@ export default function ResearchContributionForm({ publicationType, contribution
                       {conferencePolicy.internationalBonus && (
                         <span className="text-gray-600 dark:text-gray-400">
                           <Globe className="w-4 h-4 inline mr-1 text-purple-500" />
-                          International Bonus: <span className="font-medium text-[#7d1a34]">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
+                          International Bonus: <span className="font-medium text-wine">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
                         </span>
                       )}
                       {conferencePolicy.bestPaperAwardBonus && (
                         <span className="text-gray-600 dark:text-gray-400">
                           <Trophy className="w-4 h-4 inline mr-1 text-amber-500" />
-                          Best Paper Award: <span className="font-medium text-[#7d1a34]">₹{Number(conferencePolicy.bestPaperAwardBonus).toLocaleString()}</span>
+                          Best Paper Award: <span className="font-medium text-wine">₹{Number(conferencePolicy.bestPaperAwardBonus).toLocaleString()}</span>
                         </span>
                       )}
                     </div>
@@ -4235,21 +3289,21 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <div className="space-y-2">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <Coins className="w-4 h-4 text-[#7d1a34]" />
+                        <Coins className="w-4 h-4 text-wine" />
                         <span className="text-gray-600 dark:text-gray-400">Incentive Amount:</span>
-                        <span className="font-semibold text-[#7d1a34]">₹{Number(conferencePolicy.flatIncentiveAmount || 0).toLocaleString()}</span>
+                        <span className="font-semibold text-wine">₹{Number(conferencePolicy.flatIncentiveAmount || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Award className="w-4 h-4 text-[#7d1a34]" />
+                        <Award className="w-4 h-4 text-wine" />
                         <span className="text-gray-600 dark:text-gray-400">Points:</span>
-                        <span className="font-semibold text-[#7d1a34]">{conferencePolicy.flatPoints || 0}</span>
+                        <span className="font-semibold text-wine">{conferencePolicy.flatPoints || 0}</span>
                       </div>
                     </div>
                     <div className="flex gap-4 mt-2 text-sm">
                       {conferencePolicy.internationalBonus && (
                         <span className="text-gray-600">
                           <Globe className="w-4 h-4 inline mr-1 text-purple-500" />
-                          International Bonus: <span className="font-medium text-[#7d1a34]">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
+                          International Bonus: <span className="font-medium text-wine">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
                         </span>
                       )}
                     </div>
@@ -4272,7 +3326,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           {(formData.conferenceSubType ===
    'paper_not_indexed' || formData.conferenceSubType ===
    'paper_indexed_scopus') && (
-          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-blush/30 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-blush-line dark:border-slate-700 space-y-5">
             {/* Title of Paper - Already covered by main title field */}
             
             {/* Conference Name & Proceedings Title */}
@@ -4282,7 +3336,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
@@ -4292,7 +3346,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Title of the Proceedings of Conference
                 </label>
                 <input type="text" name="proceedingsTitle" value={formData.proceedingsTitle} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter proceedings title"
                 />
               </div>
@@ -4303,7 +3357,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority Areas of Funding</label>
                 <input type="text" name="priorityFundingArea" value={formData.priorityFundingArea} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter priority funding area"
                 />
               </div>
@@ -4314,7 +3368,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Please Mention the Proceedings Quartile <span className="text-red-500">*</span>
                 </label>
                 <select name="proceedingsQuartile" value={formData.proceedingsQuartile} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="na">NA</option>
@@ -4330,7 +3384,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Presenters & Role */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total No. of Presenter's</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total No. of Presenters</label>
                 <input 
                   type="number" 
                   name="totalPresenters" 
@@ -4352,14 +3406,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }}
                   min="1" 
                   max="2"
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Whether you are a Presenter?
                   {formData.totalPresenters ===
-   1 && <span className="text-xs text-[#7d1a34] ml-1">(Auto-set to Yes)</span>}
+   1 && <span className="text-xs text-wine ml-1">(Auto-set to Yes)</span>}
                 </label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
@@ -4374,7 +3428,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         onChange={handleInputChange}
                         disabled={formData.totalPresenters ===
    1}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4402,7 +3456,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {formData.conferenceSubType ===
    'paper_not_indexed' && formData.isPresenter ===
    'yes' && (
-                  <div className="mt-3 bg-[#fdf5ec] dark:bg-[#7d1a34]/10 border border-[#f0e2d2] dark:border-[#5e1024] rounded-lg p-4">
+                  <div className="mt-3 bg-blush dark:bg-wine/10 border border-blush-line dark:border-wine-dark rounded-lg p-4">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Upload Presenter Certificate <span className="text-red-500">*</span>
                     </label>
@@ -4415,10 +3469,10 @@ export default function ResearchContributionForm({ publicationType, contribution
                           setPresenterCertificate(e.target.files[0]);
                         }
                       }}
-                      className="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#fbe2e8] dark:file:bg-[#5e1024]/40 file:text-[#7d1a34] dark:file:text-[#c8973f] hover:file:bg-[#fbe8d6] dark:hover:file:bg-[#5e1024]/60"
+                      className="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-wine-100 dark:file:bg-wine-dark/40 file:text-wine dark:file:text-gold hover:file:bg-gold-50 dark:hover:file:bg-wine-dark/60"
                     />
                     {presenterCertificate && (
-                      <div className="mt-2 text-sm text-[#7d1a34] flex items-center gap-2">
+                      <div className="mt-2 text-sm text-wine flex items-center gap-2">
                         <CheckCircle className="w-4 h-4" />
                         <span>{presenterCertificate.name}</span>
                         <button
@@ -4441,7 +3495,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="virtualConference" value={v}
                         checked={formData.virtualConference ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4459,7 +3513,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <input type="radio" name="fullPaper" value="yes"
                       checked={formData.fullPaper ===
    'yes'} onChange={handleInputChange}
-                      className="w-4 h-4 text-[#7d1a34]"
+                      className="w-4 h-4 text-wine"
                     />
                     <span className="ml-1.5 text-gray-700 dark:text-gray-300">Full Paper</span>
                   </label>
@@ -4473,7 +3527,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="conferenceType" value={v}
                         checked={formData.conferenceType ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4492,7 +3546,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="conferenceHeldAtSgt" value={v}
                         checked={formData.conferenceHeldAtSgt ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4507,7 +3561,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="conferenceBestPaperAward" value={v}
                         checked={formData.conferenceBestPaperAward ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4526,7 +3580,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="isInterdisciplinary" value={v}
                         checked={formData.isInterdisciplinary ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4541,7 +3595,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="industryCollaboration" value={v}
                         checked={formData.industryCollaboration ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4564,7 +3618,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="communicatedWithOfficialId" value={v}
                         checked={formData.communicatedWithOfficialId ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4579,7 +3633,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       <input type="radio" name="centralFacilityUsed" value={v}
                         checked={formData.centralFacilityUsed ===
    v} onChange={handleInputChange}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
@@ -4596,11 +3650,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Your Personal Email ID <span className="text-red-500">*</span>
                 </label>
                 <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter your personal email address"
                   required
                 />
-                <p className="text-xs text-orange-600 mt-1">Since you haven't communicated with official ID, please provide your personal email.</p>
+                <p className="text-xs text-orange-600 mt-1">Since you haven&apos;t communicated with official ID, please provide your personal email.</p>
               </div>
             )}
 
@@ -4609,7 +3663,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Conference Date</label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 />
               </div>
               <div>
@@ -4617,7 +3671,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Publication Date <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   required
                 />
               
@@ -4629,14 +3683,14 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ISSN/ISBN/Issue No</label>
                 <input type="text" name="issnIsbnIssueNo" value={formData.issnIsbnIssueNo} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter ISSN/ISBN/Issue No"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Page No</label>
                 <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="e.g. 100-125"
                 />
               </div>
@@ -4647,14 +3701,14 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">DOIs of Paper</label>
                 <input type="text" name="paperDoi" value={formData.paperDoi} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter DOI"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">WebLink</label>
                 <input type="url" name="weblink" value={formData.weblink} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="https://..."
                 />
               </div>
@@ -4664,7 +3718,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Paper WebLink</label>
               <input type="url" name="paperweblink" value={formData.paperweblink} onChange={handleInputChange}
-                className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 placeholder="https://..."
               />
             </div>
@@ -4673,7 +3727,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Faculty Remarks</label>
               <textarea name="facultyRemarks" value={formData.facultyRemarks} onChange={handleInputChange}
-                rows={3} className="w-full px-3 py-2.5 border border-[#f0e2d2] rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                rows={3} className="w-full px-3 py-2.5 border border-blush-line rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 placeholder="Please mention the date and venue of conference..."
               />
             </div>
@@ -4683,7 +3737,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Type 3: Keynote Speaker / Session Chair / Invited Talks */}
           {formData.conferenceSubType ===
    'keynote_speaker_invited_talks' && (
-          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-orange-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-blush/30 dark:from-slate-800/50 dark:to-orange-900/20 rounded-xl border border-blush-line dark:border-slate-700 space-y-5">
             {/* Role Selection */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -4761,7 +3815,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
@@ -4771,7 +3825,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="venue" value={formData.venue} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter venue"
                   required
                 />
@@ -4785,7 +3839,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Date of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
@@ -4795,7 +3849,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Topic <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="topic" value={formData.topic} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter topic"
                   required
                 />
@@ -4824,7 +3878,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Type 4: Organizer/Coordinator/Member of Conference held at ResearchSphere */}
           {formData.conferenceSubType ===
    'organizer_coordinator_member' && (
-          <div className="p-5 bg-gradient-to-r from-white to-[#fdf5ec]/30 dark:from-slate-800/50 dark:to-cyan-900/20 rounded-xl border border-[#f0e2d2] dark:border-slate-700 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-white to-blush/30 dark:from-slate-800/50 dark:to-cyan-900/20 rounded-xl border border-blush-line dark:border-slate-700 space-y-5">
             {/* Category Selection */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -4923,7 +3977,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
@@ -4933,7 +3987,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="venue" value={formData.venue} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter venue"
                   required
                 />
@@ -4947,7 +4001,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Date of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
@@ -4957,7 +4011,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   Topic
                 </label>
                 <input type="text" name="topic" value={formData.topic} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter topic"
                 />
               </div>
@@ -4990,7 +4044,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               UN Sustainable Development Goals (SDGs)
             </label>
             <details className="group">
-              <summary className="cursor-pointer px-4 py-3 border border-[#f0e2d2] dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 hover:bg-white dark:hover:bg-gray-600 flex justify-between items-center transition-colors">
+              <summary className="cursor-pointer px-4 py-3 border border-blush-line dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 hover:bg-white dark:hover:bg-gray-600 flex justify-between items-center transition-colors">
                 <span className="text-gray-600 dark:text-gray-300">
                   {formData.sdgGoals.length > 0 
                     ? `${formData.sdgGoals.length} SDG${formData.sdgGoals.length !== 1 ? 's' : ''} selected`
@@ -5003,7 +4057,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div className="mt-2 p-4 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 shadow-lg max-h-64 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {SDG_GOALS.map((sdg) => (
-                    <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/10 rounded-lg cursor-pointer transition-colors">
+                    <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-blush dark:hover:bg-wine/10 rounded-lg cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={formData.sdgGoals.includes(sdg.value)}
@@ -5016,7 +4070,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                               : prev.sdgGoals.filter(g => g !== sdg.value)
                           }));
                         }}
-                        className="w-4 h-4 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34]"
+                        className="w-4 h-4 text-wine rounded focus:ring-2 focus:ring-wine"
                       />
                       <span className="text-sm dark:text-gray-300">{sdg.label}</span>
                     </label>
@@ -5030,7 +4084,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   const sdg = SDG_GOALS.find(s => s.value ===
    sdgValue);
                   return sdg ? (
-                    <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#fbe2e8] text-[#7d1a34] rounded-full text-sm font-medium">
+                    <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wine-100 text-wine rounded-full text-sm font-medium">
                       {sdg.label.replace('SDG ', '')}
                       <button
                         type="button"
@@ -5038,7 +4092,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           ...prev,
                           sdgGoals: prev.sdgGoals.filter(g => g !== sdgValue)
                         }))}
-                        className="hover:text-[#7d1a34] hover:bg-[#fbe8d6] rounded-full p-0.5 transition-colors"
+                        className="hover:text-wine hover:bg-gold-50 rounded-full p-0.5 transition-colors"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -5052,43 +4106,43 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Publication Details Grid - Only for Research Papers */}
           {publicationType ===
    'research_paper' && (
-          <div className="p-5 bg-[#fdf5ec]/40 dark:bg-slate-800/50 rounded-xl border border-[#f0e2d2] dark:border-slate-700">
+          <div className="p-5 bg-blush/40 dark:bg-slate-800/50 rounded-xl border border-blush-line dark:border-slate-700">
             <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Publication Information</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Volume <span className="text-red-500">*</span></label>
                 <input type="text" name="volume" value={formData.volume} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="Vol"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-wine" placeholder="Vol"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Issue <span className="text-red-500">*</span></label>
                 <input type="text" name="issue" value={formData.issue} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="Iss"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-wine" placeholder="Iss"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Pages <span className="text-red-500">*</span></label>
                 <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="1-10"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-wine" placeholder="1-10"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">DOI</label>
                 <input type="text" name="doi" value={formData.doi} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="10.xxx"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-wine" placeholder="10.xxx"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">ISSN</label>
                 <input type="text" name="issn" value={formData.issn} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]" placeholder="1234-5678"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-wine" placeholder="1234-5678"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Pub. Date</label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-[#f0e2d2] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34]"
+                  className="w-full px-3 py-2.5 border border-blush-line dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-wine"
                 />
               </div>
             </div>
@@ -5103,7 +4157,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }
                 }}
                 pattern="https://.*"
-                className={`w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-[#7d1a34] ${formData.publisherName && !formData.publisherName.startsWith('https://') ? 'border-red-300' : 'border-[#f0e2d2] dark:border-gray-600'}`} 
+                className={`w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-wine ${formData.publisherName && !formData.publisherName.startsWith('https://') ? 'border-red-300' : 'border-blush-line dark:border-gray-600'}`} 
                 placeholder="https://doi.org/10.xxxx/xxxxx"
               />
               {formData.publisherName && !formData.publisherName.startsWith('https://') && (
@@ -5145,17 +4199,17 @@ export default function ResearchContributionForm({ publicationType, contribution
                 onChange={handleMentorUidChange}
                 onFocus={() => formData.mentorUid.length >= 3 && setShowMentorSuggestions(true)}
                 placeholder="Enter Mentor's UID"
-                className="w-full px-2 py-1.5 border border-[#f0e2d2] dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                className="w-full px-2 py-1.5 border border-blush-line dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-wine dark:bg-gray-700 dark:text-gray-100"
               />
               
               {/* Autocomplete Suggestions Dropdown */}
               {showMentorSuggestions && mentorSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-blush-line dark:border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
                   {mentorSuggestions.map((suggestion, index) => (
                     <div
                       key={index}
                       onClick={() => selectMentorSuggestion(suggestion)}
-                      className="px-2 py-1.5 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/10 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                      className="px-2 py-1.5 hover:bg-blush dark:hover:bg-wine/10 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                     >
                       <div className="font-medium text-gray-900 dark:text-white text-sm">{suggestion.uid}</div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">{suggestion.name}</div>
@@ -5174,7 +4228,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 value={formData.mentorName}
                 readOnly
                 placeholder="Auto-filled"
-                className="w-full px-2 py-1.5 border border-[#f0e2d2] dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-gray-300 text-sm text-gray-700"
+                className="w-full px-2 py-1.5 border border-blush-line dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-gray-300 text-sm text-gray-700"
               />
             </div>
           </div>
@@ -5193,7 +4247,7 @@ export default function ResearchContributionForm({ publicationType, contribution
         
         {/* Author Counts and Additional Info - All in One Box */}
         <div className={`p-4 bg-gradient-to-r ${formData.publicationType ===
-   'conference_paper' ? 'from-gray-50 dark:from-gray-700/50 to-[#fdf5ec]/30 dark:to-purple-900/20' : (formData.publicationType ===
+   'conference_paper' ? 'from-gray-50 dark:from-gray-700/50 to-blush/30 dark:to-purple-900/20' : (formData.publicationType ===
    'book' || formData.publicationType ===
    'book_chapter') ? 'from-gray-50 dark:from-gray-700/50 to-teal-50 dark:to-teal-900/20' : 'from-gray-50 dark:from-gray-700/50 to-emerald-50 dark:to-emerald-900/20'} rounded-xl border border-gray-100 dark:border-gray-700 space-y-4`}>
           {/* Row 1: Basic Author Counts */}
@@ -5269,7 +4323,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 }}
                 disabled={hasAuthorsAdded}
                 className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
-   'conference_paper' ? 'focus:ring-[#7d1a34] focus:border-[#7d1a34]' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'} dark:border-gray-600 dark:text-gray-100`} placeholder="0"
+   'conference_paper' ? 'focus:ring-wine focus:border-wine' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'} dark:border-gray-600 dark:text-gray-100`} placeholder="0"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
@@ -5334,7 +4388,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }
                 }}
                   className={`px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 ${publicationType ===
-   'conference_paper' ? 'focus:ring-[#7d1a34] focus:border-[#7d1a34]' : 'focus:ring-emerald-500'}`}
+   'conference_paper' ? 'focus:ring-wine focus:border-wine' : 'focus:ring-emerald-500'}`}
                 >
                   {(publicationType ===
    'research_paper' && policyData?.distributionMethod ===
@@ -5470,7 +4524,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }}
                   min="0"
                   max={totalAuthors - totalInternalAuthors}
-                  className="w-full px-3 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-3 py-2 border border-blush-line dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="0"
                 />
               </div>
@@ -5486,7 +4540,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'book' || publicationType ===
    'book_chapter' ? 'border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20' : 'border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20'} rounded p-3 mb-4`}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Add Other Authors {editingAuthorIndex !== null && <span className="text-xs text-[#7d1a34]">(Editing)</span>}
+              Add Other Authors {editingAuthorIndex !== null && <span className="text-xs text-wine">(Editing)</span>}
             </h3>
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
               {(() => {
@@ -5569,7 +4623,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                               setSearchSuggestions([]);
                               setShowSuggestions(false);
                             }}
-                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-[#7d1a34]'}`}
+                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-wine'}`}
                             disabled={internalSlotsFull}
                           />
                           <span className="ml-2">
@@ -5601,11 +4655,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                               setSearchSuggestions([]);
                               setShowSuggestions(false);
                             }}
-                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-[#7d1a34]'}`}
+                            className={`w-4 h-4 ${isBook ? 'text-teal-600' : 'text-wine'}`}
                           />
                           <span className="ml-2">
                             External
-                            {internalSlotsFull && <span className="text-[#7d1a34] text-xs ml-1">(Auto-selected)</span>}
+                            {internalSlotsFull && <span className="text-wine text-xs ml-1">(Auto-selected)</span>}
                           </span>
                         </label>
                       )}
@@ -5615,7 +4669,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               </div>
               {totalAuthors ===
    (totalInternalAuthors + totalInternalCoAuthors) && totalAuthors > 1 && (
-                <p className="text-xs text-[#7d1a34] mt-1">
+                <p className="text-xs text-wine mt-1">
                   All authors are from ResearchSphere. External option is hidden.
                 </p>
               )}
@@ -5652,7 +4706,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         setShowSuggestions(false);
                       }}
                       className={`w-4 h-4 ${formData.publicationType ===
-   'conference_paper' ? 'text-[#7d1a34]' : 'text-[#7d1a34]'}`}
+   'conference_paper' ? 'text-wine' : 'text-wine'}`}
                     />
                     <span className="ml-2">Teacher</span>
                   </label>
@@ -5677,7 +4731,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           setShowSuggestions(false);
                         }}
                         className={`w-4 h-4 ${formData.publicationType ===
-   'conference_paper' ? 'text-[#7d1a34]' : 'text-[#7d1a34]'}`}
+   'conference_paper' ? 'text-wine' : 'text-wine'}`}
                       />
                       <span className="ml-2">Student</span>
                     </label>
@@ -5697,7 +4751,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           authorType: e.target.value
                         }));
                       }}
-                      className="w-4 h-4 text-[#7d1a34]"
+                      className="w-4 h-4 text-wine"
                     />
                     <span className="ml-2">Academic</span>
                   </label>
@@ -5713,7 +4767,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           authorType: e.target.value
                         }));
                       }}
-                      className="w-4 h-4 text-[#7d1a34]"
+                      className="w-4 h-4 text-wine"
                     />
                     <span className="ml-2">Industry</span>
                   </label>
@@ -5731,7 +4785,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                             authorType: e.target.value
                           }));
                         }}
-                        className="w-4 h-4 text-[#7d1a34]"
+                        className="w-4 h-4 text-wine"
                       />
                       <span className="ml-2">International Author</span>
                     </label>
@@ -5754,7 +4808,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <select
                 value={newAuthor.authorRole}
                 onChange={(e) => setNewAuthor(prev => ({ ...prev, authorRole: e.target.value }))}
-                className="w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 dark:text-gray-100"
+                className="w-full px-4 py-2 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 dark:text-gray-100"
               >
                 {getAvailableOtherAuthorRoles().map(role => (
                   <option key={role.value} value={role.value}>{role.label}</option>
@@ -5828,12 +4882,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                   placeholder={newAuthor.authorType ===
    'Student' ? 'e.g., 12345678' : (newAuthor.authorType ===
    'Author' ? 'e.g., STF12345 or 12345678' : 'e.g., STF12345')}
-                  className="w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-4 py-2 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                 />
                 
                 {/* Search Suggestions Dropdown */}
                 {showSuggestions && searchSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-[#f0e2d2] dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-blush-line dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {searchSuggestions.map((suggestion, idx) => {
                       // Handle different field names from backend
                       const displayName = suggestion.name || suggestion.displayName || `${suggestion.firstName || ''} ${suggestion.lastName || ''}`.trim();
@@ -5844,7 +4898,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         <div
                           key={idx}
                           onClick={() => selectAuthorFromSuggestion(suggestion)}
-                          className="px-4 py-3 hover:bg-[#fdf5ec] dark:hover:bg-[#7d1a34]/10 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                          className="px-4 py-3 hover:bg-blush dark:hover:bg-wine/10 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
                         >
                           <div className="font-medium text-gray-900 dark:text-white">
                             {suggestion.uid} - {displayName}
@@ -5874,7 +4928,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? 'Auto-filled after entering UID' : 'Enter full name'}
                 readOnly={newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:text-gray-100 ${newAuthor.authorCategory ===
+                className={`w-full px-4 py-2 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine dark:text-gray-100 ${newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid ? 'bg-white dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
               />
             </div>
@@ -5892,7 +4946,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? 'Auto-filled after entering UID' : 'email@example.com'}
                 readOnly={newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:text-gray-100 ${newAuthor.authorCategory ===
+                className={`w-full px-4 py-2 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine dark:text-gray-100 ${newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid ? 'bg-white dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
               />
             </div>
@@ -5911,7 +4965,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? universityName : 'Enter organization/institute name'}
                 readOnly={newAuthor.authorCategory ===
    'Internal'}
-                className={`w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:text-gray-100 ${newAuthor.authorCategory ===
+                className={`w-full px-4 py-2 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine dark:text-gray-100 ${newAuthor.authorCategory ===
    'Internal' ? 'bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed' : 'dark:bg-gray-700'}`}
               />
             </div>
@@ -5928,7 +4982,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   value={newAuthor.designation}
                   onChange={(e) => setNewAuthor(prev => ({ ...prev, designation: e.target.value }))}
                   placeholder="e.g. Professor, Researcher, etc."
-                  className="w-full px-4 py-2 border border-[#f0e2d2] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] dark:bg-gray-700 dark:text-gray-100"
+                  className="w-full px-4 py-2 border border-blush-line dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
             )}
@@ -5973,7 +5027,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             <button
               type="button"
               onClick={addOrUpdateAuthor}
-              className="inline-flex items-center px-6 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
+              className="inline-flex items-center px-6 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors"
             >
               <Plus className="w-5 h-5 mr-2" />
               {editingAuthorIndex !== null ? 'Update Author' : 'Add Other Details'}
@@ -5982,51 +5036,64 @@ export default function ResearchContributionForm({ publicationType, contribution
         </div>
         )}
         
-        {/* Incentive Preview Table - Show for Research Papers with any indexing category OR Conference Papers with proceedings quartile OR Books/Book Chapters */}
-        {((formData.publicationType ===
-   'research_paper' && formData.indexingCategories && formData.indexingCategories.length > 0) || 
-          (formData.publicationType ===
-   'conference_paper' && formData.conferenceSubType ===
-   'paper_indexed_scopus' && formData.proceedingsQuartile) ||
-          formData.publicationType ===
-   'book' ||
-          formData.publicationType ===
-   'book_chapter') && (
+        {/* Incentive Preview Table - research papers with an indexing category, Scopus conference papers with a proceedings quartile, books and book chapters */}
+        {showIncentivePreview && (
           <div className="mt-6">
             <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Award className={`w-5 h-5 ${
                 formData.publicationType ===
-   'conference_paper' ? 'text-[#7d1a34]' : 
+   'conference_paper' ? 'text-wine' : 
                 formData.publicationType ===
    'book' || formData.publicationType ===
    'book_chapter' ? 'text-teal-600' :
-                'text-[#7d1a34]'
+                'text-wine'
               }`} />
               Incentive & Points Preview
             </h3>
-            {/* Show loading message if policy not yet loaded */}
-            {((formData.publicationType ===
-   'book' && !bookPolicy) || 
-              (formData.publicationType ===
-   'book_chapter' && !bookChapterPolicy)) && (
-              <div className="text-sm text-gray-500 italic mb-3">
-                Loading incentive policy...
-              </div>
-            )}
+            {/* Policy the server applied, and the preview's state */}
+            <div className="mb-3 space-y-2" data-testid="incentive-preview-status">
+              {incentivePolicyLabel(incentivePreview.data) && (
+                <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="incentive-preview-policy">
+                  <span className="font-medium text-wine">Policy:</span> {incentivePolicyLabel(incentivePreview.data)}
+                </p>
+              )}
+              {incentivePreview.isLoading && (
+                <p className="text-sm text-gray-500 italic flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Calculating incentive preview…
+                </p>
+              )}
+              {incentivePreview.isUpdating && (
+                <p className="text-xs text-gray-500 italic flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Updating…
+                </p>
+              )}
+              {incentivePreview.isError && (
+                <div role="alert" className="flex items-center gap-2 p-3 text-sm rounded-lg border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1">Incentive preview is unavailable right now. The amounts are calculated when you save.</span>
+                  <button type="button" onClick={() => incentivePreview.refetch()} className="text-xs font-medium underline">Retry</button>
+                </div>
+              )}
+              {incentivePreview.data?.warnings.filter((w) => w.code !== 'DEFAULT_POLICY_USED').map((w) => (
+                <p key={w.code + (w.authorIndexes || []).join(',')} className="text-xs text-amber-800 dark:text-amber-200 flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> {w.message}
+                </p>
+              ))}
+            </div>
             
             {/* Drag-and-drop instruction banner - only for role-based */}
             {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-              <div className="mb-4 bg-gradient-to-r from-[#fdf5ec] dark:from-[#7d1a34]/10 to-[#fdf5ec]/30 dark:to-[#7d1a34]/5 border-l-4 border-[#7d1a34] p-4 rounded-r-lg shadow-sm">
+              <div className="mb-4 bg-gradient-to-r from-blush dark:from-wine/10 to-blush/30 dark:to-wine/5 border-l-4 border-wine p-4 rounded-r-lg shadow-sm">
                 <div className="flex items-start gap-3">
-                  <svg className="w-6 h-6 text-[#7d1a34] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-wine flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <h4 className="text-sm font-semibold text-[#7d1a34] dark:text-blue-200 mb-1">💡 Drag to Reorder Authors in Paper</h4>
-                    <p className="text-sm text-[#7d1a34] dark:text-[#c8973f]">
-                      Click and drag the <span className="inline-flex items-center bg-white px-2 py-0.5 rounded border border-[#f0e2d2] shadow-sm font-mono text-xs">⋮⋮</span> handle to set author order in the paper. 
+                    <h4 className="text-sm font-semibold text-wine dark:text-blue-200 mb-1">💡 Drag to Reorder Authors in Paper</h4>
+                    <p className="text-sm text-wine dark:text-gold">
+                      Click and drag the <span className="inline-flex items-center bg-white px-2 py-0.5 rounded border border-blush-line shadow-sm font-mono text-xs">⋮⋮</span> handle to set author order in the paper. 
                       <span className="font-semibold">Only internal authors in positions 1-5</span> receive incentives and points. 
                       Internal authors beyond position #5 (6th, 7th, etc.) are highlighted in <span className="text-red-600 font-semibold">red</span> and get <strong>₹0</strong>.
                     </p>
@@ -6036,7 +5103,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             
             <div className="w-full overflow-x-auto">
-              <table className="min-w-full border border-[#f0e2d2] dark:border-gray-600" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+              <table className="min-w-full border border-blush-line dark:border-gray-600" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
                 <thead className="bg-white dark:bg-gray-700">
                   <tr>
                     {/* Up Arrow Column - only for role-based */}
@@ -6075,13 +5142,13 @@ export default function ResearchContributionForm({ publicationType, contribution
                     </th>
                     <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-20">
                       <div className="flex items-center gap-1">
-                        <Coins className="w-3.5 h-3.5 text-[#7d1a34]" />
+                        <Coins className="w-3.5 h-3.5 text-wine" />
                         Incentive
                       </div>
                     </th>
                     <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-16">
                       <div className="flex items-center gap-1">
-                        <Award className="w-3.5 h-3.5 text-[#7d1a34]" />
+                        <Award className="w-3.5 h-3.5 text-wine" />
                         Points
                       </div>
                     </th>
@@ -6159,12 +5226,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                     ].sort((a, b) => a.displayOrder - b.displayOrder);
                     
                     return allAuthorsForTable.map((author, tableIndex) => {
-                      const { incentive, points } = calculateAuthorIncentivePoints(
-                        author.authorType,
-                        author.authorCategory,
-                        author.authorRole,
-                        author.uid
-                      );
+                      // Server-computed share for this row (undefined while loading or on error)
+                      const share = previewShareFor(author.isUser, author.actualIndex);
                       
                       // Calculate role label
                       let roleLabel = 'Author';
@@ -6191,10 +5254,10 @@ export default function ResearchContributionForm({ publicationType, contribution
                       } else {
                         roleLabel = (author.authorRole ===
    'first_and_corresponding' || author.authorRole ===
-   'first_and_corresponding_author') ? 'First & Corresponding'
+   'first_and_corresponding_author') ? 'First & Corresponding Author'
                           : (author.authorRole ===
    'corresponding' || author.authorRole ===
-   'corresponding_author') ? 'Corresponding'
+   'corresponding_author') ? 'Corresponding Author'
                           : (author.authorRole ===
    'first' || author.authorRole ===
    'first_author') ? 'First Author'
@@ -6285,11 +5348,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                           }}
                           className={`
                             rounded-lg border-2
-                            ${author.isUser ? 'bg-gradient-to-r from-[#fdf5ec] dark:from-blue-900/30 via-blue-100/70 dark:via-blue-800/30 to-[#fdf5ec] dark:to-blue-900/30 border-blue-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}
-                            ${isDragging ? 'opacity-90 bg-gradient-to-r from-blue-200 to-blue-300 border-[#7d1a34] relative z-50 scale-105' : ''} 
-                            ${isDragOver ? 'border-[#7d1a34] bg-gradient-to-b from-blue-100 to-[#fdf5ec] scale-[1.02]' : ''} 
+                            ${author.isUser ? 'bg-gradient-to-r from-blush dark:from-blue-900/30 via-blue-100/70 dark:via-blue-800/30 to-blush dark:to-blue-900/30 border-blue-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}
+                            ${isDragging ? 'opacity-90 bg-gradient-to-r from-blue-200 to-blue-300 border-wine relative z-50 scale-105' : ''} 
+                            ${isDragOver ? 'border-wine bg-gradient-to-b from-blue-100 to-blush scale-[1.02]' : ''} 
                             ${isBeyondFifth && !isDragging && !author.isUser ? 'bg-gradient-to-r from-red-50 via-red-100/70 to-red-50 border-red-400' : ''} 
-                            ${isLockedPosition ? 'opacity-80 bg-gradient-to-r from-gray-50 to-gray-100 border-[#f0e2d2]' : ''}
+                            ${isLockedPosition ? 'opacity-80 bg-gradient-to-r from-gray-50 to-gray-100 border-blush-line' : ''}
                             ${(publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && !isLockedPosition) ? 'hover:bg-gradient-to-r hover:from-blue-100 hover:via-blue-50 hover:to-blue-100 hover:scale-[1.02] hover:shadow-2xl hover:border-blue-400 cursor-move' : 'cursor-default'}
@@ -6352,7 +5415,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                     tableIndex ===
    0 
                                       ? 'text-gray-300 cursor-not-allowed bg-gray-100' 
-                                      : 'text-[#7d1a34] hover:text-white hover:bg-[#7d1a34] hover:scale-110 active:scale-95 bg-[#fdf5ec]'
+                                      : 'text-wine hover:text-white hover:bg-wine hover:scale-110 active:scale-95 bg-blush'
                                   }`}
                                   title="Move up"
                                 >
@@ -6375,7 +5438,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                     </svg>
                                   </div>
                                 ) : (
-                                  <div className="cursor-grab active:cursor-grabbing hover:scale-110 transition-all duration-150 hover:text-[#7d1a34]">
+                                  <div className="cursor-grab active:cursor-grabbing hover:scale-110 transition-all duration-150 hover:text-wine">
                                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                                       <circle cx="9" cy="5" r="1.5"/>
                                       <circle cx="9" cy="12" r="1.5"/>
@@ -6391,7 +5454,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                   text-xs font-bold px-2.5 py-1 rounded-full shadow-md
                                   ${paperPosition <= 5 
                                     ? author.isUser 
-                                      ? 'text-[#7d1a34] bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-400 shadow-blue-200'
+                                      ? 'text-wine bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-400 shadow-blue-200'
                                       : 'text-green-800 bg-gradient-to-br from-green-100 to-green-200 border-2 border-green-400 shadow-green-200'
                                     : 'text-red-800 bg-gradient-to-br from-red-100 to-red-200 border-2 border-red-400 shadow-red-200'
                                   }
@@ -6399,7 +5462,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                                   #{paperPosition} {author.isUser && '(You)'}
                                 </div>
                                 {/* No incentive warning */}
-                                {isBeyondFifth && (
+                                {/* Only when the server's share for this row is really ₹0 */}
+                                {isBeyondFifth && share && share.incentive === 0 && (
                                   <div className="text-xs text-red-600 font-bold bg-red-200 px-2 py-0.5 rounded border border-red-400 shadow-sm">
                                     No ₹
                                   </div>
@@ -6413,7 +5477,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <td className="px-1 py-2 text-xs font-medium text-gray-900 dark:text-gray-200 border-r dark:border-gray-600">
                             {author.authorType}
                           </td>
-                          <td className={`px-1 py-2 text-xs font-medium ${author.isUser ? 'text-[#7d1a34]' : 'text-gray-700 dark:text-gray-300'} border-r dark:border-gray-600`}>
+                          <td className={`px-1 py-2 text-xs font-medium ${author.isUser ? 'text-wine' : 'text-gray-700 dark:text-gray-300'} border-r dark:border-gray-600`}>
                             {roleLabel}
                           </td>
                           <td className="px-1 py-2 text-xs font-medium text-gray-900 dark:text-gray-200 border-r dark:border-gray-600 break-words">
@@ -6425,21 +5489,21 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <td className="px-1 py-2 text-xs text-gray-900 dark:text-gray-200 border-r dark:border-gray-600 break-words">
                             {author.affiliation}
                           </td>
-                          <td className="px-1 py-2 text-xs border-r text-center">
-                            {author.authorCategory ===
-   'Internal' ? (
-                              <span className="text-[#7d1a34] font-medium">₹{incentive.toLocaleString()}</span>
+                          <td className="px-1 py-2 text-xs border-r text-center" data-testid="preview-incentive">
+                            {!share ? (
+                              <span className="text-gray-400">{incentivePreview.isError ? '—' : '…'}</span>
+                            ) : share.isInternal ? (
+                              <span className="text-wine font-medium">{formatRupees(share.incentive)}</span>
                             ) : (
                               <span className="text-gray-400">₹0</span>
                             )}
                           </td>
-                          <td className="px-1 py-2 text-xs border-r text-center">
-                            {author.authorCategory ===
-   'Internal' && author.authorType !== 'Student' ? (
-                              <span className="text-[#7d1a34] font-medium">{points}</span>
-                            ) : author.authorCategory ===
-   'Internal' && author.authorType ===
-   'Student' ? (
+                          <td className="px-1 py-2 text-xs border-r text-center" data-testid="preview-points">
+                            {!share ? (
+                              <span className="text-gray-400">{incentivePreview.isError ? '—' : '…'}</span>
+                            ) : share.isInternal && !share.isStudent ? (
+                              <span className="text-wine font-medium">{share.points}</span>
+                            ) : share.isInternal ? (
                               <span className="text-gray-400 text-xs">No Points</span>
                             ) : (
                               <span className="text-gray-400">0</span>
@@ -6453,7 +5517,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                 <button
                                   type="button"
                                   onClick={() => editAuthor(author.actualIndex)}
-                                  className="inline-flex items-center px-2 py-1 bg-[#7d1a34] text-white text-xs rounded hover:bg-[#7d1a34] transition-colors"
+                                  className="inline-flex items-center px-2 py-1 bg-wine text-wine-fg text-xs rounded hover:bg-wine transition-colors"
                                 >
                                   Edit
                                 </button>
@@ -6524,7 +5588,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                                     tableIndex ===
    allAuthorsForTable.length - 1
                                       ? 'text-gray-300 cursor-not-allowed bg-gray-100' 
-                                      : 'text-[#7d1a34] hover:text-white hover:bg-[#7d1a34] hover:scale-110 active:scale-95 bg-[#fdf5ec]'
+                                      : 'text-wine hover:text-white hover:bg-wine hover:scale-110 active:scale-95 bg-blush'
                                   }`}
                                   title="Move down"
                                 >
@@ -6538,46 +5602,36 @@ export default function ResearchContributionForm({ publicationType, contribution
                     });
                   })()}
                   
-                  {/* Total Row */}
-                  {(() => {
-                    const applicantType = user?.userType ===
-   'student' ? 'Student' : 'Faculty';
-                    const applicantCalc = calculateAuthorIncentivePoints(applicantType, 'Internal', userAuthorType, user?.uid);
-                    
-                    let totalIncentive = applicantCalc.incentive;
-                    let totalPoints = applicantCalc.points;
-                    
-                    coAuthors.filter(a => a.name).forEach(coAuthor => {
-                      const { incentive, points } = calculateAuthorIncentivePoints(
-                        coAuthor.authorType,
-                        coAuthor.authorCategory,
-                        coAuthor.authorRole || 'co_author',
-                        coAuthor.uid  // Pass UID for position tracking
-                      );
-                      totalIncentive += incentive;
-                      totalPoints += points;
-                    });
-                    
-                    return (
-                      <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
-                        <td colSpan={publicationType ===
+                  {/* Total Row: the server's totals (never more than the pool) */}
+                  <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                    <td colSpan={publicationType ===
    'research_paper' && policyData?.distributionMethod ===
-   'author_role_based' ? 9 : 6} className="px-4 py-3 text-sm text-right border-r dark:border-gray-600 dark:text-gray-300">
-                          TOTAL
-                        </td>
-                        <td className="px-4 py-3 text-sm border-r dark:border-gray-600">
-                          <span className="text-green-700 font-bold">₹{totalIncentive.toLocaleString()}</span>
-                        </td>
-                        <td className="px-4 py-3 text-sm border-r">
-                          <span className="text-[#7d1a34] font-bold">{totalPoints}</span>
-                        </td>
-                        <td className="px-4 py-3"></td>
-                      </tr>
-                    );
-                  })()}
+   'author_role_based' ? 8 : 6} className="px-4 py-3 text-sm text-right border-r dark:border-gray-600 dark:text-gray-300">
+                      TOTAL
+                    </td>
+                    <td className="px-4 py-3 text-sm border-r dark:border-gray-600" data-testid="preview-total-incentive">
+                      {incentivePreview.data
+                        ? <span className="text-green-700 font-bold">{formatRupees(incentivePreview.data.totals.amount)}</span>
+                        : <span className="text-gray-400">{incentivePreview.isError ? '—' : '…'}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm border-r" data-testid="preview-total-points">
+                      {incentivePreview.data
+                        ? <span className="text-wine font-bold">{incentivePreview.data.totals.points}</span>
+                        : <span className="text-gray-400">{incentivePreview.isError ? '—' : '…'}</span>}
+                    </td>
+                    <td className="px-4 py-3"></td>
+                  </tr>
                 </tbody>
               </table>
             </div>
+            {incentivePreview.data && (
+              <p className="mt-2 text-xs text-gray-600 dark:text-gray-300" data-testid="incentive-preview-pool">
+                Expected Total: {formatRupees(incentivePreview.data.pool.amount)} / {incentivePreview.data.pool.points} pts
+                {(incentivePreview.data.totals.unallocatedAmount > 0 || incentivePreview.data.totals.unallocatedPoints > 0) && (
+                  <> — not paid out: {formatRupees(incentivePreview.data.totals.unallocatedAmount)} · {incentivePreview.data.totals.unallocatedPoints} pts</>
+                )}
+              </p>
+            )}
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               <span className="font-medium">Incentive Distribution Rules:</span><br/>
               {(formData.publicationType ===
@@ -6613,7 +5667,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
       {/* Document Upload Section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="p-5 bg-gradient-to-r from-amber-50 to-[#fdf5ec]/30 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+        <div className="p-5 bg-gradient-to-r from-amber-50 to-blush/30 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
               <FileText className="w-5 h-5 text-amber-600" />
@@ -6638,7 +5692,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.takeholderContents ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, takeholderContents: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-4 h-4 mt-0.5 text-wine rounded focus:ring-2 focus:ring-wine focus:border-wine"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">i. Takeholder Contents</label>
                 </div>
@@ -6649,7 +5703,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.frontPageWithAuthorAffiliation ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, frontPageWithAuthorAffiliation: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-4 h-4 mt-0.5 text-wine rounded focus:ring-2 focus:ring-wine focus:border-wine"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">ii. Front page of the paper with author affiliation to be included</label>
                 </div>
@@ -6660,7 +5714,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.nameContainsSpecialCharacters ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, nameContainsSpecialCharacters: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-4 h-4 mt-0.5 text-wine rounded focus:ring-2 focus:ring-wine focus:border-wine"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">iii. Please ensure the name contains no special characters (accents, unicode, etc.)</label>
                 </div>
@@ -6671,7 +5725,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     checked={formData.confDatesVenue ===
    'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, confDatesVenue: e.target.checked ? 'yes' : 'no' }))}
-                    className="w-4 h-4 mt-0.5 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-4 h-4 mt-0.5 text-wine rounded focus:ring-2 focus:ring-wine focus:border-wine"
                   />
                   <label className="text-sm text-gray-700 dark:text-gray-300">iv. Please mention the date and venue of conference</label>
                 </div>
@@ -6718,12 +5772,12 @@ export default function ResearchContributionForm({ publicationType, contribution
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500 dark:text-gray-400">
                 {autoSaving ? (
-              <span className="flex items-center text-[#7d1a34]">
+              <span className="flex items-center text-wine">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Auto-saving...
               </span>
             ) : lastAutoSave ? (
-              <span className="flex items-center text-[#7d1a34]">
+              <span className="flex items-center text-wine">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Auto-saved at {lastAutoSave.toLocaleTimeString()}
               </span>
@@ -6738,7 +5792,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               type="button"
               onClick={handleSaveDraft}
               disabled={saving || submitting || autoSaving}
-              className="inline-flex items-center px-6 py-3 border border-[#f0e2d2] dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center px-6 py-3 border border-blush-line dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -6751,7 +5805,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               type="button"
               onClick={handleSubmit}
               disabled={saving || submitting || autoSaving}
-              className="inline-flex items-center px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors disabled:opacity-50"
+              className="inline-flex items-center px-6 py-3 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors disabled:opacity-50"
             >
               {submitting ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -6773,7 +5827,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           <h2 className="text-xl font-semibold dark:text-white mb-4">My Research Contributions</h2>
           {loadingContributions ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-[#7d1a34]" />
+              <Loader2 className="w-8 h-8 animate-spin text-wine" />
             </div>
           ) : myContributions.length ===
    0 ? (
@@ -6783,7 +5837,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full border border-[#f0e2d2] dark:border-gray-600">
+              <table className="min-w-full border border-blush-line dark:border-gray-600">
                 <thead className="bg-white dark:bg-gray-700">
                   <tr>
                     <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">#</th>
@@ -6813,7 +5867,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           )}
                         </td>
                         <td className="px-4 py-2 border dark:border-gray-600 text-sm">
-                          <span className="inline-flex items-center px-2 py-1 bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f] text-xs rounded uppercase font-medium">
+                          <span className="inline-flex items-center px-2 py-1 bg-wine-100 dark:bg-wine/20 text-wine dark:text-gold text-xs rounded uppercase font-medium">
                             {contrib.publicationType.replace('_', ' ')}
                           </span>
                         </td>
@@ -6822,7 +5876,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                             contrib.status ===
    'draft' ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' :
                             contrib.status ===
-   'submitted' ? 'bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f]' :
+   'submitted' ? 'bg-wine-100 dark:bg-wine/20 text-wine dark:text-gold' :
                             contrib.status ===
    'under_review' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
                             contrib.status ===
@@ -6836,7 +5890,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         </td>
                         <td className="px-4 py-2 border dark:border-gray-600 text-sm text-center">
                           {isApplicant ? (
-                            <span className="inline-flex items-center px-2 py-1 bg-[#fbe2e8] dark:bg-[#7d1a34]/20 text-[#7d1a34] dark:text-[#c8973f] text-xs rounded-full font-medium">
+                            <span className="inline-flex items-center px-2 py-1 bg-wine-100 dark:bg-wine/20 text-wine dark:text-gold text-xs rounded-full font-medium">
                               Applicant
                             </span>
                           ) : (
@@ -6868,7 +5922,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         <td className="px-4 py-2 border text-sm">
                           <a
                             href={`/research/contribution/${contrib.id}`}
-                            className="text-[#7d1a34] hover:text-[#7d1a34] underline"
+                            className="text-wine hover:text-wine underline"
                           >
                             View Details
                           </a>

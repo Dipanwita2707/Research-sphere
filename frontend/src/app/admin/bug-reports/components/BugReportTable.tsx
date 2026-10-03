@@ -98,7 +98,7 @@ export function BugReportTable({
                 <button
                   onClick={() => handleSort('createdAt')}
                   className="flex items-center gap-2 text-xs font-medium text-gray-700 hover:text-gray-900"
-                  aria-label={`Sort by submission date ${sortBy === 'createdAt' ? (sortOrder === 'asc' ? 'descending' : 'ascending') : ''}`}
+                  aria-label={`Sort by submitted date ${sortBy === 'createdAt' ? (sortOrder === 'asc' ? 'descending' : 'ascending') : ''}`}
                 >
                   Submitted
                   <SortIcon field="createdAt" />

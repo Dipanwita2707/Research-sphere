@@ -36,7 +36,7 @@ export default function MetricCard({
       className={cn(
         'group relative bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800',
         'shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]',
-        'hover:shadow-[0_4px_24px_rgba(132,28,67,0.10)] hover:border-wine/20',
+        'hover:shadow-[0_4px_24px_rgb(var(--brand-primary)/0.10)] hover:border-wine/20',
         'transition-all duration-300 min-h-[128px] flex flex-col overflow-hidden',
         onClick && 'cursor-pointer',
         className
@@ -50,7 +50,7 @@ export default function MetricCard({
           <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider leading-tight">{label}</p>
           {Icon && (
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-peach to-peach/30 dark:from-wine/25 dark:to-wine/5 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Icon className="w-4 h-4 text-wine dark:text-amber-400" />
+              <Icon className="w-4 h-4 text-wine dark:text-hi" />
             </div>
           )}
         </div>
@@ -80,14 +80,14 @@ export default function MetricCard({
                 <AreaChart data={sparkData}>
                   <defs>
                     <linearGradient id={`spark-${label.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#841C43" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#841C43" stopOpacity={0} />
+                      <stop offset="0%" style={{ stopColor: 'rgb(var(--brand-primary))' }} stopOpacity={0.4} />
+                      <stop offset="100%" style={{ stopColor: 'rgb(var(--brand-primary))' }} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <Area
                     type="monotone"
                     dataKey="v"
-                    stroke="#841C43"
+                    style={{ stroke: 'rgb(var(--brand-primary))' }}
                     strokeWidth={2}
                     fill={`url(#spark-${label.replace(/\s+/g, '')})`}
                   />

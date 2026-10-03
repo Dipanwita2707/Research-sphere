@@ -13,7 +13,9 @@
  *   { role: 'tool', toolCallId, name, content }   // content: JSON string
  *
  * Env: GEMINI_API_KEY, GROQ_API_KEY, RIP_GEMINI_MODEL, RIP_GROQ_MODEL, RIP_GROQ_REASONING_EFFORT,
- *      RIP_GEMINI_THINKING_BUDGET (optional), RIP_AI_TIMEOUT_MS
+ *      RIP_GEMINI_THINKING_BUDGET (optional), RIP_AI_TIMEOUT_MS,
+ *      RIP_GROQ_TPM (tokens/minute budget, default 8000; 0 = no client throttle),
+ *      RIP_AI_MAX_RETRIES (default 4), RIP_AI_MAX_RETRY_WAIT_MS (total backoff per call, default 60000)
  */
 
 'use strict';
@@ -57,27 +59,87 @@ const withTimeout = (signal) => {
 };
 
 const retryable = (status) => status === 429 || status >= 500;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Sleep that ends early (rejecting) when `signal` aborts. */
+const sleep = (ms, signal) =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason || new Error('Aborted'));
+    const t = setTimeout(() => {
+      signal?.removeEventListener?.('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(signal.reason || new Error('Aborted'));
+    };
+    signal?.addEventListener?.('abort', onAbort, { once: true });
+  });
+
+// Retry policy (env-tunable): attempts after the first, longest single wait, total wait budget per call.
+const maxRetries = () => Math.max(0, Number(process.env.RIP_AI_MAX_RETRIES ?? 4));
+const MAX_SINGLE_WAIT_MS = 30000;
+const maxTotalWaitMs = () => Math.max(0, Number(process.env.RIP_AI_MAX_RETRY_WAIT_MS ?? 60000));
+
+/** Parse a duration such as "6.66s", "850ms", "1m30.5s", "2m", or a bare number of seconds. */
+function parseDurationMs(value) {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  if (/^\d+(\.\d+)?$/.test(s)) return Number(s) * 1000;
+  const m = /^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m(?!s))?(?:(\d+(?:\.\d+)?)s)?(?:(\d+(?:\.\d+)?)ms)?$/i.exec(s);
+  if (!m || !m.slice(1).some(Boolean)) return null;
+  return (Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0)) * 1000 + Number(m[4] || 0);
+}
 
 /**
- * How long to wait before retrying. Uses the retry-after header, else the wait Groq states in its
- * rate-limit message ("Please try again in 6.48s" / "in 850ms"), capped at 20 s; else a short backoff.
+ * How long to wait before retry number `attempt` (0-based). In order of preference:
+ *   1. Retry-After header (seconds or HTTP date)
+ *   2. x-ratelimit-reset-tokens / x-ratelimit-reset-requests (Groq/OpenAI, e.g. "6.66s"), the longer of the two that applies
+ *   3. the wait stated in the error message ("Please try again in 6.48s")
+ *   4. exponential backoff 1 s, 2 s, 4 s, … with jitter
+ * Always capped at MAX_SINGLE_WAIT_MS. A small margin is added to server-provided waits.
  */
 const retryDelayMs = (res, text, attempt) => {
-  const header = Number(res.headers.get('retry-after'));
-  if (Number.isFinite(header) && header > 0) return Math.min(header, 20) * 1000;
-  const m = /try again in (?:(\d+)m)?(\d+(?:\.\d+)?)(ms|s)/i.exec(text);
-  if (m) {
-    const ms = (Number(m[1] || 0) * 60 + (m[3] === 'ms' ? Number(m[2]) / 1000 : Number(m[2]))) * 1000;
-    return Math.min(Math.ceil(ms) + 250, 20000);
+  const get = (h) => (typeof res?.headers?.get === 'function' ? res.headers.get(h) : null);
+  const cap = (ms) => Math.min(Math.max(0, Math.ceil(ms)), MAX_SINGLE_WAIT_MS);
+
+  const ra = get('retry-after');
+  if (ra !== null && ra !== undefined && String(ra).trim() !== '') {
+    const secs = Number(ra);
+    if (Number.isFinite(secs) && secs >= 0) return cap(secs * 1000 + 250);
+    const date = Date.parse(ra);
+    if (Number.isFinite(date)) return cap(date - Date.now() + 250);
   }
-  return (attempt + 1) * 2000;
+  const resets = [get('x-ratelimit-reset-tokens'), get('x-ratelimit-reset-requests')].map(parseDurationMs).filter((v) => v !== null);
+  if (resets.length) {
+    // Only the limit that is exhausted matters; when we cannot tell, the larger one is safe.
+    const remainingTokens = Number(get('x-ratelimit-remaining-tokens'));
+    const remainingRequests = Number(get('x-ratelimit-remaining-requests'));
+    const tokenReset = parseDurationMs(get('x-ratelimit-reset-tokens'));
+    const requestReset = parseDurationMs(get('x-ratelimit-reset-requests'));
+    let ms = Math.max(...resets);
+    if (remainingRequests > 0 && tokenReset !== null) ms = tokenReset;
+    else if (remainingTokens > 0 && requestReset !== null) ms = requestReset;
+    return cap(ms + 250);
+  }
+  const m = /try again in ((?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m(?!s))?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?)/i.exec(text || '');
+  const stated = m ? parseDurationMs(m[1]) : null;
+  if (stated !== null) return cap(stated + 250);
+  const base = 1000 * 2 ** attempt;
+  return cap(base + Math.floor(Math.random() * 250));
 };
 
-/** POST with up to 2 retries on 429/5xx. */
+/**
+ * POST with bounded retries on 429/5xx. Waits honour the server's rate-limit hints, and the
+ * sum of all waits for one call never exceeds RIP_AI_MAX_RETRY_WAIT_MS (default 60 s), so a
+ * saturated provider fails fast enough for the caller to fall back or retry later.
+ */
 async function post(url, headers, body, signal) {
   let lastErr;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let waited = 0;
+  const retries = maxRetries();
+  const budget = maxTotalWaitMs();
+  for (let attempt = 0; attempt <= retries; attempt++) {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
@@ -87,10 +149,105 @@ async function post(url, headers, body, signal) {
     if (res.ok) return res;
     const text = await res.text().catch(() => '');
     lastErr = Object.assign(new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`), { status: res.status });
-    if (!retryable(res.status) || attempt === 2) break;
-    await sleep(retryDelayMs(res, text, attempt));
+    if (!retryable(res.status) || attempt === retries) break;
+    const delay = retryDelayMs(res, text, attempt);
+    if (waited + delay > budget) {
+      lastErr.retryAfterMs = delay;
+      break;
+    }
+    waited += delay;
+    log.info('AI request rate-limited/failed; retrying', { status: res.status, attempt: attempt + 1, delayMs: delay });
+    await sleep(delay, signal);
   }
   throw lastErr;
+}
+
+// ─── Client-side tokens-per-minute throttle ───────────────────────────────────
+
+/**
+ * Sliding-window TPM limiter. Providers such as Groq count prompt + max_tokens against a per-minute
+ * token budget and answer 429 when a request would exceed it; waiting locally first avoids that.
+ * Estimates are conservative (≈4 characters per token plus the requested max_tokens).
+ */
+class TokenRateLimiter {
+  constructor(tpmFn, { windowMs = 60000, now = () => Date.now(), sleepFn = sleep } = {}) {
+    this.tpmFn = tpmFn;
+    this.windowMs = windowMs;
+    this.now = now;
+    this.sleepFn = sleepFn;
+    this.entries = []; // { at, tokens }
+    this.queue = Promise.resolve();
+  }
+
+  used() {
+    const cutoff = this.now() - this.windowMs;
+    while (this.entries.length && this.entries[0].at <= cutoff) this.entries.shift();
+    return this.entries.reduce((s, e) => s + e.tokens, 0);
+  }
+
+  /** How long to wait before `tokens` more fit in the window (0 = now). */
+  waitFor(tokens) {
+    const tpm = this.tpmFn();
+    if (!tpm || tpm <= 0) return 0;
+    const need = Math.min(tokens, tpm); // a request larger than the budget waits for an empty window
+    let used = this.used();
+    if (used + need <= tpm) return 0;
+    for (const e of this.entries) {
+      used -= e.tokens;
+      if (used + need <= tpm) return Math.max(0, e.at + this.windowMs - this.now()) + 50;
+    }
+    return this.windowMs;
+  }
+
+  /** Reserve `tokens`, waiting (serially, FIFO) until they fit. Resolves to { waited, entry }. */
+  acquire(tokens, signal) {
+    const run = async () => {
+      let waited = 0;
+      for (;;) {
+        const w = this.waitFor(tokens);
+        if (!w) break;
+        waited += w;
+        await this.sleepFn(w, signal);
+      }
+      const entry = { at: this.now(), tokens };
+      this.entries.push(entry);
+      return { waited, entry };
+    };
+    const p = this.queue.then(run, run);
+    this.queue = p.catch(() => {});
+    return p;
+  }
+
+  /** Replace a reservation's estimate with the real usage once known. */
+  static settle(entry, actual) {
+    if (entry && Number.isFinite(actual) && actual > 0) entry.tokens = actual;
+  }
+}
+
+const estimateTokens = (body) => Math.ceil(JSON.stringify(body.messages || body.contents || '').length / 4) + (body.max_tokens || body.generationConfig?.maxOutputTokens || 0);
+
+/** Groq tokens-per-minute budget (RIP_GROQ_TPM, default 8000 = free tier; 0 disables the throttle). */
+const groqTpm = () => {
+  const v = process.env.RIP_GROQ_TPM;
+  return v === undefined || v === '' ? 8000 : Number(v) || 0;
+};
+const groqLimiter = new TokenRateLimiter(groqTpm);
+
+/** Clamp max_tokens so prompt + max_tokens fits the TPM budget (else Groq rejects it outright). */
+const fitToBudget = (body) => {
+  const tpm = groqTpm();
+  if (!tpm || !body.max_tokens) return body;
+  const prompt = estimateTokens({ ...body, max_tokens: 0 });
+  const room = Math.floor(tpm * 0.95) - prompt;
+  return room < body.max_tokens ? { ...body, max_tokens: Math.max(256, room) } : body;
+};
+
+async function groqPost(body, signal) {
+  const fitted = fitToBudget(body);
+  const reserved = estimateTokens(fitted);
+  const { waited, entry } = await groqLimiter.acquire(reserved, signal);
+  if (waited > 1000) log.info('Groq request throttled to stay under the TPM budget', { waitedMs: waited, tokens: reserved, tpm: groqTpm() });
+  return { res: await post(`${GROQ_BASE}/chat/completions`, groqHeaders(), fitted, signal), entry };
 }
 
 /** Yield parsed JSON payloads from an SSE response body. */
@@ -265,8 +422,9 @@ async function groqComplete({ system, prompt, maxTokens, json, temperature }) {
     max_tokens: maxTokens || 4096,
   };
   if (json) body.response_format = { type: 'json_object' };
-  const res = await post(`${GROQ_BASE}/chat/completions`, groqHeaders(), withReasoningOptions(body));
+  const { res, entry } = await groqPost(withReasoningOptions(body));
   const data = await res.json();
+  TokenRateLimiter.settle(entry, data?.usage?.total_tokens);
   const text = data?.choices?.[0]?.message?.content || '';
   if (!text) throw new Error('Groq returned no text');
   return {
@@ -325,7 +483,7 @@ async function groqChatTurnOnce({ system, messages, tools, maxTokens, onText, si
     body.tools = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: nullableOptional(t.parameters) } }));
     body.tool_choice = 'auto';
   }
-  const res = await post(`${GROQ_BASE}/chat/completions`, groqHeaders(), withReasoningOptions(body), signal);
+  const { res, entry } = await groqPost(withReasoningOptions(body), signal);
 
   let text = '';
   let emitted = false;
@@ -350,6 +508,7 @@ async function groqChatTurnOnce({ system, messages, tools, maxTokens, onText, si
       partial.set(tc.index, cur);
     }
   }
+  TokenRateLimiter.settle(entry, (usage.prompt_tokens || 0) + (usage.completion_tokens || 0));
   const toolCalls = [...partial.values()].map((tc, i) => {
     let args = {};
     try {
@@ -491,4 +650,13 @@ const status = () => ({
   providers: availableProviders().map((p) => ({ provider: p, model: p === 'gemini' ? geminiModel() : groqModel() })),
 });
 
-module.exports = { complete, completeJson, chatTurn, parseJsonLoose, isConfigured, status, AiUnavailableError };
+module.exports = {
+  complete,
+  completeJson,
+  chatTurn,
+  parseJsonLoose,
+  isConfigured,
+  status,
+  AiUnavailableError,
+  _internals: { post, retryDelayMs, parseDurationMs, TokenRateLimiter, groqLimiter, fitToBudget, estimateTokens },
+};

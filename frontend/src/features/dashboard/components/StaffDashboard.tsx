@@ -183,7 +183,7 @@ export default function StaffDashboard() {
         {/* Today's Overview - LMS Style Colored Cards */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-gray-800">Today's Overview</h2>
+            <h2 className="text-base font-semibold text-gray-800">Today&apos;s Overview</h2>
             <span className="text-xs text-gray-500 flex items-center gap-1">
               <Clock className="w-3 h-3" /> {formatDate()}
             </span>
@@ -246,7 +246,7 @@ export default function StaffDashboard() {
                     <p className="text-3xl font-bold text-gray-800 mt-1">{totalDepartments}</p>
                     <p className="text-xs text-gray-400 mt-1">Total departments</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-[#fce4ec] flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-wine-100 flex items-center justify-center">
                     <Building className="w-6 h-6 text-[#e91e63]" />
                   </div>
                 </div>

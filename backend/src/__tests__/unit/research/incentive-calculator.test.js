@@ -1,9 +1,9 @@
 /**
- * Unit Tests: IncentiveCalculator & analyzeAuthorComposition
+ * Unit Tests: IncentiveCalculator
  * Requirements: 2.8, 2.1
  */
 
-const { IncentiveCalculator, analyzeAuthorComposition } = require('../../../modules/research/services/incentive-calculator');
+const { IncentiveCalculator } = require('../../../modules/research/services/incentive-calculator');
 
 // ── Mock Prisma ───────────────────────────────────────────────────────────────
 
@@ -30,7 +30,9 @@ describe('IncentiveCalculator', () => {
 
   describe('_zero()', () => {
     test('returns all-zero result', () => {
-      expect(calc._zero()).toEqual({ totalPoolAmount: 0, totalPoolPoints: 0, incentiveAmount: 0, points: 0 });
+      expect(calc._zero()).toEqual({
+        totalPoolAmount: 0, totalPoolPoints: 0, rawIncentive: 0, rawPoints: 0, incentiveAmount: 0, points: 0, policyFound: true, usedDefaultPolicy: false,
+      });
     });
   });
 
@@ -136,7 +138,7 @@ describe('IncentiveCalculator', () => {
         authorRole: 'first_author',
         isInternal: true,
       });
-      expect(result).toEqual(calc._zero());
+      expect(result).toMatchObject({ incentiveAmount: 0, totalPoolAmount: 0, policyFound: false, reason: 'Conference sub-type is missing' });
     });
 
     test('flat conference - paper_not_indexed national', async () => {
@@ -186,8 +188,14 @@ describe('IncentiveCalculator', () => {
   });
 
   describe('_resolveRolePercentage()', () => {
-    test('single author gets 100%', () => {
-      expect(calc._resolveRolePercentage('first_author', 1, 0, 0, 40, 40, 20, 0)).toBe(100);
+    test('single author gets 100% only as first AND corresponding author', () => {
+      expect(calc._resolveRolePercentage('first_and_corresponding_author', 1, 0, 0, 40, 30, 30, 0)).toBe(100);
+      expect(calc._resolveRolePercentage('first_and_corresponding', 1, 0, 0, 40, 30, 30, 0)).toBe(100);
+    });
+
+    test('single author with only one role gets just that role share', () => {
+      expect(calc._resolveRolePercentage('first_author', 1, 0, 0, 40, 30, 30, 0)).toBe(40);
+      expect(calc._resolveRolePercentage('corresponding_author', 1, 0, 0, 40, 30, 30, 0)).toBe(30);
     });
 
     test('two authors with no co-authors splits 50/50', () => {
@@ -233,71 +241,24 @@ describe('IncentiveCalculator', () => {
   });
 
   describe('error handling', () => {
-    test('returns zero on unexpected error', async () => {
+    test('rethrows unexpected errors instead of returning a silent zero', async () => {
       prisma.bookIncentivePolicy.findFirst.mockImplementation(() => Promise.reject(new Error('DB crash')));
-      const result = await calc.calculate({
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(calc.calculate({
         contributionData: { publicationDate: '2024-01-01', bookType: 'authored' },
         publicationType: 'book',
         authorRole: 'first_author',
         isInternal: true,
-      });
-      expect(result).toEqual(calc._zero());
+      })).rejects.toThrow('DB crash');
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
     });
   });
 });
 
-// ── analyzeAuthorComposition ──────────────────────────────────────────────────
-
-describe('analyzeAuthorComposition', () => {
-  const firstPct = 40;
-  const corrPct = 40;
-
-  test('throws when policy percentages are missing', () => {
-    expect(() => analyzeAuthorComposition([], null, null, null, null)).toThrow();
-  });
-
-  test('single internal author with no co-authors', () => {
-    const result = analyzeAuthorComposition([], 'internal_faculty', 'first_author', firstPct, corrPct);
-    expect(result.internalCount).toBe(1);
-    expect(result.externalCount).toBe(0);
-    expect(result.internalCoAuthorCount).toBe(0);
-    expect(result.externalFirstCorrespondingPct).toBe(0);
-  });
-
-  test('external first_and_corresponding_author adds combined pct', () => {
-    const result = analyzeAuthorComposition([], 'external', 'first_and_corresponding_author', firstPct, corrPct);
-    expect(result.externalFirstCorrespondingPct).toBe(firstPct + corrPct);
-    expect(result.hasExternalFirstOrCorresponding).toBe(true);
-  });
-
-  test('counts internal co-authors correctly', () => {
-    const coAuthors = [
-      { authorType: 'internal_faculty', authorRole: 'co_author', isInternal: true },
-      { authorType: 'internal_faculty', authorRole: 'co_author', isInternal: true },
-    ];
-    const result = analyzeAuthorComposition(coAuthors, 'internal_faculty', 'first_author', firstPct, corrPct);
-    expect(result.internalCoAuthorCount).toBe(2);
-    expect(result.internalEmployeeCoAuthorCount).toBe(2);
-  });
-
-  test('student co-authors not counted as employee co-authors', () => {
-    const coAuthors = [
-      { authorType: 'internal_student', authorRole: 'co_author', isInternal: true },
-    ];
-    const result = analyzeAuthorComposition(coAuthors, 'internal_faculty', 'first_author', firstPct, corrPct);
-    expect(result.internalCoAuthorCount).toBe(1);
-    expect(result.internalEmployeeCoAuthorCount).toBe(0);
-  });
-
-  test('totalCount is sum of internal and external', () => {
-    const coAuthors = [
-      { authorType: 'internal_faculty', authorRole: 'co_author', isInternal: true },
-      { authorType: 'external', authorRole: 'co_author', isInternal: false },
-    ];
-    const result = analyzeAuthorComposition(coAuthors, 'internal_faculty', 'first_author', firstPct, corrPct);
-    expect(result.totalCount).toBe(result.internalCount + result.externalCount);
-  });
-});
+// analyzeAuthorComposition was removed: author composition (co-author counts, students,
+// externals) is now worked out once in services/authorShares.js computeAuthorShares, whose
+// tests (authorShares.test.js) cover it. The old helper double-counted the applicant.
 
 // ── _computeResearchPool and _calculateResearchPaper ─────────────────────────
 
@@ -451,7 +412,7 @@ describe('IncentiveCalculator - research paper branches', () => {
   });
 
   describe('calculate() - research_paper with policy', () => {
-    test('throws when policy missing role percentages', async () => {
+    test('reports no usable policy when policy is missing role percentages', async () => {
       prisma.researchIncentivePolicy.findFirst.mockResolvedValue({
         distributionMethod: 'author_role_based',
         indexingBonuses: {},
@@ -463,19 +424,32 @@ describe('IncentiveCalculator - research paper branches', () => {
         authorRole: 'first_author',
         isInternal: true,
       });
-      // returns zero on error
-      expect(result).toEqual(calc._zero());
+      expect(result).toMatchObject({ incentiveAmount: 0, policyFound: false });
+      expect(result.reason).toMatch(/author percentages/);
     });
 
-    test('returns zero when pool is zero (no matching category)', async () => {
-      prisma.researchIncentivePolicy.findFirst.mockResolvedValue(null);
+    test('returns zero when pool is zero (no matching category) — policy found, nothing payable', async () => {
+      prisma.researchIncentivePolicy.findFirst.mockResolvedValue({
+        id: 'p1', distributionMethod: 'author_role_based', first_author_percentage: 40, corresponding_author_percentage: 30, indexingBonuses: {},
+      });
       const result = await calc.calculate({
         contributionData: { publicationDate: '2024-01-01', indexingCategories: [] },
         publicationType: 'research_paper',
         authorRole: 'first_author',
         isInternal: true,
       });
-      expect(result).toEqual(calc._zero());
+      expect(result).toMatchObject({ incentiveAmount: 0, totalPoolAmount: 0, policyFound: true, policyId: 'p1' });
+    });
+
+    test('no policy for the publication date → policyFound:false with a reason (not a silent zero)', async () => {
+      prisma.researchIncentivePolicy.findFirst.mockResolvedValue(null);
+      const result = await calc.calculate({
+        contributionData: { publicationDate: '2024-01-01', indexingCategories: ['pubmed'] },
+        publicationType: 'research_paper',
+        authorRole: 'first_author',
+        isInternal: true,
+      });
+      expect(result).toMatchObject({ incentiveAmount: 0, policyFound: false, reason: 'No incentive policy covers this publication date/type' });
     });
 
     test('position >= 6 returns zero for position-based distribution', async () => {
@@ -492,7 +466,25 @@ describe('IncentiveCalculator - research paper branches', () => {
         authorPosition: 6,
         isInternal: true,
       });
-      expect(result).toEqual(calc._zero());
+      expect(result).toMatchObject({ incentiveAmount: 0, totalPoolAmount: 0, policyFound: true });
+    });
+
+    test('position-based: sole first+corresponding author gets the whole pool, sole first-only author the position-1 share', async () => {
+      prisma.researchIncentivePolicy.findFirst.mockResolvedValue({
+        distributionMethod: 'author_position_based',
+        first_author_percentage: 35,
+        corresponding_author_percentage: 30,
+        positionBasedDistribution: { 1: 40, 2: 25, 3: 15, 4: 12, 5: 8 },
+        indexingBonuses: {},
+      });
+      const base = {
+        contributionData: { publicationDate: '2024-01-01', indexingCategories: ['scopus'], quartile: 'Q1' },
+        publicationType: 'research_paper', totalAuthors: 1, authorPosition: 1, isInternal: true,
+      };
+      const both = await calc.calculate({ ...base, authorRole: 'first_and_corresponding_author' });
+      expect(both.incentiveAmount).toBe(both.totalPoolAmount);
+      const firstOnly = await calc.calculate({ ...base, authorRole: 'first_author' });
+      expect(firstOnly.incentiveAmount).toBe(Math.round(firstOnly.totalPoolAmount * 0.4));
     });
 
     test('first_author gets 40% of pool with policy', async () => {
@@ -525,7 +517,7 @@ describe('IncentiveCalculator - research paper branches', () => {
           conferenceType: 'national',
         },
         publicationType: 'conference_paper',
-        authorRole: 'first_author',
+        authorRole: 'first_and_corresponding_author',
         totalAuthors: 1,
         isInternal: true,
       });
@@ -541,7 +533,7 @@ describe('IncentiveCalculator - research paper branches', () => {
           conferenceType: 'national',
         },
         publicationType: 'conference_paper',
-        authorRole: 'first_author',
+        authorRole: 'first_and_corresponding_author',
         totalAuthors: 1,
         isInternal: true,
       });

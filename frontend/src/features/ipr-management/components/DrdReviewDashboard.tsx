@@ -754,7 +754,7 @@ export default function DrdReviewDashboard() {
                       <div>
                         <div className="flex items-center gap-3 flex-wrap mb-2">
                           {app.applicationNumber && (
-                            <span className="px-2.5 py-1 bg-[#fbe2e8] text-[#7d1a34] text-xs rounded-lg font-bold tracking-wide">
+                            <span className="px-2.5 py-1 bg-wine-100 text-wine text-xs rounded-lg font-bold tracking-wide">
                               {app.applicationNumber}
                             </span>
                           )}
@@ -889,7 +889,7 @@ export default function DrdReviewDashboard() {
                             setSelectedApp(details);
                             setShowViewDetailsModal(true);
                           }}
-                          className="flex items-center gap-2 px-4 py-2 bg-[#fdf5ec] text-[#7d1a34] rounded-xl hover:bg-[#fbe2e8] transition-all duration-200 text-sm font-medium"
+                          className="flex items-center gap-2 px-4 py-2 bg-blush text-wine rounded-xl hover:bg-wine-100 transition-all duration-200 text-sm font-medium"
                         >
                           <Eye className="w-4 h-4" />
                           View Details
@@ -1381,7 +1381,7 @@ export default function DrdReviewDashboard() {
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
                           contributor.employeeCategory ===
    'internal' || contributor.userId
-                            ? 'bg-[#fbe2e8] text-[#7d1a34]' 
+                            ? 'bg-wine-100 text-wine' 
                             : 'bg-purple-100 text-purple-700'
                         }`}>
                           {contributor.employeeCategory ===
@@ -1430,8 +1430,8 @@ export default function DrdReviewDashboard() {
                         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                           <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
-                                <FileText className="w-5 h-5 text-[#7d1a34]" />
+                              <div className="w-10 h-10 bg-wine-100 rounded-lg flex items-center justify-center">
+                                <FileText className="w-5 h-5 text-wine" />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">Main Annexure</p>
@@ -1442,7 +1442,7 @@ export default function DrdReviewDashboard() {
                               href={fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-4 py-2 bg-[#fdf5ec] text-[#7d1a34] rounded-lg hover:bg-[#fbe2e8] transition-all text-sm font-medium"
+                              className="px-4 py-2 bg-blush text-wine rounded-lg hover:bg-wine-100 transition-all text-sm font-medium"
                             >
                               Open in New Tab
                             </a>
@@ -1492,7 +1492,7 @@ export default function DrdReviewDashboard() {
                               href={fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-4 py-2 bg-[#fdf5ec] text-[#7d1a34] rounded-lg hover:bg-[#fbe2e8] transition-all text-sm font-medium"
+                              className="px-4 py-2 bg-blush text-wine rounded-lg hover:bg-wine-100 transition-all text-sm font-medium"
                             >
                               Open in New Tab
                             </a>
@@ -1865,7 +1865,7 @@ export default function DrdReviewDashboard() {
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
                           contributor.employeeCategory ===
    'internal' || contributor.userId
-                            ? 'bg-[#fbe2e8] text-[#7d1a34]' 
+                            ? 'bg-wine-100 text-wine' 
                             : 'bg-purple-100 text-purple-700'
                         }`}>
                           {contributor.employeeCategory ===
@@ -1891,8 +1891,8 @@ export default function DrdReviewDashboard() {
                     {/* Main Document (annexureFilePath) */}
                     {selectedApp.annexureFilePath && (
                       <a href={`${getDocumentUrl(selectedApp.annexureFilePath)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
-                        <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-[#7d1a34]" />
+                        <div className="w-10 h-10 bg-wine-100 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-wine" />
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">Main Document</p>
@@ -1945,8 +1945,8 @@ export default function DrdReviewDashboard() {
                     )}
                     {selectedApp.supportingDocs && (
                       <a href={`${getDocumentUrl(selectedApp.supportingDocs)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-ResearchSphere-200 transition-all">
-                        <div className="w-10 h-10 bg-[#fbe2e8] rounded-lg flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-[#7d1a34]" />
+                        <div className="w-10 h-10 bg-wine-100 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-wine" />
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">Supporting Documents</p>
@@ -2035,7 +2035,7 @@ export default function DrdReviewDashboard() {
                     </label>
                     {/* Permission Info */}
                     {!canApprove && (
-                      <div className="mb-3 p-3 bg-[#fdf5ec] border border-[#f0e2d2] rounded-lg text-sm text-[#7d1a34]">
+                      <div className="mb-3 p-3 bg-blush border border-blush-line rounded-lg text-sm text-wine">
                         <Shield className="w-4 h-4 inline mr-2" />
                         You can <strong>Recommend</strong> applications for approval. Only DRD Head can give final approval.
                       </div>
@@ -2089,7 +2089,7 @@ export default function DrdReviewDashboard() {
    option.value
                                   ? option.color ===
    'blue' 
-                                    ? 'border-[#7d1a34] bg-[#fdf5ec] text-[#7d1a34]'
+                                    ? 'border-wine bg-blush text-wine'
                                     : option.color ===
    'amber'
                                     ? 'border-amber-500 bg-amber-50 text-amber-700'

@@ -8,6 +8,8 @@ import { ToastProvider } from '@/shared/ui-components/Toast';
 import { ConfirmModalProvider } from '@/shared/ui-components/ConfirmModal';
 import ConsentGate from '@/features/dpdp/components/ConsentGate';
 import NavigationProgress from '@/shared/components/common/NavigationProgressLoader';
+import BrandingProvider from '@/shared/providers/BrandingProvider';
+import { BRANDING_BOOT_SCRIPT } from '@/shared/theme/brandingCache';
 import '@/styles/globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -30,6 +32,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Paints the cached university theme + dark mode before first render (no flash) */}
+        <script id="rs-branding-boot" dangerouslySetInnerHTML={{ __html: BRANDING_BOOT_SCRIPT }} />
+      </head>
       <body className={`${inter.className} text-gray-900 dark:text-gray-100 transition-colors duration-200`}>
         <ErrorBoundary>
           <ThemeProvider>
@@ -37,9 +43,11 @@ export default function RootLayout({
               <ConfirmModalProvider>
                 <QueryProvider>
                   <AuthProvider>
-                    <NavigationProgress />
-                    {children}
-                    <ConsentGate />
+                    <BrandingProvider>
+                      <NavigationProgress />
+                      {children}
+                      <ConsentGate />
+                    </BrandingProvider>
                   </AuthProvider>
                 </QueryProvider>
               </ConfirmModalProvider>

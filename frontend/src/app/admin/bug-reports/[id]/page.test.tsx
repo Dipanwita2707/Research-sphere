@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQueryClient } from '@/test-utils/renderWithQueryClient';
 import BugReportDetailPage from './page';
 import api from '@/shared/api/api';
 import { useAuthStore } from '@/shared/auth/authStore';
@@ -24,6 +25,7 @@ jest.mock('@/shared/api/api', () => ({
     patch: jest.fn(),
   },
   getHostUrl: jest.fn(() => 'http://localhost:3001'),
+  unwrapResponse: jest.requireActual('@/shared/api/api').unwrapResponse,
 }));
 
 // Mock auth store
@@ -141,7 +143,7 @@ describe('BugReportDetailPage', () => {
     it('should redirect non-admin users to dashboard', async () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockNonAdminUser });
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith('/dashboard');
@@ -151,7 +153,7 @@ describe('BugReportDetailPage', () => {
     it('should not render content for non-admin users', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockNonAdminUser });
 
-      const { container } = render(<BugReportDetailPage />);
+      const { container } = renderWithQueryClient(<BugReportDetailPage />);
 
       expect(container.firstChild).toBeNull();
     });
@@ -160,7 +162,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockAdminUser });
       (api.get as jest.Mock).mockResolvedValue({ data: mockBugReport });
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       expect(mockPush).not.toHaveBeenCalled();
     });
@@ -169,7 +171,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockSuperadminUser });
       (api.get as jest.Mock).mockResolvedValue({ data: mockBugReport });
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       expect(mockPush).not.toHaveBeenCalled();
     });
@@ -180,7 +182,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockAdminUser });
       (api.get as jest.Mock).mockResolvedValue({ data: mockBugReport });
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       await waitFor(() => {
         expect(api.get).toHaveBeenCalledWith('/admin/bug-reports/bug-123');
@@ -191,7 +193,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockAdminUser });
       (api.get as jest.Mock).mockImplementation(() => new Promise(() => {})); // Never resolves
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       expect(screen.getByTestId('loader-icon')).toBeInTheDocument();
     });
@@ -202,7 +204,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockAdminUser });
       (api.get as jest.Mock).mockResolvedValue({ data: mockBugReport });
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       expect(screen.getByText('Back to Bug Reports')).toBeInTheDocument();
     });
@@ -211,7 +213,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockAdminUser });
       (api.get as jest.Mock).mockResolvedValue({ data: mockBugReport });
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       const backButton = screen.getByText('Back to Bug Reports');
       fireEvent.click(backButton);
@@ -225,7 +227,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockAdminUser });
       (api.get as jest.Mock).mockResolvedValue({ data: mockBugReport });
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       // Check for main container
       expect(screen.getByText('Back to Bug Reports')).toBeInTheDocument();
@@ -235,7 +237,7 @@ describe('BugReportDetailPage', () => {
       (useAuthStore as unknown as jest.Mock).mockReturnValue({ user: mockAdminUser });
       (api.get as jest.Mock).mockImplementation(() => new Promise(() => {}));
 
-      render(<BugReportDetailPage />);
+      renderWithQueryClient(<BugReportDetailPage />);
 
       expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
       expect(screen.queryByTestId('bug-report-detail')).not.toBeInTheDocument();

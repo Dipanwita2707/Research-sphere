@@ -12,6 +12,7 @@ const fs = require('fs');
 const prisma = require('../../../shared/config/database');
 const researchProgressTrackerController = require('../controllers/progressTracker.controller');
 const { protect } = require('../../../shared/middleware/auth');
+const { requireViewScope } = require('../services/reviewScope');
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, '../../../uploads/research/tracker');
@@ -98,7 +99,7 @@ router.post('/:id/link-contribution', researchProgressTrackerController.linkToCo
 // ===== DRD REVIEWER ROUTES =====
 
 // Get tracker history for a contribution (used by DRD reviewers)
-router.get('/contribution/:contributionId/history', researchProgressTrackerController.getTrackerHistoryForContribution);
+router.get('/contribution/:contributionId/history', requireViewScope('research'), researchProgressTrackerController.getTrackerHistoryForContribution);
 
 // ===== FILE UPLOAD ROUTE =====
 

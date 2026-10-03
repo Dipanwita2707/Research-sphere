@@ -5,6 +5,7 @@ import { getFileUrl, getResearchDocumentDownloadUrl } from '@/shared/api/api';
 import { useParams, useRouter } from 'next/navigation';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
+import { approveWithZeroIncentiveCheck, ZERO_INCENTIVE_CONFIRM_TITLE } from '@/shared/utils/zeroIncentive';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
 import Link from 'next/link';
@@ -38,6 +39,7 @@ import { researchService, ResearchContribution, ResearchPublicationType } from '
 import { permissionManagementService } from '@/features/admin-management/services/permissionManagement.service';
 import progressTrackerService, { ResearchProgressTracker, StatusHistoryEntry, statusLabels, statusColors } from '@/features/research-management/services/progressTracker.service';
 import { useAuthStore } from '@/shared/auth/authStore';
+import UgcCareReviewControl from '@/features/research-management/components/UgcCareReviewControl';
 import { History, GitBranch } from 'lucide-react';
 
 // Editable field configuration
@@ -211,7 +213,7 @@ const INDEXING_CATEGORY_LABELS: Record<string, string> = {
   'pubmed': 'PubMed',
   'naas_rating_6_plus': 'NAAS (Rating ≥ 6)',
   'abdc_scopus_wos': 'ABDC Journals (SCOPUS/WOS)',
-  'sgtu_in_house': 'ResearchSphere In-House Journal',
+  'sgtu_in_house': 'University In-House Journal',
   'case_centre_uk': 'The Case Centre UK',
   'other_indexed': 'Other Indexed Journals',
   'non_indexed_reputed': 'Non-Indexed Reputed Journals',
@@ -271,7 +273,7 @@ export default function ResearchReviewPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { addToast } = useToast();
-  const { confirmDelete, confirmAction } = useConfirm();
+  const { confirm, confirmDelete, confirmAction } = useConfirm();
   const id = params.id as string;
   
   const [contribution, setContribution] = useState<ResearchContribution | null>(null);
@@ -368,11 +370,12 @@ export default function ResearchReviewPage() {
   const getApprovePermission = () => {
     if (!contribution) return false;
     switch (contribution.publicationType) {
+      // research_approve still covers books/conferences (deprecated fallback, mirrors the backend)
       case 'conference_paper':
-        return userPermissions.conference_approve;
+        return userPermissions.conference_approve || userPermissions.research_approve;
       case 'book':
       case 'book_chapter':
-        return userPermissions.book_approve;
+        return userPermissions.book_approve || userPermissions.research_approve;
       case 'research_paper':
       default:
         return userPermissions.research_approve;
@@ -382,11 +385,14 @@ export default function ResearchReviewPage() {
   const getReviewPermission = () => {
     if (!contribution) return false;
     switch (contribution.publicationType) {
+      // research_* still covers books/conferences (deprecated fallback, mirrors the backend)
       case 'conference_paper':
-        return userPermissions.conference_review || userPermissions.conference_approve;
+        return userPermissions.conference_review || userPermissions.conference_approve
+          || userPermissions.research_review || userPermissions.research_approve;
       case 'book':
       case 'book_chapter':
-        return userPermissions.book_review || userPermissions.book_approve;
+        return userPermissions.book_review || userPermissions.book_approve
+          || userPermissions.research_review || userPermissions.research_approve;
       case 'research_paper':
       default:
         return userPermissions.research_review || userPermissions.research_approve;
@@ -416,8 +422,16 @@ export default function ResearchReviewPage() {
       setActionLoading(true);
       
       if (hasApprovePermission) {
-        // Final approval
-        await researchService.approveContribution(id, { comments: reviewComments });
+        // Final approval. 409 NO_INCENTIVE_POLICY: no policy applies (or it computes ₹0) —
+        // approve only after the approver explicitly accepts a ₹0 incentive.
+        const approved = await approveWithZeroIncentiveCheck(
+          (confirmZeroIncentive) => researchService.approveContribution(id, {
+            comments: reviewComments,
+            ...(confirmZeroIncentive ? { confirmZeroIncentive: true } : {}),
+          }),
+          (message) => confirm({ title: ZERO_INCENTIVE_CONFIRM_TITLE, message, type: 'warning', confirmText: 'Approve with ₹0' }),
+        );
+        if (!approved) return;
         addToast({ type: 'success', message: 'Contribution approved successfully!' });
       } else {
         // Recommend for approval
@@ -1232,6 +1246,14 @@ export default function ResearchReviewPage() {
                     )}
                   </div>
                 )}
+                {/* UGC-CARE listing: DRD confirms / corrects the applicant's claim */}
+                <UgcCareReviewControl
+                  contributionId={contribution.id}
+                  ugcCareListed={contribution.ugcCareListed}
+                  ugcCareGroup={contribution.ugcCareGroup}
+                  canEdit={Boolean(getReviewPermission())}
+                  onUpdated={(next) => setContribution((prev) => (prev ? { ...prev, ugcCareListed: next.ugcCareListed, ugcCareGroup: next.ugcCareGroup as ResearchContribution['ugcCareGroup'] } : prev))}
+                />
                 {(contribution.hasInternationalAuthor !== undefined) && (
                   <div>
                     <div className="text-sm text-gray-500">International Author</div>

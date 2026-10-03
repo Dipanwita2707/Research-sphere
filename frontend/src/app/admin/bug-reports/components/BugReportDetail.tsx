@@ -365,6 +365,7 @@ function LazyScreenshotThumbnail({ screenshot, onView, getThumbnailUrl }: LazySc
           window.open(getScreenshotUrl(screenshot.id), '_blank');
         }}
         aria-label={`Download screenshot: ${screenshot.originalFilename}`}
+        title="Download screenshot"
       >
         <Download className="w-3 h-3" aria-hidden="true" />
       </Button>

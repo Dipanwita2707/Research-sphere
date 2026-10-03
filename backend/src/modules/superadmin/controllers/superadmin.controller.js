@@ -5,13 +5,16 @@ const { invalidateUniversityAffiliationCache } = require('../../core/services/af
 const { invalidateTenantStatus } = require('../../../shared/middleware/auth');
 const { validatePasswordPolicy } = require('../../auth/utils/passwordPolicy');
 const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
+const brandingService = require('../../branding/services/branding.service');
+const { parseBrandingUpdate } = require('../../branding/validation/branding.validation');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /**
  * Central departments every tenant needs from day one: research, IPR and grant
- * workflows look up the DRD department by code.
+ * workflows look up the DRD department by code; the research incentive payout and budget
+ * permissions (finance_*) are granted through the Finance department.
  */
 const DEFAULT_CENTRAL_DEPARTMENTS = [
   {
@@ -19,6 +22,12 @@ const DEFAULT_CENTRAL_DEPARTMENTS = [
     departmentName: 'Director of Research and Development',
     shortName: 'DRD',
     departmentType: 'drd',
+  },
+  {
+    departmentCode: 'FINANCE',
+    departmentName: 'Finance (Research Incentives)',
+    shortName: 'Finance',
+    departmentType: 'finance',
   },
 ];
 
@@ -147,8 +156,12 @@ exports.getAllUniversities = async (req, res) => {
         code: uni.code,
         name: uni.name,
         slug: uni.slug,
-        logoUrl: uni.logoUrl,
+        // Browser URL of the uploaded logo (the column holds a storage key)
+        logoUrl: brandingService.toBrandingDto(uni).logoUrl,
         primaryColor: uni.primaryColor,
+        themePreset: uni.themePreset,
+        displayName: uni.displayName || uni.name,
+        shortName: uni.shortName,
         contactEmail: uni.contactEmail,
         websiteUrl: uni.websiteUrl,
         isActive: uni.isActive,
@@ -212,6 +225,8 @@ exports.getUniversityById = async (req, res) => {
       success: true,
       data: {
         ...uni,
+        logoUrl: brandingService.toBrandingDto(uni).logoUrl,
+        branding: brandingService.toBrandingDto(uni),
         stats: {
           users: userCount,
           schools: schoolCount,
@@ -242,6 +257,14 @@ exports.createUniversity = async (req, res) => {
   const credentialError = validateAdminCredentials({ adminUsername, adminEmail, adminPassword });
   if (credentialError) {
     return res.status(400).json({ success: false, message: credentialError });
+  }
+  // Optional "Branding & theme" section of the create form (logos are uploaded afterwards)
+  const { branding } = req.body;
+  if (branding !== undefined && branding !== null) {
+    const parsedBranding = parseBrandingUpdate(branding);
+    if (!parsedBranding.ok) {
+      return res.status(400).json({ success: false, message: parsedBranding.errors[0], errors: parsedBranding.errors });
+    }
   }
 
   try {
@@ -342,6 +365,11 @@ exports.createUniversity = async (req, res) => {
       userAgent: req.headers['user-agent'],
     });
 
+    if (branding) {
+      const applied = await brandingService.updateBranding(result.university.id, branding, { actor: req.user, req });
+      result.branding = applied.branding;
+    }
+
     res.status(201).json({
       success: true,
       message: 'University created and provisioned successfully',
@@ -365,8 +393,10 @@ exports.createUniversity = async (req, res) => {
 exports.updateUniversity = async (req, res) => {
   const { id } = req.params;
   const {
-    name, logoUrl, primaryColor, contactEmail, websiteUrl, isActive,
-    address, city, state, country, affiliationAliases,
+    // Logo and colours are branding: they change only through /universities/:id/branding,
+    // which validates colours and re-encodes images (logoUrl/primaryColor are ignored here).
+    name, contactEmail, websiteUrl, isActive,
+    address, city, state, country, affiliationAliases, scopusAffiliationIds,
     dpoName, dpoEmail, dpoPhone, requireGuardianConsentForMinors,
   } = req.body;
 
@@ -378,8 +408,6 @@ exports.updateUniversity = async (req, res) => {
 
     const updateData = {
       name,
-      logoUrl,
-      primaryColor,
       contactEmail,
       websiteUrl,
       isActive: isActive !== undefined ? isActive : uni.isActive,
@@ -398,6 +426,12 @@ exports.updateUniversity = async (req, res) => {
       updateData.affiliationAliases = affiliationAliases
         .map((alias) => String(alias || '').trim())
         .filter(Boolean);
+    }
+    // Elsevier Scopus affiliation ids (AF-ID) used by publication sync for this university.
+    if (Array.isArray(scopusAffiliationIds)) {
+      updateData.scopusAffiliationIds = Array.from(new Set(scopusAffiliationIds
+        .map((afid) => String(afid || '').trim())
+        .filter((afid) => /^\d{5,12}$/.test(afid))));
     }
 
     const updated = await prisma.university.update({

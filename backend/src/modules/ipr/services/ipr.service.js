@@ -5,7 +5,7 @@
  */
 
 const { logIprFiling, logIprUpdate, logIprStatusChange, logFileUpload } = require('../../../shared/utils/auditLogger');
-const log = require('../../../shared/utils/logger');
+const { DEFAULT_INCENTIVE_POLICIES, computeIprIncentive } = require('../../research/utils/iprIncentive');
 const { canViewIpr, hasAnyPermission, notFound, IPR_STAFF_PERMISSIONS } = require('../../research/utils/objectAccess');
 
 const IPR_LIST_INCLUDE = {
@@ -83,34 +83,18 @@ class IprService {
    * @param {string} iprType
    * @param {string} filingType
    * @param {string} projectType
-   * @returns {{ incentiveAmount: number, pointsAwarded: number }}
+   * @returns {{ incentiveAmount: number, pointsAwarded: number, usedDefaultPolicy: boolean }}
+   *   The total that publication will pay (policy base amount, or the built-in IPR default
+   *   when no policy applies) — the same rule as drdReview publication, so the amount
+   *   stored at filing is not a different number. filingType/projectType are not applied
+   *   at publication and therefore not here either.
    */
   async calculateIprIncentives(iprType, filingType, projectType) {
-    try {
-      const policy = await this.repo.findActivePolicy(iprType);
-      if (!policy) return { incentiveAmount: 0, pointsAwarded: 0 };
-
-      let incentiveAmount = parseFloat(policy.baseIncentiveAmount);
-      let pointsAwarded = policy.basePoints;
-
-      if (policy.filingTypeMultiplier && typeof policy.filingTypeMultiplier === 'object') {
-        const multiplier = policy.filingTypeMultiplier[filingType];
-        if (multiplier) incentiveAmount *= parseFloat(multiplier);
-      }
-
-      if (policy.projectTypeBonus && typeof policy.projectTypeBonus === 'object') {
-        const bonus = policy.projectTypeBonus[projectType];
-        if (bonus) incentiveAmount += parseFloat(bonus);
-      }
-
-      return {
-        incentiveAmount: Math.round(incentiveAmount * 100) / 100,
-        pointsAwarded,
-      };
-    } catch (err) {
-      log.warn('[IprService] calculateIprIncentives failed, returning zero incentives:', err.message);
-      return { incentiveAmount: 0, pointsAwarded: 0 };
-    }
+    const policy = await this.repo.findActivePolicy(String(iprType || 'patent').toLowerCase());
+    const usedDefaultPolicy = !policy;
+    const effective = policy || DEFAULT_INCENTIVE_POLICIES[String(iprType || 'patent').toLowerCase()] || DEFAULT_INCENTIVE_POLICIES.patent;
+    const { totalIncentive, totalPoints } = computeIprIncentive(effective, 1);
+    return { incentiveAmount: totalIncentive, pointsAwarded: totalPoints, usedDefaultPolicy };
   }
 
   // ─── Application Number Generation ────────────────────────────────────────
@@ -630,6 +614,20 @@ class IprService {
         { applicantUserId: viewer?.id || '__none__' },
         { contributors: { some: { OR: [{ userId: viewer?.id || '__none__' }, { uid: viewer?.uid || '__none__' }] } } },
       ];
+    } else if (viewer !== undefined && viewer?.id) {
+      // DRD reviewers list only their assigned IPR schools (empty list = all); admins and
+      // all-dashboard / finance staff stay university-wide. Own and assigned items stay visible.
+      const scope = await require('../../research/services/reviewScope').getViewScope(viewer, 'ipr');
+      if (!scope.all) {
+        where.AND = [{
+          OR: [
+            { schoolId: { in: scope.schoolIds } },
+            { applicantUserId: viewer.id },
+            { currentReviewerId: viewer.id },
+            { contributors: { some: { OR: [{ userId: viewer.id }, { uid: viewer.uid || '__none__' }] } } },
+          ],
+        }];
+      }
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

@@ -184,7 +184,7 @@ export default function MentorCollaborativeEditor({
           {hasAnySuggestions && (
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}
-              className="text-[#7d1a34] hover:text-[#7d1a34] text-xs"
+              className="text-wine hover:text-wine text-xs"
             >
               <Eye className="w-4 h-4" />
             </button>
@@ -269,7 +269,7 @@ export default function MentorCollaborativeEditor({
         <div className="border border-purple-200 rounded-lg p-4 bg-purple-50">
           <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
             <Edit3 className="w-4 h-4 text-purple-600" />
-            Suggest Edit for "{label}"
+            Suggest Edit for &quot;{label}&quot;
           </h4>
           
           <div className="space-y-3">

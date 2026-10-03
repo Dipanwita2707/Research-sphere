@@ -11,8 +11,9 @@ import {
   useStaffDashboardSummary,
   useUnreadNotificationCount,
 } from '@/shared/hooks/useUserContextQueries';
-import Wordmark from '@/shared/components/brand/Wordmark';
+import TenantLogo from '@/shared/components/brand/TenantLogo';
 import { useRipAccess } from '@/features/research-intelligence/hooks/useRipAccess';
+import { visibleRipViews } from '@/features/research-intelligence/utils/graphUtils';
 
 interface DepartmentPermission {
   category: string;
@@ -70,13 +71,9 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
   return false;
 };
 
-const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => {
-  const keys = ['configure_fee_structure', 'print_loan_letter', 'finance_analytics', 'finance', 'incentive', 'payment'];
-  for (const dept of permissions) {
-    if (dept.permissions.some(p => keys.some(k => p.toLowerCase().includes(k)))) return true;
-  }
-  return false;
-};
+/** Exact permission-key check (no substring matching): used for the incentive payout keys. */
+const hasExactPermission = (permissions: DepartmentPermission[], key: string): boolean =>
+  permissions.some(dept => (dept.permissions || []).includes(key));
 
 export default function NavigationHeader() {
   const { user, logout } = useAuthStore();
@@ -119,7 +116,10 @@ export default function NavigationHeader() {
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
   const hasDrdAccess = hasDrdPermissions(userPermissions) || isAdmin;
-  const hasFinanceAccess = hasFinancePermissions(userPermissions);
+  // Research incentive payouts: tenant admins hold all three keys by default (backend defaults)
+  const canFinanceReview = isAdmin || hasExactPermission(userPermissions, 'finance_review');
+  const canFinanceApprove = isAdmin || hasExactPermission(userPermissions, 'finance_approve');
+  const canFinanceView = canFinanceReview || canFinanceApprove || hasExactPermission(userPermissions, 'finance_view');
 
   const analyticsKeys = [
     'applicant_analytics', 'drd_member_analytics',
@@ -146,9 +146,8 @@ export default function NavigationHeader() {
   const canManageDpdp = isAdmin || hasPermission(userPermissions, 'dpdp_manage');
   // Research Intelligence: AI research assistant
   // (enabled per university by the platform; capabilities per user)
-  const { can: canRip } = useRipAccess({ enabled: !!user });
-  const canUseResearchAssistant = canRip('rip_access_research_gpt');
-  const canManageRipAccess = canRip('rip_manage_access');
+  const { data: ripAccess } = useRipAccess({ enabled: !!user });
+  const ripViews = visibleRipViews(ripAccess);
 
   // fetchNotingAccess removed — now handled by useNotingPermissions hook above
 
@@ -335,9 +334,6 @@ export default function NavigationHeader() {
   if (canReviewGrant || canApproveGrant) {
     reviewApprovalChildren.push({ name: 'Review Grant Proposals', href: '/drd/research?type=grant_proposal', description: 'Pending grant applications' });
   }
-  if (hasFinanceAccess) {
-    reviewApprovalChildren.push({ name: 'Finance & Payments', href: '/finance/processing', description: 'Manage incentive payments' });
-  }
   
   const hasReviewAccess = reviewApprovalChildren.length > 0;
 
@@ -356,6 +352,11 @@ export default function NavigationHeader() {
       name: 'My Research Profile',
       href: '/research/my-profile',
       description: 'Open your research profile and manage sync settings',
+    });
+    rndSubItems.push({
+      name: 'My Incentives',
+      href: '/research/my-incentives',
+      description: 'Incentive payments for your approved work',
     });
   }
 
@@ -382,18 +383,29 @@ export default function NavigationHeader() {
     });
   }
 
-  if (canUseResearchAssistant) {
+  if (canFinanceView) {
     rndSubItems.push({
-      name: 'Research Assistant (AI)',
-      href: '/research/intelligence',
-      description: 'Ask about experts, publications, topics & trends',
+      name: 'Finance & Payments',
+      description: 'Research incentive payouts',
+      children: [
+        { name: 'Finance Dashboard', href: '/finance', description: 'Liability, payments & workload' },
+        { name: 'Verification Queue', href: '/finance/payouts', description: 'Verify & recommend payout lines' },
+        { name: 'Payment Batches', href: '/finance/batches', description: 'Approve batches & record payment' },
+        { name: 'Research Budget', href: '/finance/budgets', description: 'School & department allocation and utilisation' },
+      ],
     });
   }
-  if (canManageRipAccess) {
+
+  // Research Intelligence views the user holds a capability for (assistant, graphs, search, access)
+  if (ripViews.length > 0) {
     rndSubItems.push({
-      name: 'Research Intelligence Access',
-      href: '/research/intelligence/access',
-      description: 'Choose who can use Research Intelligence',
+      name: 'Research Intelligence',
+      description: 'AI assistant, knowledge graph, experts & search',
+      children: ripViews.map((v) => ({
+        name: v.key === 'assistant' ? 'Research Assistant (AI)' : v.key === 'access' ? 'Research Intelligence Access' : v.label,
+        href: v.href,
+        description: v.description,
+      })),
     });
   }
 
@@ -406,6 +418,11 @@ export default function NavigationHeader() {
         { name: 'Overview', href: '/drd/analytics/overview', description: 'High-level KPIs & trends' },
         { name: 'Applicant Analytics', href: '/drd/analytics/applicant', description: 'Submission trends by school & department' },
         { name: 'DRD Member Performance', href: '/drd/analytics/drd-member', description: 'Review turnaround & workload' },
+        { name: 'NAAC & NIRF Reports', href: '/drd/analytics/naac-nirf', description: 'Accreditation workbooks & data quality' },
+        // Applicant-analytics holders get a read-only budget view of their schools (finance users reach it under Finance).
+        ...(!canFinanceView && userPermissions.some((dept) => (dept.permissions || []).some((p) => /applicant_analytics$/.test(p)))
+          ? [{ name: 'Research Budget', href: '/finance/budgets', description: 'Budget utilisation for your schools (read-only)' }]
+          : []),
       ],
     });
   }
@@ -471,6 +488,7 @@ export default function NavigationHeader() {
       { name: 'Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
       { name: 'Bug Reports', href: '/admin/bug-reports', description: 'View and manage bug reports' },
       { name: 'Data Protection', href: '/admin/data-protection', description: 'DPDP consent, requests, breaches & retention' },
+      { name: 'Branding & Theme', href: '/admin/branding', description: 'University name, logo and colours' },
 
       // Organization Management
       {
@@ -539,7 +557,7 @@ export default function NavigationHeader() {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-[#f0e2d2] dark:border-gray-800"
+      className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-blush-line dark:border-gray-800"
       style={{
         boxShadow: '0 1px 0 rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)'
       }}
@@ -556,9 +574,9 @@ export default function NavigationHeader() {
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
 
-        {/* Wordmark */}
-        <Link href={isSuperadmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
-          <Wordmark heightClassName="h-[4.25rem] sm:h-[5rem]" className="drop-shadow-sm" />
+        {/* University logo + name (ResearchSphere wordmark on platform pages / superadmin) */}
+        <Link href={isSuperadmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0 min-w-0" onClick={() => setMobileMenuOpen(false)}>
+          <TenantLogo heightClassName="h-10 sm:h-12" nameClassName="hidden xl:flex" />
         </Link>
 
         {/* Navigation Section — show from md so Dashboard / Profile / Workspace are not lost on typical laptop half-screens */}
@@ -570,8 +588,8 @@ export default function NavigationHeader() {
                 href="/superadmin/dashboard"
                 className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                   pathname === '/superadmin/dashboard'
-                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-hi'
                 }`}
               >
                 SaaS Dashboard
@@ -580,8 +598,8 @@ export default function NavigationHeader() {
                 href="/superadmin/universities"
                 className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                   pathname?.startsWith('/superadmin/universities')
-                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-hi'
                 }`}
               >
                 Universities
@@ -590,8 +608,8 @@ export default function NavigationHeader() {
                 href="/superadmin/billing"
                 className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                   pathname?.startsWith('/superadmin/billing')
-                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-hi'
                 }`}
               >
                 Billing & Tiers
@@ -600,8 +618,8 @@ export default function NavigationHeader() {
                 href="/superadmin/api-monitor"
                 className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                   pathname?.startsWith('/superadmin/api-monitor')
-                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-hi'
                 }`}
               >
                 API Monitor
@@ -614,8 +632,8 @@ export default function NavigationHeader() {
             <Link
               href="/dashboard"
               className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${pathname === '/dashboard'
-                ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-hi'
                 }`}
             >
               Dashboard
@@ -625,8 +643,8 @@ export default function NavigationHeader() {
             <Link
               href="/research/my-profile"
               className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${pathname?.startsWith('/research/profile/') || pathname === '/research/my-profile'
-                ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-hi'
                 }`}
             >
               Profile
@@ -673,8 +691,8 @@ export default function NavigationHeader() {
                 }}
                 className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${activeDropdown ===
    item.name
-                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-amber-400'
+                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-wine dark:hover:text-hi'
                   }`}
               >
                 {item.name}
@@ -711,7 +729,7 @@ export default function NavigationHeader() {
 
                         const btnCls = `w-full flex flex-col text-left py-2 px-3 rounded-lg transition-all duration-150 ${
                           isSelected
-                            ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400 font-semibold'
+                            ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi font-semibold'
                             : 'text-gray-700 dark:bg-gray-200 hover:bg-gray-100/70 dark:hover:bg-gray-800/60'
                         }`;
 
@@ -790,7 +808,7 @@ export default function NavigationHeader() {
                                 setActiveDropdown(null);
                                 setHoveredCategory(null);
                               }}
-                              className="px-3.5 py-1.5 bg-wine text-white dark:bg-amber-500 dark:text-gray-950 text-xs font-bold rounded-lg hover:bg-wine-700 dark:hover:bg-amber-400 transition-colors"
+                              className="px-3.5 py-1.5 bg-wine text-wine-fg dark:bg-hi dark:text-gray-950 text-xs font-bold rounded-lg hover:bg-wine-700 dark:hover:bg-hi transition-colors"
                             >
                               Go to Page
                             </Link>
@@ -802,7 +820,7 @@ export default function NavigationHeader() {
                         return (
                           <div className="flex flex-col gap-3">
                             <div className="border-b border-gray-100 dark:border-gray-800 pb-1.5">
-                              <h4 className="text-[10px] font-bold uppercase tracking-wider text-wine dark:text-amber-400">
+                              <h4 className="text-[10px] font-bold uppercase tracking-wider text-wine dark:text-hi">
                                 {activeCat.name}
                               </h4>
                             </div>
@@ -828,7 +846,7 @@ export default function NavigationHeader() {
                                             }}
                                             className="group flex flex-col p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors text-left"
                                           >
-                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-wine dark:group-hover:text-amber-400">
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-wine dark:group-hover:text-hi">
                                               {nestedChild.name}
                                             </span>
                                             {nestedChild.description && (
@@ -853,7 +871,7 @@ export default function NavigationHeader() {
                                     }}
                                     className="group flex flex-col p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors text-left border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
                                   >
-                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 group-hover:text-wine dark:group-hover:text-amber-400">
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 group-hover:text-wine dark:group-hover:text-hi">
                                       {child.name}
                                     </span>
                                     {child.description && (
@@ -884,7 +902,7 @@ export default function NavigationHeader() {
           <div className="relative" ref={searchRef}>
             <button
               onClick={() => setShowSearch(!showSearch)}
-              className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+              className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
             >
               <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -973,11 +991,11 @@ export default function NavigationHeader() {
           {/* Notifications */}
           <button
             onClick={() => router.push('/notifications')}
-            className="relative p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+            className="relative p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
           >
             <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-wine rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1">
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-wine rounded-full flex items-center justify-center text-[10px] font-bold text-wine-fg px-1">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -996,7 +1014,7 @@ export default function NavigationHeader() {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
             >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-wine flex items-center justify-center text-white text-xs sm:text-sm font-semibold">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-wine flex items-center justify-center text-wine-fg text-xs sm:text-sm font-semibold">
                 {getUserInitials()}
               </div>
               <span className="text-gray-700 dark:text-gray-200 text-sm font-medium hidden lg:block">{getUserDisplayName()}</span>
@@ -1082,7 +1100,7 @@ export default function NavigationHeader() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   pathname?.startsWith(href)
-                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
@@ -1097,7 +1115,7 @@ export default function NavigationHeader() {
               onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                 pathname === '/dashboard'
-                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
@@ -1109,7 +1127,7 @@ export default function NavigationHeader() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   pathname?.startsWith('/research/profile/') || pathname === '/research/my-profile'
-                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                    ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
@@ -1121,7 +1139,7 @@ export default function NavigationHeader() {
               onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                 pathname === '/my-work'
-                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-amber-400'
+                  ? 'bg-peach/60 text-wine dark:bg-wine/20 dark:text-hi'
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
@@ -1154,7 +1172,7 @@ export default function NavigationHeader() {
                         href={subItem.href}
                         prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-2 px-6 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-all"
+                        className="flex items-center gap-2 px-6 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-all"
                       >
                         {subItem.name}
                       </Link>
@@ -1163,7 +1181,7 @@ export default function NavigationHeader() {
                         <button
                           onClick={() => setMobileExpandedSubmenu(mobileExpandedSubmenu ===
    subItem.name ? null : subItem.name)}
-                          className="w-full flex items-center justify-between px-6 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-all"
+                          className="w-full flex items-center justify-between px-6 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-all"
                         >
                           <span>{subItem.name}</span>
                           <ChevronRight className={`w-4 h-4 transition-transform ${mobileExpandedSubmenu ===
@@ -1179,7 +1197,7 @@ export default function NavigationHeader() {
                                   href={child.href}
                                   prefetch={getLinkPrefetch(child.href, child.prefetch)}
                                   onClick={() => setMobileMenuOpen(false)}
-                                  className="flex items-center gap-2 px-8 py-2 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-200/60 dark:hover:bg-gray-700 text-xs transition-all"
+                                  className="flex items-center gap-2 px-8 py-2 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-hi hover:bg-gray-200/60 dark:hover:bg-gray-700 text-xs transition-all"
                                 >
                                   {child.name}
                                 </Link>
@@ -1193,7 +1211,7 @@ export default function NavigationHeader() {
                                         href={grandChild.href}
                                         prefetch={getLinkPrefetch(grandChild.href, grandChild.prefetch)}
                                         onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center gap-2 px-10 py-2 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-200/60 dark:hover:bg-gray-700 text-xs transition-all"
+                                        className="flex items-center gap-2 px-10 py-2 text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-hi hover:bg-gray-200/60 dark:hover:bg-gray-700 text-xs transition-all"
                                       >
                                         {grandChild.name}
                                       </Link>
@@ -1218,18 +1236,18 @@ export default function NavigationHeader() {
           <Link
             href="/notifications"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
+            className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
           >
             <Bell className="w-4 h-4" />
             <span>Notifications</span>
             {unreadCount > 0 && (
-              <span className="ml-auto bg-wine text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
+              <span className="ml-auto bg-wine text-wine-fg text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
             )}
           </Link>
           <Link
             href="/settings"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
+            className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
           >
             <User className="w-4 h-4" />
             <span>Profile Settings</span>
@@ -1238,7 +1256,7 @@ export default function NavigationHeader() {
             <Link
               href="/settings/privacy"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
+              className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
             >
               <Lock className="w-4 h-4" />
               <span>Privacy &amp; my data</span>
@@ -1248,7 +1266,7 @@ export default function NavigationHeader() {
             <Link
               href="/admin/data-protection"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
+              className="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:text-wine dark:hover:text-hi hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-all"
             >
               <ShieldCheck className="w-4 h-4" />
               <span>Data protection</span>

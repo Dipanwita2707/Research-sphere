@@ -355,8 +355,33 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
     ...require('../../research-intelligence/config/ripPermissions').RIP_DRD_PERMISSION_ENTRIES,
   ],
 
-  // Finance Department
+  // Finance Department — research incentive payouts and the research budget first; the campus
+  // fee permissions below are used by the fee-structure module only.
   finance: [
+    {
+      key: "finance_view",
+      label: "View Incentive Payouts & Budget",
+      category: "Research Incentive Payouts",
+      description: "Can view the finance dashboard, payout lines, payment batches and the research budget for research, IPR and grant incentives.",
+    },
+    {
+      key: "finance_review",
+      label: "Verify & Recommend Payouts",
+      category: "Research Incentive Payouts",
+      description: "Can verify payout lines, recommend, hold, adjust (with reason) or cancel them, prepare payment batches and record payment references.",
+    },
+    {
+      key: "finance_approve",
+      label: "Approve Payment Batches",
+      category: "Research Incentive Payouts",
+      description: "Can approve payment batches. The approver must be a different person from whoever prepared the batch or recommended its lines.",
+    },
+    {
+      key: "finance_budget_manage",
+      label: "Manage Research Budget & Cycles",
+      category: "Research Budget",
+      description: "Can create and edit incentive cycles (the period policies and the budget share), set each cycle's research budget and distribute it across schools and departments.",
+    },
     {
       key: "configure_fee_structure",
       label: "Configure Fee Structure",

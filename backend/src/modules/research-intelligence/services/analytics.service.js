@@ -8,6 +8,7 @@
 'use strict';
 
 const prisma = require('../../../shared/config/database');
+const { personNameKey, fullestName } = require('../../../shared/utils/personNameKey');
 const { NotFoundError } = require('../../../shared/utils/AppError');
 const { Prisma, YEAR, CITES, countedRc, authorshipCte } = require('./sql');
 const { RESEARCHER_SELECT, researcherSummary } = require('./researchData');
@@ -126,11 +127,11 @@ async function getUnitAnalytics(tenantId, { departmentId, schoolId }) {
   let unit;
   if (departmentId) {
     const d = await prisma.department.findFirst({ where: { id: departmentId }, select: { id: true, departmentName: true, faculty: { select: { facultyName: true } } } });
-    if (!d) throw new NotFoundError('Department not found');
+    if (!d) throw new NotFoundError('Department');
     unit = { type: 'department', id: d.id, name: d.departmentName, parent: d.faculty?.facultyName || null };
   } else {
     const s = await prisma.facultySchoolList.findFirst({ where: { id: schoolId }, select: { id: true, facultyName: true } });
-    if (!s) throw new NotFoundError('School not found');
+    if (!s) throw new NotFoundError('School');
     unit = { type: 'school', id: s.id, name: s.facultyName, parent: null };
   }
   const filter = departmentId ? { departmentIds: [departmentId] } : { schoolIds: [schoolId] };
@@ -157,7 +158,7 @@ async function compareUnits(tenantId, units) {
 
 async function getResearcherProfile(tenantId, userId) {
   const user = await prisma.userLogin.findFirst({ where: { id: userId }, select: RESEARCHER_SELECT });
-  if (!user) throw new NotFoundError('Researcher not found');
+  if (!user) throw new NotFoundError('Researcher');
   const [profile, topics, papers, collaborators] = await Promise.all([
     prisma.ripResearcherExpertiseProfile.findFirst({ where: { userId } }),
     prisma.ripResearcherTopicScore.findMany({
@@ -179,6 +180,12 @@ async function getResearcherProfile(tenantId, userId) {
        WHERE a1.user_id = ${userId}::uuid
        GROUP BY a2.user_id ORDER BY shared DESC LIMIT 10`,
   ]);
+  const coAuthorRows = await prisma.$queryRaw`
+    WITH ${authorshipCte(tenantId)}
+    SELECT a.research_contribution_id::text AS contribution_id, a.name, a.affiliation, a.is_internal AS "isInternal"
+      FROM authorship au
+      JOIN research_contribution_author a ON a.research_contribution_id = au.contribution_id
+     WHERE au.user_id = ${userId}::uuid AND a.user_id IS NULL AND a.university_id = ${tenantId}::uuid`;
   const [keywords, collabUsers, yearly] = await Promise.all([
     profile?.topKeywordIds?.length
       ? prisma.ripResearchKeyword.findMany({ where: { id: { in: profile.topKeywordIds } }, select: { id: true, canonicalName: true, publicationCount: true } })
@@ -212,7 +219,33 @@ async function getResearcherProfile(tenantId, userId) {
     yearly,
     topPapers: papers,
     collaborators: collaborators.filter((c) => collabById.has(c.id)).map((c) => ({ ...collabById.get(c.id), sharedPapers: c.shared })),
+    coAuthors: groupCoAuthors(coAuthorRows),
   };
+}
+
+/**
+ * Co-authors without an account in this university (external partners, and home-affiliated
+ * colleagues not yet mapped to an account), grouped across name forms, most shared papers first.
+ * @param {{ contribution_id: string, name: string, affiliation: string|null, isInternal: boolean }[]} rows
+ */
+function groupCoAuthors(rows) {
+  const byKey = new Map();
+  for (const r of rows || []) {
+    const key = personNameKey(r.name);
+    if (!key) continue;
+    const e = byKey.get(key) || { names: new Set(), affiliations: new Set(), papers: new Set(), homeInstitution: false };
+    e.names.add(String(r.name).trim());
+    if (r.affiliation) e.affiliations.add(String(r.affiliation).trim());
+    e.papers.add(r.contribution_id);
+    e.homeInstitution = e.homeInstitution || r.isInternal === true;
+    byKey.set(key, e);
+  }
+  return [...byKey.values()]
+    .map((e) => {
+      const name = fullestName(e.names);
+      return { name, affiliation: [...e.affiliations].join('; ') || null, sharedPapers: e.papers.size, homeInstitution: e.homeInstitution };
+    })
+    .sort((a, b) => b.sharedPapers - a.sharedPapers || a.name.localeCompare(b.name));
 }
 
 // ─── Keywords ─────────────────────────────────────────────────────────────────
@@ -274,6 +307,7 @@ async function listKeywords({ search, categoryId, unmapped, sort = 'publications
 }
 
 module.exports = {
+  groupCoAuthors,
   getOverview,
   getUnitAnalytics,
   compareUnits,

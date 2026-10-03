@@ -204,7 +204,7 @@ export default function SettingsPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7d1a34]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wine"></div>
       </div>
     );
   }
@@ -248,7 +248,7 @@ export default function SettingsPage() {
                     flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors
                     ${activeTab ===
    tab.id
-                      ? 'border-[#7d1a34] text-[#7d1a34] dark:text-[#c8973f]'
+                      ? 'border-wine text-wine dark:text-gold'
                       : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                     }
                   `}
@@ -264,7 +264,7 @@ export default function SettingsPage() {
           <div className="p-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-[#7d1a34]" />
+                <Loader2 className="w-8 h-8 animate-spin text-wine" />
               </div>
             ) : (
               <>
@@ -335,11 +335,11 @@ export default function SettingsPage() {
 
                     <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                       <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-                        <Building2 className="w-5 h-5 text-[#7d1a34] dark:text-[#c8973f]" />
+                        <Building2 className="w-5 h-5 text-wine dark:text-gold" />
                         Research Affiliation
                       </h4>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        This is the affiliation shown on your research contributions and used when matching your publications during sync. It&apos;s auto-generated from your university&apos;s name — you can override it below.
+                        This is the affiliation shown on your research contributions. During publication sync it is also accepted as your own affiliation on a paper (alongside your university&apos;s recognized names); it is not used to classify your co-authors. It&apos;s auto-generated from your university&apos;s name — you can override it below.
                       </p>
 
                       {isAffiliationLoading ? (
@@ -355,12 +355,12 @@ export default function SettingsPage() {
                               value={affiliationInput}
                               onChange={(e) => setAffiliationInput(e.target.value)}
                               placeholder={affiliation?.suggested || 'Your affiliation'}
-                              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                             />
                             <button
                               onClick={handleSaveAffiliation}
                               disabled={isSavingAffiliation || !affiliationInput.trim()}
-                              className="flex items-center px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors disabled:opacity-50 text-sm font-medium"
+                              className="flex items-center px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors disabled:opacity-50 text-sm font-medium"
                             >
                               {isSavingAffiliation ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             </button>
@@ -370,7 +370,7 @@ export default function SettingsPage() {
                             <button
                               onClick={handleResetAffiliation}
                               disabled={isSavingAffiliation}
-                              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-[#7d1a34] dark:hover:text-[#c8973f]"
+                              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-wine dark:hover:text-gold"
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
                               Reset to suggested: &quot;{affiliation.suggested}&quot;
@@ -399,7 +399,7 @@ export default function SettingsPage() {
                                 </div>
                               )}
                               <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-                                These are the name forms recognized as belonging to your university when your papers are automatically matched.
+                                These are the name forms recognized as belonging to your university when your papers are automatically matched. A city, state or country on its own is never treated as your university.
                               </p>
                             </div>
                           )}
@@ -411,15 +411,15 @@ export default function SettingsPage() {
                       <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">About Profile Photos</h4>
                       <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
                         <li className="flex items-start gap-2">
-                          <span className="text-[#7d1a34] mt-1">•</span>
+                          <span className="text-wine mt-1">•</span>
                           <span>Your profile photo is visible to other users in your groups and conversations</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="text-[#7d1a34] mt-1">•</span>
+                          <span className="text-wine mt-1">•</span>
                           <span>The ability to upload a profile photo may be controlled by your group administrators</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="text-[#7d1a34] mt-1">•</span>
+                          <span className="text-wine mt-1">•</span>
                           <span>Profile photos must be under 5MB and in JPEG, PNG, GIF, or WebP format</span>
                         </li>
                       </ul>
@@ -454,8 +454,8 @@ export default function SettingsPage() {
                             onClick={() => handleNotificationChange(item.key as keyof typeof notifications)}
                             className={`
                               relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
-                              transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#7d1a34] focus:ring-offset-2 dark:focus:ring-offset-gray-800
-                              ${notifications[item.key as keyof typeof notifications] ? 'bg-[#7d1a34]' : 'bg-gray-200 dark:bg-gray-600'}
+                              transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-wine focus:ring-offset-2 dark:focus:ring-offset-gray-800
+                              ${notifications[item.key as keyof typeof notifications] ? 'bg-wine' : 'bg-gray-200 dark:bg-gray-600'}
                             `}
                           >
                             <span
@@ -474,7 +474,7 @@ export default function SettingsPage() {
                       <button
                         onClick={handleSaveNotifications}
                         disabled={isSaving}
-                        className="flex items-center px-6 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors disabled:opacity-50"
+                        className="flex items-center px-6 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors disabled:opacity-50"
                       >
                         {isSaving ? (
                           <>
@@ -511,7 +511,7 @@ export default function SettingsPage() {
                             name="currentPassword"
                             value={passwordData.currentPassword}
                             onChange={handlePasswordChange}
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                             placeholder="Enter current password"
                           />
                           <button
@@ -533,7 +533,7 @@ export default function SettingsPage() {
                             name="newPassword"
                             value={passwordData.newPassword}
                             onChange={handlePasswordChange}
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                             placeholder="Enter new password"
                           />
                           <button
@@ -556,7 +556,7 @@ export default function SettingsPage() {
                             name="confirmPassword"
                             value={passwordData.confirmPassword}
                             onChange={handlePasswordChange}
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                             placeholder="Confirm new password"
                           />
                           <button
@@ -573,7 +573,7 @@ export default function SettingsPage() {
                         <button
                           onClick={handleChangePassword}
                           disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword || isSaving}
-                          className="flex items-center px-6 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center px-6 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSaving ? (
                             <>
@@ -593,12 +593,12 @@ export default function SettingsPage() {
                     {/* Security Info */}
                     <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                       <h4 className="font-medium text-gray-900 dark:text-white mb-4">Security Information</h4>
-                      <div className="bg-[#fdf5ec] dark:bg-[#7d1a34]/10 rounded-lg p-4">
+                      <div className="bg-blush dark:bg-wine/10 rounded-lg p-4">
                         <div className="flex items-start">
-                          <Shield className="w-5 h-5 text-[#7d1a34] dark:text-[#c8973f] mt-0.5 mr-3" />
+                          <Shield className="w-5 h-5 text-wine dark:text-gold mt-0.5 mr-3" />
                           <div>
-                            <p className="text-sm font-medium text-[#7d1a34] dark:text-[#c8973f]">Your account is protected</p>
-                            <p className="text-sm text-[#7d1a34] dark:text-[#c8973f] mt-1">
+                            <p className="text-sm font-medium text-wine dark:text-gold">Your account is protected</p>
+                            <p className="text-sm text-wine dark:text-gold mt-1">
                               Last login: {new Date().toLocaleDateString('en-IN', { 
                                 year: 'numeric', 
                                 month: 'long', 

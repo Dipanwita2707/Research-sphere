@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { seriesColors, ui } from './theme';
 
 export interface PieChartSlice {
   key: string;
@@ -16,162 +16,154 @@ interface Props {
   subtitle?: string;
   emptyMessage?: string;
   className?: string;
+  /** Ignored — colours come from the shared palette. Kept for backwards compatibility. */
   colorScheme?: 'blue' | 'green' | 'purple' | 'amber';
 }
 
-const COLOR_SCHEMES = {
-  blue: [
-    '#3b82f6', '#60a5fa', '#93c5fd', '#1d4ed8', '#2563eb',
-    '#0ea5e9', '#38bdf8', '#7dd3fc', '#0369a1', '#0284c7',
-    '#06b6d4',
-  ],
-  green: [
-    '#22c55e', '#4ade80', '#86efac', '#15803d', '#16a34a',
-    '#10b981', '#34d399', '#6ee7b7', '#065f46', '#047857',
-    '#059669',
-  ],
-  purple: [
-    '#a855f7', '#c084fc', '#d8b4fe', '#7c3aed', '#8b5cf6',
-    '#6366f1', '#818cf8', '#a5b4fc', '#4338ca', '#4f46e5',
-    '#7c3aed',
-  ],
-  amber: [
-    '#f59e0b', '#fbbf24', '#fcd34d', '#b45309', '#d97706',
-    '#f97316', '#fb923c', '#fdba74', '#c2410c', '#ea580c',
-    '#f59e0b',
-  ],
-};
+const MAX_SLICES = 5;
+const SIZE = 160;
+const OUTER = SIZE / 2;
+const INNER = OUTER - 22;
+const OTHER_KEY = '__other__';
+const OTHER_COLOR = 'var(--viz-ink-muted)';
+
+interface Slice {
+  key: string;
+  label: string;
+  count: number;
+  folded?: number;
+}
+
+function arcPath(start: number, end: number) {
+  // Full circle needs two arcs; SVG cannot draw a single 360° arc.
+  if (end - start >= Math.PI * 2 - 1e-6) {
+    return `M${OUTER},0A${OUTER},${OUTER} 0 1 1 ${OUTER},${SIZE}A${OUTER},${OUTER} 0 1 1 ${OUTER},0Z`
+      + `M${OUTER},${OUTER - INNER}A${INNER},${INNER} 0 1 0 ${OUTER},${OUTER + INNER}A${INNER},${INNER} 0 1 0 ${OUTER},${OUTER - INNER}Z`;
+  }
+  const p = (r: number, a: number) => `${OUTER + r * Math.sin(a)},${OUTER - r * Math.cos(a)}`;
+  const large = end - start > Math.PI ? 1 : 0;
+  return `M${p(OUTER, start)}A${OUTER},${OUTER} 0 ${large} 1 ${p(OUTER, end)}L${p(INNER, end)}A${INNER},${INNER} 0 ${large} 0 ${p(INNER, start)}Z`;
+}
 
 export default function AnalyticsPieChart({
   data,
   title,
   subtitle,
-  emptyMessage = 'No data available',
+  emptyMessage = 'No data for this period.',
   className = '',
-  colorScheme = 'blue',
 }: Props) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const colors = COLOR_SCHEMES[colorScheme];
-  const filled = data.filter((d) => d.count > 0);
+  const [active, setActive] = useState<number | null>(null);
+
+  const filled = data.filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
   const total = filled.reduce((s, d) => s + d.count, 0);
 
-  const activeSlice = activeIndex !== null ? filled[activeIndex] : null;
+  // At most five named slices; everything smaller folds into "Other".
+  const slices: Slice[] = filled.length > MAX_SLICES + 1
+    ? [
+        ...filled.slice(0, MAX_SLICES).map((d) => ({ key: d.key, label: d.label, count: d.count })),
+        {
+          key: OTHER_KEY,
+          label: 'Other',
+          count: filled.slice(MAX_SLICES).reduce((s, d) => s + d.count, 0),
+          folded: filled.length - MAX_SLICES,
+        },
+      ]
+    : filled.map((d) => ({ key: d.key, label: d.label, count: d.count }));
+
+  const palette = seriesColors(slices.filter((s) => s.key !== OTHER_KEY).map((s) => s.key));
+  const colorOf = (s: Slice) => (s.key === OTHER_KEY ? OTHER_COLOR : palette[s.key]);
+  const pct = (n: number) => (total > 0 ? (n / total) * 100 : 0);
+
+  const arcs = slices.reduce<Array<{ start: number; end: number; mid: number }>>((acc, s) => {
+    const start = acc.length ? acc[acc.length - 1].end : 0;
+    const end = start + (s.count / Math.max(total, 1)) * Math.PI * 2;
+    acc.push({ start, end, mid: (start + end) / 2 });
+    return acc;
+  }, []);
+
+  const activeSlice = active !== null ? slices[active] : null;
+  const activeArc = active !== null ? arcs[active] : null;
+  const tipX = activeArc ? OUTER + (OUTER + 6) * Math.sin(activeArc.mid) : 0;
+  const tipY = activeArc ? OUTER - (OUTER + 6) * Math.cos(activeArc.mid) : 0;
 
   return (
-    <div
-      className={`flex flex-col rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800 ${className}`}
-    >
-      {/* Header */}
-      <div className="mb-3 flex-shrink-0">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h3>
-        {subtitle && (
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
-        )}
+    <div className={`flex flex-col ${ui.card} ${className}`}>
+      <div className={ui.cardHeader}>
+        <div className="min-w-0">
+          <h3 className={ui.title}>{title}</h3>
+          {subtitle && <p className={ui.subtitle}>{subtitle}</p>}
+        </div>
       </div>
 
-      {filled.length === 0 ? (
-        <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-          <p className="text-sm text-gray-400 dark:text-gray-500">{emptyMessage}</p>
-        </div>
+      {slices.length === 0 ? (
+        <div className="flex h-48 items-center justify-center px-5 text-sm text-stone-400 dark:text-gray-500">{emptyMessage}</div>
       ) : (
-        <>
-          {/* Donut chart */}
-          <div className="relative flex-shrink-0" style={{ height: 180 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={filled as Record<string, unknown>[]}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={52}
-                  outerRadius={82}
-                  paddingAngle={2}
-                  dataKey="count"
-                  nameKey="label"
-                  isAnimationActive={false}
-                  onMouseEnter={(_, index) => setActiveIndex(index)}
-                  onMouseLeave={() => setActiveIndex(null)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {filled.map((entry, index) => (
-                    <Cell
-                      key={entry.key}
-                      fill={colors[index % colors.length]}
-                      stroke={activeIndex === index ? '#fff' : 'transparent'}
-                      strokeWidth={activeIndex === index ? 2 : 0}
-                      opacity={activeIndex === null || activeIndex === index ? 1 : 0.4}
-                    />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+        <div className="flex flex-wrap items-center justify-center gap-5 p-5">
+          <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
+            <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={title} style={{ display: 'block', overflow: 'visible' }}>
+              {slices.map((s, i) => (
+                <path
+                  key={s.key}
+                  d={arcPath(arcs[i].start, arcs[i].end)}
+                  fillRule="evenodd"
+                  strokeWidth={slices.length > 1 ? 2 : 0}
+                  strokeLinejoin="round"
+                  style={{
+                    fill: colorOf(s),
+                    stroke: 'var(--viz-surface)',
+                    opacity: active === null || active === i ? 1 : 0.45,
+                    transition: 'opacity 120ms',
+                    cursor: 'default',
+                  }}
+                  onMouseEnter={() => setActive(i)}
+                  onMouseLeave={() => setActive(null)}
+                />
+              ))}
+            </svg>
 
-            {/* Centre — shows hovered slice info or total */}
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              {activeSlice ? (
-                <>
-                  <span className="text-2xl font-bold leading-none text-gray-900 dark:text-white">
-                    {activeSlice.count}
-                  </span>
-                  <span
-                    className="mt-1 max-w-[90px] text-[10px] leading-tight text-gray-500 dark:text-gray-400"
-                    style={{ wordBreak: 'break-word' }}
-                  >
-                    {activeSlice.label}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-2xl font-bold leading-none text-gray-900 dark:text-white">
-                    {total}
-                  </span>
-                  <span className="mt-0.5 text-[10px] text-gray-400">total</span>
-                </>
-              )}
+              <span className="text-xl font-semibold leading-none tabular-nums text-stone-900 dark:text-white">
+                {total.toLocaleString('en-IN')}
+              </span>
+              <span className="mt-1 text-[11px] text-stone-500 dark:text-gray-400">Total</span>
             </div>
+
+            {activeSlice && (
+              <div
+                className="pointer-events-none absolute z-10 min-w-[140px] -translate-x-1/2 -translate-y-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-900"
+                style={{ left: tipX, top: Math.min(tipY, OUTER) - 4 }}
+              >
+                <p className="mb-1 inline-flex items-center gap-1.5 font-semibold text-stone-900 dark:text-white">
+                  <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: colorOf(activeSlice) }} />
+                  {activeSlice.label}
+                </p>
+                <p className="flex justify-between gap-4 tabular-nums text-stone-600 dark:text-gray-300">
+                  <span className="font-semibold text-stone-900 dark:text-white">{activeSlice.count.toLocaleString('en-IN')}</span>
+                  <span>{pct(activeSlice.count).toFixed(1)}%</span>
+                </p>
+                {activeSlice.folded && (
+                  <p className="mt-1 text-[11px] text-stone-500 dark:text-gray-400">{activeSlice.folded} smaller categories</p>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Legend — highlights the hovered row */}
-          <ul className="mt-3 max-h-28 overflow-y-auto space-y-1.5 pr-1">
-            {filled.map((entry, index) => {
-              const isActive = activeIndex === index;
-              return (
-                <li
-                  key={entry.key}
-                  className={`flex min-w-0 cursor-default items-center gap-2 rounded-md px-1 py-0.5 transition-colors ${
-                    isActive ? 'bg-gray-100 dark:bg-gray-700' : ''
-                  }`}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  onMouseLeave={() => setActiveIndex(null)}
-                >
-                  <span
-                    className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full transition-transform"
-                    style={{
-                      backgroundColor: colors[index % colors.length],
-                      transform: isActive ? 'scale(1.3)' : 'scale(1)',
-                    }}
-                  />
-                  <span
-                    className={`min-w-0 flex-1 truncate text-xs transition-colors ${
-                      isActive
-                        ? 'font-medium text-gray-900 dark:text-white'
-                        : 'text-gray-600 dark:text-gray-300'
-                    }`}
-                  >
-                    {entry.label}
-                  </span>
-                  <span
-                    className={`flex-shrink-0 text-xs font-semibold ${
-                      isActive ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-200'
-                    }`}
-                  >
-                    ({entry.count})
-                  </span>
-                </li>
-              );
-            })}
+          <ul className="min-w-[160px] flex-1 space-y-0.5" aria-label="Legend">
+            {slices.map((s, i) => (
+              <li
+                key={s.key}
+                className={`flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-xs transition-colors ${active === i ? 'bg-stone-100 dark:bg-gray-700' : ''}`}
+                onMouseEnter={() => setActive(i)}
+                onMouseLeave={() => setActive(null)}
+              >
+                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: colorOf(s) }} />
+                <span className="min-w-0 flex-1 truncate text-stone-600 dark:text-gray-300" title={s.label}>{s.label}</span>
+                <span className="shrink-0 font-semibold tabular-nums text-stone-900 dark:text-white">{s.count.toLocaleString('en-IN')}</span>
+                <span className="w-10 shrink-0 text-right tabular-nums text-stone-400 dark:text-gray-500">{pct(s.count).toFixed(0)}%</span>
+              </li>
+            ))}
           </ul>
-        </>
+        </div>
       )}
     </div>
   );

@@ -4,14 +4,26 @@
  */
 const { contributionRepo, contributionService } = require('../services/index');
 const { downloadFromS3 } = require('../../../shared/utils/s3');
+const { contentTypeFor } = require('../../../shared/utils/fileTypes');
 const { createModuleLogger } = require('../../../shared/utils/logger');
+const reviewScope = require('../services/reviewScope');
+const { isContributionParticipant, isGrantParticipant } = require('../utils/objectAccess');
+const { parseIncentivePreview } = require('../validators/incentivePreview.validation');
+const tenantContext = require('../../../shared/tenancy/tenantContext');
 
 // Create module-specific logger
 const logger = createModuleLogger('research');
 
 const _err = (res, error, fallback = 'Operation failed') => {
   const code = error.statusCode || 500;
-  if (code < 500) return res.status(code).json({ success: false, message: error.message });
+  if (code < 500) {
+    return res.status(code).json({
+      success: false,
+      message: error.message,
+      ...(error.code && typeof error.code === 'string' && !error.code.startsWith('P') ? { code: error.code } : {}),
+      ...(error.existing ? { existing: error.existing } : {}),
+    });
+  }
   logger.error(error.message || error, { stack: error.stack, statusCode: code });
   return res.status(500).json({ success: false, message: fallback });
 };
@@ -31,6 +43,12 @@ exports.createResearchContribution = async (req, res) => {
     });
     
     const body = { ...req.body };
+    // Import provenance is written only by the publication-sync job, never by a user request
+    for (const key of ['sourceType', 'sourceSystems', 'externalIds', 'importedAt', 'lastSyncedAt',
+      'specialReviewRequired', 'importConfidence', 'missingFields', 'autoCalculatedFields',
+      'fieldProvenance', 'importMetadata']) {
+      delete body[key];
+    }
     const cats = body.indexingCategories || [];
     if (cats.includes('subsidiary_if_above_20') && !body.subsidiaryImpactFactor && body.impactFactor) body.subsidiaryImpactFactor = body.impactFactor;
     const contribution = await contributionService.createContribution({ ...body, userId: req.user.id, userRole: req.user.role, request: req }, { manuscriptFilePath: body.manuscriptFilePath, supportingDocsFilePaths: body.supportingDocsFilePaths });
@@ -45,6 +63,24 @@ exports.createResearchContribution = async (req, res) => {
     logger.logError('create_contribution', error, { userId: req.user.id });
     if (error.validationErrors) return res.status(400).json({ success: false, message: error.message, errors: error.validationErrors });
     _err(res, error, 'Failed to create research contribution');
+  }
+};
+
+/**
+ * POST /research/incentive-preview — what saving this form payload would pay each author.
+ * Read-only; policies are looked up in the caller's university (tenant-scoped client).
+ */
+exports.previewIncentive = async (req, res) => {
+  try {
+    if (!tenantContext.getTenantId()) {
+      return res.status(400).json({ success: false, message: 'Select a university to preview incentives' });
+    }
+    const data = parseIncentivePreview(req.body);
+    const preview = await contributionService.previewIncentiveShares({ ...data, userId: req.user.id, userRole: req.user.role });
+    res.status(200).json({ success: true, data: preview });
+  } catch (error) {
+    if (error.validationErrors) return res.status(400).json({ success: false, message: error.message, errors: error.validationErrors });
+    _err(res, error, 'Failed to preview incentives');
   }
 };
 
@@ -188,6 +224,16 @@ exports.getResearchContributionById = async (req, res) => {
     const userId = req.user.id;
     // 404 for records that do not exist or that this user may not see (object-level authz)
     const { record: contribution, isGrant } = await contributionService.getContributionForViewer(req.params.id, req.user);
+    // DRD reviewers may open items only inside their assigned schools for that category
+    await reviewScope.assertCanViewInScope(
+      req.user,
+      isGrant ? 'grant' : reviewScope.categoryForPublicationType(contribution.publicationType),
+      contribution.schoolId,
+      {
+        participant: isGrant ? isGrantParticipant(req.user, contribution) : isContributionParticipant(req.user, contribution),
+        notFoundMessage: 'Research contribution or grant not found',
+      }
+    );
     const isApplicant = contribution.applicantUserId === userId;
     const isAuthor = isGrant ? contribution.investigators?.some(i => i.userId === userId || i.uid === req.user.uid) : contribution.authors?.some(a => a.userId === userId || a.uid === req.user.uid || a.registrationNo === req.user.uid);
     const n = v => v ? Number(v) : v;
@@ -304,8 +350,10 @@ exports.downloadDocument = async (req, res) => {
     const { s3Key, filename: originalFilename } = await contributionService.resolveDocumentForViewer(id, req.user, type, filename);
     const fileData = await downloadFromS3(s3Key);
     const safeName = String(originalFilename).replace(/["\r\n\\]/g, '_');
-    res.setHeader('Content-Type', fileData.contentType || 'application/octet-stream');
+    // Type from the extension, never the stored (uploader-declared) ContentType
+    res.setHeader('Content-Type', contentTypeFor(s3Key));
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Length', fileData.contentLength);
     fileData.stream.pipe(res);
   } catch (error) { _err(res, error, 'Failed to download document'); }
@@ -339,7 +387,10 @@ exports.getPublicRepository = async (req, res) => {
             id: true,
             name: true,
             affiliation: true,
-            isCorresponding: true
+            isCorresponding: true,
+            // Home-institution author, as classified at import/filing against this
+            // university's own affiliation names (the UI highlights these).
+            isInternal: true
           }
         }
       },

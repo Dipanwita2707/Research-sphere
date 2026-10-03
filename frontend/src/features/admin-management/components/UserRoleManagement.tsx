@@ -50,6 +50,9 @@ import {
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 
 type ActiveTab = 'roles' | 'users';
+type UserAccessFilter = 'all' | 'roles' | 'direct' | 'none';
+
+const USER_LIST_STEP = 60;
 
 interface ScopeOption {
   id: string;
@@ -178,6 +181,11 @@ export default function UserRoleManagement() {
 
   // User search and selection
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userAccessFilter, setUserAccessFilter] = useState<UserAccessFilter>('all');
+  const [userListLimit, setUserListLimit] = useState(USER_LIST_STEP);
+  const [focusedUserId, setFocusedUserId] = useState<string | null>(null);
+  const [focusedRoleId, setFocusedRoleId] = useState<string | null>(null);
+  const [roleSearchQuery, setRoleSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserWithPermissions | null>(null);
 
   // Role management state
@@ -260,7 +268,7 @@ export default function UserRoleManagement() {
   // Auto-load permissions when department is selected
   useEffect(() => {
     if (selectedDepartmentId && selectedUser) {
-      console.log('🔄 Department selected, loading permissions...', {
+      logger.debug('Department selected, loading permissions', {
         deptType: selectedDepartmentType,
         deptId: selectedDepartmentId
       });
@@ -1077,7 +1085,39 @@ export default function UserRoleManagement() {
     return permissions ? [{ deptType: roleCentralDeptFilter, permissions }] : [];
   };
 
+  const getRoleName = (user: UserWithPermissions): string => {
+    const r = user.role as unknown;
+    return (r && typeof r === 'object' ? (r as { name?: string }).name : (r as string)) || '';
+  };
+  const getDisplayName = (user: UserWithPermissions) =>
+    user.employeeDetails?.displayName ||
+    [user.employeeDetails?.firstName, user.employeeDetails?.lastName].filter(Boolean).join(' ') ||
+    user.uid;
+  const getInitials = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0]?.toUpperCase())
+      .join('') || '?';
+  const getAccessStatus = (user: UserWithPermissions): Exclude<UserAccessFilter, 'all'> => {
+    if ((user.assignedRoleIds?.length || 0) > 0) return 'roles';
+    if ((user.schoolDeptPermissions?.length || 0) + (user.centralDeptPermissions?.length || 0) > 0) return 'direct';
+    return 'none';
+  };
+  const countGranted = (perms: Record<string, boolean> | undefined) =>
+    Object.values(perms || {}).filter(Boolean).length;
+
+  const userStatusCounts = users.reduce(
+    (acc, user) => {
+      acc[getAccessStatus(user)] += 1;
+      return acc;
+    },
+    { roles: 0, direct: 0, none: 0 } as Record<Exclude<UserAccessFilter, 'all'>, number>,
+  );
+
   const filteredUsers = users.filter(user => {
+    if (userAccessFilter !== 'all' && getAccessStatus(user) !== userAccessFilter) return false;
     if (!userSearchQuery) return true;
     const query = userSearchQuery.toLowerCase();
     return (
@@ -1086,355 +1126,543 @@ export default function UserRoleManagement() {
       user.employeeDetails?.firstName?.toLowerCase().includes(query) ||
       user.employeeDetails?.lastName?.toLowerCase().includes(query) ||
       user.employeeDetails?.displayName?.toLowerCase().includes(query) ||
-      user.employeeDetails?.empId?.toLowerCase().includes(query)
+      user.employeeDetails?.empId?.toLowerCase().includes(query) ||
+      user.employeeDetails?.designation?.toLowerCase().includes(query)
     );
   });
+  const listedUsers = filteredUsers.slice(0, userListLimit);
+
+  const roleUserCounts = users.reduce<Record<string, number>>((acc, user) => {
+    user.assignedRoleIds?.forEach(id => { acc[id] = (acc[id] || 0) + 1; });
+    return acc;
+  }, {});
+  const filteredRoles = roles.filter(role => {
+    if (!roleSearchQuery) return true;
+    const query = roleSearchQuery.toLowerCase();
+    return role.name.toLowerCase().includes(query) || role.description?.toLowerCase().includes(query);
+  });
+
+  const focusedUser = users.find(u => u.id === focusedUserId) || null;
+  const focusedRole = roles.find(r => r.id === focusedRoleId) || null;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="p-4 sm:p-6 space-y-5 animate-pulse">
+        <div className="h-7 w-56 rounded bg-stone-200 dark:bg-gray-700" />
+        <div className="h-10 w-80 rounded bg-stone-100 dark:bg-gray-800" />
+        <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+          <div className="space-y-2">
+            {Array.from({ length: 9 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-stone-100 dark:bg-gray-800" />)}
+          </div>
+          <div className="hidden h-[480px] rounded-xl bg-stone-100 dark:bg-gray-800 lg:block" />
+        </div>
       </div>
     );
   }
 
+  const accessFilterOptions: { value: UserAccessFilter; label: string; count: number }[] = [
+    { value: 'all', label: 'Everyone', count: users.length },
+    { value: 'roles', label: 'Via roles', count: userStatusCounts.roles },
+    { value: 'direct', label: 'Direct only', count: userStatusCounts.direct },
+    { value: 'none', label: 'No access', count: userStatusCounts.none },
+  ];
+
+  const STATUS_META: Record<Exclude<UserAccessFilter, 'all'>, { label: string; dot: string }> = {
+    roles: { label: 'Role-based access', dot: 'bg-emerald-500' },
+    direct: { label: 'Direct permissions', dot: 'bg-sky-500' },
+    none: { label: 'No access', dot: 'bg-stone-300 dark:bg-gray-600' },
+  };
+
+  const paneHeight = 'lg:h-[calc(100vh-15rem)] lg:min-h-[520px]';
+
   return (
-    <div className="p-6">
+    <div className="min-h-full bg-[#faf8f6] p-4 dark:bg-gray-900 sm:p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Shield className="h-7 w-7 text-primary-600" />
-          User & Role Management
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Create role templates and assign permissions to users
-        </p>
+      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-wine dark:text-amber">Administration</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-stone-900 dark:text-white">Access Control</h1>
+          <p className="mt-1 text-sm text-stone-500 dark:text-gray-400">
+            <span className="font-medium text-stone-700 dark:text-gray-200 tabular-nums">{users.length}</span> people ·{' '}
+            <span className="font-medium text-stone-700 dark:text-gray-200 tabular-nums">{roles.length}</span> role templates ·{' '}
+            <span className="font-medium text-amber-700 dark:text-amber-400 tabular-nums">{userStatusCounts.none}</span> without access
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5 dark:border-gray-700 dark:bg-gray-800" role="tablist">
+            {[
+              { id: 'users' as const, label: 'People', icon: Users },
+              { id: 'roles' as const, label: 'Role templates', icon: Layers },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-wine text-wine-fg shadow-sm'
+                    : 'text-stone-600 hover:text-stone-900 dark:text-gray-300 dark:hover:text-white'
+                }`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {activeTab === 'roles' && (
+            <button
+              onClick={() => openRoleModal()}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-wine px-3.5 text-sm font-medium text-wine-fg hover:bg-wine-dark"
+            >
+              <Plus className="h-4 w-4" />
+              New template
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex gap-4">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-              activeTab ===
-   'users'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            <UserCog className="h-4 w-4 inline mr-2" />
-            User Permissions
-          </button>
-          <button
-            onClick={() => setActiveTab('roles')}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-              activeTab ===
-   'roles'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            <Layers className="h-4 w-4 inline mr-2" />
-            Role Templates ({roles.length})
-          </button>
-        </nav>
-      </div>
-
-      {/* ============================================
-   */}
-      {/* USER PERMISSIONS TAB */}
-      {/* ============================================
-   */}
-      {activeTab ===
-   'users' && (
-        <div className="space-y-6">
-          {/* Search and Filter */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+      {/* ============================================ */}
+      {/* PEOPLE: directory + access profile */}
+      {/* ============================================ */}
+      {activeTab === 'users' && (
+        <div className={`grid gap-4 lg:grid-cols-[minmax(300px,380px)_1fr] ${paneHeight}`}>
+          {/* Directory */}
+          <aside className={`flex min-h-0 flex-col overflow-hidden rounded-xl border border-stone-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${focusedUser ? 'max-lg:hidden' : ''}`}>
+            <div className="space-y-3 border-b border-stone-100 p-3 dark:border-gray-700">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
                 <input
                   type="text"
-                  placeholder="Search users by name, email, employee ID..."
+                  placeholder="Search people"
+                  aria-label="Search people by name, email, employee ID or designation"
                   value={userSearchQuery}
-                  onChange={e => setUserSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                  onChange={e => { setUserSearchQuery(e.target.value); setUserListLimit(USER_LIST_STEP); }}
+                  className="h-9 w-full rounded-lg border border-stone-200 bg-stone-50 pl-9 pr-8 text-sm text-stone-800 outline-none focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
                 />
+                {userSearchQuery && (
+                  <button
+                    onClick={() => setUserSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-stone-400 hover:text-stone-700 dark:hover:text-gray-200"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              <div className="text-sm text-gray-500">
-                {filteredUsers.length} of {users.length} users
+              <div className="flex flex-wrap gap-1">
+                {accessFilterOptions.map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => { setUserAccessFilter(option.value); setUserListLimit(USER_LIST_STEP); }}
+                    aria-pressed={userAccessFilter === option.value}
+                    className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                      userAccessFilter === option.value
+                        ? 'bg-stone-900 text-white dark:bg-white dark:text-gray-900'
+                        : 'text-stone-600 hover:bg-stone-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {option.label} <span className="tabular-nums opacity-60">{option.count}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* User List */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Role / Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Assigned Roles
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Current Permissions
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredUsers.map(user => {
-                  const totalSchoolPerms = user.schoolDeptPermissions?.length || 0;
-                  const totalCentralPerms = user.centralDeptPermissions?.length || 0;
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {filteredUsers.length === 0 ? (
+                <div className="px-6 py-14 text-center">
+                  <p className="text-sm font-medium text-stone-800 dark:text-gray-100">Nobody matches</p>
+                  <button
+                    onClick={() => { setUserSearchQuery(''); setUserAccessFilter('all'); }}
+                    className="mt-2 text-sm text-wine hover:underline dark:text-amber"
+                  >
+                    Clear search and filter
+                  </button>
+                </div>
+              ) : (
+                <ul role="listbox" aria-label="People">
+                  {listedUsers.map(user => {
+                    const name = getDisplayName(user);
+                    const status = getAccessStatus(user);
+                    const active = user.id === focusedUserId;
+                    const roleCount = user.assignedRoleIds?.length || 0;
+                    return (
+                      <li key={user.id}>
+                        <button
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => setFocusedUserId(user.id)}
+                          className={`flex w-full items-center gap-3 border-l-2 px-3 py-2.5 text-left transition-colors ${
+                            active
+                              ? 'border-wine bg-wine/5 dark:border-amber dark:bg-wine/20'
+                              : 'border-transparent hover:bg-stone-50 dark:hover:bg-gray-700/50'
+                          }`}
+                        >
+                          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-700 dark:bg-gray-700 dark:text-gray-200">
+                            {getInitials(name)}
+                            <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white dark:ring-gray-800 ${STATUS_META[status].dot}`} title={STATUS_META[status].label} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-stone-900 dark:text-white">{name}</span>
+                            <span className="block truncate text-xs text-stone-500 dark:text-gray-400">
+                              {user.employeeDetails?.designation || user.email || user.uid}
+                            </span>
+                          </span>
+                          {roleCount > 0 && (
+                            <span className="shrink-0 rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-stone-600 dark:bg-gray-700 dark:text-gray-300" title={`${roleCount} role${roleCount === 1 ? '' : 's'}`}>
+                              {roleCount} role{roleCount === 1 ? '' : 's'}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {filteredUsers.length > listedUsers.length && (
+                <button
+                  onClick={() => setUserListLimit(limit => limit + USER_LIST_STEP)}
+                  className="w-full border-t border-stone-100 py-2.5 text-xs font-medium text-wine hover:bg-stone-50 dark:border-gray-700 dark:text-amber dark:hover:bg-gray-700/50"
+                >
+                  Show more ({filteredUsers.length - listedUsers.length} remaining)
+                </button>
+              )}
+            </div>
+            <div className="border-t border-stone-100 px-3 py-2 text-[11px] text-stone-500 dark:border-gray-700 dark:text-gray-400">
+              {filteredUsers.length === users.length ? `${users.length} people` : `${filteredUsers.length} of ${users.length} people`}
+            </div>
+          </aside>
 
-                  return (
-                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 dark:text-white">
-                              {user.employeeDetails?.displayName || user.employeeDetails?.firstName || user.uid}
-                            </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {user.email || user.uid}
-                            </div>
-                            {user.employeeDetails?.empId && (
-                              <div className="text-xs text-gray-400">
-                                ID: {user.employeeDetails.empId}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          (typeof (user.role as any) ===
-   'object' ? (user.role as any)?.name : user.role) ===
-   'admin' 
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                            : (typeof (user.role as any) ===
-   'object' ? (user.role as any)?.name : user.role) ===
-   'faculty'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                        }`}>
-                          {typeof (user.role as any) ===
-   'object' ? (user.role as any)?.name : user.role}
+          {/* Access profile */}
+          <section className={`min-h-0 overflow-y-auto rounded-xl border border-stone-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${focusedUser ? '' : 'max-lg:hidden'}`}>
+            {!focusedUser ? (
+              <div className="flex h-full min-h-[360px] flex-col items-center justify-center px-8 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-wine/10 text-wine dark:bg-wine/30 dark:text-amber">
+                  <UserCog className="h-6 w-6" />
+                </div>
+                <h2 className="mt-4 text-base font-semibold text-stone-900 dark:text-white">Select a person</h2>
+                <p className="mt-1 max-w-sm text-sm text-stone-500 dark:text-gray-400">
+                  Pick someone from the directory to see what they can access, which role templates they hold, and to change either.
+                </p>
+              </div>
+            ) : (() => {
+              const name = getDisplayName(focusedUser);
+              const status = getAccessStatus(focusedUser);
+              const userRoles = (focusedUser.assignedRoleIds || [])
+                .map((roleId: string) => roles.find(r => r.id === roleId))
+                .filter((r): r is Role => Boolean(r));
+              const central = focusedUser.centralDeptPermissions || [];
+              const school = focusedUser.schoolDeptPermissions || [];
+              return (
+                <div>
+                  <div className="border-b border-stone-100 p-5 dark:border-gray-700">
+                    <button
+                      onClick={() => setFocusedUserId(null)}
+                      className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-800 dark:text-gray-400 lg:hidden"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5 rotate-90" /> All people
+                    </button>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-wine text-lg font-semibold text-wine-fg">
+                          {getInitials(name)}
                         </span>
-                        {user.employeeDetails?.designation && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {user.employeeDetails.designation}
+                        <div className="min-w-0">
+                          <h2 className="truncate text-lg font-semibold text-stone-900 dark:text-white">{name}</h2>
+                          <p className="truncate text-sm text-stone-500 dark:text-gray-400">
+                            {[focusedUser.employeeDetails?.designation, focusedUser.email || focusedUser.uid].filter(Boolean).join(' · ')}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                            {focusedUser.employeeDetails?.empId && (
+                              <span className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-stone-600 dark:bg-gray-700 dark:text-gray-300">{focusedUser.employeeDetails.empId}</span>
+                            )}
+                            <span className="rounded bg-stone-100 px-1.5 py-0.5 capitalize text-stone-600 dark:bg-gray-700 dark:text-gray-300">{getRoleName(focusedUser) || 'user'}</span>
+                            <span className="inline-flex items-center gap-1.5 text-stone-600 dark:text-gray-300">
+                              <span className={`h-2 w-2 rounded-full ${STATUS_META[status].dot}`} />
+                              {STATUS_META[status].label}
+                            </span>
                           </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          {user.assignedRoleIds && user.assignedRoleIds.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {user.assignedRoleIds.slice(0, 2).map((roleId: string) => {
-                                const role = roles.find(r => r.id ===
-   roleId);
-                                return role ? (
-                                  <span key={roleId} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 rounded text-xs">
-                                    <Shield className="h-3 w-3" />
-                                    {role.name}
-                                  </span>
-                                ) : null;
-                              })}
-                              {user.assignedRoleIds.length > 2 && (
-                                <span className="text-xs text-gray-500">+{user.assignedRoleIds.length - 2} more</span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">No roles assigned</span>
-                          )}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">                   <div className="flex flex-wrap gap-2">                        {totalCentralPerms > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 rounded text-xs">
-                              <Building2 className="h-3 w-3" />
-                              {totalCentralPerms} Central
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          onClick={() => openRoleAssignmentModal(focusedUser)}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-wine px-3.5 text-sm font-medium text-wine-fg hover:bg-wine-dark"
+                        >
+                          <Shield className="h-4 w-4" />
+                          Assign roles
+                        </button>
+                        <button
+                          onClick={() => openUserPermissionModal(focusedUser)}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-stone-200 px-3.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Edit permissions
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Roles */}
+                  <div className="border-b border-stone-100 p-5 dark:border-gray-700">
+                    <h3 className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-gray-400">Role templates</h3>
+                    {userRoles.length === 0 ? (
+                      <p className="mt-2 text-sm text-stone-500 dark:text-gray-400">
+                        No role templates.{' '}
+                        <button onClick={() => openRoleAssignmentModal(focusedUser)} className="font-medium text-wine hover:underline dark:text-amber">Assign one</button>
+                      </p>
+                    ) : (
+                      <ul className="mt-2 flex flex-wrap gap-2">
+                        {userRoles.map(role => (
+                          <li key={role.id}>
+                            <button
+                              onClick={() => { setActiveTab('roles'); setFocusedRoleId(role.id); }}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm text-stone-700 hover:border-wine hover:text-wine dark:border-gray-600 dark:text-gray-200 dark:hover:border-amber dark:hover:text-amber"
+                              title="Open template"
+                            >
+                              <Shield className="h-3.5 w-3.5" />
+                              {role.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Effective access by department */}
+                  <div className="p-5">
+                    <div className="flex items-baseline justify-between">
+                      <h3 className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-gray-400">Effective access</h3>
+                      <span className="text-xs text-stone-500 dark:text-gray-400">
+                        {central.length + school.length} department{central.length + school.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    {central.length + school.length === 0 ? (
+                      <div className="mt-3 rounded-lg border border-dashed border-stone-200 px-4 py-6 text-center text-sm text-stone-500 dark:border-gray-600 dark:text-gray-400">
+                        This person has no permissions in any department yet.
+                      </div>
+                    ) : (
+                      <ul className="mt-3 divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-gray-700 dark:border-gray-700">
+                        {[
+                          ...central.map(p => ({ key: `c-${p.id}`, type: 'central' as const, deptId: p.centralDeptId, name: p.centralDept?.departmentName || 'Central department', code: p.centralDept?.departmentCode, primary: p.isPrimary, granted: countGranted(p.permissions) })),
+                          ...school.map(p => ({ key: `s-${p.id}`, type: 'school' as const, deptId: p.departmentId, name: p.department?.departmentName || 'Department', code: p.department?.departmentCode, primary: p.isPrimary, granted: countGranted(p.permissions) })),
+                        ].map(d => (
+                          <li key={d.key} className="flex items-center gap-3 px-4 py-3">
+                            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${d.type === 'central' ? 'bg-stone-100 text-stone-600 dark:bg-gray-700 dark:text-gray-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
+                              {d.type === 'central' ? <Building2 className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
                             </span>
-                          )}
-                          {totalSchoolPerms > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded text-xs">
-                              <Briefcase className="h-3 w-3" />
-                              {totalSchoolPerms} School
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
+                                <span className="truncate text-sm font-medium text-stone-900 dark:text-white">{d.name}</span>
+                                {d.primary && <span className="rounded bg-wine/10 px-1.5 py-0.5 text-[11px] font-medium text-wine dark:bg-wine/30 dark:text-amber">Primary</span>}
+                              </span>
+                              <span className="text-xs text-stone-500 dark:text-gray-400">
+                                {d.type === 'central' ? 'Central' : 'School'}{d.code ? ` · ${d.code}` : ''} · {d.granted} permission{d.granted === 1 ? '' : 's'}
+                              </span>
                             </span>
-                          )}
-                          {totalCentralPerms ===
-   0 && totalSchoolPerms ===
-   0 && (
-                            <span className="text-xs text-gray-400">No permissions</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openRoleAssignmentModal(user)}
-                            className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm flex items-center gap-1"
-                          >
-                            <Shield className="h-4 w-4" />
-                            Assign Roles
-                          </button>
-                          <button
-                            onClick={() => openUserPermissionModal(user)}
-                            className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm flex items-center gap-1"
-                          >
-                            <Settings className="h-4 w-4" />
-                            Manage
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            <button
+                              onClick={() => handleRevokeUserPermissions(focusedUser.id, d.deptId, d.type)}
+                              className="rounded-md px-2 py-1 text-xs font-medium text-stone-500 hover:bg-red-50 hover:text-red-700 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-300"
+                            >
+                              Revoke
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </section>
         </div>
       )}
 
-      {/* ============================================
-   */}
-      {/* ROLE TEMPLATES TAB */}
-      {/* ============================================
-   */}
-      {activeTab ===
-   'roles' && (
-        <div className="space-y-6">
-          {/* Create Role Button */}
-          <div className="flex justify-end">
+      {/* ============================================ */}
+      {/* ROLE TEMPLATES: list + detail */}
+      {/* ============================================ */}
+      {activeTab === 'roles' && (
+        roles.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-stone-300 bg-white p-12 text-center dark:border-gray-600 dark:bg-gray-800">
+            <Layers className="mx-auto h-10 w-10 text-stone-300 dark:text-gray-600" />
+            <h3 className="mt-3 text-base font-semibold text-stone-900 dark:text-white">No role templates yet</h3>
+            <p className="mx-auto mt-1 max-w-md text-sm text-stone-500 dark:text-gray-400">
+              A template bundles permissions (for example &ldquo;DRD Reviewer&rdquo;) so the same access can be granted to many people in one step.
+            </p>
             <button
               onClick={() => openRoleModal()}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-wine px-4 text-sm font-medium text-wine-fg hover:bg-wine-dark"
             >
-              <Plus className="h-5 w-5" />
-              Create Role Template
+              <Plus className="h-4 w-4" />
+              Create the first template
             </button>
           </div>
+        ) : (
+          <div className={`grid gap-4 lg:grid-cols-[minmax(280px,340px)_1fr] ${paneHeight}`}>
+            <aside className={`flex min-h-0 flex-col overflow-hidden rounded-xl border border-stone-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${focusedRole ? 'max-lg:hidden' : ''}`}>
+              <div className="border-b border-stone-100 p-3 dark:border-gray-700">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                  <input
+                    type="text"
+                    placeholder="Search templates"
+                    aria-label="Search role templates"
+                    value={roleSearchQuery}
+                    onChange={e => setRoleSearchQuery(e.target.value)}
+                    className="h-9 w-full rounded-lg border border-stone-200 bg-stone-50 pl-9 pr-3 text-sm text-stone-800 outline-none focus:border-wine focus:bg-white focus:ring-2 focus:ring-wine/15 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                  />
+                </div>
+              </div>
+              <ul className="min-h-0 flex-1 overflow-y-auto" role="listbox" aria-label="Role templates">
+                {filteredRoles.length === 0 && (
+                  <li className="px-4 py-10 text-center text-sm text-stone-500 dark:text-gray-400">No templates match.</li>
+                )}
+                {filteredRoles.map(role => {
+                  const active = role.id === focusedRoleId;
+                  const count = roleUserCounts[role.id] || 0;
+                  return (
+                    <li key={role.id}>
+                      <button
+                        role="option"
+                        aria-selected={active}
+                        onClick={() => setFocusedRoleId(role.id)}
+                        className={`flex w-full items-center gap-3 border-l-2 px-3 py-2.5 text-left transition-colors ${
+                          active ? 'border-wine bg-wine/5 dark:border-amber dark:bg-wine/20' : 'border-transparent hover:bg-stone-50 dark:hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${role.isActive ? 'bg-emerald-500' : 'bg-stone-300 dark:bg-gray-600'}`} title={role.isActive ? 'Active' : 'Inactive'} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-stone-900 dark:text-white">{role.name}</span>
+                          <span className="block truncate text-xs text-stone-500 dark:text-gray-400">
+                            {role.requiresDepartmentAssignment ? 'Department-scoped' : 'University-wide'}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs tabular-nums text-stone-500 dark:text-gray-400" title={`${count} people`}>
+                          <Users className="mr-1 inline h-3.5 w-3.5" />{count}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </aside>
 
-          {/* Role Cards */}
-          {roles.length ===
-   0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
-              <Layers className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Role Templates</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Create role templates to quickly assign permissions to users.
-              </p>
-              <button
-                onClick={() => openRoleModal()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              >
-                <Plus className="h-5 w-5" />
-                Create First Role
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {roles.map(role => {
-                const permCount = getPermissionCount(role);
+            <section className={`min-h-0 overflow-y-auto rounded-xl border border-stone-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${focusedRole ? '' : 'max-lg:hidden'}`}>
+              {!focusedRole ? (
+                <div className="flex h-full min-h-[360px] flex-col items-center justify-center px-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-wine/10 text-wine dark:bg-wine/30 dark:text-amber">
+                    <Layers className="h-6 w-6" />
+                  </div>
+                  <h2 className="mt-4 text-base font-semibold text-stone-900 dark:text-white">Select a template</h2>
+                  <p className="mt-1 max-w-sm text-sm text-stone-500 dark:text-gray-400">See what a template grants and who holds it.</p>
+                </div>
+              ) : (() => {
+                const permCount = getPermissionCount(focusedRole);
+                const total = permCount.central + permCount.school + permCount.blocks;
+                const members = users.filter(u => u.assignedRoleIds?.includes(focusedRole.id));
                 return (
-                  <div
-                    key={role.id}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow"
-                  >
-                    <div className="p-5">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${role.isActive ? 'bg-primary-100 dark:bg-primary-900' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                            <Shield className={`h-5 w-5 ${role.isActive ? 'text-primary-600' : 'text-gray-400'}`} />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">{role.name}</h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              role.isActive 
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                            }`}>
-                              {role.isActive ? 'Active' : 'Inactive'}
+                  <div>
+                    <div className="border-b border-stone-100 p-5 dark:border-gray-700">
+                      <button
+                        onClick={() => setFocusedRoleId(null)}
+                        className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-800 dark:text-gray-400 lg:hidden"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5 rotate-90" /> All templates
+                      </button>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-lg font-semibold text-stone-900 dark:text-white">{focusedRole.name}</h2>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${focusedRole.isActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-stone-100 text-stone-600 dark:bg-gray-700 dark:text-gray-300'}`}>
+                              {focusedRole.isActive ? <Check className="h-3 w-3" /> : null}
+                              {focusedRole.isActive ? 'Active' : 'Inactive'}
                             </span>
                           </div>
+                          <p className="mt-1 text-sm text-stone-500 dark:text-gray-400">
+                            {focusedRole.description || 'No description.'}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex shrink-0 gap-2">
                           <button
-                            onClick={() => handleDuplicateRole(role)}
-                            className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            onClick={() => openRoleModal(focusedRole)}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-wine px-3.5 text-sm font-medium text-wine-fg hover:bg-wine-dark"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDuplicateRole(focusedRole)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                             title="Duplicate"
+                            aria-label={`Duplicate ${focusedRole.name}`}
                           >
                             <Copy className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => openRoleModal(role)}
-                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                            title="Edit"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteRole(role)}
-                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            onClick={() => handleDeleteRole(focusedRole)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-red-900/30 dark:hover:text-red-300"
                             title="Delete"
+                            aria-label={`Delete ${focusedRole.name}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
+                    </div>
 
-                      {role.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                          {role.description}
-                        </p>
-                      )}
-
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        <Users className="h-4 w-4" />
-                        <span>
-                          {role.requiresDepartmentAssignment 
-                            ? 'Requires department' 
-                            : 'University-wide'}
-                        </span>
-                      </div>
-
-                      <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Permissions:</span>
-                          <div className="flex items-center gap-3">
-                            {permCount.central > 0 && (
-                              <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
-                                <Building2 className="h-4 w-4" />
-                                {permCount.central}
-                              </span>
-                            )}
-                            {permCount.school > 0 && (
-                              <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                                <Briefcase className="h-4 w-4" />
-                                {permCount.school}
-                              </span>
-                            )}
-                          </div>
+                    <dl className="grid grid-cols-2 border-b border-stone-100 dark:border-gray-700 sm:grid-cols-4">
+                      {[
+                        { label: 'People', value: members.length },
+                        { label: 'Central permissions', value: permCount.central },
+                        { label: 'School permissions', value: permCount.school },
+                        { label: 'Scope', value: focusedRole.requiresDepartmentAssignment ? 'Department' : 'University' },
+                      ].map((s, i) => (
+                        <div key={s.label} className={`px-5 py-4 ${i > 0 ? 'sm:border-l' : ''} ${i % 2 ? 'border-l' : ''} ${i >= 2 ? 'max-sm:border-t' : ''} border-stone-100 dark:border-gray-700`}>
+                          <dt className="text-xs text-stone-500 dark:text-gray-400">{s.label}</dt>
+                          <dd className="mt-0.5 text-lg font-semibold tabular-nums text-stone-900 dark:text-white">{s.value}</dd>
                         </div>
-                      </div>
+                      ))}
+                    </dl>
+                    {total === 0 && (
+                      <p className="mx-5 mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                        This template grants no permissions yet. Edit it to add some.
+                      </p>
+                    )}
+
+                    <div className="p-5">
+                      <h3 className="text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-gray-400">Who holds it</h3>
+                      {members.length === 0 ? (
+                        <p className="mt-2 text-sm text-stone-500 dark:text-gray-400">Nobody yet. Assign it from a person&apos;s profile under People.</p>
+                      ) : (
+                        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {members.map(member => {
+                            const memberName = getDisplayName(member);
+                            return (
+                              <li key={member.id}>
+                                <button
+                                  onClick={() => { setActiveTab('users'); setFocusedUserId(member.id); }}
+                                  className="flex w-full items-center gap-3 rounded-lg border border-stone-200 px-3 py-2 text-left hover:border-stone-300 hover:bg-stone-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+                                >
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-700 dark:bg-gray-700 dark:text-gray-200">
+                                    {getInitials(memberName)}
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-sm font-medium text-stone-900 dark:text-white">{memberName}</span>
+                                    <span className="block truncate text-xs text-stone-500 dark:text-gray-400">{member.employeeDetails?.designation || member.email}</span>
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-        </div>
+              })()}
+            </section>
+          </div>
+        )
       )}
 
       {/* ============================================
@@ -2328,7 +2556,7 @@ export default function UserRoleManagement() {
                   onClick={handleSaveUserPermissions}
                   disabled={Object.keys(allDepartmentPermissions).length ===
    0}
-                  className="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+                  className="px-5 py-2.5 bg-primary-600 text-wine-fg rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
                 >
                   <Check className="h-5 w-5" />
                   Save Permissions
@@ -3024,7 +3252,7 @@ export default function UserRoleManagement() {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2 font-medium"
+                    className="px-5 py-2.5 bg-primary-600 text-wine-fg rounded-lg hover:bg-primary-700 flex items-center gap-2 font-medium"
                   >
                     <Check className="h-5 w-5" />
                     {editingRole ? 'Update Role' : 'Create Role'}
@@ -3074,7 +3302,7 @@ export default function UserRoleManagement() {
               <div className="p-6 max-h-[calc(100vh-250px)] overflow-y-auto">
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Select role templates to assign to this user. Selected roles will define the user's base permissions.
+                    Select role templates to assign to this user. Selected roles will define the user&apos;s base permissions.
                   </p>
 
                   {/* Role Selection */}

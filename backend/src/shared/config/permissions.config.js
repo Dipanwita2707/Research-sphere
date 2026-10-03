@@ -1067,3 +1067,43 @@ Object.assign(module.exports, {
     return role === 'admin' || role === 'superadmin' ? { ...defaults, dpdp_manage: true } : defaults;
   },
 });
+
+// ====================================
+// Research incentive payouts (finance)
+// Appended block, same pattern as DPDP. Tenant admin holds all of them by default;
+// separation of duties (recommender/preparer ≠ approver) is enforced per action.
+// ====================================
+const FINANCE_PAYOUT_PERMISSIONS = {
+  FINANCE_PAYOUTS: {
+    category: 'Research Incentive Payouts',
+    permissions: {
+      finance_view: { key: 'finance_view', label: 'View Incentive Payouts & Budget', description: 'Finance dashboard, payout lines, batches and the research budget' },
+      finance_review: { key: 'finance_review', label: 'Verify & Recommend Payouts', description: 'Recommend, hold, adjust or cancel payout lines; prepare batches; record payment' },
+      finance_approve: { key: 'finance_approve', label: 'Approve Payment Batches', description: 'Approve batches prepared and recommended by someone else' },
+      finance_budget_manage: { key: 'finance_budget_manage', label: 'Manage Research Budget & Cycles', description: 'Create incentive cycles, set each cycle\'s research budget and distribute it to schools and departments' },
+    },
+  },
+};
+const ALL_FINANCE_PAYOUT_PERMISSION_KEYS = Object.values(FINANCE_PAYOUT_PERMISSIONS).flatMap((c) => Object.keys(c.permissions));
+ALL_PERMISSION_KEYS.push(...ALL_FINANCE_PAYOUT_PERMISSION_KEYS);
+
+const _getPermissionsForUIBeforeFinance = module.exports.getPermissionsForUI;
+const _getDefaultPermissionsBeforeFinance = module.exports.getDefaultPermissions;
+Object.assign(module.exports, {
+  FINANCE_PAYOUT_PERMISSIONS,
+  ALL_FINANCE_PAYOUT_PERMISSION_KEYS,
+  getPermissionsForUI: () => [
+    ..._getPermissionsForUIBeforeFinance(),
+    ...Object.entries(FINANCE_PAYOUT_PERMISSIONS).map(([groupKey, group]) => ({
+      groupKey,
+      category: group.category,
+      permissions: Object.values(group.permissions),
+    })),
+  ],
+  getDefaultPermissions: (role) => {
+    const defaults = _getDefaultPermissionsBeforeFinance(role);
+    return role === 'admin' || role === 'superadmin'
+      ? { ...defaults, finance_view: true, finance_review: true, finance_approve: true, finance_budget_manage: true }
+      : defaults;
+  },
+});

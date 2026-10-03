@@ -25,6 +25,7 @@ import { researchService, ResearchContribution, ResearchPublicationType } from '
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
+import UgcCareFields, { UgcCareGroupValue, UgcCareListedValue, toUgcCareListedValue, ugcCarePayload } from '@/features/research-management/components/UgcCareFields';
 import { logger } from '@/shared/utils/logger';
 
 interface EditSuggestion {
@@ -77,6 +78,8 @@ export default function EditContributionPage() {
     isInterdisciplinary: 'yes' as 'yes' | 'no',
     hasLpuStudents: 'yes' as 'yes' | 'no',
     journalName: '',
+    ugcCareListed: '' as UgcCareListedValue,
+    ugcCareGroup: '' as UgcCareGroupValue,
     sdgGoals: [] as string[],
     weblink: '',
     paperweblink: '',
@@ -175,6 +178,10 @@ export default function EditContributionPage() {
           isInterdisciplinary: response.data.interdisciplinaryFromSgt ? 'yes' : 'no',
           hasLpuStudents: response.data.studentsFromSgt ? 'yes' : 'no',
           journalName: response.data.journalName || '',
+          ugcCareListed: toUgcCareListedValue((response.data as any).ugcCareListed),
+          ugcCareGroup: (response.data as any).ugcCareListed === true && ['group_1', 'group_2'].includes((response.data as any).ugcCareGroup)
+            ? (response.data as any).ugcCareGroup as UgcCareGroupValue
+            : '',
           sdgGoals: sdgArray,
           weblink: (response.data as any).weblink || response.data.publisherName || '',
           paperweblink: (response.data as any).paperweblink || '',
@@ -457,6 +464,7 @@ export default function EditContributionPage() {
       publisherLocation: formData.publisherLocation || undefined,
       publicationDate: formData.publicationDate ? new Date(formData.publicationDate).toISOString() : undefined,
       publicationStatus: formData.publicationStatus || undefined,
+      ...(contribution?.publicationType === 'research_paper' ? ugcCarePayload(formData.ugcCareListed, formData.ugcCareGroup, formData.indexingCategories) : {}),
     };
 
     // Add book-specific fields if it's a book or book_chapter
@@ -591,7 +599,7 @@ export default function EditContributionPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#7d1a34]" />
+        <Loader2 className="w-8 h-8 animate-spin text-wine" />
       </div>
     );
   }
@@ -602,7 +610,7 @@ export default function EditContributionPage() {
         <div className="text-center">
           <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Contribution not found</h2>
-          <Link href="/research/my-contributions" className="text-[#7d1a34] hover:underline">Back to My Contributions</Link>
+          <Link href="/research/my-contributions" className="text-wine hover:underline">Back to My Contributions</Link>
         </div>
       </div>
     );
@@ -631,7 +639,7 @@ export default function EditContributionPage() {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                 Save Draft
               </button>
-              <button onClick={handleSaveAndResubmit} disabled={submitting || pendingSuggestions.length > 0} className="flex items-center px-4 py-2 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50">
+              <button onClick={handleSaveAndResubmit} disabled={submitting || pendingSuggestions.length > 0} className="flex items-center px-4 py-2 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark disabled:opacity-50">
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                 Save & Resubmit
               </button>
@@ -663,7 +671,7 @@ export default function EditContributionPage() {
               <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold text-green-900">All Suggestions Resolved</h3>
-                <p className="text-sm text-green-700 mt-1">Make any additional changes if needed, then click "Save & Resubmit".</p>
+                <p className="text-sm text-green-700 mt-1">Make any additional changes if needed, then click &quot;Save & Resubmit&quot;.</p>
               </div>
             </div>
           </div>
@@ -674,7 +682,7 @@ export default function EditContributionPage() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Publication Type Badge */}
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-[#7d1a34] rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-wine rounded-lg flex items-center justify-center">
             <PubTypeIcon className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -696,7 +704,7 @@ export default function EditContributionPage() {
               name="title" 
               value={formData.title} 
               onChange={handleInputChange} 
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
               placeholder="Enter publication title" 
             />
             {renderSuggestionCard('title')}
@@ -725,7 +733,7 @@ export default function EditContributionPage() {
                         checked={formData.targetedResearchType ===
    v} 
                         onChange={handleInputChange} 
-                        className="w-4 h-4 text-[#7d1a34] border-gray-300 focus:ring-[#7d1a34]" 
+                        className="w-4 h-4 text-wine border-gray-300 focus:ring-wine" 
                       />
                       <span className="ml-2 text-sm text-gray-700">{l}</span>
                     </label>
@@ -753,7 +761,7 @@ export default function EditContributionPage() {
                     { value: 'ugc', label: 'UGC' },
                     { value: 'naas_rating_6_plus', label: 'NAAS (Rating ≥ 6)' },
                     { value: 'abdc_scopus_wos', label: 'ABDC Journals (SCOPUS/WOS)' },
-                    { value: 'sgtu_in_house', label: 'ResearchSphere In-House Journal' },
+                    { value: 'sgtu_in_house', label: 'University In-House Journal' },
                     { value: 'case_centre_uk', label: 'The Case Centre UK' },
                     { value: 'other_indexed', label: 'Other Indexed Journals' },
                     { value: 'non_indexed_reputed', label: 'Non-Indexed Reputed Journals' }
@@ -768,7 +776,7 @@ export default function EditContributionPage() {
                             : formData.indexingCategories.filter(c => c !== value);
                           handleFieldChange('indexingCategories', newCategories);
                         }}
-                        className="mt-0.5 w-4 h-4 text-[#7d1a34] border-gray-300 rounded focus:ring-[#7d1a34]"
+                        className="mt-0.5 w-4 h-4 text-wine border-gray-300 rounded focus:ring-wine"
                       />
                       <span className="text-sm text-gray-700">{label}</span>
                     </label>
@@ -797,7 +805,7 @@ export default function EditContributionPage() {
                         checked={formData.hasInternationalAuthor ===
    v} 
                         onChange={handleInputChange} 
-                        className="w-4 h-4 text-[#7d1a34] border-gray-300 focus:ring-[#7d1a34]" 
+                        className="w-4 h-4 text-wine border-gray-300 focus:ring-wine" 
                       />
                       <span className="ml-2 text-sm text-gray-700 capitalize">{v}</span>
                     </label>
@@ -818,7 +826,7 @@ export default function EditContributionPage() {
                   value={formData.numForeignUniversities} 
                   onChange={handleInputChange} 
                   min="0" 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                   placeholder="0"
                 />
                 {renderSuggestionCard('foreignCollaborationsCount')}
@@ -838,7 +846,7 @@ export default function EditContributionPage() {
                   </h4>
                   
                   {/* Show which categories require these fields */}
-                  <div className="mb-3 text-xs text-gray-600 bg-[#fdf5ec] p-2 rounded">
+                  <div className="mb-3 text-xs text-gray-600 bg-blush p-2 rounded">
                     Required for: {[
                       formData.indexingCategories.includes('scopus') && 'SCOPUS',
                       formData.indexingCategories.includes('scie_wos') && 'SCIE/SCI (WOS)',
@@ -854,7 +862,7 @@ export default function EditContributionPage() {
                       <div className={`${hasSuggestion('quartile') ? 'ring-2 ring-orange-300 rounded-lg p-3 bg-orange-50' : ''}`}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Quartile <span className="text-red-500">*</span>
-                          <span className="text-xs text-[#7d1a34] ml-1">
+                          <span className="text-xs text-wine ml-1">
                             ({[
                               formData.indexingCategories.includes('scopus') && 'SCOPUS',
                               formData.indexingCategories.includes('abdc_scopus_wos') && 'ABDC'
@@ -879,7 +887,7 @@ export default function EditContributionPage() {
                                 checked={formData.quartile ===
    q.value}
                                 onChange={handleInputChange}
-                                className="w-4 h-4 text-[#7d1a34]"
+                                className="w-4 h-4 text-wine"
                               />
                               <span className="ml-1 text-gray-700">{q.label}</span>
                             </label>
@@ -911,7 +919,7 @@ export default function EditContributionPage() {
                           name="impactFactor" 
                           value={formData.impactFactor} 
                           onChange={handleInputChange}
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] ${
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-wine focus:border-wine ${
                             formData.indexingCategories.includes('subsidiary_if_above_20') && 
                             formData.impactFactor && 
                             parseFloat(formData.impactFactor) <= 20 
@@ -951,7 +959,7 @@ export default function EditContributionPage() {
                           name="sjr" 
                           value={formData.sjr} 
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                           placeholder="e.g. 0.5"
                         />
                         {!formData.sjr && (
@@ -1019,7 +1027,7 @@ export default function EditContributionPage() {
                         checked={formData.isInterdisciplinary ===
    v} 
                         onChange={handleInputChange} 
-                        className="w-4 h-4 text-[#7d1a34] border-gray-300 focus:ring-[#7d1a34]" 
+                        className="w-4 h-4 text-wine border-gray-300 focus:ring-wine" 
                       />
                       <span className="ml-2 text-sm text-gray-700 capitalize">{v}</span>
                     </label>
@@ -1044,7 +1052,7 @@ export default function EditContributionPage() {
                         checked={formData.hasLpuStudents ===
    v} 
                         onChange={handleInputChange} 
-                        className="w-4 h-4 text-[#7d1a34] border-gray-300 focus:ring-[#7d1a34]" 
+                        className="w-4 h-4 text-wine border-gray-300 focus:ring-wine" 
                       />
                       <span className="ml-2 text-sm text-gray-700 capitalize">{v}</span>
                     </label>
@@ -1064,11 +1072,19 @@ export default function EditContributionPage() {
                   name="journalName" 
                   value={formData.journalName} 
                   onChange={handleInputChange} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                   placeholder="Enter journal name" 
                 />
                 {renderSuggestionCard('journalName')}
               </div>
+
+              {/* UGC-CARE listing (NAAC) */}
+              <UgcCareFields
+                listed={formData.ugcCareListed}
+                group={formData.ugcCareGroup}
+                indexingCategories={formData.indexingCategories}
+                onChange={(ugcCareListed, ugcCareGroup) => setFormData((prev) => ({ ...prev, ugcCareListed, ugcCareGroup }))}
+              />
 
               {/* Weblink */}
               <div className={`${hasSuggestion('weblink') ? 'ring-2 ring-orange-300 rounded-lg p-3 bg-orange-50' : ''}`}>
@@ -1081,7 +1097,7 @@ export default function EditContributionPage() {
                   name="weblink" 
                   value={formData.weblink} 
                   onChange={handleInputChange} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                   placeholder="https://example.com" 
                 />
                 {renderSuggestionCard('weblink')}
@@ -1125,7 +1141,7 @@ export default function EditContributionPage() {
                         { value: 'sdg16', label: 'SDG 16: Peace, Justice and Strong Institutions' },
                         { value: 'sdg17', label: 'SDG 17: Partnerships for the Goals' },
                       ].map((sdg) => (
-                        <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-[#fdf5ec] rounded-lg cursor-pointer transition-colors">
+                        <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-blush rounded-lg cursor-pointer transition-colors">
                           <input
                             type="checkbox"
                             checked={formData.sdgGoals.includes(sdg.value)}
@@ -1138,7 +1154,7 @@ export default function EditContributionPage() {
                                   : prev.sdgGoals.filter(g => g !== sdg.value)
                               }));
                             }}
-                            className="w-4 h-4 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34]"
+                            className="w-4 h-4 text-wine rounded focus:ring-2 focus:ring-wine"
                           />
                           <span className="text-sm">{sdg.label}</span>
                         </label>
@@ -1170,7 +1186,7 @@ export default function EditContributionPage() {
                       ].find(s => s.value ===
    sdgValue);
                       return sdg ? (
-                        <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#fbe2e8] text-[#7d1a34] rounded-full text-sm font-medium">
+                        <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wine-100 text-wine rounded-full text-sm font-medium">
                           {sdg.label.replace('SDG ', '')}
                           <button
                             type="button"
@@ -1178,7 +1194,7 @@ export default function EditContributionPage() {
                               ...prev,
                               sdgGoals: prev.sdgGoals.filter(g => g !== sdgValue)
                             }))}
-                            className="hover:text-[#7d1a34] hover:bg-[#fbe8d6] rounded-full p-0.5 transition-colors"
+                            className="hover:text-wine hover:bg-gold-50 rounded-full p-0.5 transition-colors"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -1202,7 +1218,7 @@ export default function EditContributionPage() {
                     name="issue" 
                     value={formData.issue} 
                     onChange={handleInputChange} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                     placeholder="e.g., 3" 
                   />
                   {renderSuggestionCard('issue')}
@@ -1218,7 +1234,7 @@ export default function EditContributionPage() {
                     name="pageNumbers" 
                     value={formData.pageNumbers} 
                     onChange={handleInputChange} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                     placeholder="e.g., 123-145" 
                   />
                   {renderSuggestionCard('pageNumbers')}
@@ -1237,7 +1253,7 @@ export default function EditContributionPage() {
                     name="doi" 
                     value={formData.doi} 
                     onChange={handleInputChange} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                     placeholder="e.g., 10.1234/example.2024" 
                   />
                   {renderSuggestionCard('doi')}
@@ -1253,7 +1269,7 @@ export default function EditContributionPage() {
                     name="issn" 
                     value={formData.issn} 
                     onChange={handleInputChange} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                     placeholder="e.g., 1234-5678" 
                   />
                   {renderSuggestionCard('issn')}
@@ -1272,7 +1288,7 @@ export default function EditContributionPage() {
                     name="publisherName" 
                     value={formData.publisherName} 
                     onChange={handleInputChange} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                     placeholder="Enter publisher name" 
                   />
                   {renderSuggestionCard('publisherName')}
@@ -1292,7 +1308,7 @@ export default function EditContributionPage() {
                   name="publicationDate" 
                   value={formData.publicationDate} 
                   onChange={handleInputChange} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine" 
                 />
                 {renderSuggestionCard('publicationDate')}
               </div>
@@ -1320,7 +1336,7 @@ export default function EditContributionPage() {
                     name="bookTitle"
                     value={formData.bookTitle}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   />
                   {renderSuggestionCard('bookTitle')}
                 </div>
@@ -1334,7 +1350,7 @@ export default function EditContributionPage() {
                   name="publisherName"
                   value={formData.publisherName}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   required
                 />
                 {renderSuggestionCard('publisherName')}
@@ -1348,7 +1364,7 @@ export default function EditContributionPage() {
                   name="isbn"
                   value={formData.isbn}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   required
                 />
                 {renderSuggestionCard('isbn')}
@@ -1362,7 +1378,7 @@ export default function EditContributionPage() {
                   name="publicationDate"
                   value={formData.publicationDate}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   required
                 />
                 {renderSuggestionCard('publicationDate')}
@@ -1375,7 +1391,7 @@ export default function EditContributionPage() {
                   name="nationalInternational"
                   value={formData.nationalInternational}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   required
                 >
                   <option value="">Select</option>
@@ -1394,7 +1410,7 @@ export default function EditContributionPage() {
                     name="bookPublicationType"
                     value={formData.bookPublicationType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                     required
                   >
                     <option value="">Select</option>
@@ -1412,13 +1428,13 @@ export default function EditContributionPage() {
                   name="bookIndexingType"
                   value={formData.bookIndexingType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   required
                 >
                   <option value="">Select</option>
                   <option value="scopus_indexed">Scopus Indexed</option>
                   <option value="non_indexed">Non-Indexed</option>
-                  <option value="sgt_publication_house">ResearchSphere Publication House</option>
+                  <option value="sgt_publication_house">University Publication House</option>
                 </select>
                 {renderSuggestionCard('bookIndexingType')}
               </div>
@@ -1433,7 +1449,7 @@ export default function EditContributionPage() {
                     name="chapterNumber"
                     value={formData.chapterNumber}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   />
                   {renderSuggestionCard('chapterNumber')}
                 </div>
@@ -1448,7 +1464,7 @@ export default function EditContributionPage() {
                   value={formData.pageNumbers}
                   onChange={handleInputChange}
                   placeholder="e.g., 123-145"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                 />
                 {renderSuggestionCard('pageNumbers')}
               </div>
@@ -1464,7 +1480,7 @@ export default function EditContributionPage() {
                     value={formData.editors}
                     onChange={handleInputChange}
                     placeholder="Editor names"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   />
                   {renderSuggestionCard('editors')}
                 </div>
@@ -1544,7 +1560,7 @@ export default function EditContributionPage() {
                     name="personalEmail"
                     value={formData.personalEmail}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                     required
                   />
                   {renderSuggestionCard('personalEmail')}
@@ -1559,7 +1575,7 @@ export default function EditContributionPage() {
                   value={formData.facultyRemarks}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   placeholder="Any additional remarks..."
                 />
                 {renderSuggestionCard('facultyRemarks')}
@@ -1603,7 +1619,7 @@ export default function EditContributionPage() {
                         { value: 'sdg16', label: 'SDG 16: Peace, Justice and Strong Institutions' },
                         { value: 'sdg17', label: 'SDG 17: Partnerships for the Goals' },
                       ].map((sdg) => (
-                        <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-[#fdf5ec] rounded-lg cursor-pointer transition-colors">
+                        <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-blush rounded-lg cursor-pointer transition-colors">
                           <input
                             type="checkbox"
                             checked={formData.sdgGoals.includes(sdg.value)}
@@ -1616,7 +1632,7 @@ export default function EditContributionPage() {
                                   : prev.sdgGoals.filter(g => g !== sdg.value)
                               }));
                             }}
-                            className="w-4 h-4 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34]"
+                            className="w-4 h-4 text-wine rounded focus:ring-2 focus:ring-wine"
                           />
                           <span className="text-sm">{sdg.label}</span>
                         </label>
@@ -1648,7 +1664,7 @@ export default function EditContributionPage() {
                       ].find(s => s.value ===
    sdgValue);
                       return sdg ? (
-                        <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#fbe2e8] text-[#7d1a34] rounded-full text-sm font-medium">
+                        <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wine-100 text-wine rounded-full text-sm font-medium">
                           {sdg.label.replace('SDG ', '')}
                           <button
                             type="button"
@@ -1656,7 +1672,7 @@ export default function EditContributionPage() {
                               ...prev,
                               sdgGoals: prev.sdgGoals.filter(g => g !== sdgValue)
                             }))}
-                            className="hover:text-[#7d1a34] hover:bg-[#fbe8d6] rounded-full p-0.5 transition-colors"
+                            className="hover:text-wine hover:bg-gold-50 rounded-full p-0.5 transition-colors"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -1685,7 +1701,7 @@ export default function EditContributionPage() {
                   name="conferenceSubType"
                   value={formData.conferenceSubType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine disabled:bg-gray-100 disabled:cursor-not-allowed"
                   disabled
                   required
                 >
@@ -1707,7 +1723,7 @@ export default function EditContributionPage() {
                   name="conferenceName"
                   value={formData.conferenceName}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                   placeholder="Enter conference name"
                   required
                 />
@@ -1723,7 +1739,7 @@ export default function EditContributionPage() {
                       name="conferenceType"
                       value={formData.conferenceType}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       required
                     >
                       <option value="">Select</option>
@@ -1740,7 +1756,7 @@ export default function EditContributionPage() {
                       name="proceedingsTitle"
                       value={formData.proceedingsTitle}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="Enter proceedings title"
                     />
                     {renderSuggestionCard('proceedingsTitle')}
@@ -1754,7 +1770,7 @@ export default function EditContributionPage() {
                         name="proceedingsQuartile"
                         value={formData.proceedingsQuartile}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                         required
                       >
                         <option value="na">NA</option>
@@ -1776,7 +1792,7 @@ export default function EditContributionPage() {
                       onChange={handleInputChange}
                       min="1"
                       max="2"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                     />
                     {renderSuggestionCard('totalPresenters')}
                   </div>
@@ -2100,7 +2116,7 @@ export default function EditContributionPage() {
                         name="personalEmail"
                         value={formData.personalEmail}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                         required
                       />
                       {renderSuggestionCard('personalEmail')}
@@ -2114,7 +2130,7 @@ export default function EditContributionPage() {
                       name="conferenceDate"
                       value={formData.conferenceDate}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                     />
                     {renderSuggestionCard('conferenceDate')}
                   </div>
@@ -2126,7 +2142,7 @@ export default function EditContributionPage() {
                       name="publicationDate"
                       value={formData.publicationDate}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       required
                     />
                     {renderSuggestionCard('publicationDate')}
@@ -2139,7 +2155,7 @@ export default function EditContributionPage() {
                       name="issnIsbnIssueNo"
                       value={formData.issnIsbnIssueNo}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="Enter ISSN/ISBN/Issue No"
                     />
                     {renderSuggestionCard('issnIsbnIssueNo')}
@@ -2152,7 +2168,7 @@ export default function EditContributionPage() {
                       name="pageNumbers"
                       value={formData.pageNumbers}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="e.g. 100-125"
                     />
                     {renderSuggestionCard('pageNumbers')}
@@ -2165,7 +2181,7 @@ export default function EditContributionPage() {
                       name="paperDoi"
                       value={formData.paperDoi}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="Enter DOI"
                     />
                     {renderSuggestionCard('paperDoi')}
@@ -2178,7 +2194,7 @@ export default function EditContributionPage() {
                       name="weblink"
                       value={formData.weblink}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="https://..."
                     />
                     {renderSuggestionCard('weblink')}
@@ -2191,7 +2207,7 @@ export default function EditContributionPage() {
                       name="paperweblink"
                       value={formData.paperweblink}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="https://..."
                     />
                     {renderSuggestionCard('paperweblink')}
@@ -2204,7 +2220,7 @@ export default function EditContributionPage() {
                       name="priorityFundingArea"
                       value={formData.priorityFundingArea}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="Enter priority funding area"
                     />
                     {renderSuggestionCard('priorityFundingArea')}
@@ -2217,7 +2233,7 @@ export default function EditContributionPage() {
                       value={formData.facultyRemarks}
                       onChange={handleInputChange}
                       rows={3}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="Please mention the date and venue of conference..."
                     />
                     {renderSuggestionCard('facultyRemarks')}
@@ -2235,7 +2251,7 @@ export default function EditContributionPage() {
                       name="conferenceRole"
                       value={formData.conferenceRole}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="e.g. Keynote Speaker, Session Chair"
                     />
                     {renderSuggestionCard('conferenceRole')}
@@ -2248,7 +2264,7 @@ export default function EditContributionPage() {
                       name="venue"
                       value={formData.venue}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="Enter venue"
                       required
                     />
@@ -2262,7 +2278,7 @@ export default function EditContributionPage() {
                       name="topic"
                       value={formData.topic}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       placeholder="Enter topic"
                       required
                     />
@@ -2276,7 +2292,7 @@ export default function EditContributionPage() {
                       name="conferenceDate"
                       value={formData.conferenceDate}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       required
                     />
                     {renderSuggestionCard('conferenceDate')}
@@ -2321,7 +2337,7 @@ export default function EditContributionPage() {
                         name="eventCategory"
                         value={formData.eventCategory}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                       >
                         <option value="">Select</option>
                         <option value="conference">Conference</option>
@@ -2371,7 +2387,7 @@ export default function EditContributionPage() {
                         { value: 'sdg16', label: 'SDG 16: Peace, Justice and Strong Institutions' },
                         { value: 'sdg17', label: 'SDG 17: Partnerships for the Goals' },
                       ].map((sdg) => (
-                        <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-[#fdf5ec] rounded-lg cursor-pointer transition-colors">
+                        <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-blush rounded-lg cursor-pointer transition-colors">
                           <input
                             type="checkbox"
                             checked={formData.sdgGoals.includes(sdg.value)}
@@ -2384,7 +2400,7 @@ export default function EditContributionPage() {
                                   : prev.sdgGoals.filter(g => g !== sdg.value)
                               }));
                             }}
-                            className="w-4 h-4 text-[#7d1a34] rounded focus:ring-2 focus:ring-[#7d1a34]"
+                            className="w-4 h-4 text-wine rounded focus:ring-2 focus:ring-wine"
                           />
                           <span className="text-sm">{sdg.label}</span>
                         </label>
@@ -2416,7 +2432,7 @@ export default function EditContributionPage() {
                       ].find(s => s.value ===
    sdgValue);
                       return sdg ? (
-                        <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#fbe2e8] text-[#7d1a34] rounded-full text-sm font-medium">
+                        <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wine-100 text-wine rounded-full text-sm font-medium">
                           {sdg.label.replace('SDG ', '')}
                           <button
                             type="button"
@@ -2424,7 +2440,7 @@ export default function EditContributionPage() {
                               ...prev,
                               sdgGoals: prev.sdgGoals.filter(g => g !== sdgValue)
                             }))}
-                            className="hover:text-[#7d1a34] hover:bg-[#fbe8d6] rounded-full p-0.5 transition-colors"
+                            className="hover:text-wine hover:bg-gold-50 rounded-full p-0.5 transition-colors"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -2445,10 +2461,10 @@ export default function EditContributionPage() {
    'grant_proposal' && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Grant Details</h2>
-            <div className="bg-[#fdf5ec] border border-[#f0e2d2] rounded-lg p-4">
+            <div className="bg-blush border border-blush-line rounded-lg p-4">
               <div className="flex items-start space-x-3">
-                <Info className="w-5 h-5 text-[#7d1a34] flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-[#7d1a34]">
+                <Info className="w-5 h-5 text-wine flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-wine">
                   <p className="font-medium">Note:</p>
                   <p className="mt-1">Grant contributions can only be edited through the review suggestions system. If you need to make changes, please contact the reviewer or admin.</p>
                 </div>
@@ -2458,15 +2474,15 @@ export default function EditContributionPage() {
         )}
 
         {/* Info Box */}
-        <div className="bg-[#fdf5ec] border border-[#f0e2d2] rounded-xl p-4">
+        <div className="bg-blush border border-blush-line rounded-xl p-4">
           <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-[#7d1a34] flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-[#7d1a34]">
+            <Info className="w-5 h-5 text-wine flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-wine">
               <p className="font-medium">Editing Tips:</p>
-              <ul className="list-disc list-inside mt-1 space-y-1 text-[#7d1a34]">
+              <ul className="list-disc list-inside mt-1 space-y-1 text-wine">
                 <li>Fields with orange highlighting have reviewer suggestions</li>
-                <li>Click "Apply" to accept a suggestion and auto-fill the field</li>
-                <li>Click "Reject" to dismiss a suggestion and keep your current value</li>
+                <li>Click &quot;Apply&quot; to accept a suggestion and auto-fill the field</li>
+                <li>Click &quot;Reject&quot; to dismiss a suggestion and keep your current value</li>
                 <li>Author information cannot be edited here - contact admin if needed</li>
               </ul>
             </div>
@@ -2490,7 +2506,7 @@ export default function EditContributionPage() {
             <button 
               onClick={handleSaveAndResubmit} 
               disabled={submitting || pendingSuggestions.length > 0} 
-              className="flex items-center px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] disabled:opacity-50 font-medium"
+              className="flex items-center px-6 py-3 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark disabled:opacity-50 font-medium"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
               Save & Resubmit

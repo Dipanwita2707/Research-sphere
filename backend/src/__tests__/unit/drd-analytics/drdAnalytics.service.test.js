@@ -314,3 +314,91 @@ describe('drdAnalytics.service', () => {
     expect(result.extensions.availableCategories).toEqual(['ipr']);
   });
 });
+
+describe('drdAnalytics.service - unassigned scope and cache invalidation', () => {
+  const emptyRow = (permissions) => ({
+    permissions,
+    assignedSchoolIds: [],
+    assignedResearchSchoolIds: [],
+    assignedBookSchoolIds: [],
+    assignedConferenceSchoolIds: [],
+    assignedGrantSchoolIds: [],
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.departmentPermission.findMany.mockResolvedValue([]);
+    prisma.department.findMany.mockResolvedValue([{ id: 'dept-1' }, { id: 'dept-2' }]);
+    prisma.facultySchoolList.findMany.mockResolvedValue([{ id: 'school-1' }, { id: 'school-2' }]);
+    prisma.researchContribution.findMany.mockResolvedValue([]);
+    prisma.iprApplication.findMany.mockResolvedValue([]);
+    prisma.grantApplication.findMany.mockResolvedValue([]);
+  });
+
+  test('applicant_analytics with no school/department assignment is university-wide (same rule as review queues)', async () => {
+    prisma.centralDepartmentPermission.findMany.mockResolvedValue([emptyRow({ applicant_analytics: true })]);
+    const user = {
+      id: 'user-unassigned',
+      role: 'staff',
+      centralDeptPermissions: [{ permissions: { applicant_analytics: true } }],
+      schoolDeptPermissions: [],
+    };
+
+    const result = await service.getApplicantAnalytics(user, {});
+
+    expect(result.meta.scopeApplied.scopeLevel).toBe('university');
+    expect(result.meta.scopeApplied.schoolIds).toEqual(['school-1', 'school-2']);
+    // University-wide query: no "id in []" zero-result filter
+    const where = JSON.stringify(prisma.researchContribution.findMany.mock.calls[0][0].where);
+    expect(where).not.toContain('"in":[]');
+  });
+
+  test('cache.invalidateUser drops the cached analytics scope for that user', async () => {
+    const cache = require('../../../shared/config/redis');
+    const user = {
+      id: 'user-reassigned',
+      role: 'staff',
+      centralDeptPermissions: [{ permissions: { applicant_analytics: true } }],
+      schoolDeptPermissions: [],
+    };
+    prisma.centralDepartmentPermission.findMany.mockResolvedValue([emptyRow({ applicant_analytics: true })]);
+    const before = await service.getApplicantAnalytics(user, {});
+    expect(before.meta.scopeApplied.scopeLevel).toBe('university');
+
+    prisma.centralDepartmentPermission.findMany.mockResolvedValue([
+      { ...emptyRow({ applicant_analytics: true }), assignedSchoolIds: ['school-1'] },
+    ]);
+    await cache.invalidateUser(user.id);
+    const after = await service.getApplicantAnalytics(user, {});
+    expect(after.meta.scopeApplied.schoolIds).toEqual(['school-1']);
+  });
+  test('research category labels name no particular university (multi-tenant)', () => {
+    const labels = Object.values(service.RESEARCH_CATEGORY_LABELS);
+    expect(service.RESEARCH_CATEGORY_LABELS.sgtu_in_house).toBe('University In-House Journal');
+    labels.forEach((label) => expect(label).not.toMatch(/SGT|Shree Guru/i));
+  });
+
+  test('DRD member performance reports decision totals for the overview pipeline card', async () => {
+    const rc = (id) => ({ id, title: id, publicationType: 'research_paper', status: 'approved', submittedAt: new Date(), createdAt: new Date(), schoolId: 's1', departmentId: 'd1', school: { facultyName: 'S', shortName: 'S' }, department: { departmentName: 'D', shortName: 'D' } });
+    const now = new Date();
+    prisma.researchContributionReview.findMany.mockResolvedValue([
+      { id: 'r1', reviewerId: 'rev', decision: 'recommended', reviewedAt: now, createdAt: now, researchContribution: rc('p1') },
+      { id: 'r2', reviewerId: 'rev', decision: 'approved', reviewedAt: now, createdAt: now, researchContribution: rc('p1') },
+      { id: 'r3', reviewerId: 'rev', decision: 'rejected', reviewedAt: now, createdAt: now, researchContribution: rc('p2') },
+    ]);
+    prisma.iprReview.findMany.mockResolvedValue([]);
+    prisma.grantApplicationReview.findMany.mockResolvedValue([]);
+    prisma.researchContribution.findMany.mockResolvedValue([]);
+    prisma.iprApplication.findMany.mockResolvedValue([]);
+    prisma.grantApplication.findMany.mockResolvedValue([]);
+    prisma.userLogin.findMany.mockResolvedValue([{ id: 'rev', uid: '70002', employeeDetails: { displayName: 'Research Reviewer', designation: 'DRD Reviewer' } }]);
+    prisma.centralDepartmentPermission.findMany.mockResolvedValue([]);
+    prisma.departmentPermission.findMany.mockResolvedValue([]);
+    prisma.department.findMany.mockResolvedValue([]);
+    prisma.facultySchoolList.findMany.mockResolvedValue([]);
+
+    const out = await service.getDrdMemberPerformance({ id: 'admin-1', role: 'admin' }, {});
+    expect(out.kpis).toMatchObject({ approvedCount: 2, rejectedCount: 1 });
+  });
+
+});

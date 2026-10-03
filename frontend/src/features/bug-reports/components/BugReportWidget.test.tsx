@@ -66,7 +66,7 @@ describe('BugReportWidget', () => {
       render(<BugReportWidget />);
       
       const button = screen.getByRole('button', { name: /report a bug/i });
-      expect(button).toHaveAttribute('aria-label', 'Report a bug');
+      expect(button).toHaveAttribute('aria-label', 'Report a bug - Opens bug report form');
       expect(button).toHaveAttribute('title', 'Report a bug');
     });
 
@@ -339,7 +339,7 @@ describe('BugReportWidget', () => {
       render(<BugReportWidget />);
       
       const button = screen.getByRole('button', { name: /report a bug/i });
-      expect(button).toHaveAttribute('aria-label', 'Report a bug');
+      expect(button).toHaveAttribute('aria-label', 'Report a bug - Opens bug report form');
     });
 
     it('should have title attribute for tooltip', () => {
@@ -354,7 +354,7 @@ describe('BugReportWidget', () => {
       
       const button = screen.getByRole('button', { name: /report a bug/i });
       expect(button).toBeVisible();
-      expect(button).toHaveAccessibleName('Report a bug');
+      expect(button).toHaveAccessibleName('Report a bug - Opens bug report form');
     });
   });
 

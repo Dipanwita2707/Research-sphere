@@ -47,11 +47,11 @@ export default function PublicPrivacyPage({ universitySlug }: { universitySlug: 
       ) : data ? (
         <article className="space-y-8">
           <header className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-wine/10 text-wine dark:text-amber-400">
+            <div className="p-2.5 rounded-xl bg-wine/10 text-wine dark:text-hi">
               <Lock className="h-6 w-6" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-medium text-wine dark:text-amber-400">{data.universityName}</p>
+              <p className="text-sm font-medium text-wine dark:text-hi">{data.universityName}</p>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
                 {data.notice?.title || 'Privacy notice'}
               </h1>
@@ -108,7 +108,7 @@ export default function PublicPrivacyPage({ universitySlug }: { universitySlug: 
                 {data.dpo.email && (
                   <li className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                    <a className="text-wine dark:text-amber-400 hover:underline break-all" href={`mailto:${data.dpo.email}`}>
+                    <a className="text-wine dark:text-hi hover:underline break-all" href={`mailto:${data.dpo.email}`}>
                       {data.dpo.email}
                     </a>
                   </li>

@@ -12,6 +12,49 @@ const tenantContext = require('../../../shared/tenancy/tenantContext');
 const path = require('path');
 const fs = require('fs').promises;
 
+const envInt = (name, def) => {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : def;
+};
+
+/** Report limits (env-tunable). */
+const reportLimits = () => ({
+  // Detail rows written to the "Detailed Logs" sheet; the summary always covers every log.
+  maxRows: envInt('AUDIT_REPORT_MAX_ROWS', 50000),
+  pageSize: envInt('AUDIT_REPORT_PAGE_SIZE', 5000),
+  // Postgres statement_timeout for each query of the report.
+  statementTimeoutMs: envInt('AUDIT_REPORT_STATEMENT_TIMEOUT_MS', 60000),
+  // Wall-clock budget for loading the whole report.
+  overallTimeoutMs: envInt('AUDIT_REPORT_TIMEOUT_MS', 10 * 60 * 1000),
+});
+
+/** Only the columns the Excel report shows (no JSON payloads such as details/old/new values). */
+const DETAIL_SELECT = {
+  id: true,
+  createdAt: true,
+  actorId: true,
+  action: true,
+  actionType: true,
+  module: true,
+  category: true,
+  severity: true,
+  targetTable: true,
+  targetId: true,
+  requestPath: true,
+  requestMethod: true,
+  responseStatus: true,
+  duration: true,
+  ipAddress: true,
+  errorMessage: true,
+};
+
+class ReportTimeoutError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ReportTimeoutError';
+  }
+}
+
 class AuditReportScheduler {
   constructor() {
     this.jobs = new Map();
@@ -168,6 +211,146 @@ class AuditReportScheduler {
   }
 
   /**
+   * Run fn(tx) in a transaction whose statements Postgres cancels after `ms`
+   * (SET LOCAL statement_timeout), and that Prisma abandons shortly after, so a
+   * stuck query fails fast instead of holding the report for hours.
+   */
+  async withStatementTimeout(fn, ms) {
+    const timeout = Math.max(1000, Math.floor(ms));
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${timeout}`);
+      return fn(tx);
+    }, { maxWait: 10000, timeout: timeout + 5000 });
+  }
+
+  /**
+   * Load what an audit report needs for [startDate, endDate]:
+   *  - statistics aggregated in the database (count / groupBy), covering every log
+   *  - detail rows (only the columns the report shows), keyset-paged, at most `maxRows`
+   *  - when details are truncated, the period's error rows fetched separately so the
+   *    "Errors & Warnings" sheet stays complete (also capped at `maxRows`)
+   * Every query has a statement timeout and the whole load an overall deadline.
+   * @returns {Promise<{ logs, errorLogs, statistics, truncation }>}
+   */
+  async loadReportData(startDate, endDate, limits = reportLimits()) {
+    const started = Date.now();
+    const deadline = started + limits.overallTimeoutMs;
+    const remaining = () => deadline - Date.now();
+    const checkDeadline = (stage) => {
+      if (remaining() <= 0) {
+        throw new ReportTimeoutError(`Audit report data load exceeded ${Math.round(limits.overallTimeoutMs / 1000)} s (${stage})`);
+      }
+    };
+    const run = (fn) => {
+      checkDeadline('before query');
+      return this.withStatementTimeout(fn, Math.min(limits.statementTimeoutMs, remaining()));
+    };
+    const range = { createdAt: { gte: startDate, lte: endDate } };
+
+    const statistics = await run((tx) => auditService.getStatistics(
+      { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+      { db: tx }
+    ));
+
+    // Keyset pagination on (createdAt, id): stable and index-friendly, unlike OFFSET.
+    const pageThrough = async (where, max) => {
+      const out = [];
+      let last = null;
+      while (out.length < max) {
+        const take = Math.min(limits.pageSize, max - out.length);
+        const after = last
+          ? { OR: [{ createdAt: { gt: last.createdAt } }, { createdAt: last.createdAt, id: { gt: last.id } }] }
+          : {};
+        const page = await run((tx) => tx.auditLog.findMany({
+          where: { AND: [where, after] },
+          select: DETAIL_SELECT,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take,
+        }));
+        out.push(...page);
+        if (page.length < take) break;
+        last = page[page.length - 1];
+      }
+      return out;
+    };
+
+    const logs = await pageThrough(range, limits.maxRows);
+    const total = statistics.totalLogs;
+    const truncated = total > logs.length;
+
+    let errorLogs;
+    if (truncated) {
+      errorLogs = await pageThrough(
+        { ...range, OR: [{ severity: { in: ['ERROR', 'CRITICAL'] } }, { responseStatus: { gte: 400 } }] },
+        limits.maxRows
+      );
+    }
+
+    // Actor names, looked up once per distinct actor (the old per-row join loaded the same users
+    // thousands of times). Like the former `include`, this follows the log's actorId as-is.
+    const actorIds = [...new Set([...logs, ...(errorLogs || [])].map((l) => l.actorId).filter(Boolean))];
+    const actors = new Map();
+    for (let i = 0; i < actorIds.length; i += 1000) {
+      const chunk = actorIds.slice(i, i + 1000);
+      const users = await tenantContext.runAsSystem(() => run((tx) => tx.userLogin.findMany({
+        where: { id: { in: chunk } },
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          role: true,
+          employeeDetails: { select: { displayName: true, empId: true, designation: true } },
+        },
+      })));
+      users.forEach((u) => actors.set(u.id, u));
+    }
+    const withActor = (l) => ({ ...l, actor: l.actorId ? actors.get(l.actorId) || null : null });
+
+    return {
+      logs: logs.map(withActor),
+      errorLogs: errorLogs ? errorLogs.map(withActor) : undefined,
+      statistics,
+      truncation: { truncated, shown: logs.length, total, maxRows: limits.maxRows },
+      loadMs: Date.now() - started,
+    };
+  }
+
+  /**
+   * Build the Excel audit report for a period (no email, no history row).
+   * @returns {Promise<{ buffer, statistics, logCount, truncation }>}
+   */
+  async buildReport({ startDate, endDate, limits } = {}) {
+    const data = await this.loadReportData(startDate, endDate, limits);
+    if (data.truncation.truncated) {
+      console.warn(`[REPORT] Audit report truncated: ${data.truncation.shown} of ${data.truncation.total} log entries included`);
+    }
+    const period = {
+      year: startDate.getFullYear(),
+      month: startDate.getMonth() + 1,
+      startDate,
+      endDate,
+      monthName: startDate.toLocaleString('default', { month: 'long' })
+    };
+    const buffer = await excelExportService.generateAuditReport({
+      logs: data.logs,
+      errorLogs: data.errorLogs,
+      truncation: data.truncation,
+      period,
+      statistics: data.statistics
+    });
+    return { buffer, statistics: data.statistics, logCount: data.logs.length, truncation: data.truncation, loadMs: data.loadMs };
+  }
+
+  /** Readable reason for a failed report (timeouts are expected operational failures). */
+  describeReportError(error) {
+    if (error instanceof ReportTimeoutError) return error.message;
+    const text = `${error?.code || ''} ${error?.message || ''}`;
+    if (/57014|statement timeout|canceling statement/i.test(text)) return 'Audit report query timed out (statement_timeout); try a shorter period';
+    if (/P2028|Transaction already closed|transaction.*timeout|expired transaction/i.test(text)) return 'Audit report query timed out; try a shorter period';
+    return error?.message || String(error);
+  }
+
+  /**
    * Get active recipients for audit reports from tenant configuration.
    * No hard-coded university emails — each tenant configures recipients in Admin → Audit.
    */
@@ -236,53 +419,8 @@ class AuditReportScheduler {
         }
       });
 
-      // Get audit data
-      const logs = await prisma.auditLog.findMany({
-        where: {
-          createdAt: {
-            gte: startDate,
-            lte: endDate
-          }
-        },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          actor: {
-            select: {
-              uid: true,
-              email: true,
-              role: true,
-              employeeDetails: {
-                select: {
-                  displayName: true,
-                  empId: true,
-                  designation: true
-                }
-              }
-            }
-          }
-        }
-      });
-
-      // Get statistics
-      const statistics = await auditService.getStatistics({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
-      });
-
-      // Generate Excel report
-      const period = {
-        year: startDate.getFullYear(),
-        month: startDate.getMonth() + 1,
-        startDate,
-        endDate,
-        monthName: startDate.toLocaleString('default', { month: 'long' })
-      };
-
-      const excelBuffer = await excelExportService.generateAuditReport({
-        logs,
-        period,
-        statistics
-      });
+      // Aggregated statistics + capped, paged detail rows, with timeouts
+      const { buffer: excelBuffer, statistics, logCount, truncation } = await this.buildReport({ startDate, endDate });
 
       // Save report file
       const fileName = `audit-report-${reportType}-${startDate.toISOString().split('T')[0]}.xlsx`;
@@ -305,7 +443,7 @@ class AuditReportScheduler {
       await prisma.auditReportHistory.update({
         where: { id: reportHistory.id },
         data: {
-          totalLogs: logs.length,
+          totalLogs: statistics.totalLogs,
           filePath,
           status: emailResult.success ? 'sent' : 'failed',
           errorMsg: emailResult.error || null
@@ -324,26 +462,29 @@ class AuditReportScheduler {
           periodStart: startDate,
           periodEnd: endDate,
           recipientCount: recipientEmails.length,
-          logCount: logs.length,
+          logCount,
+          totalLogs: statistics.totalLogs,
+          truncated: truncation.truncated,
           success: emailResult.success
         }
       });
 
       console.log(`[SUCCESS] ${reportType} audit report sent to ${recipientEmails.length} recipients`);
-      return { success: true, recipientCount: recipientEmails.length, logCount: logs.length };
+      return { success: true, recipientCount: recipientEmails.length, logCount, totalLogs: statistics.totalLogs, truncated: truncation.truncated };
 
     } catch (error) {
-      console.error(`Failed to generate ${reportType} audit report:`, error);
+      const reason = this.describeReportError(error);
+      console.error(`Failed to generate ${reportType} audit report: ${reason}`, error);
 
-      // Update report history with error
+      // Update report history with error (best effort: the DB may be the problem)
       if (reportHistory) {
         await prisma.auditReportHistory.update({
           where: { id: reportHistory.id },
           data: {
             status: 'failed',
-            errorMsg: error.message
+            errorMsg: reason
           }
-        });
+        }).catch((e) => console.error('Failed to record audit report failure:', e.message));
       }
 
       // Log the error
@@ -353,11 +494,11 @@ class AuditReportScheduler {
         module: AuditModule.SYSTEM,
         category: 'report',
         severity: AuditSeverity.ERROR,
-        errorMessage: error.message,
+        errorMessage: reason,
         metadata: { reportType, stack: error.stack }
-      });
+      }).catch(() => {});
 
-      return { success: false, error: error.message };
+      return { success: false, error: reason };
     }
   }
 
@@ -386,57 +527,10 @@ class AuditReportScheduler {
 
       console.log(`[REPORT] Generating on-demand report from ${start.toISOString()} to ${end.toISOString()}`);
 
-      // Get audit data
-      const logs = await prisma.auditLog.findMany({
-        where: {
-          createdAt: {
-            gte: start,
-            lte: end
-          }
-        },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          actor: {
-            select: {
-              uid: true,
-              email: true,
-              role: true,
-              employeeDetails: {
-                select: {
-                  displayName: true,
-                  empId: true,
-                  designation: true
-                }
-              }
-            }
-          }
-        }
-      });
+      // Aggregated statistics + capped, paged detail rows, with timeouts
+      const { buffer: excelBuffer, statistics, logCount, truncation, loadMs } = await this.buildReport({ startDate: start, endDate: end });
 
-      console.log(`[SUCCESS] Found ${logs.length} audit logs for date range`);
-
-      // Get statistics
-      const statistics = await auditService.getStatistics({
-        startDate: start.toISOString(),
-        endDate: end.toISOString()
-      });
-
-      // Generate Excel report
-      const period = {
-        year: start.getFullYear(),
-        month: start.getMonth() + 1,
-        startDate: start,
-        endDate: end,
-        monthName: start.toLocaleString('default', { month: 'long' })
-      };
-
-      const excelBuffer = await excelExportService.generateAuditReport({
-        logs,
-        period,
-        statistics
-      });
-
-      console.log(`[REPORT] Excel report generated with ${logs.length} log entries`);
+      console.log(`[REPORT] Excel report generated with ${logCount} of ${statistics.totalLogs} log entries (data loaded in ${loadMs} ms)`);
 
       // If recipients provided, send email
       if (recipientEmails && recipientEmails.length > 0) {
@@ -451,19 +545,22 @@ class AuditReportScheduler {
           stats: statistics
         });
         
-        console.log(`[SUCCESS] Email sent successfully with ${logs.length} logs for period ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`);
+        console.log(`[SUCCESS] Email sent successfully with ${logCount} logs for period ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`);
       }
 
       return {
         success: true,
         buffer: excelBuffer,
         statistics,
-        logCount: logs.length
+        logCount,
+        totalLogs: statistics.totalLogs,
+        truncated: truncation.truncated
       };
 
     } catch (error) {
-      console.error('Failed to generate on-demand report:', error);
-      return { success: false, error: error.message };
+      const reason = this.describeReportError(error);
+      console.error(`Failed to generate on-demand report: ${reason}`, error);
+      return { success: false, error: reason };
     }
   }
 
@@ -518,4 +615,4 @@ class AuditReportScheduler {
 // Export singleton instance
 const auditReportScheduler = new AuditReportScheduler();
 
-module.exports = { auditReportScheduler };
+module.exports = { auditReportScheduler, AuditReportScheduler, ReportTimeoutError, reportLimits };

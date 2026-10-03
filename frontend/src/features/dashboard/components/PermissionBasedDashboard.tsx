@@ -685,9 +685,9 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
                 <span>Faculty</span>
               </Link>
             )}
-            {(allPermissionKeys.includes('process_incentive') || allPermissionKeys.includes('finance_ipr')) && (
+            {['finance_view', 'finance_review', 'finance_approve', 'finance_budget_manage'].some((k) => allPermissionKeys.includes(k)) && (
               <Link 
-                href="/ipr/finance"
+                href="/finance"
                 className="flex items-center gap-2 p-3 bg-green-50 hover:bg-green-100 rounded-xl text-green-700 transition-colors text-sm font-medium"
               >
                 <DollarSign className="w-4 h-4" />

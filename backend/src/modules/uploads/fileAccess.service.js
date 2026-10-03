@@ -31,6 +31,7 @@
 const fs = require('fs');
 const path = require('path');
 const prisma = require('../../shared/config/database');
+const { contentTypeFor } = require('../../shared/utils/fileTypes');
 
 const BACKEND_ROOT = path.join(__dirname, '..', '..', '..');
 
@@ -48,6 +49,8 @@ const UPLOAD_ROOTS = [
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DENIED_TOP_LEVEL = new Set(['audit-reports']);
+// Upload folders whose files may belong to a DRD item (IPR annexures/prototypes, grant proposals, documents)
+const LINKED_ITEM_FOLDERS = new Set(['ipr', 'grants', 'documents', 'research']);
 const BUG_REPORT_ADMIN_ROLES = new Set(['admin', 'superadmin']);
 
 // Types a browser may render inline; everything else is forced to download.
@@ -122,7 +125,14 @@ async function authorizeUploadPath(segments, req) {
   const ownerId = segments.slice(1, -1).reverse().find((s) => UUID_RE.test(s));
   if (!ownerId) return false;
   const owner = await prisma.userLogin.findFirst({ where: { id: ownerId }, select: { id: true } });
-  return Boolean(owner);
+  if (!owner) return false;
+  // Files attached to an IPR application, grant or research contribution follow that item's
+  // access rule (participants, staff; DRD reviewers only inside their assigned schools).
+  if (ownerId !== user.id && LINKED_ITEM_FOLDERS.has(top)) {
+    const { canReadLinkedFile } = require('../research/services/reviewScope');
+    return canReadLinkedFile(user, segments.join('/'));
+  }
+  return true;
 }
 
 /**
@@ -194,8 +204,10 @@ async function serveUpload(req, res, next) {
       try {
         const { downloadFromS3 } = require('../../shared/utils/s3');
         const result = await downloadFromS3(segments.join('/'));
-        setSafeFileHeaders(res, segments[segments.length - 1]);
-        if (result.contentType) res.setHeader('Content-Type', result.contentType);
+        const fileName = segments[segments.length - 1];
+        setSafeFileHeaders(res, fileName);
+        // Derived from the extension: the stored ContentType is the uploader's claim
+        res.setHeader('Content-Type', contentTypeFor(fileName));
         if (result.contentLength) res.setHeader('Content-Length', result.contentLength);
         return result.stream.pipe(res);
       } catch (_) {
@@ -213,6 +225,7 @@ module.exports = {
   parseUploadPath,
   authorizeUploadPath,
   resolveLocalFile,
+  setSafeFileHeaders,
   sendResolvedFile,
   serveUpload,
 };

@@ -1,11 +1,9 @@
-import React from 'react';
-import ProtectedRoute from '@/shared/providers/ProtectedRoute';
-import FinanceDashboard from '@/features/ipr-management/components/FinanceDashboard';
+import { redirect } from 'next/navigation';
 
-export default function FinancePage() {
-  return (
-    <ProtectedRoute>
-      <FinanceDashboard />
-    </ProtectedRoute>
-  );
+/**
+ * Retired legacy IPR finance review. IPR incentives now become payout lines when DRD publishes
+ * the IPR and are verified and paid in the payout ledger, so old links land there.
+ */
+export default function LegacyFinanceProcessingPage() {
+  redirect('/finance/payouts');
 }

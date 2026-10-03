@@ -243,7 +243,9 @@ async function main() {
   if (!uni) {
     uni = await sys(async () =>
       prisma.university.create({
-        data: { code: DEMO_CODE, name: 'SGT Demo University', slug: 'sgt-demo', contactEmail: `office@${DOMAIN}`, websiteUrl: 'https://example.org', city: 'Gurugram', state: 'Haryana', affiliationAliases: ['SGT Demo University', 'SGT University'], isActive: true },
+        data: { code: DEMO_CODE, name: 'SGT Demo University', slug: 'sgt-demo', contactEmail: `office@${DOMAIN}`, websiteUrl: 'https://example.org', city: 'Gurugram', state: 'Haryana', affiliationAliases: ['SGT Demo University', 'SGT University'], isActive: true,
+          // Branding: the default Classic Wine theme under its own name (see seed-tenant-branding.js)
+          themePreset: 'classic-wine', displayName: 'SGT Demo University', shortName: 'SGT Demo', brandingUpdatedAt: new Date() },
       })
     );
     const start = new Date();
@@ -262,6 +264,14 @@ async function main() {
       where: { universityId_departmentCode: { universityId: U, departmentCode: 'DRD' } },
       update: {},
       create: { universityId: U, departmentCode: 'DRD', departmentName: 'Director of Research and Development', shortName: 'DRD', departmentType: 'drd', isActive: true },
+    })
+  );
+  // Research incentive payout and budget permissions (finance_*) are granted through this department.
+  await sys(async () =>
+    prisma.centralDepartment.upsert({
+      where: { universityId_departmentCode: { universityId: U, departmentCode: 'FINANCE' } },
+      update: {},
+      create: { universityId: U, departmentCode: 'FINANCE', departmentName: 'Finance (Research Incentives)', shortName: 'Finance', departmentType: 'finance', isActive: true },
     })
   );
   const school = {};

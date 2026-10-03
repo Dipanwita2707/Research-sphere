@@ -123,7 +123,7 @@ export default function HelpCenterPage() {
             </div>
           ) : (
             <div className="text-center py-12 text-gray-400">
-              No matching help articles found for "{searchQuery}".
+              No matching help articles found for &quot;{searchQuery}&quot;.
             </div>
           )}
         </section>

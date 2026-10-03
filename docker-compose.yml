@@ -8,7 +8,8 @@ services:
     environment:
       POSTGRES_DB: sgt_ums
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_password
+      # Required: no default credentials (compose refuses to start when unset)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -34,8 +35,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5001
-      DATABASE_URL: postgresql://postgres:postgres_password@database:5432/sgt_ums?schema=public
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@database:5432/sgt_ums?schema=public
+      # Required: no default secret (compose refuses to start when unset; app.config.js
+      # also refuses known placeholder values in production)
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       JWT_EXPIRE: 7d
       JWT_COOKIE_EXPIRE: 7
       FRONTEND_URL: http://localhost:3000

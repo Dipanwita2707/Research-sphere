@@ -6,6 +6,7 @@
 
 const prisma = require('../../../shared/config/database');
 const cache = require('../../../shared/config/redis');
+const { policyWindowWhere } = require('../../research/utils/policyWindow');
 
 /**
  * Get all active schools (cached for 1 hour)
@@ -164,11 +165,8 @@ const getIprPolicy = async (iprType, forceRefresh = false) => {
     cacheKey,
     async () => {
       return await prisma.incentivePolicy.findFirst({
-        where: { 
-          iprType,
-          isActive: true 
-        },
-        orderBy: { createdAt: 'desc' }
+        where: { iprType, ...policyWindowWhere(new Date()) },
+        orderBy: { effectiveFrom: 'desc' }
       });
     },
     cache.CACHE_TTL.POLICIES
@@ -191,11 +189,8 @@ const getResearchPolicy = async (publicationType, forceRefresh = false) => {
     cacheKey,
     async () => {
       return await prisma.researchIncentivePolicy.findFirst({
-        where: { 
-          publicationType,
-          isActive: true 
-        },
-        orderBy: { createdAt: 'desc' }
+        where: { publicationType, ...policyWindowWhere(new Date()) },
+        orderBy: { effectiveFrom: 'desc' }
       });
     },
     cache.CACHE_TTL.POLICIES
@@ -217,14 +212,14 @@ const getConferencePolicy = async (conferenceSubType, forceRefresh = false) => {
   const { data } = await cache.getOrSet(
     cacheKey,
     async () => {
-      const where = { isActive: true };
+      const where = { ...policyWindowWhere(new Date()) };
       if (conferenceSubType) {
         where.conferenceSubType = conferenceSubType;
       }
       
       return await prisma.conferenceIncentivePolicy.findFirst({
         where,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { effectiveFrom: 'desc' }
       });
     },
     cache.CACHE_TTL.POLICIES

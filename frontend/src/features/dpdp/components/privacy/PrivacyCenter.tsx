@@ -32,7 +32,7 @@ export default function PrivacyCenter() {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3">
-        <div className="p-2.5 rounded-xl bg-wine/10 dark:bg-wine/20 text-wine dark:text-amber-400">
+        <div className="p-2.5 rounded-xl bg-wine/10 dark:bg-wine/20 text-wine dark:text-hi">
           <Lock className="h-6 w-6" aria-hidden="true" />
         </div>
         <div>

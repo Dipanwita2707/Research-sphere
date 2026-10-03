@@ -32,7 +32,7 @@ function ResetPasswordForm() {
         </p>
         <Link
           href="/forgot-password"
-          className="inline-flex items-center gap-2 rounded-xl bg-wine px-6 py-3 text-[14.5px] font-semibold text-white transition-colors hover:bg-wine-dark"
+          className="inline-flex items-center gap-2 rounded-xl bg-wine px-6 py-3 text-[14.5px] font-semibold text-wine-fg transition-colors hover:bg-wine-dark"
         >
           Request New Link
         </Link>
@@ -103,7 +103,7 @@ function ResetPasswordForm() {
       </p>
       <Link
         href="/login"
-        className="inline-flex items-center gap-2 rounded-xl bg-wine px-6 py-3 text-[14.5px] font-semibold text-white transition-colors hover:bg-wine-dark"
+        className="inline-flex items-center gap-2 rounded-xl bg-wine px-6 py-3 text-[14.5px] font-semibold text-wine-fg transition-colors hover:bg-wine-dark"
       >
         Go to Login
       </Link>
@@ -212,7 +212,7 @@ function ResetPasswordForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-wine py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-wine-dark disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-wine py-3.5 text-[15px] font-semibold text-wine-fg transition-colors hover:bg-wine-dark disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isLoading ? (
             <>

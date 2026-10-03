@@ -496,11 +496,11 @@ export function ResearchAssistant() {
   const emptyIndex = status.keywords.total === 0;
 
   return (
-    <div className="relative flex h-[calc(100vh-8.5rem)] min-h-[520px] rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm dark:bg-[#171717] dark:border-white/10">
+    <div className="relative flex h-[calc(100vh-11.5rem)] min-h-[520px] rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm dark:bg-[#171717] dark:border-white/10">
       {/* Sidebar */}
       <aside className={`${sidebarOpen ? 'flex' : 'hidden'} absolute inset-y-0 left-0 z-20 lg:static w-72 shrink-0 flex-col border-r border-slate-200 bg-slate-50/80 backdrop-blur dark:bg-[#131313] dark:border-white/10`}>
         <div className="p-3 flex items-center gap-2">
-          <button type="button" onClick={newChat} disabled={!!live} className="flex-1 inline-flex items-center justify-center gap-2 h-9 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-60">
+          <button type="button" onClick={newChat} disabled={!!live} className="flex-1 inline-flex items-center justify-center gap-2 h-9 rounded-lg bg-brand-600 text-wine-fg text-sm font-medium hover:bg-brand-700 disabled:opacity-60">
             <MessageSquarePlus className="w-4 h-4" /> New chat
           </button>
           <button type="button" onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg text-slate-500 hover:bg-slate-200/70 dark:hover:bg-white/10" title="Hide sidebar">
@@ -713,7 +713,7 @@ export function ResearchAssistant() {
                 <Square className="w-3.5 h-3.5 fill-current" />
               </button>
             ) : (
-              <button type="submit" disabled={!input.trim()} className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-xl bg-brand-600 text-white hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-white/10" title="Send">
+              <button type="submit" disabled={!input.trim()} className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-xl bg-brand-600 text-wine-fg hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-white/10" title="Send">
                 <ArrowUp className="w-4 h-4" />
               </button>
             )}

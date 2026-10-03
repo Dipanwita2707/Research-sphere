@@ -65,7 +65,7 @@ export default function GrantApplyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-blush dark:bg-gray-900 p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="h-8 w-64 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
           <div className="h-4 w-80 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
@@ -85,7 +85,7 @@ export default function GrantApplyPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-blush dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold dark:text-white mb-2">Authentication Required</h2>
@@ -100,7 +100,7 @@ export default function GrantApplyPage() {
 
   if (!canFileResearch) {
     return (
-      <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-blush dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold dark:text-white mb-2">Access Restricted</h2>
@@ -117,12 +117,12 @@ export default function GrantApplyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fdf5ec] dark:bg-gray-900">
+    <div className="min-h-screen bg-blush dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-6 py-6">
         {/* Back Button */}
         <Link 
           href="/research/apply" 
-          className="inline-flex items-center gap-2 px-4 py-2 border border-[#f0e2d2] rounded-xl bg-white text-sm font-semibold text-gray-700 hover:text-[#7d1a34] hover:bg-[#fbe2e8]/20 shadow-sm transition-all duration-200 mb-6"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-blush-line rounded-xl bg-white text-sm font-semibold text-gray-700 hover:text-wine hover:bg-wine-100/20 shadow-sm transition-all duration-200 mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Research Types

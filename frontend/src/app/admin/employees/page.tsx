@@ -380,13 +380,19 @@ export default function EmployeeManagement() {
 
   const handleDelete = async (employee: Employee) => {
     const name = employee.employeeDetails?.displayName || employee.uid;
-    if (!confirm(`Are you sure you want to delete "${name}"? This will remove the employee and their login. This action cannot be undone.`)) {
+    if (!confirm(`Remove "${name}"?
+
+If they have research, IPR or grant records, the account is deactivated and every record is kept. Otherwise the account is permanently deleted.`)) {
       return;
     }
     try {
       setDeletingId(employee.id);
-      await api.delete(`/employees/${employee.id}`);
-      toast({ type: 'success', message: 'Employee deleted successfully' });
+      const response = await api.delete(`/employees/${employee.id}`);
+      const result = response?.data as { action?: 'deleted' | 'deactivated'; message?: string } | undefined;
+      toast({
+        type: 'success',
+        message: result?.message || (result?.action === 'deactivated' ? 'Employee deactivated' : 'Employee deleted'),
+      });
       fetchEmployees();
     } catch (error: unknown) {
       toast({ type: 'error', message: extractErrorMessage(error) || 'Failed to delete employee' });

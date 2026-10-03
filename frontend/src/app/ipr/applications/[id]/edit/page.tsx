@@ -282,7 +282,7 @@ export default function EditApplicationPage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-[#7d1a34] animate-spin mx-auto" />
+          <Loader2 className="w-12 h-12 text-wine animate-spin mx-auto" />
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading application...</p>
         </div>
       </div>
@@ -300,7 +300,7 @@ export default function EditApplicationPage() {
           <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <Link
             href="/ipr/my-applications"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to My Applications
@@ -331,7 +331,7 @@ export default function EditApplicationPage() {
           </p>
           <Link
             href={`/ipr/applications/${params.id}`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             View Application
@@ -393,38 +393,38 @@ export default function EditApplicationPage() {
           <div className={`mb-6 p-4 rounded-xl border ${
             application.changesRequestedBy.isMentor 
               ? 'bg-purple-50 border-purple-200' 
-              : 'bg-[#fdf5ec] border-[#f0e2d2]'
+              : 'bg-blush border-blush-line'
           }`}>
             <div className="flex items-start gap-3">
               {application.changesRequestedBy.isMentor ? (
                 <GraduationCap className={`w-6 h-6 mt-0.5 text-purple-600`} />
               ) : (
-                <User className={`w-6 h-6 mt-0.5 text-[#7d1a34]`} />
+                <User className={`w-6 h-6 mt-0.5 text-wine`} />
               )}
               <div className="flex-1">
                 <h3 className={`font-semibold ${
-                  application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-[#7d1a34]'
+                  application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-wine'
                 }`}>
                   Changes Requested by {application.changesRequestedBy.isMentor ? 'Mentor' : 'DRD Reviewer'}
                 </h3>
                 <p className={`text-sm mt-1 ${
-                  application.changesRequestedBy.isMentor ? 'text-purple-700' : 'text-[#7d1a34]'
+                  application.changesRequestedBy.isMentor ? 'text-purple-700' : 'text-wine'
                 }`}>
                   <span className="font-medium">{application.changesRequestedBy.name}</span> has requested changes to your application.
                 </p>
                 {application.changesRequestedBy.comments && (
                   <div className={`mt-3 p-3 rounded-lg ${
-                    application.changesRequestedBy.isMentor ? 'bg-purple-100' : 'bg-[#fbe2e8]'
+                    application.changesRequestedBy.isMentor ? 'bg-purple-100' : 'bg-wine-100'
                   }`}>
                     <p className={`text-sm ${
-                      application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-[#7d1a34]'
+                      application.changesRequestedBy.isMentor ? 'text-purple-800' : 'text-wine'
                     }`}>
                       <span className="font-medium">Comments:</span> {application.changesRequestedBy.comments}
                     </p>
                   </div>
                 )}
                 <p className={`text-xs mt-2 ${
-                  application.changesRequestedBy.isMentor ? 'text-purple-600' : 'text-[#7d1a34]'
+                  application.changesRequestedBy.isMentor ? 'text-purple-600' : 'text-wine'
                 }`}>
                   After making changes, click &quot;Save & Resubmit&quot; to send your application back for review.
                 </p>
@@ -462,7 +462,7 @@ export default function EditApplicationPage() {
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
               placeholder="Enter the title of your IPR"
               required
             />
@@ -475,7 +475,7 @@ export default function EditApplicationPage() {
                     {isMentor ? (
                       <GraduationCap className="w-4 h-4 text-purple-600" />
                     ) : (
-                      <User className="w-4 h-4 text-[#7d1a34]" />
+                      <User className="w-4 h-4 text-wine" />
                     )}
                     <span className="text-sm font-medium text-gray-700">
                       {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -522,7 +522,7 @@ export default function EditApplicationPage() {
               value={formData.description}
               onChange={handleInputChange}
               rows={6}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
               placeholder="Describe your invention/work in detail"
               required
             />
@@ -535,7 +535,7 @@ export default function EditApplicationPage() {
                     {isMentor ? (
                       <GraduationCap className="w-4 h-4 text-purple-600" />
                     ) : (
-                      <User className="w-4 h-4 text-[#7d1a34]" />
+                      <User className="w-4 h-4 text-wine" />
                     )}
                     <span className="text-sm font-medium text-gray-700">
                       {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -583,7 +583,7 @@ export default function EditApplicationPage() {
                   name="projectType"
                   value={formData.projectType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                 >
                   <option value="">Select project type</option>
                   <option value="phd">PhD Research</option>
@@ -602,7 +602,7 @@ export default function EditApplicationPage() {
                         {isMentor ? (
                           <GraduationCap className="w-4 h-4 text-purple-600" />
                         ) : (
-                          <User className="w-4 h-4 text-[#7d1a34]" />
+                          <User className="w-4 h-4 text-wine" />
                         )}
                         <span className="text-sm font-medium text-gray-700">
                           {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -646,7 +646,7 @@ export default function EditApplicationPage() {
                   name="filingType"
                   value={formData.filingType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
                 >
                   <option value="">Select filing type</option>
                   <option value="provisional">Provisional</option>
@@ -661,7 +661,7 @@ export default function EditApplicationPage() {
                         {isMentor ? (
                           <GraduationCap className="w-4 h-4 text-purple-600" />
                         ) : (
-                          <User className="w-4 h-4 text-[#7d1a34]" />
+                          <User className="w-4 h-4 text-wine" />
                         )}
                         <span className="text-sm font-medium text-gray-700">
                           {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -713,7 +713,7 @@ export default function EditApplicationPage() {
                   onClick={() => handleSdgToggle(sdg.code)}
                   className={`p-3 rounded-lg border text-left text-sm transition-all ${
                     formData.selectedSdgs.includes(sdg.code)
-                      ? 'bg-[#fdf5ec] border-[#7d1a34] text-[#7d1a34]'
+                      ? 'bg-blush border-wine text-wine'
                       : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
                   }`}
                 >
@@ -734,7 +734,7 @@ export default function EditApplicationPage() {
               value={formData.remarks}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7d1a34] focus:border-[#7d1a34]"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-wine focus:border-wine"
               placeholder="Any additional information or remarks"
             />
             {/* Suggestions for Remarks - Students Only */}
@@ -746,7 +746,7 @@ export default function EditApplicationPage() {
                     {isMentor ? (
                       <GraduationCap className="w-4 h-4 text-purple-600" />
                     ) : (
-                      <User className="w-4 h-4 text-[#7d1a34]" />
+                      <User className="w-4 h-4 text-wine" />
                     )}
                     <span className="text-sm font-medium text-gray-700">
                       {name} {uid && <span className="text-xs text-gray-500 ml-2">({uid})</span>} {isMentor && <span className="text-purple-600 ml-2">(Mentor)</span>}
@@ -786,7 +786,7 @@ export default function EditApplicationPage() {
           {/* Documents Section - allow applicant to update annexure, prototype, supporting docs */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-[#7d1a34]" />
+              <FileText className="w-5 h-5 text-wine" />
               Documents & Attachments
             </h2>
             {/* Show existing Annexure */}
@@ -880,7 +880,7 @@ export default function EditApplicationPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 bg-[#7d1a34] text-white rounded-lg hover:bg-[#5e1024] transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-3 bg-wine text-wine-fg rounded-lg hover:bg-wine-dark transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
             >
               {saving ? (
                 <>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Layers, BookOpen, Award, TrendingUp, ExternalLink, Filter } from 'lucide-react';
 import { researchService } from '@/features/research-management/services/research.service';
+import { isHomeInstitutionAuthor } from '@/features/research-management/utils/homeAuthor';
 
 export default function ResearchSearchPage() {
   const [publications, setPublications] = useState<any[]>([]);
@@ -67,12 +68,12 @@ export default function ResearchSearchPage() {
   const activeDepartments = uniqueDepartments.length;
 
   return (
-    <div className="min-h-screen bg-[#fdf5ec] dark:bg-slate-950">
+    <div className="min-h-screen bg-blush dark:bg-slate-950">
       {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 border-b border-[#f0e2d2] dark:border-slate-800">
+      <div className="bg-white dark:bg-slate-900 border-b border-blush-line dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium tracking-wide uppercase">
-            <Layers className="w-3.5 h-3.5 text-[#7d1a34] dark:text-[#c8973f]" />
+            <Layers className="w-3.5 h-3.5 text-wine dark:text-gold" />
             Research Repository
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight font-serif">University Research Repository</h1>
@@ -84,10 +85,10 @@ export default function ResearchSearchPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
         {/* ── Stats Bar ──────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-slate-900 border border-[#f0e2d2] dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-blush-line dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-200 dark:divide-slate-800">
             {[
-              { icon: BookOpen,  label: 'Approved Publications', value: totalPublications, accent: 'text-[#7d1a34] dark:text-[#c8973f]', bg: 'bg-[#fdf5ec] dark:bg-slate-950/50' },
+              { icon: BookOpen,  label: 'Approved Publications', value: totalPublications, accent: 'text-wine dark:text-gold', bg: 'bg-blush dark:bg-slate-950/50' },
               { icon: Award,     label: 'Total Citations',     value: totalCitations,     accent: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/50' },
               { icon: TrendingUp,label: 'Grants & Funding',    value: grantsCount,        accent: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/50' },
               { icon: Layers,    label: 'Departments',         value: activeDepartments,   accent: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-950/50' },
@@ -109,7 +110,7 @@ export default function ResearchSearchPage() {
         </div>
 
         {/* ── Search & Filter Controls ───────────────────────────── */}
-        <div className="bg-white dark:bg-slate-900 border border-[#f0e2d2] dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-blush-line dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -118,7 +119,7 @@ export default function ResearchSearchPage() {
                 placeholder="Search publications by title, author name, DOI, journal..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-[#7d1a34] dark:focus:border-[#c8973f] text-slate-900 dark:text-white placeholder-slate-400 transition-colors"
+                className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-wine dark:focus:border-gold text-slate-900 dark:text-white placeholder-slate-400 transition-colors"
               />
             </div>
             <div className="flex gap-4 flex-wrap md:flex-nowrap">
@@ -127,7 +128,7 @@ export default function ResearchSearchPage() {
                 <select
                   value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
-                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#7d1a34] dark:focus:border-[#c8973f] transition-colors"
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-wine dark:focus:border-gold transition-colors"
                 >
                   <option value="all">All Categories</option>
                   <option value="research_paper">Research Papers</option>
@@ -141,7 +142,7 @@ export default function ResearchSearchPage() {
               <select
                 value={selectedDepartment}
                 onChange={e => setSelectedDepartment(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#7d1a34] dark:focus:border-[#c8973f] transition-colors max-w-[200px]"
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-wine dark:focus:border-gold transition-colors max-w-[200px]"
               >
                 <option value="all">All Departments</option>
                 {uniqueDepartments.map(dept => (
@@ -153,7 +154,7 @@ export default function ResearchSearchPage() {
         </div>
 
         {/* ── Repository Results List ────────────────────────────── */}
-        <div className="bg-white dark:bg-slate-900 border border-[#f0e2d2] dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-blush-line dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
             <div>
               <h2 className="text-base font-semibold text-slate-900 dark:text-white font-serif">Approved Research Repository Items</h2>
@@ -170,7 +171,7 @@ export default function ResearchSearchPage() {
           ) : filteredPublications.length > 0 ? (
             <div className="divide-y divide-slate-100 dark:divide-slate-800 p-6 space-y-4">
               {filteredPublications.map(pub => (
-                <div key={pub.id} className="bg-slate-50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800 rounded-xl p-5 hover:shadow-md hover:border-[#f0e2d2] dark:hover:border-[#5e1024] transition-all duration-200">
+                <div key={pub.id} className="bg-slate-50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800 rounded-xl p-5 hover:shadow-md hover:border-blush-line dark:hover:border-wine-dark transition-all duration-200">
                   <div className="flex flex-wrap gap-2 items-center mb-3">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase ${
                       pub.publicationType === 'research_paper' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
@@ -200,7 +201,7 @@ export default function ResearchSearchPage() {
                     {pub.authors && pub.authors.length > 0 ? (
                       pub.authors.map((author: any, idx: number) => (
                         <span key={author.id}>
-                          <span className={author.affiliation?.toLowerCase().includes('sgt') || author.affiliation?.toLowerCase().includes('researchsphere') ? 'text-[#7d1a34] dark:text-[#c8973f] font-semibold' : ''}>
+                          <span className={isHomeInstitutionAuthor(author) ? 'text-wine dark:text-gold font-semibold' : ''}>
                             {author.name}
                           </span>
                           {idx < pub.authors.length - 1 ? ', ' : ''}
@@ -246,7 +247,7 @@ export default function ResearchSearchPage() {
                             href={pub.doi.startsWith('http') ? pub.doi : `https://doi.org/${pub.doi}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[#7d1a34] dark:text-[#c8973f] hover:underline"
+                            className="inline-flex items-center gap-1 text-wine dark:text-gold hover:underline"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                             DOI / Reference

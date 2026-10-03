@@ -7,27 +7,32 @@ import {
   drdAnalyticsService,
   type ReviewerDetailResponse,
 } from '@/features/ipr-management/services/drdAnalytics.service';
-import { KpiCardGrid, ExportActions, TrendChartPanel, AnalyticsBarChart } from '@/components/analytics';
+import {
+  AnalyticsHero,
+  AnalyticsShell,
+  ExportActions,
+  KpiCardGrid,
+  TrendChartPanel,
+} from '@/components/analytics';
+import { categoryColor, seriesColors, ui } from '@/components/analytics/theme';
 import {
   AlertCircle,
-  ArrowLeft,
-  BarChart3,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   Clock,
   FileText,
-  Layers,
   Printer,
   RefreshCw,
   TrendingDown,
+  UserRound,
   XCircle,
 } from 'lucide-react';
 import { logger } from '@/shared/utils/logger';
 
 function is403(err: unknown): boolean {
-  if (err && typeof err ===
-   'object' && 'response' in err) {
-    return (err as { response?: { status?: number } }).response?.status ===
-   403;
+  if (err && typeof err === 'object' && 'response' in err) {
+    return (err as { response?: { status?: number } }).response?.status === 403;
   }
   return false;
 }
@@ -42,13 +47,23 @@ function fmtHours(hrs: number | null | undefined) {
 function statusBadge(status: string) {
   switch (status?.toLowerCase()) {
     case 'approved':
-      return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-full"><CheckCircle2 className="w-3 h-3" /> Approved</span>;
+      return <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"><CheckCircle2 className="h-3 w-3" /> Approved</span>;
     case 'rejected':
-      return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-red-50 text-red-600 rounded-full"><XCircle className="w-3 h-3" /> Rejected</span>;
+      return <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"><XCircle className="h-3 w-3" /> Rejected</span>;
     default:
-      return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-amber-50 text-amber-700 rounded-full"><Clock className="w-3 h-3" /> {status}</span>;
+      return <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium capitalize text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"><Clock className="h-3 w-3" /> {status?.replace(/_/g, ' ') || 'Pending'}</span>;
   }
 }
+
+/** Turnaround state: under a day is fast, under three days needs watching, beyond that is slow. */
+function turnaroundStatus(hrs: number | null | undefined) {
+  if (hrs == null) return null;
+  if (hrs < 24) return { label: 'Fast', cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' };
+  if (hrs < 72) return { label: 'Watch', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' };
+  return { label: 'Slow', cls: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' };
+}
+
+const DECISION_SPLIT_COLORS = seriesColors(['Approved', 'Rejected', 'Other']);
 
 export default function ReviewerDetailPage() {
   const router = useRouter();
@@ -82,28 +97,21 @@ export default function ReviewerDetailPage() {
   const timeline = data?.timeline || [];
 
   const filteredTimeline = timeline
-    .filter((t) => statusFilter ===
-   'all' || t.decision?.toLowerCase() ===
-   statusFilter)
+    .filter((t) => statusFilter === 'all' || t.decision?.toLowerCase() === statusFilter)
     .sort((a, b) => {
-      if (sortBy ===
-   'date') {
+      if (sortBy === 'date') {
         const da = new Date(a.reviewedAt || a.assignedAt || 0).getTime();
         const db = new Date(b.reviewedAt || b.assignedAt || 0).getTime();
-        return sortDir ===
-   'desc' ? db - da : da - db;
+        return sortDir === 'desc' ? db - da : da - db;
       }
-      return sortDir ===
-   'desc'
+      return sortDir === 'desc'
         ? (b.turnaroundHours || 0) - (a.turnaroundHours || 0)
         : (a.turnaroundHours || 0) - (b.turnaroundHours || 0);
     });
 
   const toggleSort = (col: 'date' | 'turnaround') => {
-    if (sortBy ===
-   col) {
-      setSortDir((d) => (d ===
-   'asc' ? 'desc' : 'asc'));
+    if (sortBy === col) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortBy(col);
       setSortDir('desc');
@@ -128,8 +136,6 @@ export default function ReviewerDetailPage() {
     { label: 'Grants', values: { Reviewed: categoryStats.grants } },
   ].filter((d) => d.values.Reviewed > 0);
 
-  const categoryBarKeys = [{ key: 'Reviewed', label: 'Reviews', color: '#6366f1' }];
-
   // Monthly decision trend from timeline
   const monthlyMap = new Map<string, { label: string; approved: number; rejected: number; other: number }>();
   allTimeline.forEach((t) => {
@@ -149,9 +155,9 @@ export default function ReviewerDetailPage() {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([, v]) => ({ label: v.label, values: { Approved: v.approved, Rejected: v.rejected, Other: v.other } }));
   const monthlyTrendKeys = [
-    { key: 'Approved', label: 'Approved', color: '#10b981' },
-    { key: 'Rejected', label: 'Rejected', color: '#ef4444' },
-    { key: 'Other', label: 'Other', color: '#f59e0b' },
+    { key: 'Approved', label: 'Approved' },
+    { key: 'Rejected', label: 'Rejected' },
+    { key: 'Other', label: 'Other' },
   ];
 
   const handleGenerateReport = () => {
@@ -214,293 +220,324 @@ export default function ReviewerDetailPage() {
     setTimeout(() => w.print(), 400);
   };
 
+
+  const otherCount = kpis ? kpis.totalReviews - (kpis.approvedCount || 0) - (kpis.rejectedCount || 0) : 0;
+  const decisionSplit = kpis
+    ? [
+        { key: 'Approved', value: kpis.approvedCount || 0 },
+        { key: 'Rejected', value: kpis.rejectedCount || 0 },
+        { key: 'Other', value: otherCount },
+      ]
+    : [];
+  const categoryMax = Math.max(1, ...categoryBarData.map((d) => d.values.Reviewed));
+  const SortIcon = sortDir === 'desc' ? ArrowDown : ArrowUp;
+
   return (
     <ProtectedRoute>
       {accessDenied ? (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center border">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+        <div className="flex min-h-screen items-center justify-center bg-[#faf8f6] p-6 dark:bg-gray-900">
+          <div className={`${ui.card} w-full max-w-md p-8 text-center`}>
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/30">
+              <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-            <p className="text-gray-600 mb-6">
-              You do not have the <strong>DRD Member Analytics</strong> permission required to view this page.
+            <h2 className="mb-2 text-xl font-semibold text-stone-900 dark:text-white">Access denied</h2>
+            <p className="mb-6 text-sm text-stone-500 dark:text-gray-400">
+              You do not have the <strong className="font-medium text-stone-700 dark:text-gray-200">DRD Member Analytics</strong> permission required to view this page.
             </p>
-            <button onClick={() => router.push('/dashboard')} className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              Back to Dashboard
+            <button onClick={() => router.push('/dashboard')} className={ui.btnPrimary}>
+              Back to dashboard
             </button>
           </div>
         </div>
       ) : (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/drd/analytics/drd-member')}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-500" />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {data?.reviewer?.name || 'Reviewer Detail'}
-              </h1>
-              {data?.reviewer?.email && (
-                <p className="text-sm text-gray-500 mt-1">{data.reviewer.email}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleGenerateReport}
-                disabled={loading || !data}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-              >
-                <Printer className="w-4 h-4" />
-                Report
-              </button>
-              <ExportActions
-                data={filteredTimeline}
-                filename={`reviewer-${reviewerId}-detail`}
-                columns={[
-                  { key: 'applicationTitle', label: 'Application' },
-                  { key: 'category', label: 'Category' },
-                  { key: 'decision', label: 'Decision' },
-                  { key: 'assignedAt', label: 'Assigned At' },
-                  { key: 'reviewedAt', label: 'Reviewed At' },
-                  { key: 'turnaroundHours', label: 'Turnaround (hrs)' },
-                ]}
-              />
-              <button
-                onClick={fetchData}
-                disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 animate-pulse">
-                  <div className="h-3 bg-gray-200 rounded w-20 mb-3" />
-                  <div className="h-6 bg-gray-200 rounded w-16" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <>
-              {/* KPIs */}
-              {kpis && (
-                <KpiCardGrid
-                  cards={[
-                    { label: 'Total Reviews', value: kpis.totalReviews || 0, icon: <FileText className="w-4 h-4" /> },
-                    {
-                      label: 'Approved',
-                      value: kpis.approvedCount || 0,
-                      icon: <CheckCircle2 className="w-4 h-4" />,
-                      trend: kpis.totalReviews
-                        ? { value: Math.round(((kpis.approvedCount || 0) / kpis.totalReviews) * 100), direction: 'up' as const }
-                        : undefined,
-                    },
-                    {
-                      label: 'Rejected',
-                      value: kpis.rejectedCount || 0,
-                      icon: <TrendingDown className="w-4 h-4" />,
-                    },
-                    {
-                      label: 'Avg Turnaround',
-                      value: fmtHours(kpis.avgTurnaroundHours),
-                      format: 'text',
-                      icon: <Clock className="w-4 h-4" />,
-                    },
-                    {
-                      label: 'Median Turnaround',
-                      value: fmtHours(kpis.medianTurnaroundHours),
-                      format: 'text',
-                    },
-                    {
-                      label: 'Fastest Review',
-                      value: fmtHours(kpis.fastestTurnaroundHours),
-                      format: 'text',
-                    },
+        <AnalyticsShell>
+          <AnalyticsHero
+            title={data?.reviewer?.name || 'Reviewer detail'}
+            description={data?.reviewer?.email || 'All-time review history, turnaround and decisions for this reviewer.'}
+            eyebrow="Reviewer profile"
+            icon={<UserRound className="h-3.5 w-3.5" />}
+            onBack={() => router.push('/drd/analytics/drd-member')}
+            backLabel="Back to DRD members"
+            actions={(
+              <>
+                <button
+                  onClick={handleGenerateReport}
+                  disabled={loading || !data}
+                  className={ui.btnSecondary}
+                >
+                  <Printer className="h-4 w-4" />
+                  Print report
+                </button>
+                <ExportActions
+                  data={filteredTimeline}
+                  filename={`reviewer-${reviewerId}-detail`}
+                  columns={[
+                    { key: 'applicationTitle', label: 'Application' },
+                    { key: 'category', label: 'Category' },
+                    { key: 'decision', label: 'Decision' },
+                    { key: 'assignedAt', label: 'Assigned At' },
+                    { key: 'reviewedAt', label: 'Reviewed At' },
+                    { key: 'turnaroundHours', label: 'Turnaround (hrs)' },
                   ]}
                 />
-              )}
+                <button
+                  onClick={fetchData}
+                  disabled={loading}
+                  className={`${ui.btnSecondary} w-9 justify-center px-0`}
+                  aria-label="Refresh data"
+                  title="Refresh data"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              </>
+            )}
+            chips={[
+              { label: 'Total reviews', value: (kpis?.totalReviews || 0).toLocaleString('en-IN') },
+              { label: 'Approval rate', value: kpis?.totalReviews ? `${Math.round(((kpis.approvedCount || 0) / kpis.totalReviews) * 100)}%` : '—' },
+              { label: 'Avg turnaround', value: fmtHours(kpis?.avgTurnaroundHours) },
+              { label: 'Pending', value: (kpis?.pending || 0).toLocaleString('en-IN') },
+            ]}
+          />
 
-              {/* Category Breakdown */}
-              {allTimeline.length > 0 && categoryBarData.length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Layers className="w-4 h-4 text-indigo-500" />
-                    <h3 className="text-sm font-semibold text-gray-700">Category Breakdown</h3>
-                  </div>
-                  <div className="grid grid-cols-5 gap-3 mb-4">
-                    {[
-                      { key: 'research', label: 'Research', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-                      { key: 'book', label: 'Book', color: 'bg-sky-50 text-sky-700 border-sky-200' },
-                      { key: 'conference', label: 'Conference', color: 'bg-violet-50 text-violet-700 border-violet-200' },
-                      { key: 'ipr', label: 'IPR', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-                      { key: 'grants', label: 'Grants', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                    ].map(({ key, label, color }) => (
-                      <div key={key} className={`rounded-xl border p-3 text-center ${color}`}>
-                        <div className="text-xs font-medium mb-1">{label}</div>
-                        <div className="text-xl font-bold">{categoryStats[key as keyof typeof categoryStats]}</div>
+          <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+            {loading ? (
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className={`${ui.card} p-4`}>
+                      <div className="mb-3 h-3 w-20 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+                      <div className="h-6 w-16 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+                    </div>
+                  ))}
+                </div>
+                <div className="h-[300px] animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+                <div className="h-[360px] animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800" />
+              </>
+            ) : (
+              <>
+                {/* KPIs */}
+                {kpis && (
+                  <KpiCardGrid
+                    cards={[
+                      { label: 'Total reviews', value: kpis.totalReviews || 0, icon: <FileText className="w-4 h-4" /> },
+                      {
+                        label: 'Approved',
+                        value: kpis.approvedCount || 0,
+                        icon: <CheckCircle2 className="w-4 h-4" />,
+                        trend: kpis.totalReviews
+                          ? { value: Math.round(((kpis.approvedCount || 0) / kpis.totalReviews) * 100), direction: 'up' as const }
+                          : undefined,
+                      },
+                      {
+                        label: 'Rejected',
+                        value: kpis.rejectedCount || 0,
+                        icon: <TrendingDown className="w-4 h-4" />,
+                      },
+                      {
+                        label: 'Avg turnaround',
+                        value: fmtHours(kpis.avgTurnaroundHours),
+                        format: 'text',
+                        icon: <Clock className="w-4 h-4" />,
+                      },
+                      {
+                        label: 'Median turnaround',
+                        value: fmtHours(kpis.medianTurnaroundHours),
+                        format: 'text',
+                      },
+                      {
+                        label: 'Fastest review',
+                        value: fmtHours(kpis.fastestTurnaroundHours),
+                        format: 'text',
+                      },
+                    ]}
+                  />
+                )}
+
+                {/* Primary chart: monthly decisions; side: decision split + category mix */}
+                {(monthlyTrend.length > 1 || (kpis && kpis.totalReviews > 0) || categoryBarData.length > 0) && (
+                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+                    {monthlyTrend.length > 1 && (
+                      <div className="min-w-0 xl:col-span-3">
+                        <TrendChartPanel
+                          data={monthlyTrend}
+                          keys={monthlyTrendKeys}
+                          title="Monthly review trend"
+                          subtitle="Decisions recorded per month"
+                          height={260}
+                        />
                       </div>
-                    ))}
-                  </div>
-                  <AnalyticsBarChart data={categoryBarData} keys={categoryBarKeys} height={200} />
-                </div>
-              )}
+                    )}
 
-              {/* Monthly Decision Trend */}
-              {monthlyTrend.length > 1 && (
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <BarChart3 className="w-4 h-4 text-indigo-500" />
-                    <h3 className="text-sm font-semibold text-gray-700">Monthly Review Trend</h3>
-                  </div>
-                  <TrendChartPanel data={monthlyTrend} keys={monthlyTrendKeys} height={240} />
-                </div>
-              )}
-
-              {/* Decision Distribution */}
-              {kpis && kpis.totalReviews > 0 && (
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-4">Decision Distribution</h3>
-                  <div className="flex items-center gap-1 h-8 rounded-full overflow-hidden bg-gray-100">
-                    <div
-                      className="h-full bg-emerald-500 rounded-l-full transition-all flex items-center justify-center text-white text-xs font-medium"
-                      style={{ width: `${((kpis.approvedCount || 0) / kpis.totalReviews) * 100}%`, minWidth: kpis.approvedCount ? '30px' : 0 }}
-                    >
-                      {kpis.approvedCount || ''}
-                    </div>
-                    <div
-                      className="h-full bg-red-400 transition-all flex items-center justify-center text-white text-xs font-medium"
-                      style={{ width: `${((kpis.rejectedCount || 0) / kpis.totalReviews) * 100}%`, minWidth: kpis.rejectedCount ? '30px' : 0 }}
-                    >
-                      {kpis.rejectedCount || ''}
-                    </div>
-                    <div
-                      className="h-full bg-amber-400 rounded-r-full transition-all flex items-center justify-center text-white text-xs font-medium"
-                      style={{
-                        width: `${((kpis.totalReviews - (kpis.approvedCount || 0) - (kpis.rejectedCount || 0)) / kpis.totalReviews) * 100}%`,
-                        minWidth: (kpis.totalReviews - (kpis.approvedCount || 0) - (kpis.rejectedCount || 0)) > 0 ? '30px' : 0,
-                      }}
-                    >
-                      {(kpis.totalReviews - (kpis.approvedCount || 0) - (kpis.rejectedCount || 0)) || ''}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 mt-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Approved</span>
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400" /> Rejected</span>
-                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Other</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Review Timeline Table */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-700">
-                    Review Timeline ({filteredTimeline.length})
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    {['all', 'approved', 'rejected'].map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setStatusFilter(s)}
-                        className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                          statusFilter ===
-   s
-                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                            : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
-                        {s ===
-   'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 text-left">
-                        <th className="px-4 py-3 font-medium text-gray-500">#</th>
-                        <th className="px-4 py-3 font-medium text-gray-500">Application</th>
-                        <th className="px-4 py-3 font-medium text-gray-500">Category</th>
-                        <th className="px-4 py-3 font-medium text-gray-500">Decision</th>
-                        <th
-                          className="px-4 py-3 font-medium text-gray-500 cursor-pointer select-none"
-                          onClick={() => toggleSort('date')}
-                        >
-                          Date {sortBy ===
-   'date' ? (sortDir ===
-   'desc' ? '↓' : '↑') : ''}
-                        </th>
-                        <th
-                          className="px-4 py-3 font-medium text-gray-500 text-right cursor-pointer select-none"
-                          onClick={() => toggleSort('turnaround')}
-                        >
-                          Turnaround {sortBy ===
-   'turnaround' ? (sortDir ===
-   'desc' ? '↓' : '↑') : ''}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {filteredTimeline.length ===
-   0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
-                            No reviews found
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredTimeline.slice(0, 100).map((entry, i) => {
-                          const turnaroundColor =
-                            (entry.turnaroundHours || 0) < 24
-                              ? 'text-emerald-600'
-                              : (entry.turnaroundHours || 0) < 72
-                              ? 'text-amber-600'
-                              : 'text-red-600';
-                          return (
-                            <tr key={i} className="hover:bg-gray-50/50">
-                              <td className="px-4 py-3 text-gray-400 font-medium">{i + 1}</td>
-                              <td className="px-4 py-3 font-medium text-gray-900 max-w-xs truncate">
-                                {entry.applicationTitle || 'Untitled'}
-                              </td>
-                              <td className="px-4 py-3 text-gray-600 text-sm capitalize">
-                                {entry.category}
-                              </td>
-                              <td className="px-4 py-3">{statusBadge(entry.decision)}</td>
-                              <td className="px-4 py-3 text-gray-500 text-sm">
-                                {entry.reviewedAt
-                                  ? new Date(entry.reviewedAt).toLocaleDateString('en-IN', {
-                                      day: '2-digit',
-                                      month: 'short',
-                                      year: 'numeric',
-                                    })
-                                  : '—'}
-                              </td>
-                              <td className={`px-4 py-3 text-right font-medium ${turnaroundColor}`}>
-                                {fmtHours(entry.turnaroundHours)}
-                              </td>
-                            </tr>
-                          );
-                        })
+                    <div className={`grid grid-cols-1 gap-6 ${monthlyTrend.length > 1 ? 'xl:col-span-2' : 'md:grid-cols-2 xl:col-span-5'}`}>
+                      {kpis && kpis.totalReviews > 0 && (
+                        <section className={`${ui.card} overflow-hidden`}>
+                          <div className={ui.cardHeader}>
+                            <div>
+                              <h3 className={ui.title}>Decision distribution</h3>
+                              <p className={ui.subtitle}>Share of all reviews by outcome</p>
+                            </div>
+                          </div>
+                          <div className="p-5">
+                            <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Decision distribution">
+                              {decisionSplit.filter((d) => d.value > 0).map((d) => (
+                                <div
+                                  key={d.key}
+                                  className="first:rounded-l-full last:rounded-r-full"
+                                  style={{ flex: d.value, backgroundColor: DECISION_SPLIT_COLORS[d.key] }}
+                                  title={`${d.key}: ${d.value}`}
+                                />
+                              ))}
+                            </div>
+                            <ul className="mt-4 divide-y divide-stone-100 dark:divide-gray-700">
+                              {decisionSplit.map((d) => (
+                                <li key={d.key} className="flex items-center justify-between py-2 text-sm">
+                                  <span className="inline-flex items-center gap-2 text-stone-600 dark:text-gray-300">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: DECISION_SPLIT_COLORS[d.key] }} />
+                                    {d.key}
+                                  </span>
+                                  <span className="tabular-nums">
+                                    <span className={d.value ? 'font-semibold text-stone-900 dark:text-white' : 'text-stone-300 dark:text-gray-600'}>{d.value}</span>
+                                    <span className="ml-2 text-xs text-stone-400 dark:text-gray-500">{Math.round((d.value / kpis.totalReviews) * 100)}%</span>
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </section>
                       )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+
+                      {allTimeline.length > 0 && categoryBarData.length > 0 && (
+                        <section className={`${ui.card} overflow-hidden`}>
+                          <div className={ui.cardHeader}>
+                            <div>
+                              <h3 className={ui.title}>Category breakdown</h3>
+                              <p className={ui.subtitle}>Reviews handled per category</p>
+                            </div>
+                          </div>
+                          <ul className="space-y-3 p-5">
+                            {categoryBarData.map((d) => (
+                              <li key={d.label}>
+                                <div className="mb-1 flex items-center justify-between text-sm">
+                                  <span className="inline-flex items-center gap-2 text-stone-600 dark:text-gray-300">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: categoryColor(d.label) }} />
+                                    {d.label}
+                                  </span>
+                                  <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{d.values.Reviewed}</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-stone-100 dark:bg-gray-700">
+                                  <div
+                                    className="h-2 rounded-full"
+                                    style={{ width: `${(d.values.Reviewed / categoryMax) * 100}%`, backgroundColor: categoryColor(d.label) }}
+                                  />
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Review timeline */}
+                <section className={`${ui.card} overflow-hidden`}>
+                  <div className={ui.cardHeader}>
+                    <div>
+                      <h3 className={ui.title}>Review timeline</h3>
+                      <p className={ui.subtitle}>
+                        <span className="tabular-nums">{filteredTimeline.length}</span> review{filteredTimeline.length === 1 ? '' : 's'}
+                        {filteredTimeline.length > 100 ? ' · showing the first 100' : ''}
+                      </p>
+                    </div>
+                    <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-0.5 dark:border-gray-600 dark:bg-gray-900/50" role="group" aria-label="Filter by decision">
+                      {['all', 'approved', 'rejected'].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setStatusFilter(s)}
+                          aria-pressed={statusFilter === s}
+                          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                            statusFilter === s
+                              ? 'bg-white text-wine shadow-sm dark:bg-gray-700 dark:text-amber'
+                              : 'text-stone-500 hover:text-stone-800 dark:text-gray-400 dark:hover:text-gray-200'
+                          }`}
+                        >
+                          {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-sm">
+                      <thead className="bg-stone-50 dark:bg-gray-900/40">
+                        <tr>
+                          <th className={`${ui.th} w-12`}>#</th>
+                          <th className={ui.th}>Application</th>
+                          <th className={ui.th}>Category</th>
+                          <th className={ui.th}>Decision</th>
+                          <th className={ui.th} aria-sort={sortBy === 'date' ? (sortDir === 'desc' ? 'descending' : 'ascending') : 'none'}>
+                            <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 uppercase hover:text-stone-800 dark:hover:text-gray-200">
+                              Date
+                              {sortBy === 'date' && <SortIcon className="h-3 w-3" />}
+                            </button>
+                          </th>
+                          <th className={`${ui.th} text-right`} aria-sort={sortBy === 'turnaround' ? (sortDir === 'desc' ? 'descending' : 'ascending') : 'none'}>
+                            <button onClick={() => toggleSort('turnaround')} className="inline-flex items-center gap-1 uppercase hover:text-stone-800 dark:hover:text-gray-200">
+                              Turnaround
+                              {sortBy === 'turnaround' && <SortIcon className="h-3 w-3" />}
+                            </button>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100 dark:divide-gray-700">
+                        {filteredTimeline.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-10 text-center text-sm text-stone-400 dark:text-gray-500">
+                              No reviews for this filter.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredTimeline.slice(0, 100).map((entry, i) => {
+                            const tat = turnaroundStatus(entry.turnaroundHours);
+                            return (
+                              <tr key={i} className="hover:bg-stone-50 dark:hover:bg-gray-700/40">
+                                <td className={`${ui.td} tabular-nums text-stone-400 dark:text-gray-500`}>{i + 1}</td>
+                                <td className={`${ui.td} max-w-xs truncate font-medium text-stone-900 dark:text-white`} title={entry.applicationTitle || 'Untitled'}>
+                                  {entry.applicationTitle || 'Untitled'}
+                                </td>
+                                <td className={ui.td}>
+                                  <span className="inline-flex items-center gap-2 capitalize">
+                                    <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: categoryColor(entry.category || '') }} />
+                                    {entry.category}
+                                  </span>
+                                </td>
+                                <td className={ui.td}>{statusBadge(entry.decision)}</td>
+                                <td className={`${ui.td} whitespace-nowrap tabular-nums text-stone-500 dark:text-gray-400`}>
+                                  {entry.reviewedAt
+                                    ? new Date(entry.reviewedAt).toLocaleDateString('en-IN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric',
+                                      })
+                                    : '—'}
+                                </td>
+                                <td className={`${ui.td} text-right`}>
+                                  <span className="inline-flex items-center justify-end gap-2 whitespace-nowrap">
+                                    <span className="font-medium tabular-nums text-stone-900 dark:text-white">{fmtHours(entry.turnaroundHours)}</span>
+                                    {tat && <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${tat.cls}`}>{tat.label}</span>}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        </AnalyticsShell>
       )}
     </ProtectedRoute>
   );

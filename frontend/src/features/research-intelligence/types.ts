@@ -178,3 +178,5 @@ export type StreamEvent =
   | { event: 'sources'; data: { items: ChatSource[] } }
   | { event: 'done'; data: { message: ChatMessage; title?: string } }
   | { event: 'error'; data: { message: string } };
+
+export * from './graph.types';

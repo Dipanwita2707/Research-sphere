@@ -34,6 +34,7 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 import { extractErrorMessage } from '@/shared/types/api.types';
+import { getDuplicateClaimError } from '@/features/research-management/services/duplicateClaim';
 import { logger } from '@/shared/utils/logger';
 import { BRAND } from '@/shared/config/brand';
 
@@ -344,7 +345,13 @@ export default function MyContributionsPage() {
       fetchContributions();
     } catch (error: unknown) {
       logger.error('Error submitting contribution:', error);
-      toast({ type: 'error', message: extractErrorMessage(error) });
+      const duplicate = getDuplicateClaimError(error);
+      if (duplicate) {
+        // 409 DUPLICATE_CLAIM: say who already claimed this work
+        toast({ type: 'warning', title: 'Already claimed', message: duplicate.message, duration: 12000 });
+      } else {
+        toast({ type: 'error', message: extractErrorMessage(error) });
+      }
     }
   };
 
@@ -472,7 +479,7 @@ export default function MyContributionsPage() {
             </div>
             <Link
               href="/research/apply"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-white bg-wine hover:bg-wine-dark rounded-xl transition-colors shadow-sm shadow-wine/20"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-wine-fg bg-wine hover:bg-wine-dark rounded-xl transition-colors shadow-sm shadow-wine/20"
             >
               <Plus className="w-4 h-4" />
               New Contribution
@@ -484,7 +491,7 @@ export default function MyContributionsPage() {
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
         {/* ── Stats Bar ──────────────────────────────────────────── */}
-        <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(132,28,67,0.04)]">
+        <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgb(var(--brand-primary)/0.04)]">
           <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-y md:divide-y-0 divide-blush-deep/60">
 
             <div className="p-4 flex items-center gap-3">
@@ -541,7 +548,7 @@ export default function MyContributionsPage() {
         </div>
 
         {/* ── Main Table Card ─────────────────────────────────────── */}
-        <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(132,28,67,0.04)]">
+        <div className="bg-blush-light border border-blush-deep/70 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgb(var(--brand-primary)/0.04)]">
 
           {/* Tab bar */}
           <div className="border-b border-blush-deep/60 px-2">
@@ -623,7 +630,7 @@ export default function MyContributionsPage() {
                 </p>
                 <Link
                   href="/research/apply"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-wine text-white text-sm font-semibold rounded-xl hover:bg-wine-dark transition-colors shadow-sm shadow-wine/20"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-wine text-wine-fg text-sm font-semibold rounded-xl hover:bg-wine-dark transition-colors shadow-sm shadow-wine/20"
                 >
                   <Plus className="w-4 h-4" />
                   Create New Contribution

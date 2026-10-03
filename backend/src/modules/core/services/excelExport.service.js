@@ -12,7 +12,9 @@ class ExcelExportService {
    * @returns {Buffer} - Excel file buffer
    */
   async generateAuditReport(data) {
-    const { logs, period, statistics } = data;
+    // errorLogs: rows for the errors sheet when `logs` is a truncated subset of the period.
+    // truncation: { truncated, shown, total, maxRows } when only part of the period's logs are listed.
+    const { logs, period, statistics, errorLogs, truncation } = data;
     const workbook = new ExcelJS.Workbook();
 
     workbook.creator = 'ResearchSphere';
@@ -20,16 +22,16 @@ class ExcelExportService {
     workbook.modified = new Date();
 
     // Add Summary sheet
-    await this.addSummarySheet(workbook, period, statistics);
+    await this.addSummarySheet(workbook, period, statistics, truncation);
 
     // Add Detailed Logs sheet
-    await this.addDetailedLogsSheet(workbook, logs);
+    await this.addDetailedLogsSheet(workbook, logs, truncation);
 
     // Add Statistics sheets
     await this.addStatisticsSheet(workbook, statistics);
 
     // Add Error Logs sheet (filtered)
-    await this.addErrorLogsSheet(workbook, logs);
+    await this.addErrorLogsSheet(workbook, errorLogs || logs);
 
     // Add User Activity sheet
     await this.addUserActivitySheet(workbook, statistics);
@@ -42,7 +44,7 @@ class ExcelExportService {
   /**
    * Add Summary sheet with overview statistics
    */
-  async addSummarySheet(workbook, period, statistics) {
+  async addSummarySheet(workbook, period, statistics, truncation) {
     const sheet = workbook.addWorksheet('Summary', {
       properties: { tabColor: { argb: '1E3A8A' } }
     });
@@ -67,6 +69,14 @@ class ExcelExportService {
     genCell.value = `Generated: ${new Date().toLocaleString()}`;
     genCell.font = { size: 10, color: { argb: '666666' } };
     genCell.alignment = { horizontal: 'center' };
+
+    if (truncation?.truncated) {
+      sheet.mergeCells('A4:F4');
+      const noteCell = sheet.getCell('A4');
+      noteCell.value = `Note: the Detailed Logs sheet lists the first ${truncation.shown.toLocaleString()} of ${truncation.total.toLocaleString()} entries (limit ${truncation.maxRows.toLocaleString()}). All figures on this sheet cover every entry.`;
+      noteCell.font = { size: 10, italic: true, color: { argb: 'B45309' } };
+      noteCell.alignment = { horizontal: 'center', wrapText: true };
+    }
 
     // Key Metrics
     sheet.getCell('A5').value = 'KEY METRICS';
@@ -146,7 +156,7 @@ class ExcelExportService {
   /**
    * Add Detailed Logs sheet with all audit entries
    */
-  async addDetailedLogsSheet(workbook, logs) {
+  async addDetailedLogsSheet(workbook, logs, truncation) {
     const sheet = workbook.addWorksheet('Detailed Logs', {
       properties: { tabColor: { argb: '3B82F6' } }
     });
@@ -234,6 +244,11 @@ class ExcelExportService {
     columnWidths.forEach((width, i) => {
       sheet.getColumn(i + 1).width = width;
     });
+
+    if (truncation?.truncated) {
+      const note = sheet.addRow([`Truncated: showing the first ${truncation.shown.toLocaleString()} of ${truncation.total.toLocaleString()} entries for this period (limit ${truncation.maxRows.toLocaleString()}). Narrow the period for a complete listing.`]);
+      note.font = { italic: true, bold: true, color: { argb: 'B45309' } };
+    }
 
     // Freeze header row
     sheet.views = [{ state: 'frozen', ySplit: 1 }];

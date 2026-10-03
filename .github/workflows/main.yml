@@ -2,9 +2,9 @@ name: SGT UMS CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, fresh-main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, fresh-main ]
 
 env:
   AWS_REGION: us-east-1
@@ -89,7 +89,7 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
 

@@ -1,6 +1,15 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
 const cache = require('../../../../shared/config/redis');
+const { parseGrantPolicy, sendPolicyError } = require('../../validators/incentivePolicy.validation');
+const { savePolicy, policyWindowWhere } = require('../../utils/policyWindow');
+const { previewDate, sendPolicyPreview } = require('../../utils/policyPreview');
+const { toNumber } = require('../../utils/policyMath');
+
+const GRANT_POLICY_INCLUDE = {
+  createdBy: { select: { id: true, email: true } },
+  updatedBy: { select: { id: true, email: true } },
+};
 
 // Project categories and types
 const PROJECT_CATEGORIES = ['govt', 'non_govt', 'industry'];
@@ -67,34 +76,25 @@ exports.getActivePolicyByCategoryAndType = async (req, res) => {
       });
     }
 
-    const currentDate = new Date();
+    // ?onDate = the grant's policy date (sanction → submission → approval), default today.
+    const currentDate = previewDate(req.query.onDate);
     const policy = await prisma.grantIncentivePolicy.findFirst({
       where: {
         projectCategory,
         projectType,
-        isActive: true,
         ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        effectiveFrom: { lte: currentDate },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: currentDate } }
-        ]
+        ...policyWindowWhere(currentDate)
       },
       orderBy: { effectiveFrom: 'desc' }
     });
 
-    if (!policy) {
-      return res.status(404).json({
-        success: false,
-        message: `No active policy found for ${projectCategory} ${projectType} grants`
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: policy
+    // Grants have no built-in defaults: without a policy approval pays ₹0 (after confirmation).
+    return sendPolicyPreview(res, {
+      policy,
+      reason: `No grant incentive policy covers ${projectCategory} / ${projectType} grants on this date`,
     });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Get active grant policy error:', error);
     res.status(500).json({
       success: false,
@@ -147,98 +147,23 @@ exports.getGrantPolicyById = async (req, res) => {
  */
 exports.createGrantPolicy = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const {
-      policyName,
-      projectCategory,
-      projectType,
-      baseIncentiveAmount,
-      basePoints,
-      splitPolicy,
-      rolePercentages,
-      fundingAmountMultiplier,
-      internationalBonus,
-      consortiumBonus,
-      effectiveFrom,
-      effectiveTo
-    } = req.body;
+    const data = parseGrantPolicy(req.body);
 
-    // Validation
-    if (!policyName || !projectCategory || !projectType || !baseIncentiveAmount || basePoints === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'Policy name, project category, project type, base incentive amount, and base points are required'
-      });
-    }
-
-    if (!PROJECT_CATEGORIES.includes(projectCategory)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid project category. Valid categories: ${PROJECT_CATEGORIES.join(', ')}`
-      });
-    }
-
-    if (!PROJECT_TYPES.includes(projectType)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid project type. Valid types: ${PROJECT_TYPES.join(', ')}`
-      });
-    }
-
-    if (!['equal', 'percentage_based'].includes(splitPolicy)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Split policy must be either "equal" or "percentage_based"'
-      });
-    }
-
-    // If percentage-based, validate role percentages
-    if (splitPolicy === 'percentage_based') {
-      if (!rolePercentages || !Array.isArray(rolePercentages)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Role percentages are required for percentage-based split policy'
-        });
-      }
-
-      const totalPercentage = rolePercentages.reduce((sum, rp) => sum + rp.percentage, 0);
-      if (Math.abs(totalPercentage - 100) > 0.01) {
-        return res.status(400).json({
-          success: false,
-          message: `Role percentages must total 100%. Current total: ${totalPercentage}%`
-        });
-      }
-    }
-
-    const policy = await prisma.grantIncentivePolicy.create({
-      data: {
-        policyName,
-        projectCategory,
-        projectType,
-        baseIncentiveAmount,
-        basePoints,
-        splitPolicy,
-        rolePercentages: rolePercentages || [],
-        fundingAmountMultiplier: fundingAmountMultiplier || {},
-        internationalBonus: internationalBonus || 10000,
-        consortiumBonus: consortiumBonus || 5000,
-        isActive: true,
-        effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : new Date(),
-        effectiveTo: effectiveTo ? new Date(effectiveTo) : null,
-        createdById: userId,
-        updatedById: userId,
-        ...(req.tenantId ? { universityId: req.tenantId } : {})
-      },
-      include: {
-        createdBy: { select: { id: true, email: true } },
-        updatedBy: { select: { id: true, email: true } }
-      }
+    // Validate, reject overlap with an enabled policy for the same category/type and
+    // create — in one transaction.
+    const { policy } = await savePolicy({
+      prisma,
+      model: 'grantIncentivePolicy',
+      keyWhere: { projectCategory: data.projectCategory, projectType: data.projectType },
+      data,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
+      setUpdatedByOnCreate: true,
+      include: GRANT_POLICY_INCLUDE,
     });
 
-    // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'grant', req.user.id, req);
-
-    // Invalidate cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(201).json({
@@ -247,6 +172,7 @@ exports.createGrantPolicy = async (req, res) => {
       data: policy
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Create grant policy error:', error);
     res.status(500).json({
       success: false,
@@ -261,24 +187,7 @@ exports.createGrantPolicy = async (req, res) => {
 exports.updateGrantPolicy = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
-    const {
-      policyName,
-      projectCategory,
-      projectType,
-      baseIncentiveAmount,
-      basePoints,
-      splitPolicy,
-      rolePercentages,
-      fundingAmountMultiplier,
-      internationalBonus,
-      consortiumBonus,
-      isActive,
-      effectiveFrom,
-      effectiveTo
-    } = req.body;
 
-    // Check if policy exists
     const existingPolicy = await prisma.grantIncentivePolicy.findUnique({
       where: { id }
     });
@@ -297,77 +206,20 @@ exports.updateGrantPolicy = async (req, res) => {
       });
     }
 
-    // Validation
-    if (projectCategory && !PROJECT_CATEGORIES.includes(projectCategory)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid project category. Valid categories: ${PROJECT_CATEGORIES.join(', ')}`
-      });
-    }
-
-    if (projectType && !PROJECT_TYPES.includes(projectType)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid project type. Valid types: ${PROJECT_TYPES.join(', ')}`
-      });
-    }
-
-    if (splitPolicy && !['equal', 'percentage_based'].includes(splitPolicy)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Split policy must be either "equal" or "percentage_based"'
-      });
-    }
-
-    // If percentage-based, validate role percentages
-    if (splitPolicy === 'percentage_based' && rolePercentages) {
-      if (!Array.isArray(rolePercentages)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Role percentages must be an array'
-        });
-      }
-
-      const totalPercentage = rolePercentages.reduce((sum, rp) => sum + rp.percentage, 0);
-      if (Math.abs(totalPercentage - 100) > 0.01) {
-        return res.status(400).json({
-          success: false,
-          message: `Role percentages must total 100%. Current total: ${totalPercentage}%`
-        });
-      }
-    }
-
-    const updateData = {
-      updatedById: userId
-    };
-
-    if (policyName !== undefined) updateData.policyName = policyName;
-    if (projectCategory !== undefined) updateData.projectCategory = projectCategory;
-    if (projectType !== undefined) updateData.projectType = projectType;
-    if (baseIncentiveAmount !== undefined) updateData.baseIncentiveAmount = baseIncentiveAmount;
-    if (basePoints !== undefined) updateData.basePoints = basePoints;
-    if (splitPolicy !== undefined) updateData.splitPolicy = splitPolicy;
-    if (rolePercentages !== undefined) updateData.rolePercentages = rolePercentages;
-    if (fundingAmountMultiplier !== undefined) updateData.fundingAmountMultiplier = fundingAmountMultiplier;
-    if (internationalBonus !== undefined) updateData.internationalBonus = internationalBonus;
-    if (consortiumBonus !== undefined) updateData.consortiumBonus = consortiumBonus;
-    if (isActive !== undefined) updateData.isActive = isActive;
-    if (effectiveFrom !== undefined) updateData.effectiveFrom = new Date(effectiveFrom);
-    if (effectiveTo !== undefined) updateData.effectiveTo = effectiveTo ? new Date(effectiveTo) : null;
-
-    const policy = await prisma.grantIncentivePolicy.update({
-      where: { id },
-      data: updateData,
-      include: {
-        createdBy: { select: { id: true, email: true } },
-        updatedBy: { select: { id: true, email: true } }
-      }
+    const data = parseGrantPolicy(req.body, existingPolicy);
+    const { policy } = await savePolicy({
+      prisma,
+      model: 'grantIncentivePolicy',
+      keyWhere: { projectCategory: data.projectCategory, projectType: data.projectType },
+      data,
+      existing: existingPolicy,
+      tenantId: req.tenantId,
+      actorId: req.user.id,
+      mode: 'reject',
+      include: GRANT_POLICY_INCLUDE,
     });
 
-    // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, policy, 'grant', req.user.id, req);
-
-    // Invalidate cache
     await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(200).json({
@@ -376,6 +228,7 @@ exports.updateGrantPolicy = async (req, res) => {
       data: policy
     });
   } catch (error) {
+    if (sendPolicyError(res, error)) return;
     console.error('Update grant policy error:', error);
     res.status(500).json({
       success: false,
@@ -455,43 +308,48 @@ exports.calculateIncentive = async (req, res) => {
       });
     }
 
-    // Get active policy for the given category and type
-    const currentDate = new Date();
+    // Policy in force on the grant's policy date (body.onDate), default today — same rule as approval.
+    const currentDate = previewDate(req.body.onDate);
     const policy = await prisma.grantIncentivePolicy.findFirst({
       where: {
         projectCategory,
         projectType,
-        isActive: true,
         ...(req.tenantId ? { universityId: req.tenantId } : {}),
-        effectiveFrom: { lte: currentDate },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: currentDate } }
-        ]
+        ...policyWindowWhere(currentDate)
       },
       orderBy: { effectiveFrom: 'desc' }
     });
 
     if (!policy) {
-      return res.status(404).json({
-        success: false,
-        message: `No active policy found for ${projectCategory} ${projectType} grants`
+      // Same as approval: no policy → ₹0 (approval then needs an explicit confirmation).
+      return res.status(200).json({
+        success: true,
+        policyFound: false,
+        reason: `No grant incentive policy covers ${projectCategory} / ${projectType} grants on this date`,
+        data: {
+          policyFound: false,
+          baseIncentiveAmount: 0, basePoints: 0, internationalBonus: 0, consortiumBonus: 0,
+          totalIncentiveAmount: 0, totalPoints: 0,
+          breakdown: { base: 0, internationalBonus: 0, consortiumBonus: 0 },
+          policy: null,
+        },
       });
     }
 
-    // Calculate incentives
-    const baseIncentiveAmount = parseFloat(policy.baseIncentiveAmount.toString());
-    const basePoints = policy.basePoints;
-    
+    // Calculate incentives (Decimal → number before adding)
+    const baseIncentiveAmount = toNumber(policy.baseIncentiveAmount);
+    const basePoints = toNumber(policy.basePoints);
+
     // Calculate bonuses
     let internationalBonus = 0;
     if (projectType === 'international' && policy.internationalBonus) {
-      internationalBonus = parseFloat(policy.internationalBonus.toString());
+      internationalBonus = toNumber(policy.internationalBonus);
     }
-    
+
     let consortiumBonus = 0;
-    if (numberOfConsortiumOrgs && numberOfConsortiumOrgs > 0 && policy.consortiumBonus) {
-      consortiumBonus = parseFloat(policy.consortiumBonus.toString()) * numberOfConsortiumOrgs;
+    const consortiumOrgs = toNumber(numberOfConsortiumOrgs);
+    if (consortiumOrgs > 0 && policy.consortiumBonus) {
+      consortiumBonus = toNumber(policy.consortiumBonus) * consortiumOrgs;
     }
 
     // Total calculation
@@ -499,6 +357,7 @@ exports.calculateIncentive = async (req, res) => {
     const totalPoints = basePoints;
 
     const calculation = {
+      policyFound: true,
       baseIncentiveAmount,
       basePoints,
       internationalBonus,
@@ -520,9 +379,11 @@ exports.calculateIncentive = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      policyFound: true,
       data: calculation
     });
   } catch (error) {
+    if (error.statusCode === 400) return res.status(400).json({ success: false, message: error.message });
     console.error('Calculate grant incentive error:', error);
     res.status(500).json({
       success: false,

@@ -1,11 +1,8 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-} from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import ProtectedRoute from '@/shared/providers/ProtectedRoute';
 import {
   drdAnalyticsService,
@@ -19,20 +16,17 @@ import {
   ReviewerLeaderboardTable,
   TrendChartPanel,
 } from '@/components/analytics';
+import { seriesColors, ui } from '@/components/analytics/theme';
 import {
   AlertCircle,
-  BarChart3,
-  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Download,
-  ExternalLink,
-  MoreHorizontal,
   Printer,
   RefreshCw,
-  Sparkles,
   TrendingDown,
   TrendingUp,
-  Trophy,
   Users,
 } from 'lucide-react';
 import { logger } from '@/shared/utils/logger';
@@ -48,7 +42,7 @@ const CATEGORY_OPTIONS = [
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 
 function fmtHours(hrs: number | null | undefined) {
-  if (hrs == null) return 'â€”';
+  if (hrs == null) return '—';
   if (hrs < 1) return `${Math.round(hrs * 60)}m`;
   if (hrs < 24) return `${Math.round(hrs)}h`;
   return `${(hrs / 24).toFixed(1)}d`;
@@ -65,64 +59,74 @@ function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0] || '').join('').toUpperCase();
 }
 
-const DECISION_COLORS = {
-  approved: '#10b981',
-  rejected: '#f87171',
-  revisions: '#f97316',
-  pending: '#94a3b8',
-};
+/** Decision series share one palette mapping across every chart on the page. */
+const DECISION_KEYS = ['approved', 'rejected', 'revisions', 'pending'] as const;
+const DECISION_COLORS = seriesColors([...DECISION_KEYS]) as Record<(typeof DECISION_KEYS)[number], string>;
 
-function ReviewerPieChart({ approved, rejected, revisions, pending, height = 130, innerRadius = 38, outerRadius = 54 }: {
-  approved: number; rejected: number; revisions: number; pending: number;
-  height?: number; innerRadius?: number; outerRadius?: number;
-}) {
-  const slices = [
-    { name: 'Approved', value: approved, color: DECISION_COLORS.approved },
-    { name: 'Rejected', value: rejected, color: DECISION_COLORS.rejected },
-    { name: 'Revisions', value: revisions, color: DECISION_COLORS.revisions },
-    { name: 'Pending', value: pending, color: DECISION_COLORS.pending },
-  ].filter((d) => d.value > 0);
+/**
+ * Turnaround state, same thresholds as the reviewer drill-down: under a day is
+ * fast, under three days needs watching, beyond that is slow. Always rendered
+ * with its text label.
+ */
+function turnaroundStatus(hrs: number | null | undefined) {
+  if (hrs == null) return null;
+  if (hrs < 24) return { label: 'Fast', cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' };
+  if (hrs < 72) return { label: 'Watch', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' };
+  return { label: 'Slow', cls: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' };
+}
 
-  const total = approved + rejected + revisions + pending;
-  const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
-
-  if (total === 0) {
-    return <div className="flex items-center justify-center text-xs text-slate-400" style={{ height }}>No data</div>;
-  }
-
+function TurnaroundValue({ hrs }: { hrs: number | null | undefined }) {
+  const s = turnaroundStatus(hrs);
   return (
-    <div className="relative" style={{ width: '100%', height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={slices} cx="50%" cy="50%" innerRadius={innerRadius} outerRadius={outerRadius}
-            paddingAngle={2} dataKey="value" startAngle={90} endAngle={-270} isAnimationActive={false}>
-            {slices.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-          </Pie>
-          <Tooltip contentStyle={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
-            formatter={(v, name) => [v ?? 0, name ?? ''] as [number | string, string]} />
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-bold text-slate-800 dark:text-slate-100 leading-none" style={{ fontSize: height < 150 ? 16 : 24 }}>{approvalRate}%</span>
-        <span className="text-[9px] text-slate-400 mt-0.5">approval</span>
+    <span className="inline-flex items-center gap-2">
+      <span className="text-sm font-semibold tabular-nums text-stone-900 dark:text-white">{fmtHours(hrs)}</span>
+      {s && <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${s.cls}`}>{s.label}</span>}
+    </span>
+  );
+}
+
+/** Thin 100% bar of a reviewer's decisions, with a labelled legend underneath. */
+function DecisionSplitBar({ approved, rejected, revisions, pending }: {
+  approved: number; rejected: number; revisions: number; pending: number;
+}) {
+  const parts = [
+    { key: 'approved' as const, label: 'Approved', value: approved },
+    { key: 'rejected' as const, label: 'Rejected', value: rejected },
+    { key: 'revisions' as const, label: 'Revisions', value: revisions },
+    { key: 'pending' as const, label: 'Pending', value: pending },
+  ];
+  const total = approved + rejected + revisions + pending;
+  if (total === 0) {
+    return <p className="text-xs text-stone-400 dark:text-gray-500">No decisions in this period.</p>;
+  }
+  return (
+    <div>
+      <div className="flex h-2 gap-0.5 overflow-hidden rounded-full" role="img" aria-label="Decision split">
+        {parts.filter((p) => p.value > 0).map((p) => (
+          <div key={p.key} className="first:rounded-l-full last:rounded-r-full" style={{ flex: p.value, backgroundColor: DECISION_COLORS[p.key] }} title={`${p.label}: ${p.value}`} />
+        ))}
       </div>
+      <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {parts.map((p) => (
+          <li key={p.key} className="inline-flex items-center gap-1.5 text-xs text-stone-600 dark:text-gray-300">
+            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: DECISION_COLORS[p.key] }} />
+            {p.label}
+            <span className={`tabular-nums ${p.value ? 'font-medium text-stone-900 dark:text-white' : 'text-stone-300 dark:text-gray-600'}`}>{p.value}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function ReviewerBarChart({ data }: { data: { name: string; value: number; color: string }[] }) {
+function DecisionTooltip({ active, payload }: { active?: boolean; payload?: Array<{ name?: string; value?: number }> }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0];
   return (
-    <ResponsiveContainer width="100%" height={180}>
-      <BarChart data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }} barCategoryGap="30%">
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-        <Tooltip contentStyle={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }} cursor={{ fill: '#f8fafc' }} />
-        <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-          {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <span className="text-stone-500 dark:text-gray-400">{p.name}</span>{' '}
+      <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{p.value}</span>
+    </div>
   );
 }
 
@@ -215,11 +219,12 @@ export default function DrdMemberAnalyticsPage() {
       Grants: m.grants || 0,
     },
   }));
+  // Colours resolve from the shared palette by key (research/book/ipr/grants).
   const trendKeys = [
-    { key: 'Research', label: 'Research',   color: '#6366f1' },
-    { key: 'Book',     label: 'Book/Conf',  color: '#0ea5e9' },
-    { key: 'IPR',      label: 'IPR',        color: '#f59e0b' },
-    { key: 'Grants',   label: 'Grants',     color: '#10b981' },
+    { key: 'Research', label: 'Research' },
+    { key: 'Book',     label: 'Book / conference' },
+    { key: 'IPR',      label: 'IPR' },
+    { key: 'Grants',   label: 'Grants' },
   ];
 
   const handleGenerateReport = () => {
@@ -290,84 +295,89 @@ export default function DrdMemberAnalyticsPage() {
     setTimeout(() => w.print(), 400);
   };
 
+
+  const menuItemCls = 'flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-stone-700 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-200 dark:hover:bg-gray-700';
+
   return (
     <ProtectedRoute>
       {accessDenied ? (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
-          <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border dark:border-gray-700">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+        <div className="flex min-h-screen items-center justify-center bg-[#faf8f6] p-6 dark:bg-gray-900">
+          <div className={`${ui.card} w-full max-w-md p-8 text-center`}>
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/30">
+              <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Denied</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              You do not have the <strong>DRD Member Analytics</strong> permission required to view this page.
+            <h2 className="mb-2 text-xl font-semibold text-stone-900 dark:text-white">Access denied</h2>
+            <p className="mb-6 text-sm text-stone-500 dark:text-gray-400">
+              You do not have the <strong className="font-medium text-stone-700 dark:text-gray-200">DRD Member Analytics</strong> permission required to view this page.
             </p>
-            <button onClick={() => router.push('/dashboard')} className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              Back to Dashboard
+            <button onClick={() => router.push('/dashboard')} className={ui.btnPrimary}>
+              Back to dashboard
             </button>
           </div>
         </div>
       ) : (
         <AnalyticsShell>
           <AnalyticsHero
-            title="DRD Member Performance"
-            description="Measure reviewer workload, turnaround speed, and decision patterns with a cleaner performance view for the DRD team."
-            eyebrow="Reviewer Intelligence"
-            icon={<Sparkles className="h-3.5 w-3.5" />}
+            title="DRD member performance"
+            description="Reviewer workload, turnaround speed and decision patterns across the DRD team."
+            eyebrow="Reviewer analytics"
+            icon={<Users className="h-3.5 w-3.5" />}
             onBack={() => router.push('/drd/analytics/overview')}
+            backLabel="Back to overview"
             actions={(
               <div className="relative">
                 <button
                   onClick={() => setActionsOpen((v) => !v)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20"
-                  title="Actions"
+                  className={ui.btnSecondary}
+                  aria-haspopup="menu"
+                  aria-expanded={actionsOpen}
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  Actions
+                  <ChevronDown className="h-4 w-4 text-stone-400 dark:text-gray-500" />
                 </button>
                 {actionsOpen && (
                   <div
-                    className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden"
+                    role="menu"
+                    className={`absolute right-0 z-50 mt-2 w-48 overflow-hidden ${ui.card} shadow-lg`}
                     onMouseLeave={() => setActionsOpen(false)}
                   >
                     <button
                       onClick={() => { handleGenerateReport(); setActionsOpen(false); }}
                       disabled={loading || !kpis}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className={menuItemCls}
                     >
-                      <Printer className="h-4 w-4 text-slate-400" />
-                      Print Report
+                      <Printer className="h-4 w-4 text-stone-400 dark:text-gray-500" />
+                      Print report
                     </button>
                     <button
                       onClick={handleExportCSV}
                       disabled={!reviewers.length}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className={menuItemCls}
                     >
-                      <Download className="h-4 w-4 text-slate-400" />
+                      <Download className="h-4 w-4 text-stone-400 dark:text-gray-500" />
                       Export CSV
                     </button>
-                    <div className="border-t border-slate-100" />
+                    <div className="border-t border-stone-100 dark:border-gray-700" />
                     <button
                       onClick={() => { fetchData(); setActionsOpen(false); }}
                       disabled={loading}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                      className={menuItemCls}
                     >
-                      <RefreshCw className={`h-4 w-4 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-                      Refresh Data
+                      <RefreshCw className={`h-4 w-4 text-stone-400 dark:text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh data
                     </button>
                   </div>
                 )}
               </div>
             )}
             chips={[
-              { label: 'Reviewers', value: String(kpis?.totalReviewers || 0) },
-              { label: 'Reviewed',  value: String(totalReviewedAll) },
-              { label: 'Pending',   value: String(totalPendingAll) },
-              { label: 'Approved',  value: String(totalApproved) },
-              { label: 'Avg TAT',   value: fmtHours(kpis?.avgTurnaroundHours) },
+              { label: 'Reviewers', value: (kpis?.totalReviewers || 0).toLocaleString('en-IN') },
+              { label: 'Reviewed', value: totalReviewedAll.toLocaleString('en-IN') },
+              { label: 'Pending', value: totalPendingAll.toLocaleString('en-IN') },
+              { label: 'Avg turnaround', value: fmtHours(kpis?.avgTurnaroundHours) },
             ]}
           />
 
-          {/* Filters */}
           <AnalyticsFilterBar
             fromDate={fromDate}
             toDate={toDate}
@@ -384,25 +394,31 @@ export default function DrdMemberAnalyticsPage() {
             }}
           />
 
-          <div className="px-6 py-6 sm:px-8 lg:px-12 xl:px-16 space-y-8">
+          <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-4 animate-pulse">
-                    <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded w-20 mb-3" />
-                    <div className="h-7 bg-slate-100 dark:bg-slate-700 rounded w-16" />
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className={`${ui.card} p-4`}>
+                      <div className="mb-3 h-3 w-20 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+                      <div className="h-7 w-16 animate-pulse rounded bg-stone-100 dark:bg-gray-700" />
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+                  <div className="h-[340px] animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800 xl:col-span-3" />
+                  <div className="h-[340px] animate-pulse rounded-xl bg-stone-100 dark:bg-gray-800 xl:col-span-2" />
+                </div>
+              </>
             ) : (
               <>
-                {/* ── Section 1: Summary KPIs ──────────────────────────────────── */}
+                {/* Summary KPIs */}
                 {kpis && (
                   <KpiCardGrid
                     cols={4}
                     cards={[
-                      { label: 'Total Reviews',    value: totalReviewedAll,       icon: <Users className="w-4 h-4" /> },
-                      { label: 'Unique Reviewers', value: kpis.totalReviewers || 0 },
+                      { label: 'Total reviews',    value: totalReviewedAll,       icon: <Users className="w-4 h-4" /> },
+                      { label: 'Unique reviewers', value: kpis.totalReviewers || 0 },
                       {
                         label: 'Approved',
                         value: totalApproved,
@@ -414,70 +430,83 @@ export default function DrdMemberAnalyticsPage() {
                       { label: 'Pending',   value: totalPendingAll, icon: <Clock className="w-4 h-4" /> },
                       { label: 'Rejected',  value: totalRejected,   icon: <TrendingDown className="w-4 h-4" /> },
                       { label: 'Revisions', value: totalRevisions },
-                      { label: 'Avg Turnaround',    value: fmtHours(kpis.avgTurnaroundHours),    format: 'text' as const },
-                      { label: 'Median Turnaround', value: fmtHours(kpis.medianTurnaroundHours), format: 'text' as const },
+                      { label: 'Avg turnaround',    value: fmtHours(kpis.avgTurnaroundHours),    format: 'text' as const },
+                      { label: 'Median turnaround', value: fmtHours(kpis.medianTurnaroundHours), format: 'text' as const },
                     ]}
                   />
                 )}
 
-                {/* ── Section 2: Monthly Trends + Overall Decision (same height) ── */}
+                {/* Monthly trends + overall decision split */}
                 {(trendData.length > 0 || overallPieData.length > 0) && (
-                  <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-                    {/* Monthly Review Trends */}
-                    <div className="xl:col-span-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-                      <div className="flex items-center gap-2 mb-1">
-                        <BarChart3 className="w-4 h-4 text-indigo-500" />
-                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Monthly Review Trends</h3>
-                      </div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">Review activity by category over time</p>
-                      {trendData.length > 0
-                        ? <TrendChartPanel data={trendData} keys={trendKeys} height={280} />
-                        : <div className="flex h-[280px] items-center justify-center text-xs text-slate-400">No trend data yet</div>
-                      }
+                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+                    <div className="min-w-0 xl:col-span-3">
+                      <TrendChartPanel
+                        data={trendData}
+                        keys={trendKeys}
+                        title="Monthly review trends"
+                        subtitle="Reviews completed per month, by category"
+                        height={280}
+                      />
                     </div>
 
-                    {/* Overall Decision Split */}
-                    <div className="xl:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
-                      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Overall Decision Split</h3>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">All reviewers combined</p>
+                    <section className={`${ui.card} overflow-hidden xl:col-span-2`}>
+                      <div className={ui.cardHeader}>
+                        <div>
+                          <h3 className={ui.title}>Overall decision split</h3>
+                          <p className={ui.subtitle}>All reviewers combined</p>
+                        </div>
+                      </div>
                       {overallPieData.length > 0 ? (
-                        <div className="relative" style={{ height: 296 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie data={overallPieData} cx="50%" cy="50%" innerRadius={72} outerRadius={106}
-                                paddingAngle={2} dataKey="value" startAngle={90} endAngle={-270} isAnimationActive={false}>
-                                {overallPieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                              </Pie>
-                              <Tooltip contentStyle={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
-                                formatter={(v, name) => [v ?? 0, name ?? ''] as [number | string, string]} />
-                              <Legend iconType="circle" iconSize={8}
-                                formatter={(value) => <span style={{ fontSize: 11, color: '#64748b' }}>{value}</span>} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center" style={{ paddingBottom: 48 }}>
-                            <span className="text-3xl font-bold text-slate-800 dark:text-slate-100 leading-none">{totalReviewedAll}</span>
-                            <span className="text-[11px] text-slate-400 mt-0.5">total reviews</span>
+                        <div className="flex flex-col items-center gap-6 p-5 sm:flex-row">
+                          <div className="relative h-[200px] w-[200px] shrink-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={overallPieData} cx="50%" cy="50%" innerRadius={66} outerRadius={92}
+                                  paddingAngle={1} dataKey="value" startAngle={90} endAngle={-270} isAnimationActive={false}>
+                                  {overallPieData.map((entry, i) => <Cell key={i} style={{ fill: entry.color, stroke: 'var(--viz-surface)', strokeWidth: 2 }} />)}
+                                </Pie>
+                                <Tooltip content={<DecisionTooltip />} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-3xl font-semibold leading-none tabular-nums text-stone-900 dark:text-white">{totalReviewedAll}</span>
+                              <span className="mt-1 text-xs text-stone-500 dark:text-gray-400">total reviews</span>
+                            </div>
                           </div>
+                          <ul className="w-full flex-1 divide-y divide-stone-100 dark:divide-gray-700">
+                            {overallPieData.map((d) => {
+                              const sum = overallPieData.reduce((s, x) => s + x.value, 0);
+                              return (
+                                <li key={d.name} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                  <span className="inline-flex items-center gap-2 text-stone-600 dark:text-gray-300">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: d.color }} />
+                                    {d.name}
+                                  </span>
+                                  <span className="tabular-nums">
+                                    <span className="font-semibold text-stone-900 dark:text-white">{d.value}</span>
+                                    <span className="ml-2 text-xs text-stone-400 dark:text-gray-500">{sum ? Math.round((d.value / sum) * 100) : 0}%</span>
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
                         </div>
                       ) : (
-                        <div className="flex h-[296px] items-center justify-center text-xs text-slate-400">No data yet</div>
+                        <div className="flex h-[240px] items-center justify-center text-sm text-stone-400 dark:text-gray-500">No data for this period.</div>
                       )}
-                    </div>
+                    </section>
                   </div>
                 )}
 
-                {/* ── Section 3: Top Performers Grid ───────────────────────────── */}
+                {/* Top performers */}
                 {reviewers.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <Trophy className="w-5 h-5 text-amber-500" />
-                      <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">Top Performers</h2>
-                      <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2.5 py-0.5 rounded-full">
-                        by reviews completed
-                      </span>
+                  <section className="space-y-3">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <h2 className="text-base font-semibold text-stone-900 dark:text-white">Top performers</h2>
+                      <span className="text-xs text-stone-500 dark:text-gray-400">Ranked by reviews completed</span>
                     </div>
 
-                    <div className={`grid gap-5 ${
+                    <div className={`grid gap-4 ${
                       reviewers.length >= 3 ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' :
                       reviewers.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
                       'grid-cols-1'
@@ -495,117 +524,61 @@ export default function DrdMemberAnalyticsPage() {
                           const approvalRate   = reviewed > 0 ? Math.round((approved / reviewed) * 100) : 0;
                           const completionRate = assigned > 0 ? Math.round((reviewed / assigned) * 100) : 0;
                           const rejectionRate  = reviewed > 0 ? Math.round((rejected / reviewed) * 100) : 0;
-                          const total = approved + rejected + revisions + pending;
-
-                          const rankColors = ['#f59e0b', '#94a3b8', '#b45309', '#6366f1', '#10b981', '#0ea5e9'];
-                          const rankLabel  = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 
                           const isSolo = reviewers.length === 1;
 
+                          const stats: Array<{ label: string; value: React.ReactNode }> = [
+                            { label: 'Reviews done', value: <><span className="font-semibold text-stone-900 dark:text-white">{reviewed}</span><span className="text-stone-400 dark:text-gray-500"> / {assigned}</span></> },
+                            { label: 'Completion', value: <span className="font-semibold text-stone-900 dark:text-white">{completionRate}%</span> },
+                            { label: 'Approval rate', value: <span className="font-semibold text-stone-900 dark:text-white">{approvalRate}%</span> },
+                            ...(isSolo ? [
+                              { label: 'Rejection rate', value: <span className="font-semibold text-stone-900 dark:text-white">{rejectionRate}%</span> },
+                              { label: 'Median turnaround', value: <span className="font-semibold text-stone-900 dark:text-white">{fmtHours(r.medianTurnaroundHours)}</span> },
+                            ] : []),
+                          ];
+
                           return (
-                            <div key={r.reviewerId}
-                              className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-
-                              {/* Card header */}
-                              <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 dark:border-slate-700/60">
-                                <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm"
-                                  style={{ backgroundColor: rankColors[rank] }}>
-                                  {rank + 1}
-                                </div>
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                            <article key={r.reviewerId} className={`${ui.card} flex flex-col overflow-hidden`}>
+                              <button
+                                onClick={() => router.push(`/drd/analytics/drd-member/${r.reviewerId}`)}
+                                className="group flex w-full items-center gap-3 border-b border-stone-100 px-5 py-4 text-left transition-colors hover:bg-stone-50 dark:border-gray-700 dark:hover:bg-gray-700/40"
+                              >
+                                <span className="w-5 shrink-0 text-sm font-semibold tabular-nums text-stone-400 dark:text-gray-500">{rank + 1}</span>
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wine/10 text-sm font-semibold text-wine dark:bg-wine/30 dark:text-amber">
                                   {getInitials(r.reviewerName)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-sm truncate leading-tight">{r.reviewerName}</h3>
-                                  <p className="text-[11px] text-slate-400 dark:text-slate-500 capitalize truncate mt-0.5">
-                                    {r.reviewerRole?.replace(/_/g, ' ') || 'DRD Reviewer'} · {rankLabel[rank]}
-                                  </p>
-                                </div>
-                                <button onClick={() => router.push(`/drd/analytics/drd-member/${r.reviewerId}`)}
-                                  className="flex-shrink-0 p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-semibold text-stone-900 dark:text-white">{r.reviewerName}</span>
+                                  <span className="mt-0.5 block truncate text-xs capitalize text-stone-500 dark:text-gray-400">
+                                    {r.reviewerRole?.replace(/_/g, ' ') || 'DRD reviewer'}
+                                  </span>
+                                </span>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-stone-300 transition-colors group-hover:text-stone-500 dark:text-gray-600 dark:group-hover:text-gray-400" />
+                              </button>
 
-                              {/* Card body — horizontal when solo, compact when grid */}
-                              <div className={`flex flex-1 ${isSolo ? 'flex-row divide-x divide-slate-100 dark:divide-slate-700/60' : 'items-center gap-4 px-5 py-4'}`}>
-
-                                {/* Donut section */}
-                                <div className={`flex flex-col items-center justify-center ${isSolo ? 'w-56 flex-shrink-0 py-5' : 'flex-shrink-0 w-[120px]'}`}>
-                                  <ReviewerPieChart
-                                    approved={approved} rejected={rejected}
-                                    revisions={revisions} pending={pending}
-                                    height={isSolo ? 150 : 120}
-                                    innerRadius={isSolo ? 46 : 36}
-                                    outerRadius={isSolo ? 66 : 52}
-                                  />
-                                  <div className="flex flex-wrap justify-center gap-x-2 gap-y-0.5 mt-1.5">
-                                    {[
-                                      { label: 'Appr', color: DECISION_COLORS.approved, val: approved },
-                                      { label: 'Rej', color: DECISION_COLORS.rejected, val: rejected },
-                                      { label: 'Rev', color: DECISION_COLORS.revisions, val: revisions },
-                                      { label: 'Pend', color: DECISION_COLORS.pending, val: pending },
-                                    ].filter(s => s.val > 0).map((s) => (
-                                      <span key={s.label} className="flex items-center gap-0.5 text-[9px] text-slate-500 dark:text-slate-400">
-                                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                        {s.val}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Primary stats */}
-                                <div className={`divide-y divide-slate-100 dark:divide-slate-700/60 ${isSolo ? 'flex-1 px-6 py-5 self-stretch flex flex-col justify-center' : 'flex-1'}`}>
-                                  {[
-                                    { label: 'Reviews Done', value: `${reviewed}`, sub: `/ ${assigned}`, color: 'text-indigo-600 dark:text-indigo-400' },
-                                    { label: 'Completion', value: `${completionRate}%`, sub: '', color: 'text-slate-700 dark:text-slate-300' },
-                                    { label: 'Approval Rate', value: `${approvalRate}%`, sub: '', color: 'text-emerald-600 dark:text-emerald-400' },
-                                    { label: 'Avg Turnaround', value: fmtHours(r.avgTurnaroundHours), sub: '', color: 'text-slate-700 dark:text-slate-300' },
-                                  ].map((s) => (
-                                    <div key={s.label} className="flex items-center justify-between py-1.5 first:pt-0 last:pb-0">
-                                      <span className="text-[11px] text-slate-400 dark:text-slate-500">{s.label}</span>
-                                      <span className={`text-sm font-semibold ${s.color}`}>
-                                        {s.value}<span className="text-[10px] font-normal text-slate-400 ml-0.5">{s.sub}</span>
-                                      </span>
+                              <div className="flex flex-1 flex-col gap-4 px-5 py-4">
+                                <dl className={`grid gap-x-4 gap-y-3 ${isSolo ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' : 'grid-cols-2'}`}>
+                                  {stats.map((s) => (
+                                    <div key={s.label}>
+                                      <dt className="text-xs text-stone-500 dark:text-gray-400">{s.label}</dt>
+                                      <dd className="mt-0.5 text-sm tabular-nums">{s.value}</dd>
                                     </div>
                                   ))}
-                                </div>
-
-                                {/* Extra stats panel — only when solo */}
-                                {isSolo && (
-                                  <div className="flex-1 px-6 py-5 self-stretch flex flex-col justify-center divide-y divide-slate-100 dark:divide-slate-700/60">
-                                    {[
-                                      { label: 'Rejection Rate', value: `${rejectionRate}%`, color: 'text-red-500 dark:text-red-400' },
-                                      { label: 'Median Turnaround', value: fmtHours(r.medianTurnaroundHours), color: 'text-slate-700 dark:text-slate-300' },
-                                      { label: 'Pending', value: `${pending}`, color: 'text-amber-600 dark:text-amber-400' },
-                                      { label: 'Revisions', value: `${revisions}`, color: 'text-orange-500 dark:text-orange-400' },
-                                    ].map((s) => (
-                                      <div key={s.label} className="flex items-center justify-between py-1.5 first:pt-0 last:pb-0">
-                                        <span className="text-[11px] text-slate-400 dark:text-slate-500">{s.label}</span>
-                                        <span className={`text-sm font-semibold ${s.color}`}>{s.value}</span>
-                                      </div>
-                                    ))}
+                                  <div className={isSolo ? '' : 'col-span-2'}>
+                                    <dt className="text-xs text-stone-500 dark:text-gray-400">Avg turnaround</dt>
+                                    <dd className="mt-0.5"><TurnaroundValue hrs={r.avgTurnaroundHours} /></dd>
                                   </div>
-                                )}
+                                </dl>
+                                <DecisionSplitBar approved={approved} rejected={rejected} revisions={revisions} pending={pending} />
                               </div>
-
-                              {/* Decision colour bar (bottom edge) */}
-                              {total > 0 && (
-                                <div className="flex h-1.5 rounded-b-2xl overflow-hidden">
-                                  {approved  > 0 && <div style={{ flex: approved,  backgroundColor: DECISION_COLORS.approved }} />}
-                                  {rejected  > 0 && <div style={{ flex: rejected,  backgroundColor: DECISION_COLORS.rejected }} />}
-                                  {revisions > 0 && <div style={{ flex: revisions, backgroundColor: DECISION_COLORS.revisions }} />}
-                                  {pending   > 0 && <div style={{ flex: pending,   backgroundColor: DECISION_COLORS.pending }} />}
-                                </div>
-                              )}
-                            </div>
+                            </article>
                           );
                         })}
                     </div>
-                  </div>
+                  </section>
                 )}
 
-                {/* ── Section 4: Full Leaderboard ──────────────────────────────── */}
+                {/* Full leaderboard */}
                 {reviewers.length > 0 && (
                   <ReviewerLeaderboardTable
                     reviewers={reviewers}
@@ -615,9 +588,9 @@ export default function DrdMemberAnalyticsPage() {
 
                 {/* Empty state */}
                 {!kpis && !loading && (
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-12 text-center shadow-sm">
-                    <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                    <p className="text-sm text-slate-500 dark:text-slate-400">No review data found for the selected filters.</p>
+                  <div className={`${ui.card} p-12 text-center`}>
+                    <Users className="mx-auto mb-3 h-8 w-8 text-stone-300 dark:text-gray-600" />
+                    <p className="text-sm text-stone-500 dark:text-gray-400">No review data for the selected filters.</p>
                   </div>
                 )}
               </>
@@ -628,4 +601,3 @@ export default function DrdMemberAnalyticsPage() {
     </ProtectedRoute>
   );
 }
-

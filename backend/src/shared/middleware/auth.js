@@ -140,6 +140,7 @@ const protect = async (req, res, next) => {
               centralDeptPermissions: {
                 where: { isActive: true },
                 select: {
+                  universityId: true,
                   centralDeptId: true,
                   permissions: true,
                   isPrimary: true,
@@ -154,6 +155,7 @@ const protect = async (req, res, next) => {
               schoolDeptPermissions: {
                 where: { isActive: true },
                 select: {
+                  universityId: true,
                   departmentId: true,
                   permissions: true,
                   isPrimary: true
@@ -164,15 +166,26 @@ const protect = async (req, res, next) => {
 
           if (!userData) return null;
 
+          // This lookup runs unscoped (runAsSystem), so only honour permission rows and
+          // roles of the user's own university: a row created in another tenant for this
+          // user must never grant anything. Superadmins have no university and keep
+          // their existing behaviour.
+          const isSuperadmin = userData.role === 'superadmin';
+          const ownTenant = (row) => isSuperadmin || row.universityId === userData.universityId;
+          userData.centralDeptPermissions = (userData.centralDeptPermissions || []).filter(ownTenant);
+          userData.schoolDeptPermissions = (userData.schoolDeptPermissions || []).filter(ownTenant);
+
           // Get assigned roles with permissions
           const roleIds = userData.assignedRoleIds || [];
           let rolesWithPermissions = [];
-          
+
           if (Array.isArray(roleIds) && roleIds.length > 0) {
             rolesWithPermissions = await prisma.role.findMany({
               where: {
                 id: { in: roleIds },
                 isActive: true,
+                // Global roles (universityId null) or the user's own university's roles
+                ...(isSuperadmin ? {} : { OR: [{ universityId: userData.universityId }, { universityId: null }] }),
               },
               select: {
                 id: true,
@@ -379,13 +392,26 @@ const checkDepartmentPermission = (department, permissionKey) => {
 };
 
 /**
- * Require a specific permission for a module, checking both naming conventions
+ * Require a permission for a module, checking both naming conventions
  * (e.g. 'ipr_review' and 'drd_ipr_review'). Checks central or school department.
+ * Accepts one or more permission names; the user passes when they hold ANY of them
+ * (e.g. requirePermission('central-department', 'grant_approve', 'research_approve')).
  * @param {'central-department'|'school-department'} departmentType - Department type to search
- * @param {string} permissionName - Permission key to verify
+ * @param {...string} permissionNames - Permission key(s) to verify (OR logic)
  * @returns {import('express').RequestHandler} 403 with details if denied
  */
-const requirePermission = (departmentType, permissionName) => {
+const requirePermission = (departmentType, ...permissionNames) => {
+  const names = permissionNames.flat().filter(n => typeof n === 'string' && n.length > 0);
+  if (names.length === 0) {
+    throw new Error('requirePermission: at least one permission name is required');
+  }
+  // Support both naming conventions (e.g., 'ipr_review' and 'drd_ipr_review')
+  const permissionVariants = [...new Set(names.flatMap(name => [
+    name,
+    `drd_${name}`,
+    name.replace('drd_', '')
+  ]))];
+
   return (req, res, next) => {
     try {
       const user = req.user;
@@ -398,13 +424,6 @@ const requirePermission = (departmentType, permissionName) => {
       }
 
       let hasPermission = false;
-
-      // Support both naming conventions (e.g., 'ipr_review' and 'drd_ipr_review')
-      const permissionVariants = [
-        permissionName,
-        `drd_${permissionName}`,
-        permissionName.replace('drd_', '')
-      ];
 
       if (departmentType === 'central-department') {
         // Check central department permissions

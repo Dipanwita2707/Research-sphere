@@ -91,7 +91,7 @@ export default function GuardianConsentPage({ token }: { token: string }) {
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
             <div className="p-5 sm:p-8 space-y-5">
               <div className="flex items-start gap-3">
-                <div className="p-2.5 rounded-xl bg-wine/10 text-wine dark:text-amber-400">
+                <div className="p-2.5 rounded-xl bg-wine/10 text-wine dark:text-hi">
                   <ShieldCheck className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div>

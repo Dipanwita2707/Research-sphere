@@ -27,6 +27,17 @@ router.post('/universities/:id/suspend', superadminController.suspendUniversity)
 router.get('/universities/:id/admins', superadminController.getUniversityAdmins);
 router.post('/universities/:id/admins', superadminController.createUniversityAdmin);
 
+// Branding & theme (logo, colours, dashboard text) — see modules/branding
+const branding = require('../../branding').controller;
+const BRAND_VARIANT = /^(light|dark|favicon)$/;
+const brandVariant = (req, res, next) =>
+  BRAND_VARIANT.test(req.params.variant || '') ? next() : res.status(404).json({ success: false, message: 'Not found' });
+router.get('/universities/:id/branding', branding.superadminEditor.get);
+router.put('/universities/:id/branding', branding.superadminEditor.update);
+router.post('/universities/:id/branding/reset', branding.superadminEditor.reset);
+router.post('/universities/:id/branding/assets/:variant', brandVariant, branding.handleUpload(tenantContext.bindMiddleware(branding.brandImageUpload)), branding.superadminEditor.upload);
+router.delete('/universities/:id/branding/assets/:variant', brandVariant, branding.superadminEditor.remove);
+
 // Login accounts ↔ university
 router.get('/users', superadminController.listUsers);
 router.patch('/users/:id/university', superadminController.linkUserToUniversity);

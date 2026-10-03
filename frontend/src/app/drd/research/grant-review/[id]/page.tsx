@@ -11,9 +11,10 @@ import {
 import { researchService } from '@/features/research-management/services/research.service';
 import { permissionManagementService } from '@/features/admin-management/services/permissionManagement.service';
 import { useAuthStore } from '@/shared/auth/authStore';
-import grantPolicyService, { GrantIncentivePolicy } from '@/features/research-management/services/grantPolicy.service';
+import grantPolicyService, { GrantIncentivePolicy, grantPolicyDateOf } from '@/features/research-management/services/grantPolicy.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
+import { approveWithZeroIncentiveCheck, ZERO_INCENTIVE_CONFIRM_TITLE } from '@/shared/utils/zeroIncentive';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
 import { getDocumentUrl } from '@/features/research-management/services/documentUrl';
@@ -83,7 +84,7 @@ export default function GrantReviewPage() {
   const id = params.id as string;
   const { user } = useAuthStore();
   const { toast } = useToast();
-  const { confirmDelete, confirmAction } = useConfirm();
+  const { confirm, confirmDelete, confirmAction } = useConfirm();
 
   const [grant, setGrant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +103,8 @@ export default function GrantReviewPage() {
   
   // Grant Policy for incentive calculation
   const [activePolicy, setActivePolicy] = useState<GrantIncentivePolicy | null>(null);
+  // True when the server says no grant policy covers this grant's policy date (pays ₹0).
+  const [policyMissing, setPolicyMissing] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -130,15 +133,19 @@ export default function GrantReviewPage() {
       });
 
       try {
+        // Same policy date as approval: sanction date → submission date → today.
         const policy = await grantPolicyService.getActivePolicy(
           grant.projectCategory,
-          grant.projectType
+          grant.projectType,
+          grantPolicyDateOf(grant)
         );
         logger.debug('Fetched grant policy:', policy);
         setActivePolicy(policy);
+        setPolicyMissing(policy === null);
       } catch (error: unknown) {
         logger.error('Error fetching grant policy:', error);
         setActivePolicy(null);
+        setPolicyMissing(false);
       }
     };
     
@@ -377,7 +384,15 @@ export default function GrantReviewPage() {
 
     try {
       setActionLoading(true);
-      await researchService.approveGrant(id, { comments: reviewComments || 'Approved' });
+      // 409 NO_INCENTIVE_POLICY → confirm "Approve with ₹0 incentive?" and resend.
+      const approved = await approveWithZeroIncentiveCheck(
+        (confirmZeroIncentive) => researchService.approveGrant(id, {
+          comments: reviewComments || 'Approved',
+          ...(confirmZeroIncentive ? { confirmZeroIncentive: true } : {}),
+        }),
+        (message) => confirm({ title: ZERO_INCENTIVE_CONFIRM_TITLE, message, type: 'warning', confirmText: 'Approve with ₹0' }),
+      );
+      if (!approved) return;
       toast({ type: 'success', message: 'Grant approved successfully' });
       router.push('/drd/research');
     } catch (error: unknown) {
@@ -966,6 +981,11 @@ export default function GrantReviewPage() {
               <div className="text-sm text-gray-500">Department</div>
               <div className="font-medium">{grant.department?.departmentName}</div>
             </div>
+            {policyMissing && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                No policy — ₹0. No grant incentive policy covers this grant&apos;s date; approving it pays ₹0 unless a policy is configured.
+              </div>
+            )}
             {/* Applicant Incentive & Points */}
             {activePolicy && (
               <>

@@ -58,11 +58,10 @@ describe('IprService', () => {
   // ── calculateIprIncentives ────────────────────────────────────────────────
 
   describe('calculateIprIncentives()', () => {
-    test('returns zero incentives when no policy found', async () => {
+    test('no policy: the built-in default publication will pay, flagged as default', async () => {
       repo.findActivePolicy.mockResolvedValue(null);
-      const result = await service.calculateIprIncentives('patent', 'provisional', null);
-      expect(result.incentiveAmount).toBe(0);
-      expect(result.pointsAwarded).toBe(0);
+      const result = await service.calculateIprIncentives('copyright', 'provisional', null);
+      expect(result).toEqual({ incentiveAmount: 15000, pointsAwarded: 20, usedDefaultPolicy: true });
     });
 
     test('returns policy incentive amount when policy found', async () => {
@@ -271,25 +270,16 @@ describe('IprService - additional coverage', () => {
 
   // ── calculateIprIncentives with multipliers ───────────────────────────────
 
-  describe('calculateIprIncentives() - multipliers', () => {
-    test('applies filing type multiplier when present', async () => {
+  describe('calculateIprIncentives() - agrees with what publication pays', () => {
+    test('publication pays the base amount only, so multipliers and bonuses are not previewed', async () => {
       repo.findActivePolicy.mockResolvedValue({
-        baseIncentiveAmount: 100000,
+        baseIncentiveAmount: { toNumber: () => 100000 },
         basePoints: 100,
         filingTypeMultiplier: { complete: 1.5 },
-      });
-      const result = await service.calculateIprIncentives('patent', 'complete', null);
-      expect(result.incentiveAmount).toBe(150000);
-    });
-
-    test('applies project type bonus when present', async () => {
-      repo.findActivePolicy.mockResolvedValue({
-        baseIncentiveAmount: 100000,
-        basePoints: 100,
         projectTypeBonus: { funded: 20000 },
       });
-      const result = await service.calculateIprIncentives('patent', 'provisional', 'funded');
-      expect(result.incentiveAmount).toBe(120000);
+      const result = await service.calculateIprIncentives('patent', 'complete', 'funded');
+      expect(result).toEqual({ incentiveAmount: 100000, pointsAwarded: 100, usedDefaultPolicy: false });
     });
   });
 });
@@ -306,6 +296,10 @@ describe('IprService - workflow coverage', () => {
   // ── submitApplication ─────────────────────────────────────────────────────
 
   describe('submitApplication()', () => {
+    // The first submit lazily loads the notification/workflow modules, which can exceed
+    // Jest's 5 s default when the whole suite runs in parallel.
+    jest.setTimeout(20000);
+
     test('throws 404 when draft not found', async () => {
       repo.findFirst.mockResolvedValue(null);
       await expect(service.submitApplication('ipr-1', 'user-1', {})).rejects.toThrow();

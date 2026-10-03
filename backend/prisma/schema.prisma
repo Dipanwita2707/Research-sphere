@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
-  extensions = [citext, uuid_ossp(map: "uuid-ossp")]
+  extensions = [citext, uuid_ossp(map: "uuid-ossp"), btree_gist]
 }
 
 // =====================================
@@ -17,8 +17,23 @@ model University {
   code                            String    @unique @db.VarChar(32)
   name                            String    @db.VarChar(256)
   slug                            String    @unique @db.VarChar(64)
+  // ── Branding & theme (see backend/src/modules/branding) ──────────────────
+  // logoUrl now holds the storage key of the uploaded light logo (S3 key or local
+  // uploads path, written only by the branding service after re-encoding the image);
+  // browsers fetch it through GET /public/branding/:slug/logo/light, never directly.
   logoUrl                         String?   @map("logo_url") @db.VarChar(512)
+  // Optional custom primary colour (#RRGGBB) layered over the theme preset.
   primaryColor                    String?   @map("primary_color") @db.VarChar(16)
+  displayName                     String?   @map("display_name") @db.VarChar(256)
+  shortName                       String?   @map("short_name") @db.VarChar(32)
+  tagline                         String?   @db.VarChar(160)
+  logoDarkKey                     String?   @map("logo_dark_key") @db.VarChar(512)
+  faviconKey                      String?   @map("favicon_key") @db.VarChar(512)
+  themePreset                     String    @default("classic-wine") @map("theme_preset") @db.VarChar(32)
+  accentColor                     String?   @map("accent_color") @db.VarChar(16)
+  heroHeading                     String?   @map("hero_heading") @db.VarChar(120)
+  heroSubheading                  String?   @map("hero_subheading") @db.VarChar(280)
+  brandingUpdatedAt               DateTime? @map("branding_updated_at") @db.Timestamptz(6)
   contactEmail                    String?   @map("contact_email") @db.VarChar(256)
   websiteUrl                      String?   @map("website_url") @db.VarChar(512)
   address                         String?   @db.Text
@@ -33,6 +48,10 @@ model University {
   // transliterations, historical names). Union'd with the auto-generated
   // variant list — see backend/src/shared/utils/affiliationEngine.js.
   affiliationAliases              Json?     @default("[]") @map("affiliation_aliases")
+  // Elsevier Scopus affiliation ids (AF-ID) of this university. Opaque numbers that
+  // cannot be derived from the name; used to recognise home-institution authors on
+  // Scopus records and to constrain "my university only" Scopus searches.
+  scopusAffiliationIds            String[]  @default([]) @map("scopus_affiliation_ids")
   // DPDP: Data Protection Officer / grievance officer published to data principals
   dpoName                         String?   @map("dpo_name") @db.VarChar(256)
   dpoEmail                        String?   @map("dpo_email") @db.VarChar(256)
@@ -121,6 +140,15 @@ model University {
   ripPipelineRuns                       RipPipelineRun[]                       @relation("RipPipelineRunUniversity")
   ripUserAccess                         RipUserAccess[]                        @relation("RipUserAccessUniversity")
   modules                               UniversityModule[]                     @relation("UniversityModuleUniversity")
+  incentivePayouts                      IncentivePayout[]                      @relation("IncentivePayoutUniversity")
+  payoutBatches                         PayoutBatch[]                          @relation("PayoutBatchUniversity")
+  incentivePayoutEvents                 IncentivePayoutEvent[]                 @relation("IncentivePayoutEventUniversity")
+  grantFundReceipts                     GrantFundReceipt[]                     @relation("GrantFundReceiptUniversity")
+  researchBudgets                       ResearchBudget[]                       @relation("ResearchBudgetUniversity")
+  incentiveCycles                       IncentiveCycle[]                       @relation("IncentiveCycleUniversity")
+  financeSettings                       FinanceSettings?                       @relation("FinanceSettingsUniversity")
+  budgetAllocations                     BudgetAllocation[]                     @relation("BudgetAllocationUniversity")
+  budgetAllocationEvents                BudgetAllocationEvent[]                @relation("BudgetAllocationEventUniversity")
 
   @@map("universities")
 }
@@ -288,6 +316,20 @@ model UserLogin {
   ripExpertiseProfile          RipResearcherExpertiseProfile? @relation("RipExpertiseProfile")
   ripTopicScores               RipResearcherTopicScore[]      @relation("RipTopicScores")
   ripAccess                    RipUserAccess?                 @relation("RipUserAccess")
+  incentivePayouts             IncentivePayout[]              @relation("PayoutPayee")
+  recommendedPayouts           IncentivePayout[]              @relation("PayoutRecommendedBy")
+  createdPayoutBatches         PayoutBatch[]                  @relation("PayoutBatchCreatedBy")
+  approvedPayoutBatches        PayoutBatch[]                  @relation("PayoutBatchApprovedBy")
+  paidPayoutBatches            PayoutBatch[]                  @relation("PayoutBatchPaidBy")
+  payoutEvents                 IncentivePayoutEvent[]         @relation("PayoutEventActor")
+  recordedGrantReceipts        GrantFundReceipt[]             @relation("GrantReceiptRecordedBy")
+  researchBudgetsCreated       ResearchBudget[]               @relation("ResearchBudgetCreatedBy")
+  researchBudgetsUpdated       ResearchBudget[]               @relation("ResearchBudgetUpdatedBy")
+  incentiveCyclesCreated       IncentiveCycle[]               @relation("IncentiveCycleCreatedBy")
+  incentiveCyclesUpdated       IncentiveCycle[]               @relation("IncentiveCycleUpdatedBy")
+  financeSettingsUpdated       FinanceSettings[]              @relation("FinanceSettingsUpdatedBy")
+  budgetAllocationsUpdated     BudgetAllocation[]             @relation("BudgetAllocationUpdatedBy")
+  budgetAllocationEvents       BudgetAllocationEvent[]        @relation("BudgetAllocationEventActor")
 
   @@index([universityId])
   @@map("user_login")
@@ -316,7 +358,7 @@ model EmployeeDetails {
   displayName          String?            @map("display_name") @db.VarChar(256)
   photoFilePath        String?            @map("photo_file_path")
   photo                String?            @db.VarChar(64)
-  empId                String?            @unique @map("emp_id") @db.VarChar(64)
+  empId                String?            @map("emp_id") @db.VarChar(64)
   designation          String?            @db.VarChar(128)
   joinDate             DateTime?          @map("join_date") @db.Date
   isActive             Boolean            @default(true) @map("is_active")
@@ -336,6 +378,7 @@ model EmployeeDetails {
   userLogin            UserLogin?         @relation(fields: [userLoginId], references: [id])
   reissueRequests      ReissueRequest[]
 
+  @@unique([universityId, empId])
   @@index([empId])
   @@index([primarySchoolId])
   @@index([primaryDepartmentId])
@@ -607,6 +650,8 @@ model FacultySchoolList {
   iprApplications          IprApplication[]          @relation("SchoolIprApplications")
   researchContributions    ResearchContribution[]    @relation("SchoolResearchContributions")
   researchProgressTrackers ResearchProgressTracker[] @relation("SchoolResearchProgressTrackers")
+  incentivePayouts         IncentivePayout[]         @relation("PayoutSchool")
+  budgetAllocations        BudgetAllocation[]        @relation("BudgetAllocationSchool")
 
   @@unique([universityId, facultyCode])
   @@index([universityId])
@@ -627,7 +672,6 @@ model Department {
   contactEmail             String?                   @map("contact_email") @db.Citext
   contactPhone             String?                   @map("contact_phone") @db.VarChar(20)
   officeLocation           String?                   @map("office_location")
-  budgetAllocation         Decimal?                  @map("budget_allocation") @db.Decimal(15, 2)
   isActive                 Boolean                   @default(true) @map("is_active")
   metadata                 Json                      @default("{}")
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -641,6 +685,8 @@ model Department {
   programs                 Program[]
   researchContributions    ResearchContribution[]    @relation("DepartmentResearchContributions")
   researchProgressTrackers ResearchProgressTracker[] @relation("DepartmentResearchProgressTrackers")
+  incentivePayouts         IncentivePayout[]         @relation("PayoutDepartment")
+  budgetAllocations        BudgetAllocation[]        @relation("BudgetAllocationDepartment")
 
   @@unique([universityId, departmentCode])
   @@index([universityId])
@@ -733,13 +779,14 @@ model ProgramSpecialization {
   universityId       String     @map("university_id") @db.Uuid
   university         University @relation("ProgramSpecializationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   programId          String     @map("program_id") @db.Uuid
-  specializationCode String     @unique @map("specialization_code") @db.VarChar(64)
+  specializationCode String     @map("specialization_code") @db.VarChar(64)
   specializationName String     @map("specialization_name") @db.VarChar(256)
   isActive           Boolean    @default(true) @map("is_active")
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   program            Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
 
+  @@unique([universityId, specializationCode])
   @@index([universityId])
   @@map("program_specialization")
 }
@@ -775,15 +822,18 @@ model Section {
 model StudentDetails {
   id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   universityId         String           @map("university_id") @db.Uuid
+  phdRegistrationDate  DateTime?        @map("phd_registration_date") @db.Date
+  phdAwardedAt         DateTime?        @map("phd_awarded_at") @db.Date
+  thesisTitle          String?          @map("thesis_title") @db.VarChar(512)
   university           University       @relation("StudentDetailsUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   userLoginId          String?          @unique @map("user_login_id") @db.Uuid
-  studentId            String           @unique @map("student_id") @db.VarChar(64)
+  studentId            String           @map("student_id") @db.VarChar(64)
   firstName            String           @map("first_name") @db.VarChar(128)
   lastName             String?          @map("last_name") @db.VarChar(128)
   displayName          String?          @map("display_name") @db.VarChar(256)
-  registrationNo       String?          @unique @map("registration_no") @db.VarChar(64)
+  registrationNo       String?          @map("registration_no") @db.VarChar(64)
   middleName           String?          @map("middle_name") @db.VarChar(128)
-  email                String?          @unique @db.VarChar(256)
+  email                String?          @db.VarChar(256)
   phone                String?          @db.VarChar(15)
   photoFilePath        String?          @map("photo_file_path")
   photo                String?          @db.VarChar(64)
@@ -825,6 +875,9 @@ model StudentDetails {
   section              Section?         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   userLogin            UserLogin?       @relation("StudentLogin", fields: [userLoginId], references: [id])
 
+  @@unique([universityId, studentId])
+  @@unique([universityId, registrationNo])
+  @@unique([universityId, email])
   @@index([gender])
   @@index([programId])
   @@index([graduationDate])
@@ -839,6 +892,9 @@ model StudentDetails {
 model IprApplication {
   id                      String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   universityId            String                    @map("university_id") @db.Uuid
+  /// Patent granted by the patent office (NIRF). Null = not (yet) granted.
+  grantedAt               DateTime?                 @map("granted_at") @db.Date
+  patentNumber            String?                   @map("patent_number") @db.VarChar(64)
   university              University                @relation("IprApplicationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
   applicantUserId         String?                   @map("applicant_user_id") @db.Uuid
   applicantType           ApplicantTypeEnum         @map("applicant_type")
@@ -866,7 +922,7 @@ model IprApplication {
   publicationId           String?                   @map("publication_id") @db.VarChar(128)
   status                  IprStatusEnum             @default(draft)
   revisionCount           Int                       @default(0) @map("revision_count")
-  applicationNumber       String?                   @unique @map("application_number") @db.VarChar(32)
+  applicationNumber       String?                   @map("application_number") @db.VarChar(32)
   conversionDate          DateTime?                 @map("conversion_date") @db.Timestamptz(6)
   prototypeFilePath       String?                   @map("prototype_file_path")
   sourceProvisionalId     String?                   @map("source_provisional_id") @db.Uuid
@@ -886,6 +942,7 @@ model IprApplication {
   statusHistory           IprStatusHistory[]
   statusUpdates           IprStatusUpdate[]
 
+  @@unique([universityId, applicationNumber])
   @@index([applicantUserId])
   @@index([iprType])
   @@index([schoolId])
@@ -995,7 +1052,7 @@ model IprReview {
   suggestionsCount        Int            @default(0) @map("suggestions_count")
   pendingSuggestionsCount Int            @default(0) @map("pending_suggestions_count")
   iprApplication          IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
-  reviewer                UserLogin      @relation("IprReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer                UserLogin      @relation("IprReviews", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([iprApplicationId])
   @@index([reviewerId])
@@ -1023,7 +1080,7 @@ model IprEditSuggestion {
   createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   iprApplication    IprApplication           @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
-  reviewer          UserLogin                @relation("IprEditSuggestions", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer          UserLogin                @relation("IprEditSuggestions", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([iprApplicationId])
   @@index([reviewerId])
@@ -1045,7 +1102,7 @@ model IprCollaborativeSession {
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   iprApplication   IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
-  reviewer         UserLogin      @relation("IprCollaborativeSessions", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer         UserLogin      @relation("IprCollaborativeSessions", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([iprApplicationId])
   @@index([reviewerId])
@@ -1064,7 +1121,7 @@ model IprStatusHistory {
   changedAt        DateTime       @default(now()) @map("changed_at") @db.Timestamptz(6)
   fromStatus       IprStatusEnum? @map("from_status")
   toStatus         IprStatusEnum  @map("to_status")
-  changedBy        UserLogin      @relation("IprStatusChanges", fields: [changedById], references: [id], onDelete: Cascade)
+  changedBy        UserLogin      @relation("IprStatusChanges", fields: [changedById], references: [id], onDelete: Restrict)
   iprApplication   IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
   @@index([iprApplicationId])
@@ -1088,7 +1145,7 @@ model IprFinance {
   creditedAt        DateTime?      @map("credited_at") @db.Timestamptz(6)
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  financeReviewer   UserLogin      @relation("IprFinanceReviews", fields: [financeReviewerId], references: [id], onDelete: Cascade)
+  financeReviewer   UserLogin      @relation("IprFinanceReviews", fields: [financeReviewerId], references: [id], onDelete: Restrict)
   iprApplication    IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
   @@index([iprApplicationId])
@@ -1109,7 +1166,7 @@ model IprStatusUpdate {
   isVisibleToInventors Boolean        @default(true) @map("is_visible_to_inventors")
   createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy            UserLogin      @relation("IprStatusUpdates", fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy            UserLogin      @relation("IprStatusUpdates", fields: [createdById], references: [id], onDelete: Restrict)
   iprApplication       IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
   @@index([iprApplicationId])
@@ -1137,11 +1194,14 @@ model IncentivePolicy {
   updatedById          String?    @map("updated_by_id") @db.Uuid
   createdAt            DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy            UserLogin  @relation("IncentivePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy            UserLogin  @relation("IncentivePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy            UserLogin? @relation("IncentivePolicyUpdatedBy", fields: [updatedById], references: [id])
   university           University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
-  @@unique([universityId, iprType, isActive], name: "unique_active_policy_per_type")
+  // At most one ENABLED policy per university + IPR type on any date: enforced by the
+  // exclusion constraint incentive_policy_no_overlap (migration
+  // 20261002233000_incentive_policy_windows; Prisma cannot model it). Disabled versions are
+  // unlimited — the old @@unique([universityId, iprType, isActive]) allowed only one.
   @@index([iprType])
   @@index([isActive])
   @@index([universityId])
@@ -1179,7 +1239,7 @@ model IPR {
   description             String
   type                    String     @db.VarChar(50)
   status                  String     @default("draft") @db.VarChar(50)
-  applicationNumber       String?    @unique @map("application_number") @db.VarChar(100)
+  applicationNumber       String?    @map("application_number") @db.VarChar(100)
   submissionDate          DateTime?  @map("submission_date") @db.Timestamptz(6)
   applicant               String     @db.VarChar(255)
   coApplicants            Json?      @map("co_applicants")
@@ -1199,8 +1259,9 @@ model IPR {
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   approvedBy              UserLogin? @relation("IPRApprover", fields: [approvedById], references: [id])
-  createdBy               UserLogin  @relation("IPRCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy               UserLogin  @relation("IPRCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
+  @@unique([universityId, applicationNumber])
   @@index([type])
   @@index([status])
   @@index([department])
@@ -1226,7 +1287,7 @@ model DocumentChange {
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   iprApplication   IprApplication @relation("DocumentChanges", fields: [iprApplicationId], references: [id], onDelete: Cascade)
-  reviewer         UserLogin      @relation("DocumentChangeReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer         UserLogin      @relation("DocumentChangeReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([iprApplicationId])
   @@index([fieldName])
@@ -1265,7 +1326,7 @@ model ResearchContribution {
   id                         String                                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   universityId               String                                @map("university_id") @db.Uuid
   university                 University                            @relation("ResearchContributionUniversity", fields: [universityId], references: [id], onDelete: Restrict)
-  applicationNumber          String?                               @unique @map("application_number") @db.VarChar(32)
+  applicationNumber          String?                               @map("application_number") @db.VarChar(32)
   applicantUserId            String?                               @map("applicant_user_id") @db.Uuid
   applicantType              ApplicantTypeEnum                     @map("applicant_type")
   publicationType            ResearchPublicationTypeEnum           @map("publication_type")
@@ -1342,6 +1403,13 @@ model ResearchContribution {
   centralFacilityUsed        Boolean?                              @default(false) @map("central_facility_used")
   issnIsbnIssueNo            String?                               @map("issn_isbn_issue_no") @db.VarChar(64)
   paperDoi                   String?                               @map("paper_doi") @db.VarChar(256)
+  /// Normalised identity of the work (DOI, else ISBN, else type+title+year): one claim per work per university.
+  workKey                    String?                               @map("work_key") @db.VarChar(320)
+  /// Title-based key (type+title+year), kept even when a DOI exists, so a DOI claim and a title-only claim of the same work still collide.
+  titleWorkKey               String?                               @map("title_work_key") @db.VarChar(320)
+  /// NAAC 3.3.1: journal appears in the UGC-CARE list, and its group (I / II).
+  ugcCareListed              Boolean?                              @map("ugc_care_listed")
+  ugcCareGroup               String?                               @map("ugc_care_group") @db.VarChar(16)
   weblink                    String?                               @db.VarChar(512)
   priorityFundingArea        String?                               @map("priority_funding_area") @db.VarChar(256)
   conferenceRole             String?                               @map("conference_role") @db.VarChar(64)
@@ -1383,7 +1451,9 @@ model ResearchContribution {
   statusHistory              ResearchContributionStatusHistory[]
   progressTracker            ResearchProgressTracker?              @relation("TrackerToContribution")
   ripKeywords                RipContributionKeyword[]              @relation("RipContributionKeywords")
+  incentivePayouts           IncentivePayout[]
 
+  @@unique([universityId, applicationNumber])
   @@index([applicantUserId])
   @@index([status])
   @@index([publicationType])
@@ -1401,31 +1471,58 @@ model ResearchContribution {
   @@index([doi])
   @@index([applicantUserId, doi])
   @@index([universityId])
+  @@index([universityId, workKey])
+  @@index([universityId, titleWorkKey])
   @@map("research_contribution")
 }
 
 model ResearchProfileIdentity {
-  id                 String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  universityId       String                 @map("university_id") @db.Uuid
-  university         University             @relation("ResearchProfileIdentityUniversity", fields: [universityId], references: [id], onDelete: Restrict)
-  userId             String                 @unique @map("user_id") @db.Uuid
-  orcid              String?                @db.VarChar(32)
-  scopusAuthorId     String?                @map("scopus_author_id") @db.VarChar(64)
-  pubmedId           String?                @map("pubmed_id") @db.VarChar(64)
-  webOfScienceId     String?                @map("web_of_science_id") @db.VarChar(64)
-  affiliationAliases Json?                  @default("[]") @map("affiliation_aliases")
-  autoSyncEnabled    Boolean                @default(true) @map("auto_sync_enabled")
-  filterSgtOnly      Boolean                @default(false) @map("filter_sgt_only")
-  syncFrequencyDays  Int                    @default(1) @map("sync_frequency_days")
-  syncStatus         String                 @default("never_synced") @map("sync_status") @db.VarChar(32)
-  syncError          String?                @map("sync_error")
-  lastSyncedAt       DateTime?              @map("last_synced_at") @db.Timestamptz(6)
-  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user               UserLogin              @relation("UserResearchProfileIdentity", fields: [userId], references: [id], onDelete: Cascade)
-  importRuns         PublicationImportRun[]
-  publicationImports PublicationImport[]
+  id                    String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId          String                 @map("university_id") @db.Uuid
+  university            University             @relation("ResearchProfileIdentityUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  userId                String                 @unique @map("user_id") @db.Uuid
+  orcid                 String?                @db.VarChar(32)
+  scopusAuthorId        String?                @map("scopus_author_id") @db.VarChar(64)
+  pubmedId              String?                @map("pubmed_id") @db.VarChar(64)
+  webOfScienceId        String?                @map("web_of_science_id") @db.VarChar(64)
+  affiliationAliases    Json?                  @default("[]") @map("affiliation_aliases")
+  autoSyncEnabled       Boolean                @default(true) @map("auto_sync_enabled")
+  filterSgtOnly         Boolean                @default(false) @map("filter_sgt_only")
+  syncFrequencyDays     Int                    @default(1) @map("sync_frequency_days")
+  syncStatus            String                 @default("never_synced") @map("sync_status") @db.VarChar(32)
+  syncError             String?                @map("sync_error")
+  lastSyncedAt          DateTime?              @map("last_synced_at") @db.Timestamptz(6)
+  /// When the scheduled sync should next pick this profile up. Set to lastSyncedAt +
+  /// syncFrequencyDays after a clean run, and a few hours ahead after a source failed.
+  nextSyncAt            DateTime?              @map("next_sync_at") @db.Timestamptz(6)
+  /// OpenAlex author id(s) resolved from the ORCID / Scopus id (never from the name alone).
+  openAlexAuthorId      String?                @map("openalex_author_id") @db.VarChar(256)
+  /// Outcome of checking the ORCID / Scopus id against the registries:
+  /// { orcid?: { status: 'verified'|'unverified', name?, reason?, checkedAt }, scopus?: {...} }
+  identityVerification  Json?                  @map("identity_verification")
+  // Author profile content + privacy. 'public' = anyone with the link (no login),
+  // 'institution' = signed-in members of the same university, 'private' = owner + admins.
+  bio                   String?                @db.Text
+  researchInterests     String[]               @default([]) @map("research_interests")
+  profileVisibility     String                 @default("institution") @map("profile_visibility") @db.VarChar(16)
+  showEmail             Boolean                @default(false) @map("show_email")
+  showPhone             Boolean                @default(false) @map("show_phone")
+  showResearchInterests Boolean                @default(true) @map("show_research_interests")
+  showPublications      Boolean                @default(true) @map("show_publications")
+  showCoAuthors         Boolean                @default(true) @map("show_co_authors")
+  showMetrics           Boolean                @default(true) @map("show_metrics")
+  showPhoto             Boolean                @default(true) @map("show_photo")
+  allowSearchIndexing   Boolean                @default(false) @map("allow_search_indexing")
+  /// URL handle for the public page: /p/<university-slug>/<publicHandle>
+  publicHandle          String?                @map("public_handle") @db.VarChar(80)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  UserLogin              @relation("UserResearchProfileIdentity", fields: [userId], references: [id], onDelete: Cascade)
+  importRuns            PublicationImportRun[]
+  publicationImports    PublicationImport[]
 
+  @@unique([universityId, publicHandle])
+  @@index([autoSyncEnabled, nextSyncAt])
   @@index([orcid])
   @@index([scopusAuthorId])
   @@index([pubmedId])
@@ -1480,7 +1577,7 @@ model PublicationImport {
   researchProfile        ResearchProfileIdentity @relation(fields: [researchProfileId], references: [id], onDelete: Cascade)
   researchContribution   ResearchContribution?   @relation(fields: [researchContributionId], references: [id], onDelete: SetNull)
 
-  @@unique([sourceSystem, externalId], map: "publication_import_source_external_key")
+  @@unique([universityId, sourceSystem, externalId], map: "publication_import_tenant_source_external_key")
   @@index([researchProfileId, lastSeenAt])
   @@index([doi])
   @@index([universityId])
@@ -1588,7 +1685,7 @@ model ResearchContributionReview {
   createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   researchContribution    ResearchContribution @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_review_contribution_fkey")
-  reviewer                UserLogin            @relation("ResearchContributionReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer                UserLogin            @relation("ResearchContributionReviews", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([reviewerId])
   @@index([researchContributionId], map: "research_contribution_review_contribution_id_idx")
@@ -1609,7 +1706,7 @@ model ResearchContributionStatusHistory {
   comments               String?
   metadata               Json?
   changedAt              DateTime                        @default(now()) @map("changed_at") @db.Timestamptz(6)
-  changedBy              UserLogin                       @relation("ResearchContributionStatusChanges", fields: [changedById], references: [id], onDelete: Cascade, map: "research_contribution_status_history_changed_by_fkey")
+  changedBy              UserLogin                       @relation("ResearchContributionStatusChanges", fields: [changedById], references: [id], onDelete: Restrict, map: "research_contribution_status_history_changed_by_fkey")
   researchContribution   ResearchContribution            @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_status_history_contribution_fkey")
 
   @@index([researchContributionId], map: "research_contribution_status_history_contribution_id_idx")
@@ -1635,7 +1732,7 @@ model ResearchContributionEditSuggestion {
   createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   researchContribution   ResearchContribution     @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_edit_suggestion_contribution_fkey")
-  reviewer               UserLogin                @relation("ResearchContributionEditSuggestions", fields: [reviewerId], references: [id], onDelete: Cascade, map: "research_contribution_edit_suggestion_reviewer_fkey")
+  reviewer               UserLogin                @relation("ResearchContributionEditSuggestions", fields: [reviewerId], references: [id], onDelete: Restrict, map: "research_contribution_edit_suggestion_reviewer_fkey")
 
   @@index([reviewerId])
   @@index([researchContributionId], map: "research_contribution_edit_suggestion_contribution_id_idx")
@@ -1666,10 +1763,15 @@ model ResearchIncentivePolicy {
   distributionMethod              DistributionMethodEnum @default(author_role_based) @map("distribution_method")
   first_author_percentage         Decimal?               @default(40) @db.Decimal(5, 2)
   positionBasedDistribution       Json?                  @map("position_based_distribution")
-  createdBy                       UserLogin              @relation("ResearchPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "research_incentive_policy_created_by_fkey")
+  createdBy                       UserLogin              @relation("ResearchPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, map: "research_incentive_policy_created_by_fkey")
   updatedBy                       UserLogin?             @relation("ResearchPolicyUpdatedBy", fields: [updatedById], references: [id], map: "research_incentive_policy_updated_by_fkey")
   university                      University             @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
+  // isActive = enabled by an admin; the policy applying to a date is the enabled one whose
+  // effective window covers it. No two enabled policies of a university + type overlap:
+  // exclusion constraint research_incentive_policy_no_overlap (book, book chapter, conference,
+  // grant and IPR policies have the same *_no_overlap constraint) — migration
+  // 20261002233000_incentive_policy_windows; Prisma cannot model it.
   @@index([publicationType])
   @@index([isActive])
   @@index([universityId])
@@ -1694,7 +1796,7 @@ model BookIncentivePolicy {
   updatedById             String?    @map("updated_by_id") @db.Uuid
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy               UserLogin  @relation("BookPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "book_incentive_policy_created_by_fkey")
+  createdBy               UserLogin  @relation("BookPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, map: "book_incentive_policy_created_by_fkey")
   updatedBy               UserLogin? @relation("BookPolicyUpdatedBy", fields: [updatedById], references: [id], map: "book_incentive_policy_updated_by_fkey")
   university              University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
@@ -1721,7 +1823,7 @@ model BookChapterIncentivePolicy {
   updatedById             String?    @map("updated_by_id") @db.Uuid
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy               UserLogin  @relation("BookChapterPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "book_chapter_incentive_policy_created_by_fkey")
+  createdBy               UserLogin  @relation("BookChapterPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, map: "book_chapter_incentive_policy_created_by_fkey")
   updatedBy               UserLogin? @relation("BookChapterPolicyUpdatedBy", fields: [updatedById], references: [id], map: "book_chapter_incentive_policy_updated_by_fkey")
   university              University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
@@ -1749,7 +1851,7 @@ model ConferenceIncentivePolicy {
   updatedById         String?    @map("updated_by_id") @db.Uuid
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy           UserLogin  @relation("ConferencePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "conference_incentive_policy_created_by_fkey")
+  createdBy           UserLogin  @relation("ConferencePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, map: "conference_incentive_policy_created_by_fkey")
   updatedBy           UserLogin? @relation("ConferencePolicyUpdatedBy", fields: [updatedById], references: [id], map: "conference_incentive_policy_updated_by_fkey")
   university          University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
@@ -1779,7 +1881,7 @@ model GrantIncentivePolicy {
   updatedById             String?    @map("updated_by_id") @db.Uuid
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy               UserLogin  @relation("GrantPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "grant_incentive_policy_created_by_fkey")
+  createdBy               UserLogin  @relation("GrantPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, map: "grant_incentive_policy_created_by_fkey")
   updatedBy               UserLogin? @relation("GrantPolicyUpdatedBy", fields: [updatedById], references: [id], map: "grant_incentive_policy_updated_by_fkey")
   university              University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
@@ -1794,7 +1896,7 @@ model ResearchProgressTracker {
   id                     String                          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   universityId           String                          @map("university_id") @db.Uuid
   university             University                      @relation("ResearchProgressTrackerUniversity", fields: [universityId], references: [id], onDelete: Restrict)
-  trackingNumber         String                          @unique @map("tracking_number") @db.VarChar(32)
+  trackingNumber         String                          @map("tracking_number") @db.VarChar(32)
   userId                 String                          @map("user_id") @db.Uuid
   publicationType        ResearchPublicationTypeEnum     @map("publication_type")
   title                  String                          @db.VarChar(512)
@@ -1815,8 +1917,9 @@ model ResearchProgressTracker {
   department             Department?                     @relation("DepartmentResearchProgressTrackers", fields: [departmentId], references: [id])
   researchContribution   ResearchContribution?           @relation("TrackerToContribution", fields: [researchContributionId], references: [id])
   school                 FacultySchoolList?              @relation("SchoolResearchProgressTrackers", fields: [schoolId], references: [id])
-  user                   UserLogin                       @relation("ResearchProgressTrackers", fields: [userId], references: [id], onDelete: Cascade)
+  user                   UserLogin                       @relation("ResearchProgressTrackers", fields: [userId], references: [id], onDelete: Restrict)
 
+  @@unique([universityId, trackingNumber])
   @@index([userId])
   @@index([publicationType])
   @@index([currentStatus])
@@ -1852,8 +1955,11 @@ model ResearchProgressStatusHistory {
 model GrantApplication {
   id                        String                           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   universityId              String                           @map("university_id") @db.Uuid
+  sanctionedAmount          Decimal?                         @map("sanctioned_amount") @db.Decimal(15, 2)
+  sanctionDate              DateTime?                        @map("sanction_date") @db.Date
+  sanctionOrderNumber       String?                          @map("sanction_order_number") @db.VarChar(128)
   university                University                       @relation("GrantApplicationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
-  applicationNumber         String?                          @unique @map("application_number") @db.VarChar(32)
+  applicationNumber         String?                          @map("application_number") @db.VarChar(32)
   applicantUserId           String?                          @map("applicant_user_id") @db.Uuid
   applicantType             ApplicantTypeEnum                @map("applicant_type")
   title                     String                           @db.VarChar(512)
@@ -1902,7 +2008,9 @@ model GrantApplication {
   statusHistory             GrantApplicationStatusHistory[]
   consortiumOrganizations   GrantConsortiumOrganization[]
   investigators             GrantInvestigator[]
+  fundReceipts              GrantFundReceipt[]
 
+  @@unique([universityId, applicationNumber])
   @@index([applicantUserId])
   @@index([status])
   @@index([projectType])
@@ -1987,7 +2095,7 @@ model GrantApplicationReview {
   createdAt               DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   grantApplication        GrantApplication @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
-  reviewer                UserLogin        @relation("GrantApplicationReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer                UserLogin        @relation("GrantApplicationReviews", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([grantApplicationId])
   @@index([reviewerId])
@@ -2006,7 +2114,7 @@ model GrantApplicationStatusHistory {
   comments           String?
   metadata           Json?
   changedAt          DateTime                    @default(now()) @map("changed_at") @db.Timestamptz(6)
-  changedBy          UserLogin                   @relation("GrantApplicationStatusChanges", fields: [changedById], references: [id], onDelete: Cascade)
+  changedBy          UserLogin                   @relation("GrantApplicationStatusChanges", fields: [changedById], references: [id], onDelete: Restrict)
   grantApplication   GrantApplication            @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
 
   @@index([grantApplicationId])
@@ -2032,7 +2140,7 @@ model GrantApplicationEditSuggestion {
   createdAt          DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   grantApplication   GrantApplication         @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
-  reviewer           UserLogin                @relation("GrantApplicationEditSuggestions", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewer           UserLogin                @relation("GrantApplicationEditSuggestions", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([reviewerId])
   @@index([grantApplicationId])
@@ -2541,7 +2649,7 @@ model ConsentRecord {
   universityId       String?       @map("university_id") @db.Uuid
   university         University?   @relation(fields: [universityId], references: [id], onDelete: Restrict)
   userId             String        @map("user_id") @db.Uuid
-  user               UserLogin     @relation("ConsentRecordUser", fields: [userId], references: [id], onDelete: Cascade)
+  user               UserLogin     @relation("ConsentRecordUser", fields: [userId], references: [id], onDelete: Restrict)
   noticeId           String        @map("notice_id") @db.Uuid
   notice             ConsentNotice @relation(fields: [noticeId], references: [id], onDelete: Restrict)
   purpose            String        @db.VarChar(64)
@@ -2986,4 +3094,334 @@ model RipUserAccess {
 
   @@index([universityId])
   @@map("rip_user_access")
+}
+
+// ============================================================================
+// Incentive payouts (finance)
+// One payable line per eligible author per approved work. Finance reviewer
+// recommends (verifies) a line, a DIFFERENT finance approver approves the batch,
+// then the batch is marked paid with the payroll/bank reference. No bank details
+// are stored — payment goes through payroll by employee ID.
+// ============================================================================
+
+enum IncentiveSourceType {
+  research_contribution
+  grant
+  ipr
+
+  @@map("incentive_source_type_enum")
+}
+
+enum IncentivePayoutStatus {
+  pending_verification
+  recommended
+  on_hold
+  approved
+  paid
+  cancelled
+
+  @@map("incentive_payout_status_enum")
+}
+
+enum PayoutBatchStatus {
+  draft
+  approved
+  paid
+  cancelled
+
+  @@map("payout_batch_status_enum")
+}
+
+model IncentivePayout {
+  id                     String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId           String                 @map("university_id") @db.Uuid
+  university             University             @relation("IncentivePayoutUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  sourceType             IncentiveSourceType    @map("source_type")
+  sourceId               String                 @map("source_id") @db.Uuid
+  researchContributionId String?                @map("research_contribution_id") @db.Uuid
+  researchContribution   ResearchContribution?  @relation(fields: [researchContributionId], references: [id], onDelete: Restrict)
+  /// research_paper | book | book_chapter | conference_paper | grant | patent | copyright | ...
+  workType               String                 @map("work_type") @db.VarChar(32)
+  title                  String                 @db.VarChar(512)
+  referenceNumber        String?                @map("reference_number") @db.VarChar(100)
+  /// Same as the contribution's workKey; cleared when a line is cancelled so the work can be re-claimed.
+  workKey                String?                @map("work_key") @db.VarChar(320)
+  payeeUserId            String                 @map("payee_user_id") @db.Uuid
+  payee                  UserLogin              @relation("PayoutPayee", fields: [payeeUserId], references: [id], onDelete: Restrict)
+  payeeName              String                 @map("payee_name") @db.VarChar(256)
+  payeeEmployeeId        String?                @map("payee_employee_id") @db.VarChar(64)
+  payeeRole              String?                @map("payee_role") @db.VarChar(64)
+  /// Payee's school and department when the line was created (budget attribution). Null = unassigned.
+  schoolId               String?                @map("school_id") @db.Uuid
+  school                 FacultySchoolList?     @relation("PayoutSchool", fields: [schoolId], references: [id], onDelete: SetNull)
+  departmentId           String?                @map("department_id") @db.Uuid
+  department             Department?            @relation("PayoutDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  calculatedAmount       Decimal                @map("calculated_amount") @db.Decimal(15, 2)
+  approvedAmount         Decimal                @map("approved_amount") @db.Decimal(15, 2)
+  points                 Int                    @default(0)
+  adjustmentReason       String?                @map("adjustment_reason")
+  status                 IncentivePayoutStatus  @default(pending_verification)
+  holdReason             String?                @map("hold_reason")
+  /// Indian financial year of DRD approval, e.g. "2026-27" (payment batches and reports).
+  financialYear          String                 @map("financial_year") @db.VarChar(9)
+  /// Incentive cycle whose budget this line consumes: the cycle containing the date that selected
+  /// the incentive policy (publication / sanction / IPR publication date). Null = no cycle covers it.
+  cycleId                String?                @map("cycle_id") @db.Uuid
+  cycle                  IncentiveCycle?        @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  /// The date that selected the incentive policy (and so the cycle), as a calendar day.
+  policyDate             DateTime?              @map("policy_date") @db.Date
+  sourceApprovedAt       DateTime               @map("source_approved_at") @db.Timestamptz(6)
+  recommendedById        String?                @map("recommended_by_id") @db.Uuid
+  recommendedBy          UserLogin?             @relation("PayoutRecommendedBy", fields: [recommendedById], references: [id], onDelete: Restrict)
+  recommendedAt          DateTime?              @map("recommended_at") @db.Timestamptz(6)
+  batchId                String?                @map("batch_id") @db.Uuid
+  batch                  PayoutBatch?           @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  tdsAmount              Decimal?               @map("tds_amount") @db.Decimal(15, 2)
+  paymentReference       String?                @map("payment_reference") @db.VarChar(64)
+  paidAt                 DateTime?              @map("paid_at") @db.Timestamptz(6)
+  createdAt              DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  events                 IncentivePayoutEvent[]
+
+  @@unique([universityId, sourceType, sourceId, payeeUserId])
+  @@unique([universityId, workKey, payeeUserId])
+  @@index([universityId])
+  @@index([universityId, status])
+  @@index([universityId, financialYear])
+  @@index([payeeUserId])
+  @@index([batchId])
+  @@index([researchContributionId])
+  @@index([universityId, financialYear, schoolId])
+  @@index([cycleId, schoolId])
+  @@index([departmentId])
+  @@map("incentive_payout")
+}
+
+model PayoutBatch {
+  id               String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId     String                 @map("university_id") @db.Uuid
+  university       University             @relation("PayoutBatchUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  batchNumber      String                 @map("batch_number") @db.VarChar(32)
+  title            String?                @db.VarChar(256)
+  financialYear    String                 @map("financial_year") @db.VarChar(9)
+  status           PayoutBatchStatus      @default(draft)
+  totalAmount      Decimal                @default(0) @map("total_amount") @db.Decimal(15, 2)
+  lineCount        Int                    @default(0) @map("line_count")
+  createdById      String                 @map("created_by_id") @db.Uuid
+  createdBy        UserLogin              @relation("PayoutBatchCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedById     String?                @map("approved_by_id") @db.Uuid
+  approvedBy       UserLogin?             @relation("PayoutBatchApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  approvedAt       DateTime?              @map("approved_at") @db.Timestamptz(6)
+  approvalComments String?                @map("approval_comments")
+  /// Approved by someone who prepared it or recommended its lines (allowed only with FinanceSettings.allowSelfApproval; the reason is in the batch events).
+  selfApproved     Boolean                @default(false) @map("self_approved")
+  paidById         String?                @map("paid_by_id") @db.Uuid
+  paidBy           UserLogin?             @relation("PayoutBatchPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
+  paidAt           DateTime?              @map("paid_at") @db.Timestamptz(6)
+  paymentDate      DateTime?              @map("payment_date") @db.Date
+  paymentReference String?                @map("payment_reference") @db.VarChar(64)
+  cancelledReason  String?                @map("cancelled_reason")
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  payouts          IncentivePayout[]
+  events           IncentivePayoutEvent[]
+
+  @@unique([universityId, batchNumber])
+  @@index([universityId])
+  @@index([universityId, status])
+  @@map("payout_batch")
+}
+
+/// Append-only trail of every finance action on a payout line or batch.
+model IncentivePayoutEvent {
+  id           String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String           @map("university_id") @db.Uuid
+  university   University       @relation("IncentivePayoutEventUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  payoutId     String?          @map("payout_id") @db.Uuid
+  payout       IncentivePayout? @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+  batchId      String?          @map("batch_id") @db.Uuid
+  batch        PayoutBatch?     @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  action       String           @db.VarChar(48)
+  fromStatus   String?          @map("from_status") @db.VarChar(32)
+  toStatus     String?          @map("to_status") @db.VarChar(32)
+  amount       Decimal?         @db.Decimal(15, 2)
+  comments     String?
+  actorId      String           @map("actor_id") @db.Uuid
+  actor        UserLogin        @relation("PayoutEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([universityId])
+  @@index([payoutId])
+  @@index([batchId])
+  @@map("incentive_payout_event")
+}
+
+/// Grant money actually received, per instalment (NAAC 3.1 / NIRF need it per financial year).
+model GrantFundReceipt {
+  id                 String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId       String           @map("university_id") @db.Uuid
+  university         University       @relation("GrantFundReceiptUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  grantApplicationId String           @map("grant_application_id") @db.Uuid
+  grantApplication   GrantApplication @relation(fields: [grantApplicationId], references: [id], onDelete: Restrict)
+  amount             Decimal          @db.Decimal(15, 2)
+  receivedDate       DateTime         @map("received_date") @db.Date
+  financialYear      String           @map("financial_year") @db.VarChar(9)
+  reference          String?          @db.VarChar(128)
+  notes              String?
+  recordedById       String           @map("recorded_by_id") @db.Uuid
+  recordedBy         UserLogin        @relation("GrantReceiptRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([universityId])
+  @@index([grantApplicationId])
+  @@index([universityId, financialYear])
+  @@map("grant_fund_receipt")
+}
+
+// ─── Research budget allocation (finance) ───────────────────────────────────
+// One budget per university per incentive cycle. Allocations form the tree
+// university (the budget total) → school → department. Spending is read from the payout
+// ledger (IncentivePayout.schoolId / departmentId); nothing here is a payment.
+
+enum BudgetNodeType {
+  university
+  school
+  department
+
+  @@map("budget_node_type_enum")
+}
+
+/// Per-university finance rules. One row per university, created on first change; no row = defaults.
+model FinanceSettings {
+  id                String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId      String     @unique @map("university_id") @db.Uuid
+  university        University @relation("FinanceSettingsUniversity", fields: [universityId], references: [id], onDelete: Cascade)
+  /// Small teams: whoever prepared a payment batch or recommended its lines may also approve it,
+  /// giving a reason each time. Off = a second person must approve (separation of duties).
+  allowSelfApproval Boolean    @default(false) @map("allow_self_approval")
+  updatedById       String?    @map("updated_by_id") @db.Uuid
+  updatedBy         UserLogin? @relation("FinanceSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("finance_settings")
+}
+
+/// An incentive cycle: the period that incentive policies and the research budget share
+/// (by default the Indian financial year, April–March). Cycles of a university never overlap
+/// (exclusion constraint), and an enabled policy saved while cycles exist must sit inside one.
+model IncentiveCycle {
+  id           String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId String                  @map("university_id") @db.Uuid
+  university   University              @relation("IncentiveCycleUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  /// e.g. "FY 2026-27"
+  name         String                  @db.VarChar(64)
+  startDate    DateTime                @map("start_date") @db.Date
+  endDate      DateTime                @map("end_date") @db.Date
+  notes        String?
+  /// Null for cycles created by a migration.
+  createdById  String?                 @map("created_by_id") @db.Uuid
+  createdBy    UserLogin?              @relation("IncentiveCycleCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById  String?                 @map("updated_by_id") @db.Uuid
+  updatedBy    UserLogin?              @relation("IncentiveCycleUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  budget       ResearchBudget?
+  allocations  BudgetAllocation[]
+  events       BudgetAllocationEvent[]
+  payouts      IncentivePayout[]
+
+  @@unique([universityId, name])
+  @@index([universityId, startDate])
+  @@map("incentive_cycle")
+}
+
+model ResearchBudget {
+  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId        String                  @map("university_id") @db.Uuid
+  university          University              @relation("ResearchBudgetUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  cycleId             String                  @unique @map("cycle_id") @db.Uuid
+  cycle               IncentiveCycle          @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  totalAmount         Decimal                 @default(0) @map("total_amount") @db.Decimal(15, 2)
+  /// University-level split by category: { research_paper, book, book_chapter, conference_paper, ipr, grant } → amount.
+  categoryAllocations Json                    @default("{}") @map("category_allocations")
+  notes               String?
+  /// When true, approving a payment batch that leaves a node over its allocation is refused (409 BUDGET_EXCEEDED).
+  enforceLimit        Boolean                 @default(false) @map("enforce_limit")
+  /// Utilisation % at which a node is flagged "near limit".
+  warnThresholdPct    Int                     @default(80) @map("warn_threshold_pct")
+  /// Bumped on every allocation write; the row lock serialises concurrent writers on this budget.
+  version             Int                     @default(0)
+  createdById         String                  @map("created_by_id") @db.Uuid
+  createdBy           UserLogin               @relation("ResearchBudgetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById         String?                 @map("updated_by_id") @db.Uuid
+  updatedBy           UserLogin?              @relation("ResearchBudgetUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  allocations         BudgetAllocation[]
+  events              BudgetAllocationEvent[]
+
+  @@index([universityId])
+  @@map("research_budget")
+}
+
+model BudgetAllocation {
+  id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId        String             @map("university_id") @db.Uuid
+  university          University         @relation("BudgetAllocationUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  budgetId            String             @map("budget_id") @db.Uuid
+  budget              ResearchBudget     @relation(fields: [budgetId], references: [id], onDelete: Restrict)
+  cycleId             String             @map("cycle_id") @db.Uuid
+  cycle               IncentiveCycle     @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  /// school or department (the university node is the budget itself).
+  nodeType            BudgetNodeType     @map("node_type")
+  /// The school id or department id; the matching schoolId / departmentId column carries the FK.
+  nodeId              String             @map("node_id") @db.Uuid
+  schoolId            String?            @map("school_id") @db.Uuid
+  school              FacultySchoolList? @relation("BudgetAllocationSchool", fields: [schoolId], references: [id], onDelete: Cascade)
+  departmentId        String?            @map("department_id") @db.Uuid
+  department          Department?        @relation("BudgetAllocationDepartment", fields: [departmentId], references: [id], onDelete: Cascade)
+  amount              Decimal            @default(0) @db.Decimal(15, 2)
+  /// Optional split by category (same keys as ResearchBudget.categoryAllocations); sum ≤ amount.
+  categoryAllocations Json               @default("{}") @map("category_allocations")
+  updatedById         String?            @map("updated_by_id") @db.Uuid
+  updatedBy           UserLogin?         @relation("BudgetAllocationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([universityId, cycleId, nodeType, nodeId])
+  @@index([universityId])
+  @@index([budgetId])
+  @@map("budget_allocation")
+}
+
+/// Append-only trail: budget and allocation changes (old → new, reason) and over-budget warnings/blocks.
+model BudgetAllocationEvent {
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  universityId  String         @map("university_id") @db.Uuid
+  university    University     @relation("BudgetAllocationEventUniversity", fields: [universityId], references: [id], onDelete: Restrict)
+  budgetId      String         @map("budget_id") @db.Uuid
+  budget        ResearchBudget @relation(fields: [budgetId], references: [id], onDelete: Restrict)
+  cycleId       String         @map("cycle_id") @db.Uuid
+  cycle         IncentiveCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  nodeType      BudgetNodeType @map("node_type")
+  nodeId        String         @map("node_id") @db.Uuid
+  /// Node name when the event was written (a school/department may be renamed or removed later).
+  nodeName      String?        @map("node_name") @db.VarChar(256)
+  /// budget_created | budget_updated | allocation_created | allocation_updated | over_budget_warning | over_budget_blocked
+  action        String         @db.VarChar(48)
+  oldAmount     Decimal?       @map("old_amount") @db.Decimal(15, 2)
+  newAmount     Decimal?       @map("new_amount") @db.Decimal(15, 2)
+  oldCategories Json?          @map("old_categories")
+  newCategories Json?          @map("new_categories")
+  details       Json?
+  reason        String?
+  actorId       String         @map("actor_id") @db.Uuid
+  actor         UserLogin      @relation("BudgetAllocationEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([universityId, cycleId])
+  @@index([budgetId])
+  @@index([universityId, nodeType, nodeId])
+  @@map("budget_allocation_event")
 }

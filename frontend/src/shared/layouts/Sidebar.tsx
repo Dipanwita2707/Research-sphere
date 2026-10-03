@@ -356,13 +356,13 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         onClick={onToggleCollapse}
         className="absolute -right-3 top-8 z-50 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-200"
       >
-        <ChevronLeft className={`w-4 h-4 text-[#4A0F26] transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} />
+        <ChevronLeft className={`w-4 h-4 text-wine-darker transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} />
       </button>
 
       {/* User Section - Like LMS with avatar, name, role badge */}
       <div className={`flex flex-col items-center py-6 border-b border-white/10 ${isCollapsed ? 'px-2' : 'px-4'}`}>
         <div 
-          className={`rounded-full bg-gradient-to-br from-[#4A0F26] to-[#232323] flex items-center justify-center text-white font-bold shadow-lg border-4 border-white/20 ${
+          className={`rounded-full bg-gradient-to-br from-wine-darker to-charcoal flex items-center justify-center text-white font-bold shadow-lg border-4 border-white/20 ${
             isCollapsed ? 'w-10 h-10 text-sm' : 'w-16 h-16 text-xl'
           }`}
         >
@@ -371,7 +371,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         {!isCollapsed && (
           <div className="text-center mt-3">
             <h3 className="text-white font-semibold text-sm">{getUserDisplayName(user)}</h3>
-            <span className="inline-block mt-2 px-3 py-1 bg-[#841C43] text-white text-[10px] font-bold rounded-full tracking-wide">
+            <span className="inline-block mt-2 px-3 py-1 bg-wine text-wine-fg text-[10px] font-bold rounded-full tracking-wide">
               {getUserRoleLabel(user)}
             </span>
           </div>
@@ -394,7 +394,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                     onClick={() => toggleExpand(item.name)}
                     className={`w-full flex items-center justify-between px-4 py-3 mx-2 rounded-lg transition-all duration-200 ${
                       isActive 
-                        ? 'bg-[#E28B22] text-white' 
+                        ? 'bg-amber text-white' 
                         : 'text-white/80 hover:bg-white/10 hover:text-white'
                     }`}
                     style={{ width: 'calc(100% - 16px)' }}
@@ -419,7 +419,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                             onClick={onMobileClose}
                             className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                               isSubActive 
-                                ? 'bg-[#E28B22] text-white font-medium' 
+                                ? 'bg-amber text-white font-medium' 
                                 : 'text-white/70 hover:bg-white/10 hover:text-white'
                             }`}
                           >
@@ -438,7 +438,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                   className={`flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-all duration-200 ${
                     isCollapsed ? 'justify-center' : ''
                   } ${isActive 
-                    ? 'bg-[#E28B22] text-white' 
+                    ? 'bg-amber text-white' 
                     : 'text-white/80 hover:bg-white/10 hover:text-white'
                   }`}
                   style={{ width: 'calc(100% - 16px)' }}
@@ -470,7 +470,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
         className={`hidden md:flex md:flex-col fixed left-0 top-14 bottom-0 z-30 transition-all duration-300 ease-in-out ${
           isCollapsed ? 'w-16' : 'w-60'
         }`}
-        style={{ background: 'linear-gradient(180deg, #4A0F26 0%, #232323 100%)' }}
+        style={{ background: 'linear-gradient(180deg, rgb(var(--brand-primary-darker)) 0%, rgb(var(--brand-charcoal)) 100%)' }}
       >
         {sidebarContent}
       </aside>
@@ -481,7 +481,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onMobileClose} />
           <aside 
             className="fixed inset-y-0 left-0 w-60 z-50 md:hidden flex flex-col pt-14"
-            style={{ background: 'linear-gradient(180deg, #4A0F26 0%, #232323 100%)' }}
+            style={{ background: 'linear-gradient(180deg, rgb(var(--brand-primary-darker)) 0%, rgb(var(--brand-charcoal)) 100%)' }}
           >
             {sidebarContent}
           </aside>

@@ -248,7 +248,7 @@ function NoticeEditor({
               </div>
             ))}
           </div>
-          <button type="button" className="mt-2 text-sm text-wine dark:text-amber-400 hover:underline" onClick={() => setForm((f) => ({ ...f, purposes: [...f.purposes, blankPurpose()] }))}>
+          <button type="button" className="mt-2 text-sm text-wine dark:text-hi hover:underline" onClick={() => setForm((f) => ({ ...f, purposes: [...f.purposes, blankPurpose()] }))}>
             + Add purpose
           </button>
         </fieldset>

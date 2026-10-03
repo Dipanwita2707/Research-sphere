@@ -846,7 +846,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
             >
               <option value="scopus_indexed">Scopus Indexed</option>
               <option value="non_indexed">Non-Indexed</option>
-              <option value="sgt_publication_house">ResearchSphere Publication House</option>
+              <option value="sgt_publication_house">University Publication House</option>
             </select>
           </div>
 
@@ -1175,7 +1175,7 @@ export default function BookChapterStatusForm({ status, data, onChange }: BookCh
             >
               <option value="scopus_indexed">Scopus Indexed</option>
               <option value="non_indexed">Non-Indexed</option>
-              <option value="sgt_publication_house">ResearchSphere Publication House</option>
+              <option value="sgt_publication_house">University Publication House</option>
             </select>
           </div>
           <div>

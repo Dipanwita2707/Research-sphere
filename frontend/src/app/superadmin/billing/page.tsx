@@ -166,7 +166,7 @@ export default function BillingManagement() {
         </div>
         <button
           onClick={handleOpenCreateModal}
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-[#4A0F26] hover:from-red-700 hover:to-[#3a0c1e] text-white px-5 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-red-600/20 hover:shadow-red-600/30 transition-all text-center justify-center"
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-wine-darker hover:from-red-700 hover:to-wine-darker text-white px-5 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-red-600/20 hover:shadow-red-600/30 transition-all text-center justify-center"
         >
           <Plus className="h-4 w-4" />
           Create New Tier
@@ -192,7 +192,7 @@ export default function BillingManagement() {
         <div className="relative bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
           <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-gradient-to-br from-red-100 to-transparent dark:from-red-950/30" />
           <div className="relative">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-[#4A0F26] flex items-center justify-center shadow-md shadow-red-600/20 mb-4">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500 to-wine-darker flex items-center justify-center shadow-md shadow-red-600/20 mb-4">
               <DollarSign className="h-5 w-5 text-white" />
             </div>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">MRR Estimate</span>
@@ -475,7 +475,7 @@ export default function BillingManagement() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-gradient-to-r from-red-600 to-[#4A0F26] hover:from-red-700 hover:to-[#3a0c1e] text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-red-600/20 transition-all flex items-center gap-2 disabled:opacity-60"
+                    className="bg-gradient-to-r from-red-600 to-wine-darker hover:from-red-700 hover:to-wine-darker text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-red-600/20 transition-all flex items-center gap-2 disabled:opacity-60"
                   >
                     {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                     Save Pricing Plan

@@ -66,7 +66,7 @@ export default function DataProtectionAdmin() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-xl bg-wine/10 dark:bg-wine/20 text-wine dark:text-amber-400">
+          <div className="p-2.5 rounded-xl bg-wine/10 dark:bg-wine/20 text-wine dark:text-hi">
             <ShieldCheck className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
@@ -108,7 +108,7 @@ export default function DataProtectionAdmin() {
                 onClick={() => selectTab(key)}
                 className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   active
-                    ? 'border-wine text-wine dark:border-amber-400 dark:text-amber-400'
+                    ? 'border-wine text-wine dark:border-amber-400 dark:text-hi'
                     : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >

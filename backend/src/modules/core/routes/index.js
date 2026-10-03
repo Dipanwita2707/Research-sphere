@@ -46,6 +46,11 @@ router.use('/auth', authModule);
 // DPDP: consent/rights API, then the consent gate for every route mounted below it
 // (403 CONSENT_REQUIRED until the privacy notice is accepted; see dpdp/middleware/requireConsent.js)
 router.use('/dpdp', require('../../dpdp'));
+// Public author profiles (no login) — must stay ahead of the consent gate.
+router.use('/public/profiles', require('../../research/routes/publicProfile.routes'));
+router.use('/public/branding', require('../../branding').publicRoutes);
+// Before the consent gate: the app chrome needs the university's branding while consent is pending.
+router.use('/branding', require('../../branding'));
 router.use(require('../../dpdp').consentGate);
 router.use('/dashboard', dashboardRoutes);
 router.use('/permissions', permissionRoutes);
@@ -64,6 +69,7 @@ router.use('/reporting-structure', reportingStructureRoutes);
 router.use('/affiliation', affiliationRoutes);
 router.use('/analytics', analyticsModule);
 router.use('/drd-analytics', drdAnalyticsModule);
+router.use('/reports', require('../../reports'));
 router.use('/notifications', notificationsModule);
 router.use('/file-upload', require('./fileUpload.routes'));
 

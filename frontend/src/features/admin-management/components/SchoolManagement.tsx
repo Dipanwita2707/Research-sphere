@@ -168,7 +168,7 @@ export default function SchoolManagement() {
           </button>
           <button
             onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            className="px-4 py-2 bg-primary-600 text-wine-fg rounded-lg hover:bg-primary-700 transition-colors"
           >
             Add New School
           </button>
@@ -412,7 +412,7 @@ export default function SchoolManagement() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                    className="px-4 py-2 bg-primary-600 text-wine-fg rounded-lg hover:bg-primary-700"
                   >
                     {editingSchool ? 'Update' : 'Create'}
                   </button>

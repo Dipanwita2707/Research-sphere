@@ -31,14 +31,15 @@ import { researchService, GrantApplication } from '@/features/research-managemen
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
+import { approveWithZeroIncentiveCheck, ZERO_INCENTIVE_CONFIRM_TITLE } from '@/shared/utils/zeroIncentive';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string }> = {
-  submitted: { label: 'Submitted', icon: Clock, color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]' },
+  submitted: { label: 'Submitted', icon: Clock, color: 'text-wine', bgColor: 'bg-wine-100' },
   under_review: { label: 'Under Review', icon: Eye, color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
   changes_required: { label: 'Changes Required', icon: AlertCircle, color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  resubmitted: { label: 'Resubmitted', icon: RefreshCw, color: 'text-[#7d1a34]', bgColor: 'bg-[#fbe2e8]' },
+  resubmitted: { label: 'Resubmitted', icon: RefreshCw, color: 'text-wine', bgColor: 'bg-wine-100' },
   approved: { label: 'Approved', icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100' },
   rejected: { label: 'Rejected', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-100' },
   completed: { label: 'Completed', icon: CheckCircle, color: 'text-green-700', bgColor: 'bg-green-200' },
@@ -49,7 +50,7 @@ type StatusFilter = 'all' | 'submitted' | 'under_review' | 'changes_required' | 
 export default function GrantReviewDashboard() {
   const { user } = useAuthStore();
   const { toast } = useToast();
-  const { confirmAction } = useConfirm();
+  const { confirm, confirmAction } = useConfirm();
   const [grants, setGrants] = useState<GrantApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +115,15 @@ export default function GrantReviewDashboard() {
     
     const comments = prompt('Enter approval comments (optional):');
     try {
-      await researchService.approveGrant(grantId, { comments: comments || undefined });
+      // 409 NO_INCENTIVE_POLICY → confirm "Approve with ₹0 incentive?" and resend.
+      const approved = await approveWithZeroIncentiveCheck(
+        (confirmZeroIncentive) => researchService.approveGrant(grantId, {
+          comments: comments || undefined,
+          ...(confirmZeroIncentive ? { confirmZeroIncentive: true } : {}),
+        }),
+        (message) => confirm({ title: ZERO_INCENTIVE_CONFIRM_TITLE, message, type: 'warning', confirmText: 'Approve with ₹0' }),
+      );
+      if (!approved) return;
       fetchGrants();
     } catch (error: unknown) {
       toast({ type: 'error', message: extractErrorMessage(error) });
@@ -234,7 +243,7 @@ export default function GrantReviewDashboard() {
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Access Denied</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">{error}</p>
-          <Link href="/dashboard" className="text-sm font-medium text-[#7d1a34] dark:text-[#c8973f] hover:underline">← Back to Dashboard</Link>
+          <Link href="/dashboard" className="text-sm font-medium text-wine dark:text-gold hover:underline">← Back to Dashboard</Link>
         </div>
       </div>
     );
@@ -270,7 +279,7 @@ export default function GrantReviewDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-y md:divide-y-0 divide-slate-200 dark:divide-slate-800">
             {[
               { label: 'Total',          value: stats.total,          icon: DollarSign,  bg: 'bg-slate-50 dark:bg-slate-800',        accent: 'text-slate-600 dark:text-slate-400' },
-              { label: 'Submitted',      value: stats.submitted,      icon: Send,        bg: 'bg-[#fdf5ec] dark:bg-blue-950/50',       accent: 'text-[#7d1a34] dark:text-[#c8973f]' },
+              { label: 'Submitted',      value: stats.submitted,      icon: Send,        bg: 'bg-blush dark:bg-blue-950/50',       accent: 'text-wine dark:text-gold' },
               { label: 'Under Review',   value: stats.underReview,    icon: Eye,         bg: 'bg-amber-50 dark:bg-amber-950/50',     accent: 'text-amber-600 dark:text-amber-400' },
               { label: 'Changes Req.',   value: stats.changesRequired, icon: AlertCircle, bg: 'bg-orange-50 dark:bg-orange-950/50',   accent: 'text-orange-600 dark:text-orange-400' },
               { label: 'Approved',       value: stats.approved,       icon: CheckCircle, bg: 'bg-green-50 dark:bg-green-950/50',     accent: 'text-green-600 dark:text-green-400' },
@@ -301,13 +310,13 @@ export default function GrantReviewDashboard() {
                 placeholder="Search grants…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#7d1a34]/20 focus:border-[#7d1a34] transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-wine/20 focus:border-wine transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#7d1a34]/20 focus:border-[#7d1a34] text-slate-900 dark:text-slate-100"
+              className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-wine/20 focus:border-wine text-slate-900 dark:text-slate-100"
             >
               <option value="all">All Statuses</option>
               <option value="submitted">Submitted</option>
@@ -319,7 +328,7 @@ export default function GrantReviewDashboard() {
             <select
               value={projectTypeFilter}
               onChange={(e) => setProjectTypeFilter(e.target.value)}
-              className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#7d1a34]/20 focus:border-[#7d1a34] text-slate-900 dark:text-slate-100"
+              className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-wine/20 focus:border-wine text-slate-900 dark:text-slate-100"
             >
               <option value="all">All Project Types</option>
               <option value="indian">Indian</option>
@@ -349,14 +358,14 @@ export default function GrantReviewDashboard() {
                 const statusConfig = STATUS_CONFIG[grant.status];
                 const StatusIcon = statusConfig?.icon || FileText;
                 const dot: Record<string, string> = {
-                  submitted: 'bg-[#7d1a34]', under_review: 'bg-amber-500', changes_required: 'bg-orange-500',
-                  resubmitted: 'bg-[#7d1a34]', approved: 'bg-green-500', rejected: 'bg-red-500', completed: 'bg-emerald-500',
+                  submitted: 'bg-wine', under_review: 'bg-amber-500', changes_required: 'bg-orange-500',
+                  resubmitted: 'bg-wine', approved: 'bg-green-500', rejected: 'bg-red-500', completed: 'bg-emerald-500',
                 };
                 const badge: Record<string, string> = {
-                  submitted: 'bg-[#fdf5ec] text-[#7d1a34] dark:bg-blue-950/60 dark:text-[#c8973f]',
+                  submitted: 'bg-blush text-wine dark:bg-blue-950/60 dark:text-gold',
                   under_review: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
                   changes_required: 'bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300',
-                  resubmitted: 'bg-[#fdf5ec] text-[#7d1a34] dark:bg-blue-950/60 dark:text-[#c8973f]',
+                  resubmitted: 'bg-blush text-wine dark:bg-blue-950/60 dark:text-gold',
                   approved: 'bg-green-50 text-green-700 dark:bg-green-950/60 dark:text-green-300',
                   rejected: 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300',
                   completed: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
@@ -409,7 +418,7 @@ export default function GrantReviewDashboard() {
                         <Eye className="h-3.5 w-3.5" />View Details
                       </Link>
                       {(grant.status === 'submitted' || grant.status === 'resubmitted') && (
-                        <button onClick={() => handleStartReview(grant.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#7d1a34] rounded-lg hover:bg-[#5e1024] transition-colors">
+                        <button onClick={() => handleStartReview(grant.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-wine-fg bg-wine rounded-lg hover:bg-wine-dark transition-colors">
                           <Eye className="h-3.5 w-3.5" />Start Review
                         </button>
                       )}

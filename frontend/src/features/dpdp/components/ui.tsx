@@ -9,7 +9,7 @@ export const inputClass =
 export const labelClass = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
 
 export const btnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-lg bg-wine px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-wine-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-wine/50 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
+  'inline-flex items-center justify-center gap-2 rounded-lg bg-wine px-4 py-2 text-sm font-medium text-wine-fg shadow-sm hover:bg-wine-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-wine/50 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
 
 export const btnSecondary =
   'inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-wine/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
@@ -39,7 +39,7 @@ export function Card({
       {(title || actions) && (
         <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 px-4 sm:px-6 pt-5 pb-3">
           <div className="flex items-start gap-3 min-w-0">
-            {icon && <div className="p-2 rounded-xl bg-wine/10 dark:bg-wine/20 text-wine dark:text-amber-400 shrink-0">{icon}</div>}
+            {icon && <div className="p-2 rounded-xl bg-wine/10 dark:bg-wine/20 text-wine dark:text-hi shrink-0">{icon}</div>}
             <div className="min-w-0">
               {title && <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>}
               {description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{description}</p>}
@@ -283,7 +283,7 @@ export function StatCard({
   tone?: 'default' | 'warning' | 'danger' | 'success';
 }) {
   const toneClass = {
-    default: 'text-wine dark:text-amber-400 bg-wine/10 dark:bg-wine/20',
+    default: 'text-wine dark:text-hi bg-wine/10 dark:bg-wine/20',
     warning: 'text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300',
     danger: 'text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-300',
     success: 'text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-300',

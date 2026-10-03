@@ -203,7 +203,7 @@ export default function SuperadminLicensesPage() {
 
           <button
             onClick={() => setIsCreating(!isCreating)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-wine hover:bg-wine-dark text-white font-medium shadow-md shadow-wine/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-wine hover:bg-wine-dark text-wine-fg font-medium shadow-md shadow-wine/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" />
             <span>Issue New License</span>
@@ -358,7 +358,7 @@ export default function SuperadminLicensesPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-wine hover:bg-wine-dark text-white font-medium shadow-md shadow-wine/20 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-wine hover:bg-wine-dark text-wine-fg font-medium shadow-md shadow-wine/20 transition-all disabled:opacity-50"
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 <span>Generate License Key</span>

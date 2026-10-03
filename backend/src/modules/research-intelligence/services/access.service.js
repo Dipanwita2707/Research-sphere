@@ -236,8 +236,10 @@ async function listUsers({ q, role, roleId, access = 'all', page = 1, pageSize =
   }
   const holdsRole = ripRoles.map((r) => ({ assignedRoleIds: { array_contains: r.id } }));
   const grantActive = { ripAccess: { is: { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } } };
-  if (access === 'with') and.push({ OR: [...holdsRole, grantActive] });
-  else if (access === 'without') and.push({ NOT: { OR: [...holdsRole, grantActive] } });
+  // Administrators always have full access (see resolveAccess), so they count as "with".
+  const isAdmin = { role: { in: [...ADMIN_ROLES] } };
+  if (access === 'with') and.push({ OR: [isAdmin, ...holdsRole, grantActive] });
+  else if (access === 'without') and.push({ NOT: { OR: [isAdmin, ...holdsRole, grantActive] } });
   else if (access === 'expired') and.push({ ripAccess: { is: { expiresAt: { lte: now } } } });
 
   const where = { AND: and };
@@ -331,7 +333,7 @@ async function setUserRoles(userId, roleIds) {
   const ids = asIds(roleIds);
   await assertAssignable(ids);
   const r = await applyRoleChange(userId, () => ids);
-  if (r.skipped === 'Not found') throw new NotFoundError('User not found in this university');
+  if (r.skipped === 'Not found') throw new NotFoundError('User in this university');
   if (r.skipped) throw new ValidationError(r.skipped);
   return r;
 }
@@ -378,7 +380,7 @@ async function setGrant(actor, userId, { permissions, expiresAt, note } = {}) {
     throw new ForbiddenError('Only university administrators can grant access management.');
   }
   const user = await prisma.userLogin.findFirst({ where: { id: userId }, select: { id: true, uid: true, email: true, role: true } });
-  if (!user) throw new NotFoundError('User not found in this university');
+  if (!user) throw new NotFoundError('User in this university');
   if (ADMIN_ROLES.has(user.role)) throw new ValidationError('Administrators already have full access; grants are not needed.');
 
   if (!keys.length) {
@@ -425,7 +427,7 @@ async function setUniversityModule(actor, universityId, { enabled, notes }) {
   if (typeof enabled !== 'boolean') throw new ValidationError('enabled must be true or false');
   const result = await tenantContext.runAsSystem(async () => {
     const uni = await prisma.university.findFirst({ where: { id: universityId }, select: { id: true, name: true } });
-    if (!uni) throw new NotFoundError('University not found');
+    if (!uni) throw new NotFoundError('University');
     const now = new Date();
     const data = {
       enabled,

@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const collaborativeEditingController = require('../controllers/collaborativeEditing.controller');
 const { protect, requireAnyPermission } = require('../../../shared/middleware/auth');
+const { requireSchoolScope, requireViewScope } = require('../services/reviewScope');
+
+// DRD reviewers: suggestions/sessions only inside their assigned IPR schools; reads stay open to
+// applicants, inventors and mentors (participants) and to in-scope reviewers.
+const requireIprActScope = requireSchoolScope('ipr');
+const requireIprViewScope = requireViewScope('ipr');
 
 // All routes require authentication
 router.use(protect);
@@ -9,26 +15,31 @@ router.use(protect);
 // Collaborative editing session management
 router.post('/sessions/:iprApplicationId/start', 
   requireAnyPermission('central-department', ['ipr_review', 'ipr_approve', 'drd_ipr_review', 'drd_ipr_approve']),
+  requireIprActScope,
   collaborativeEditingController.startCollaborativeSession
 );
 
 router.get('/sessions/:iprApplicationId', 
   requireAnyPermission('central-department', ['ipr_review', 'ipr_approve', 'drd_ipr_review', 'drd_ipr_approve']),
+  requireIprViewScope,
   collaborativeEditingController.getCollaborativeSession
 );
 
 router.post('/sessions/:sessionId/end', 
   requireAnyPermission('central-department', ['ipr_review', 'ipr_approve', 'drd_ipr_review', 'drd_ipr_approve']),
+  requireIprActScope,
   collaborativeEditingController.endCollaborativeSession
 );
 
 // Edit suggestions management - Individual (legacy)
 router.post('/:iprApplicationId/suggestions', 
   requireAnyPermission('central-department', ['ipr_review', 'ipr_approve', 'drd_ipr_review', 'drd_ipr_approve']),
+  requireIprActScope,
   collaborativeEditingController.createEditSuggestion
 );
 
 router.get('/:iprApplicationId/suggestions', 
+  requireIprViewScope,
   collaborativeEditingController.getEditSuggestions
 );
 
@@ -39,6 +50,7 @@ router.post('/suggestions/:suggestionId/respond',
 // Batch operations - New endpoints
 router.post('/:iprApplicationId/suggestions/batch', 
   requireAnyPermission('central-department', ['ipr_review', 'ipr_approve', 'drd_ipr_review', 'drd_ipr_approve']),
+  requireIprActScope,
   collaborativeEditingController.submitBatchSuggestions
 );
 
@@ -53,6 +65,7 @@ router.post('/:iprApplicationId/suggestions/batch-respond',
 
 // Review history
 router.get('/:iprApplicationId/history', 
+  requireIprViewScope,
   collaborativeEditingController.getReviewHistory
 );
 

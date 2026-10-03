@@ -25,10 +25,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { UniversityModulesCard } from '@/features/research-intelligence/components/admin/UniversityModulesCard';
+import BrandingEditor from '@/features/branding/components/BrandingEditor';
+import { superadminBrandingApi } from '@/features/branding/services/branding.service';
 
 export default function UniversityDetails() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const brandingApi = useMemo(() => superadminBrandingApi(id), [id]);
   const [university, setUniversity] = useState<University | null>(null);
   const [tiers, setTiers] = useState<SaaSTier[]>([]);
   const [admins, setAdmins] = useState<UniversityAdmin[]>([]);
@@ -40,8 +43,6 @@ export default function UniversityDetails() {
 
   // Editing Fields
   const [name, setName] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -73,8 +74,6 @@ export default function UniversityDetails() {
 
       // Populate edit states
       setName(uniData.name);
-      setLogoUrl(uniData.logoUrl || '');
-      setPrimaryColor(uniData.primaryColor || '');
       setContactEmail(uniData.contactEmail || '');
       setWebsiteUrl(uniData.websiteUrl || '');
       setIsActive(uniData.isActive);
@@ -154,8 +153,6 @@ export default function UniversityDetails() {
     try {
       const updated = await superadminService.updateUniversity(id, {
         name,
-        logoUrl: logoUrl || null,
-        primaryColor: primaryColor || null,
         contactEmail: contactEmail || null,
         websiteUrl: websiteUrl || null,
         isActive,
@@ -229,7 +226,7 @@ export default function UniversityDetails() {
         <ShieldAlert className="h-12 w-12 text-wine mx-auto" />
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">University Container Not Found</h2>
         <p className="text-gray-500">The university ID is invalid or has been decommissioned.</p>
-        <Link href="/superadmin/universities" className="inline-block bg-wine hover:bg-wine-dark text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+        <Link href="/superadmin/universities" className="inline-block bg-wine hover:bg-wine-dark text-wine-fg px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
           Return to Directory
         </Link>
       </div>
@@ -247,7 +244,7 @@ export default function UniversityDetails() {
       <div className="flex flex-wrap justify-between items-center gap-4">
         <Link
           href="/superadmin/universities"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-wine dark:text-gray-400 dark:hover:text-amber-400 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-wine dark:text-gray-400 dark:hover:text-hi transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Directory
@@ -269,7 +266,7 @@ export default function UniversityDetails() {
 
           <button
             onClick={handleImpersonate}
-            className="inline-flex items-center gap-2 bg-wine hover:bg-wine-dark text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-brand transition-colors"
+            className="inline-flex items-center gap-2 bg-wine hover:bg-wine-dark text-wine-fg px-4 py-2 rounded-xl text-sm font-semibold shadow-brand transition-colors"
           >
             <ExternalLink className="h-4 w-4" />
             Login as Admin
@@ -279,12 +276,12 @@ export default function UniversityDetails() {
 
       {/* Hero Header — premium gradient banner */}
       <div className="relative overflow-hidden rounded-2xl bg-brand-gradient shadow-brand-lg">
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, #E28B22 0%, transparent 50%)' }} />
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, rgb(var(--brand-accent)) 0%, transparent 50%)' }} />
         <div className="absolute -bottom-12 -right-12 w-48 h-48 rounded-full bg-amber/10 blur-2xl" />
         <div className="relative flex flex-col sm:flex-row sm:items-center gap-5 p-6 sm:p-8">
           <div className="h-20 w-20 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg overflow-hidden">
             {university.logoUrl ? (
-              <img src={university.logoUrl} alt={university.name} className="h-full w-full object-cover" />
+              <img src={university.logoUrl} alt={university.name} className="h-full w-full object-contain bg-white p-1.5" />
             ) : (
               <Building className="h-10 w-10" />
             )}
@@ -305,10 +302,12 @@ export default function UniversityDetails() {
               <span>Code: <span className="font-semibold text-white">{university.code}</span></span>
               <span className="text-white/30">•</span>
               <span>Slug: <span className="font-semibold text-white">{university.slug}</span></span>
-              <span className="text-white/30">•</span>
-              <a href={`https://${university.slug}.sgt-ums.com`} target="_blank" className="text-amber-300 hover:text-amber-200 font-medium inline-flex items-center gap-1 hover:underline">
-                {university.slug}.sgt-ums.com <ExternalLink className="h-3 w-3" />
-              </a>
+              {university.displayName && university.displayName !== university.name && (
+                <>
+                  <span className="text-white/30">•</span>
+                  <span>Shown as: <span className="font-semibold text-white">{university.displayName}</span></span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -322,7 +321,7 @@ export default function UniversityDetails() {
       )}
 
       {error && (
-        <div className="bg-wine/5 dark:bg-wine/20 border border-wine/20 dark:border-wine/40 p-4 rounded-xl text-wine dark:text-amber-400 flex items-start gap-3 shadow-sm">
+        <div className="bg-wine/5 dark:bg-wine/20 border border-wine/20 dark:border-wine/40 p-4 rounded-xl text-wine dark:text-hi flex items-start gap-3 shadow-sm">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
           <p className="font-medium">{error}</p>
         </div>
@@ -418,41 +417,13 @@ export default function UniversityDetails() {
             <form onSubmit={handleUpdate} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Display Name</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Official Name</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. SGT University"
+                    placeholder="e.g. Example University"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-blush/50 dark:bg-gray-900 outline-none text-sm focus:border-wine focus:ring-2 focus:ring-wine/10 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Primary Color</label>
-                  <div className="relative flex items-center">
-                    <input
-                      type="text"
-                      placeholder="e.g. #841C43"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-blush/50 dark:bg-gray-900 outline-none text-sm focus:border-wine focus:ring-2 focus:ring-wine/10 pl-11 transition-all"
-                    />
-                    <div
-                      className="absolute left-3 w-5 h-5 rounded border border-gray-200 dark:border-gray-700 shadow-sm"
-                      style={{ backgroundColor: primaryColor || '#eee' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Logo URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://domain.com/logo.png"
-                    value={logoUrl}
-                    onChange={(e) => setLogoUrl(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-blush/50 dark:bg-gray-900 outline-none text-sm focus:border-wine focus:ring-2 focus:ring-wine/10 transition-all"
                   />
                 </div>
@@ -507,7 +478,7 @@ export default function UniversityDetails() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-wine hover:bg-wine-dark disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-brand transition-all hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2"
+                  className="bg-wine hover:bg-wine-dark disabled:opacity-50 text-wine-fg px-6 py-2.5 rounded-xl text-sm font-bold shadow-brand transition-all hover:-translate-y-0.5 active:translate-y-0 inline-flex items-center gap-2"
                 >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                   {isSubmitting ? 'Saving Changes...' : 'Save Configuration'}
@@ -568,7 +539,7 @@ export default function UniversityDetails() {
                 {affiliationAliases.map((alias) => (
                   <span
                     key={alias}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-wine/10 text-wine dark:bg-wine/20 dark:text-amber-400 border border-wine/20 dark:border-wine/40"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-wine/10 text-wine dark:bg-wine/20 dark:text-hi border border-wine/20 dark:border-wine/40"
                   >
                     {alias}
                     <button
@@ -603,7 +574,7 @@ export default function UniversityDetails() {
                 <button
                   type="button"
                   onClick={handleAddAlias}
-                  className="inline-flex items-center gap-1.5 bg-wine hover:bg-wine-dark text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-brand transition-all"
+                  className="inline-flex items-center gap-1.5 bg-wine hover:bg-wine-dark text-wine-fg px-4 py-2.5 rounded-xl text-sm font-bold shadow-brand transition-all"
                 >
                   <Plus className="h-4 w-4" />
                   Add
@@ -615,6 +586,14 @@ export default function UniversityDetails() {
               </p>
             </div>
           </div>
+
+          {/* Branding & theme (logo, colours, dashboard text) */}
+          <BrandingEditor
+            mode="edit"
+            api={brandingApi}
+            legalName={university.name}
+            onSaved={(data) => setUniversity((prev) => (prev ? { ...prev, logoUrl: data.branding.logoUrl } : prev))}
+          />
 
           {/* Tenant Administrators */}
           <div className="bg-white dark:bg-gray-950 p-6 sm:p-8 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
@@ -630,7 +609,7 @@ export default function UniversityDetails() {
               </div>
               <button
                 onClick={() => setIsAddAdminModalOpen(true)}
-                className="inline-flex items-center justify-center gap-1.5 bg-wine hover:bg-wine-dark text-white px-4 py-2 rounded-xl text-sm font-bold shadow-brand transition-all"
+                className="inline-flex items-center justify-center gap-1.5 bg-wine hover:bg-wine-dark text-wine-fg px-4 py-2 rounded-xl text-sm font-bold shadow-brand transition-all"
               >
                 <Plus className="h-4 w-4" />
                 Add Admin
@@ -692,7 +671,7 @@ export default function UniversityDetails() {
             </div>
 
             {adminError && (
-              <div className="mx-6 mt-4 bg-wine/5 dark:bg-wine/20 text-wine dark:text-amber-400 p-3 rounded-lg text-sm font-semibold border border-wine/20 dark:border-wine/40">
+              <div className="mx-6 mt-4 bg-wine/5 dark:bg-wine/20 text-wine dark:text-hi p-3 rounded-lg text-sm font-semibold border border-wine/20 dark:border-wine/40">
                 {adminError}
               </div>
             )}
@@ -742,7 +721,7 @@ export default function UniversityDetails() {
                 <button
                   type="submit"
                   disabled={isAddingAdmin}
-                  className="flex-1 bg-wine hover:bg-wine-dark disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-bold shadow-brand transition-colors inline-flex items-center justify-center gap-2"
+                  className="flex-1 bg-wine hover:bg-wine-dark disabled:opacity-50 text-wine-fg py-2.5 rounded-xl text-sm font-bold shadow-brand transition-colors inline-flex items-center justify-center gap-2"
                 >
                   {isAddingAdmin && <Loader2 className="h-4 w-4 animate-spin" />}
                   {isAddingAdmin ? 'Provisioning...' : 'Provision Admin'}

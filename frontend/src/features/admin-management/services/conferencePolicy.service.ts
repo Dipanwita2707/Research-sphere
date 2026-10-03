@@ -1,5 +1,4 @@
-﻿import api from '@/shared/api/api';
-import { isAxiosError } from 'axios';
+﻿import api, { isAxiosError } from '@/shared/api/api';
 
 // Conference sub-types
 export type ConferenceSubType = 
