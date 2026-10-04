@@ -854,6 +854,16 @@ class ContributionService {
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can submit this contribution'); e.statusCode = 403; throw e; }
     if (contribution.status !== 'draft') { const e = new Error(`Cannot submit contribution in status: ${contribution.status}`); e.statusCode = 400; throw e; }
 
+    // Synced works earn an incentive only when the owner is affiliated with this university on
+    // them. Another institution: refused. Not known: DRD verifies it (flagged for special review).
+    const affiliationToVerify = contribution.sourceType === 'auto_import' && contribution.homeAffiliation !== 'affiliated';
+    if (contribution.sourceType === 'auto_import' && contribution.homeAffiliation === 'not_affiliated') {
+      const e = new Error(`This work lists another institution for you${contribution.homeAffiliationDetail ? ` (${contribution.homeAffiliationDetail})` : ''}. Only works affiliated with this university can be submitted for incentive.`);
+      e.statusCode = 403;
+      e.code = 'NOT_AFFILIATED';
+      throw e;
+    }
+
     // One claim per work per university: a co-author's earlier claim blocks this one.
     const { workKey, titleWorkKey } = await assertNoActiveClaim(contribution, this.prisma ? { client: this.prisma } : undefined);
 
@@ -892,6 +902,7 @@ class ContributionService {
           submittedAt: new Date(),
           workKey,
           titleWorkKey,
+          ...(affiliationToVerify ? { specialReviewRequired: true } : {}),
           // The mentor is identified by applicantDetails.mentorUid; there is no mentorId column
           // on ResearchContribution (writing one made every student-with-mentor submission fail).
         },
@@ -909,7 +920,9 @@ class ContributionService {
           fromStatus: 'draft',
           toStatus: newStatus,
           changedById: userId,
-          comments: statusMessage,
+          comments: affiliationToVerify
+            ? `${statusMessage}. Affiliation with this university not confirmed by the sync: verify before approving (${contribution.homeAffiliationDetail || 'no affiliation on the record'}).`
+            : statusMessage,
         },
       });
 

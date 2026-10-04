@@ -10,6 +10,7 @@ router.get('/admin/import-runs', protect, controller.getAllImportRuns);
 
 // Author profile: visibility-enforced view + the author's privacy settings.
 router.get('/:userId/view', protect, authorProfile.getProfileView);
+router.get('/:userId/cv', protect, authorProfile.downloadCv);
 router.get('/:userId/settings', protect, authorProfile.getProfileSettings);
 router.put('/:userId/settings', protect, authorProfile.updateProfileSettings);
 

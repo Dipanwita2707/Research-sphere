@@ -116,25 +116,30 @@ function stripLegalSuffixes(value) {
   return result.replace(/\s+/g, ' ').trim();
 }
 
-/** Optimal-string-alignment distance (Levenshtein + adjacent transposition). */
+/** Optimal-string-alignment distance (Levenshtein + adjacent transposition), three rolling rows. */
 function editDistance(a, b) {
   const m = a.length;
   const n = b.length;
   if (m === 0) return n;
   if (n === 0) return m;
-  const d = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) d[i][0] = i;
-  for (let j = 0; j <= n; j++) d[0][j] = j;
+  let prev2 = new Array(n + 1).fill(0); // row i-2
+  let prev = new Array(n + 1);           // row i-1
+  let cur = new Array(n + 1);            // row i
+  for (let j = 0; j <= n; j++) prev[j] = j;
   for (let i = 1; i <= m; i++) {
+    cur[0] = i;
     for (let j = 1; j <= n; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
-      }
+      let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+      cur[j] = v;
     }
+    const recycled = prev2;
+    prev2 = prev;
+    prev = cur;
+    cur = recycled;
   }
-  return d[m][n];
+  return prev[n];
 }
 
 function getSimilarity(s1, s2) {
@@ -143,7 +148,23 @@ function getSimilarity(s1, s2) {
   return 1.0 - editDistance(s1, s2) / maxLength;
 }
 
+const canonicalTokenMemo = new Map();
+const MEMO_LIMIT = 20000;
+
+/** Bounded memo set: cleared when full (inputs are a tenant's recurring affiliation strings). */
+function memoSet(map, key, value) {
+  if (map.size >= MEMO_LIMIT) map.clear();
+  map.set(key, value);
+  return value;
+}
+
 function canonicalToken(token) {
+  const known = canonicalTokenMemo.get(token);
+  if (known !== undefined) return known;
+  return memoSet(canonicalTokenMemo, token, computeCanonicalToken(token));
+}
+
+function computeCanonicalToken(token) {
   if (CANONICAL_TOKENS[token]) return CANONICAL_TOKENS[token];
   if (token.length >= 7) {
     for (const [word, maxDist] of FUZZY_CANONICAL) {
@@ -193,9 +214,9 @@ function canonTokens(value) {
 function tokensEqual(a, b) {
   if (a === b) return true;
   const min = Math.min(a.length, b.length);
-  if (min >= 10) return editDistance(a, b) <= 2;
-  if (min >= 6) return editDistance(a, b) <= 1;
-  return false;
+  const maxDist = min >= 10 ? 2 : min >= 6 ? 1 : 0;
+  if (maxDist === 0 || Math.abs(a.length - b.length) > maxDist) return false;
+  return editDistance(a, b) <= maxDist;
 }
 
 function findRun(haystack, needle, from = 0) {
@@ -365,6 +386,8 @@ function generateAffiliationVariants({
 /* ------------------------------------------------------------------------- */
 
 const compiledCache = new WeakMap();
+// Same list arriving as a new array (JSON.parse of the Redis copy, [...variants, ...aliases]).
+const compiledByContent = new Map();
 
 /**
  * Compile a variant list into name entries + acronyms.
@@ -372,6 +395,12 @@ const compiledCache = new WeakMap();
  */
 function compileAffiliationMatcher(variants) {
   if (Array.isArray(variants) && compiledCache.has(variants)) return compiledCache.get(variants);
+  const contentKey = Array.isArray(variants) ? variants.join('\u0001') : '';
+  const byContent = compiledByContent.get(contentKey);
+  if (byContent) {
+    if (Array.isArray(variants)) compiledCache.set(variants, byContent);
+    return byContent;
+  }
 
   const entriesByCore = new Map();
   const singleTokens = new Set();
@@ -431,8 +460,11 @@ function compileAffiliationMatcher(variants) {
     e.types.forEach((type) => fullNames.push([...e.core, type].join(' ')));
   });
 
-  const compiled = { entries, acronyms, tenantTypes, fullNames: fullNames.filter((n) => n.length >= 12) };
+  // results: memo of isAffiliationMatch decisions for this variant list (keyed by options + value).
+  const compiled = { entries, acronyms, tenantTypes, fullNames: fullNames.filter((n) => n.length >= 12), results: new Map() };
   if (Array.isArray(variants)) compiledCache.set(variants, compiled);
+  if (compiledByContent.size >= 64) compiledByContent.clear();
+  compiledByContent.set(contentKey, compiled);
   return compiled;
 }
 
@@ -502,6 +534,14 @@ function isAffiliationMatch(value, variants, options = {}) {
   const compiled = compileAffiliationMatcher(variants);
   if (compiled.entries.length === 0 && compiled.acronyms.length === 0) return false;
 
+  // The same affiliation strings recur across a researcher's papers and every co-author row.
+  const memoKey = `${options.country || ''}\u0001${(options.locations || []).join('\u0002')}\u0001${value}`;
+  const memo = compiled.results.get(memoKey);
+  if (memo !== undefined) return memo;
+  return memoSet(compiled.results, memoKey, matchUncached(value, compiled, options));
+}
+
+function matchUncached(value, compiled, options) {
   const homeCountry = normalize(options.country || 'india');
   const locationTokens = (options.locations || []).flatMap((l) => canonTokens(l));
 
@@ -521,7 +561,9 @@ function isAffiliationMatch(value, variants, options = {}) {
       if (compiled.acronyms.some((acr) => matchAcronym(acr, part, ctx))) return true;
 
       const joined = part.join(' ');
-      if (joined.length >= 12 && compiled.fullNames.some((n) => getSimilarity(joined, n) >= 0.9)) return true;
+      // Similarity ≥ 0.9 needs the length difference within 10% (edit distance ≥ length difference).
+      if (joined.length >= 12 && compiled.fullNames.some((n) => Math.abs(joined.length - n.length) <= 0.1 * Math.max(joined.length, n.length)
+        && getSimilarity(joined, n) >= 0.9)) return true;
     }
   }
   return false;

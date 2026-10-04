@@ -128,6 +128,37 @@ describe('PublicationSyncService', () => {
     expect(service._determineSourceSystems({}, 'openalex')).toEqual(['openalex']);
   });
 
+  describe('Scopus alone in an all-source sync', () => {
+    const originalScopusKey = process.env.SCOPUS_API_KEY;
+    afterEach(() => { process.env.SCOPUS_API_KEY = originalScopusKey; });
+    const both = { orcid: '0000-0001-6861-0698', scopusAuthorId: '57219768446' };
+
+    test('with a Scopus ID and key, "all" fetches Scopus only and reports ORCID and OpenAlex as skipped', () => {
+      process.env.SCOPUS_API_KEY = 'k';
+      process.env.OPENALEX_API_KEY = 'test-key';
+      const service = new PublicationSyncService({}, {});
+      expect(service._determineSourceSystems(both, 'all')).toEqual(['scopus']);
+      expect(service._sourcesSkippedForScopus(both, 'all').map((s) => s.source)).toEqual(['orcid', 'openalex']);
+    });
+
+    test('an explicit ORCID or OpenAlex sync still fetches that source', () => {
+      process.env.SCOPUS_API_KEY = 'k';
+      const service = new PublicationSyncService({}, {});
+      expect(service._determineSourceSystems(both, 'orcid')).toEqual(['orcid']);
+      expect(service._determineSourceSystems(both, 'openalex')).toEqual(['openalex']);
+      expect(service._sourcesSkippedForScopus(both, 'orcid')).toEqual([]);
+    });
+
+    test('without a Scopus key, or without a Scopus ID, ORCID and OpenAlex are used as before', () => {
+      delete process.env.SCOPUS_API_KEY;
+      process.env.OPENALEX_API_KEY = 'test-key';
+      const service = new PublicationSyncService({}, {});
+      expect(service._determineSourceSystems(both, 'all')).toEqual(['orcid', 'scopus', 'openalex']);
+      process.env.SCOPUS_API_KEY = 'k';
+      expect(service._determineSourceSystems({ orcid: both.orcid, scopusAuthorId: null }, 'all')).toEqual(['orcid', 'openalex']);
+    });
+  });
+
   test('_mapOpenAlexWork normalizes a work payload into contribution candidate shape', () => {
     const service = new PublicationSyncService({}, {});
 
@@ -214,6 +245,69 @@ describe('PublicationSyncService', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  describe('_findExistingContribution: re-published editions', () => {
+    const chapter2021 = {
+      id: 'c-2021', applicantUserId: 'user-1', publicationType: 'book_chapter', doi: null,
+      title: 'Impact of COVID-19 on lifestyle and education', publicationDate: new Date('2021-01-01T00:00:00Z'),
+    };
+    const serviceWith = (rows) => {
+      const prisma = {
+        publicationImport: { findFirst: jest.fn(async () => null) },
+        // Honours the publication-year range, like the database would.
+        researchContribution: {
+          findFirst: jest.fn(async () => null),
+          findMany: jest.fn(async ({ where }) => rows.filter((r) => !where.publicationDate
+            || (r.publicationDate >= where.publicationDate.gte && r.publicationDate <= where.publicationDate.lte))),
+        },
+      };
+      const service = new PublicationSyncService(prisma, {});
+      jest.spyOn(service, '_inferPublicationType').mockImplementation((c) => c.publicationType);
+      return { service, prisma };
+    };
+
+    test('a chapter reprinted in a later volume (same title, no DOI, within 3 years) is the existing work', async () => {
+      const { service, prisma } = serviceWith([chapter2021]);
+      const found = await service._findExistingContribution('user-1', {
+        title: 'Impact of COVID-19 on Lifestyle and Education', publicationType: 'book_chapter', publicationDate: '2024-01-01', externalIds: {},
+      });
+      expect(found).toBe(chapter2021);
+      expect(prisma.researchContribution.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { applicantUserId: 'user-1', publicationType: 'book_chapter', title: { equals: 'Impact of COVID-19 on Lifestyle and Education', mode: 'insensitive' } },
+      }));
+    });
+
+    test('different DOIs, a gap over 3 years, or a generic title stay separate works', async () => {
+      const { service } = serviceWith([{ ...chapter2021, doi: '10.1000/abc.2021' }]);
+      expect(await service._findExistingContribution('user-1', {
+        title: chapter2021.title, publicationType: 'book_chapter', doi: '10.1000/xyz.2022', publicationDate: '2022-01-01', externalIds: {},
+      })).toBeNull();
+
+      const { service: s2 } = serviceWith([chapter2021]);
+      expect(await s2._findExistingContribution('user-1', {
+        title: chapter2021.title, publicationType: 'book_chapter', publicationDate: '2026-01-01', externalIds: {},
+      })).toBeNull();
+
+      const preface = { ...chapter2021, title: 'Preface', publicationType: 'book' };
+      const { service: s3, prisma: p3 } = serviceWith([preface]);
+      expect(await s3._findExistingContribution('user-1', {
+        title: 'Preface', publicationType: 'book', publicationDate: '2022-01-01', externalIds: {},
+      })).toBeNull();
+      // The re-published-edition lookup (by type) never runs for a generic title.
+      expect(p3.researchContribution.findMany.mock.calls.some(([q]) => q.where.publicationType)).toBe(false);
+    });
+
+    test('two prefaces in the same year are different works unless the book is the same', async () => {
+      const prefaceA = { id: 'pA', applicantUserId: 'user-1', publicationType: 'book', title: 'Preface', journalName: 'Integration of Cloud Computing with Emerging Technologies', publicationDate: new Date('2023-01-01T00:00:00Z') };
+      const { service } = serviceWith([prefaceA]);
+      expect(await service._findExistingContribution('user-1', {
+        title: 'Preface', publicationType: 'book', venue: 'Trust-Based Communication Systems for IoT Applications', publicationDate: '2023-06-01', externalIds: {},
+      })).toBeNull();
+      expect(await service._findExistingContribution('user-1', {
+        title: 'Preface', publicationType: 'book', venue: 'Integration of Cloud Computing with Emerging Technologies', publicationDate: '2023-06-01', externalIds: {},
+      })).toBe(prefaceA);
+    });
+  });
+
   test('_findExistingContribution ignores publication import and DOI matches owned by another user', async () => {
     const prisma = {
       publicationImport: {
@@ -267,12 +361,15 @@ describe('PublicationSyncService', () => {
   test('_upsertImportLinks does not overwrite another profile import link', async () => {
     const prisma = {
       publicationImport: {
-        findFirst: jest.fn(async () => ({
+        findMany: jest.fn(async () => ([{
           id: 'foreign-import-link',
           researchProfileId: 'other-profile',
-        })),
+          sourceSystem: 'openalex',
+          externalId: 'https://openalex.org/W123',
+        }])),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
     };
 
@@ -288,9 +385,36 @@ describe('PublicationSyncService', () => {
       },
     });
 
-    expect(prisma.publicationImport.findFirst).toHaveBeenCalled();
+    expect(prisma.publicationImport.findMany).toHaveBeenCalledTimes(1);
     expect(prisma.publicationImport.create).not.toHaveBeenCalled();
     expect(prisma.publicationImport.update).not.toHaveBeenCalled();
+    expect(prisma.publicationImport.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('_upsertImportLinks: one lookup per work; unchanged links get one lastSeenAt bump, new ids are created', async () => {
+    const candidate = {
+      title: 'My Synced Paper', doi: '10.1000/example', publicationDate: '2026-01-01', sourceSystems: ['scopus'],
+      externalIds: { scopus: 'SCOPUS_ID:1', doi: '10.1000/example' },
+    };
+    const prisma = {
+      publicationImport: {
+        findMany: jest.fn(async () => ([{
+          id: 'own-link', researchProfileId: 'profile-1', researchContributionId: 'contribution-1', sourceSystem: 'scopus', externalId: 'SCOPUS_ID:1',
+          doi: '10.1000/example', normalizedTitle: 'my synced paper', publishedYear: 2026,
+        }])),
+        create: jest.fn(async () => ({})),
+        update: jest.fn(),
+        updateMany: jest.fn(async () => ({ count: 1 })),
+      },
+    };
+    const service = new PublicationSyncService(prisma, {});
+    await service._upsertImportLinks('profile-1', 'contribution-1', candidate);
+
+    expect(prisma.publicationImport.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.publicationImport.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['own-link'] } }, data: { lastSeenAt: expect.any(Date) } });
+    expect(prisma.publicationImport.update).not.toHaveBeenCalled();
+    expect(prisma.publicationImport.create).toHaveBeenCalledTimes(1);
+    expect(prisma.publicationImport.create.mock.calls[0][0].data).toMatchObject({ sourceSystem: 'doi', externalId: '10.1000/example' });
   });
 });
 

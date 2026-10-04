@@ -57,7 +57,24 @@ export interface CitationDistribution {
 // Publications
 // ============================================================================
 
-export type PublicationSource = 'google_scholar' | 'scopus' | 'web_of_science' | 'manual';
+export type PublicationSource = 'google_scholar' | 'scopus' | 'web_of_science' | 'manual' | 'synced';
+
+/** What the profile owner earned from one work. Sent only to the author and admins. */
+export interface PublicationIncentive {
+  amount: number;
+  points: number;
+  /** Payout status (pending_verification | recommended | on_hold | approved | paid), or null when only recorded at approval. */
+  status: string | null;
+  paidAt: string | null;
+}
+
+export interface IncentiveSummary {
+  total: number;
+  paid: number;
+  inProcess: number;
+  points: number;
+  works: number;
+}
 
 export interface Publication {
   id: string;
@@ -97,7 +114,11 @@ export interface Publication {
   abstract: Nullable<string>;
   keywords: string[];
   isVerified: boolean;
-  
+  /** Present only for the author and admins. */
+  incentive?: PublicationIncentive;
+  /** Synced works: which sources (orcid, scopus, openalex) the record came from. */
+  sourceSystems?: string[];
+
   createdAt: string;
   updatedAt: string;
 }

@@ -237,6 +237,12 @@ export interface ResearchContribution {
 
   // Import automation metadata
   sourceType?: string;
+  /** Synced works: is the owner affiliated with this university on the paper? Only 'affiliated' can be submitted for incentive. */
+  homeAffiliation?: 'affiliated' | 'not_affiliated' | 'unknown' | null;
+  /** scopus_afid | name_match | personal_alias | trusted_query | orcid_employment | orcid_employment_elsewhere | other_institution | no_data */
+  homeAffiliationBasis?: string | null;
+  /** The affiliation text or ORCID employer the decision rests on. */
+  homeAffiliationDetail?: string | null;
   sourceSystems?: string[];
   externalIds?: Record<string, string>;
   importedAt?: string;
@@ -400,6 +406,12 @@ class ResearchService {
   async submitContribution(id: string) {
     const response = await api.post(`/research/${id}/submit`);
     return response.data;
+  }
+
+  /** Submit several drafts; each goes through the normal checks. */
+  async submitManyContributions(ids: string[]): Promise<{ submitted: number; failed: number; results: Array<{ id: string; ok: boolean; code?: string | null; message?: string }> }> {
+    const response = await api.post('/research/submit-many', { ids });
+    return response.data?.data;
   }
 
   async uploadDocuments(id: string, formData: FormData) {

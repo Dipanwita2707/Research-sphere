@@ -1435,6 +1435,13 @@ model ResearchContribution {
   importedAt                 DateTime?                             @map("imported_at") @db.Timestamptz(6)
   lastSyncedAt               DateTime?                             @map("last_synced_at") @db.Timestamptz(6)
   specialReviewRequired      Boolean?                              @default(false) @map("special_review_required")
+  /// Synced works: is the owner affiliated with this university on the paper? affiliated | not_affiliated | unknown.
+  /// Only affiliated imports can be submitted for incentive; unknown ones go to DRD for verification. Null for manual entries.
+  homeAffiliation            String?                               @map("home_affiliation") @db.VarChar(16)
+  /// How it was decided: scopus_afid | name_match | personal_alias | trusted_query | orcid_employment | other_institution | no_data
+  homeAffiliationBasis       String?                               @map("home_affiliation_basis") @db.VarChar(32)
+  /// The affiliation text (or ORCID employer) the decision rests on, shown to the researcher and DRD.
+  homeAffiliationDetail      String?                               @map("home_affiliation_detail") @db.VarChar(512)
   importConfidence           Decimal?                              @map("import_confidence") @db.Decimal(5, 2)
   missingFields              String[]                              @default([]) @map("missing_fields")
   autoCalculatedFields       String[]                              @default([]) @map("auto_calculated_fields")
@@ -1468,6 +1475,7 @@ model ResearchContribution {
   @@index([conferenceSubType])
   @@index([sourceType])
   @@index([specialReviewRequired])
+  @@index([applicantUserId, homeAffiliation])
   @@index([doi])
   @@index([applicantUserId, doi])
   @@index([universityId])

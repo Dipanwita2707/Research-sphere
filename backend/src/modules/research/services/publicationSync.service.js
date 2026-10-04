@@ -9,6 +9,35 @@ const log = createModuleLogger('research-publication-sync');
 const DEFAULT_ORCID_BASE_URL = process.env.ORCID_API_BASE_URL || 'https://pub.orcid.org/v3.0';
 const DEFAULT_SCOPUS_BASE_URL = process.env.SCOPUS_API_BASE_URL || 'https://api.elsevier.com/content';
 const DEFAULT_OPENALEX_BASE_URL = process.env.OPENALEX_API_BASE_URL || 'https://api.openalex.org';
+/**
+ * Records sources list that are not research works: front / back matter of a book or issue,
+ * retraction and correction notices, and machine-translated copies of existing papers (JST).
+ * "Preface", "Foreword" and "Editorial" are kept: editors write real ones.
+ */
+const NON_RESEARCH_TITLES = new Set([
+  'front matter', 'back matter', 'frontmatter', 'backmatter', 'index', 'author index', 'subject index',
+  'also of interest', 'table of contents', 'contents', 'cover', 'cover image', 'title page', 'half title page',
+  'copyright page', 'copyright', 'list of contributors', 'contributors', 'about the editors', 'about the authors',
+  'about the author', 'about the editor', 'editorial board', 'masthead', 'bibliography', 'references', 'erratum',
+  'corrigendum', 'errata', 'dedication', 'acknowledgements', 'acknowledgments', 'list of figures', 'list of tables',
+]);
+const NON_RESEARCH_PATTERNS = [
+  // "Retracted: X", "Retraction Notice: X", "RETRACTED ARTICLE: X" (a separator is required:
+  // "Retraction behaviour in social networks" is a paper)
+  /^(retracted(\s+article)?|retraction(\s+notice)?|withdrawn(\s+article)?|expression of concern)\s*[:\-–]/i,
+  /^notice of retraction\b/i,
+  /^(correction|erratum|corrigendum|addendum)\s+(to|for)\b/i,
+  /【\s*JST|京大機械翻訳|機械翻訳】/,
+];
+
+/** A re-published copy (reprint, encyclopedia volume) within this many years is the same work. */
+const REPUBLISHED_YEAR_WINDOW = 3;
+/** Front-matter titles shared by unrelated works; never used to merge two records. */
+const GENERIC_WORK_TITLES = new Set([
+  'preface', 'foreword', 'editorial', 'introduction', 'conclusion', 'conclusions', 'front matter', 'back matter',
+  'index', 'table of contents', 'contents', 'acknowledgements', 'acknowledgments', 'erratum', 'corrigendum',
+  'guest editorial', 'about the editors', 'about the authors', 'list of contributors', 'bibliography', 'references',
+]);
 
 const numberEnv = (name, fallback) => {
   const value = Number(process.env[name]);
@@ -176,6 +205,8 @@ class PublicationSyncService {
       })
       : [];
     this._ownerAffiliationVariants = personal.length > 0 ? [...variants, ...personal] : variants;
+
+
   }
 
   /**
@@ -596,6 +627,7 @@ class PublicationSyncService {
       skippedCount: 0,
       failedCount: 0,
       specialReviewCount: 0,
+      affiliation: { affiliated: 0, not_affiliated: 0, unknown: 0 },
       errors: [],
       contributions: [],
     };
@@ -606,6 +638,7 @@ class PublicationSyncService {
           const candidate = this._mapManualImportCandidate(publication, user, sourceSystem, index);
           const result = await this._upsertCandidate(user, identity, candidate);
           summary[result.outcome] += 1;
+          if (result.affiliation && summary.affiliation) summary.affiliation[result.affiliation] += 1;
           if (result.specialReviewRequired) {
             summary.specialReviewCount += 1;
           }
@@ -791,6 +824,7 @@ class PublicationSyncService {
       skippedCount: 0,
       failedCount: 0,
       specialReviewCount: 0,
+      affiliation: { affiliated: 0, not_affiliated: 0, unknown: 0 },
       errors: [],
       contributions: [],
       sourceSkips: [],
@@ -800,6 +834,7 @@ class PublicationSyncService {
     try {
       const { candidates, sourceErrors, sourceSkips = [], stats = {} } =
         await this._discoverCandidates(user, identity, run.sourceSystems);
+      sourceSkips.push(...this._sourcesSkippedForScopus(identity, sourcePreference));
       summary.discoveredCount = candidates.length;
       summary.sourceSkips = sourceSkips;
       sourceFailures = sourceErrors.length;
@@ -817,10 +852,13 @@ class PublicationSyncService {
         skipped: true,
       })));
 
+      await this._attachOpenAlexBylines(candidates, user, identity);
+
       for (const candidate of candidates) {
         try {
           const result = await this._upsertCandidate(user, identity, candidate);
           summary[result.outcome] += 1;
+          if (result.affiliation && summary.affiliation) summary.affiliation[result.affiliation] += 1;
           if (result.specialReviewRequired) {
             summary.specialReviewCount += 1;
           }
@@ -1001,19 +1039,32 @@ class PublicationSyncService {
     return results;
   }
 
+  /**
+   * Import one work as a draft and record whether its owner is affiliated with this university
+   * on it (_classifyHomeAffiliation). Nothing is submitted here: the researcher submits affiliated
+   * works for incentive from My Contributions (contribution.service enforces it), and sends
+   * works of unknown affiliation to DRD for verification. Works of other institutions are kept
+   * as drafts so they show on the list, but can never be submitted for incentive.
+   */
+  /** Front/back matter, retraction or correction notices, machine-translated copies (see NON_RESEARCH_*). */
+  _isNonResearchRecord(candidate) {
+    const raw = String(candidate?.title || '').trim();
+    if (!raw) return true;
+    const title = raw.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (NON_RESEARCH_TITLES.has(title)) return true;
+    return NON_RESEARCH_PATTERNS.some((re) => re.test(raw));
+  }
+
   async _upsertCandidate(user, identity, candidate) {
-    // "Only import publications affiliated with my university": import ONLY if the
-    // owner's author entry on the paper is home-affiliated (Scopus AF-ID, or the
-    // university's / the user's own affiliation names). An AF-ID constrained Scopus
-    // query is trusted as such.
-    if (identity.filterSgtOnly) {
-      const ownerAuthor = this._matchOwningFaculty(candidate.authors || [], user, identity);
-      const isHome = this._isHomeInstitutionAuthor(ownerAuthor, candidate)
-        || Boolean(candidate.trustedHomeInstitutionQuery);
-      if (!isHome) {
-        return { outcome: 'skippedCount', contributionId: null, specialReviewRequired: false };
-      }
+    if (this._isNonResearchRecord(candidate)) {
+      return { outcome: 'skippedCount', contributionId: null, specialReviewRequired: false, nonResearch: true };
     }
+    const matched = this._matchOwningFaculty(candidate.authors || [], user, identity);
+    // The source gave no affiliation for the owner on this paper: use the byline OpenAlex has for it.
+    const ownerAuthor = (!matched?.affiliation || !String(matched.affiliation).trim()) && candidate.ownerBylineAffiliation
+      ? { ...(matched || {}), affiliation: candidate.ownerBylineAffiliation, affiliationFrom: 'openalex' }
+      : matched;
+    const affiliation = this._classifyHomeAffiliation(ownerAuthor, candidate);
 
     const existing = await this._findExistingContribution(user.id, candidate);
     const payload = await this._buildContributionInput(user, identity, candidate, existing);
@@ -1021,10 +1072,12 @@ class PublicationSyncService {
     if (existing) {
       const updated = await this._updateExistingContribution(existing, payload, candidate);
       await this._upsertImportLinks(identity.id, updated.id, candidate);
+      await this._recordHomeAffiliation(updated, affiliation);
       return {
         outcome: updated._outcome || 'updatedCount',
         contributionId: updated.id,
         specialReviewRequired: Boolean(updated.specialReviewRequired),
+        affiliation: affiliation.status,
       };
     }
 
@@ -1037,22 +1090,133 @@ class PublicationSyncService {
     const created = await this.contributionService.createContribution(payload, {});
     await this._ensureContributionAuthors(created.id, payload);
     await this._upsertImportLinks(identity.id, created.id, candidate);
-    try {
-      await this.contributionService.submitContribution(created.id, user.id, null);
-    } catch (submitErr) {
-      // Ignore if a concurrent import already advanced the status beyond draft
-      // Duplicate of a claim made meanwhile: leave this one as a draft for the author to resolve.
-      const alreadyAdvanced = submitErr.statusCode === 400 && submitErr.message.startsWith('Cannot submit contribution in status');
-      if (!alreadyAdvanced && submitErr.code !== 'DUPLICATE_CLAIM') {
-        throw submitErr;
-      }
-    }
+    await this._recordHomeAffiliation(created, affiliation);
 
     return {
       outcome: 'createdCount',
       contributionId: created.id,
       specialReviewRequired: Boolean(payload.specialReviewRequired),
+      affiliation: affiliation.status,
     };
+  }
+
+  /**
+   * Is the owner affiliated with this university ON THIS PAPER? Only the affiliation the owner
+   * used in the paper's byline counts — never where they work today or worked that year — and it
+   * must be their PRIMARY affiliation: the first one listed for them on the paper.
+   *   affiliated      the owner's first byline affiliation is this university (Scopus AF-ID, or
+   *                   text naming it or one of the owner's own aliases)
+   *   not_affiliated  the first byline affiliation is another institution — basis "not_primary"
+   *                   when this university is listed later, "other_institution" when it is absent
+   *   unknown         no source has the owner's byline for this paper (DRD verifies it)
+   * Byline affiliations are kept in printed order: Scopus lists an author's afids in byline order,
+   * OpenAlex lists raw_affiliation_strings in byline order; both are joined with "; ".
+   * Byline text comes from the source of the record, else from OpenAlex by DOI
+   * (_attachOpenAlexBylines); basis gets "_openalex" in that case.
+   * @returns {{ status: 'affiliated'|'not_affiliated'|'unknown', basis: string, detail: string|null }}
+   */
+  _classifyHomeAffiliation(ownerAuthor, candidate) {
+    const clip = (v) => (v ? String(v).replace(/\s+/g, ' ').trim().slice(0, 500) : null);
+    const afids = Array.isArray(ownerAuthor?.scopusAfids) ? ownerAuthor.scopusAfids.map(String) : [];
+    const own = ownerAuthor?.affiliation && String(ownerAuthor.affiliation).trim();
+    const notPrimary = (detail, via = '') => ({
+      status: 'not_affiliated',
+      basis: `not_primary${via}`,
+      detail: clip(`${this._canonicalUniversityName || 'This university'} is listed, but not as your primary affiliation: ${detail}`),
+    });
+
+    // 1. Scopus affiliation ids, in byline order.
+    if (afids.length && this._scopusAffiliationIds.has(afids[0])) {
+      return { status: 'affiliated', basis: 'scopus_afid', detail: clip(own) || 'Scopus affiliation ID of this university' };
+    }
+    // 2. Byline text, in printed order: the first affiliation decides.
+    if (own) {
+      const via = ownerAuthor.affiliationFrom === 'openalex' ? '_openalex' : '';
+      const listed = own.split(/\s*;\s*/).filter(Boolean);
+      const primary = listed[0] || own;
+      const homeBy = (text) => (isAffiliationMatch(text, this._affiliationVariants, this._affiliationOptions) ? 'name_match'
+        : (this._ownerAffiliationVariants !== this._affiliationVariants
+          && isAffiliationMatch(text, this._ownerAffiliationVariants, this._affiliationOptions)) ? 'personal_alias' : null);
+      const primaryBasis = homeBy(primary);
+      if (primaryBasis) return { status: 'affiliated', basis: `${primaryBasis}${via}`, detail: clip(own) };
+      if (listed.slice(1).some(homeBy) || afids.some((id) => this._scopusAffiliationIds.has(id))) return notPrimary(own, via);
+      return { status: 'not_affiliated', basis: `other_institution${via}`, detail: clip(own) };
+    }
+    if (afids.length > 0) {
+      if (afids.some((id) => this._scopusAffiliationIds.has(id))) return notPrimary('Scopus affiliation ids');
+      return { status: 'not_affiliated', basis: 'other_institution', detail: 'Scopus lists another institution for you on this work' };
+    }
+    // 3. No byline for the owner, but the work came from a Scopus search limited to this university.
+    if (candidate?.trustedHomeInstitutionQuery) {
+      return { status: 'affiliated', basis: 'trusted_query', detail: 'Found by a Scopus search limited to this university' };
+    }
+    // No byline affiliation for the owner on this paper in any source.
+    return {
+      status: 'unknown',
+      basis: 'no_data',
+      detail: candidate?.homeInstitutionOnPaper
+        ? 'A co-author lists this university, but no source shows the affiliation you used on this paper'
+        : 'No source shows the affiliation you used on this paper',
+    };
+  }
+
+  /**
+   * For works whose source gave no affiliation for the owner, read the owner's byline on that
+   * paper from OpenAlex by DOI (authorships[].raw_affiliation_strings, else its institutions).
+   * The owner is the authorship with the owner's ORCID iD, else the one whose name matches.
+   * Batched 50 DOIs per request; never fails the sync. Sets candidate.ownerBylineAffiliation.
+   */
+  async _attachOpenAlexBylines(candidates, user, identity) {
+    const needs = (candidates || []).filter((c) => {
+      if (!normalizeDoi(c.doi)) return false;
+      const owner = this._matchOwningFaculty(c.authors || [], user, identity);
+      return !(owner?.affiliation && String(owner.affiliation).trim());
+    });
+    if (!needs.length) return 0;
+    const orcid = this._normalizeOrcid(identity?.orcid);
+    const ownerNames = new Set([
+      user?.employeeDetails?.displayName,
+      [user?.employeeDetails?.firstName, user?.employeeDetails?.lastName].filter(Boolean).join(' '),
+    ].filter(Boolean).map((n) => this._normalizeName(n)));
+    let found = 0;
+    for (let i = 0; i < needs.length; i += 50) {
+      const chunk = needs.slice(i, i + 50);
+      const byDoi = new Map(chunk.map((c) => [normalizeDoi(c.doi), c]));
+      const params = new URLSearchParams({ filter: `doi:${[...byDoi.keys()].join('|')}`, 'per-page': '50', select: 'doi,authorships' });
+      try {
+        const res = await this._fetchWithRetry(`${DEFAULT_OPENALEX_BASE_URL}/works?${params.toString()}`, { headers: this._openAlexHeaders() }, { source: 'OpenAlex bylines' });
+        if (!res || !res.ok) continue;
+        const json = await res.json();
+        for (const work of json?.results || []) {
+          const candidate = byDoi.get(normalizeDoi(work.doi));
+          if (!candidate) continue;
+          const authorship = (work.authorships || []).find((a) => orcid && this._normalizeOrcid(a?.author?.orcid) === orcid)
+            || (work.authorships || []).find((a) => ownerNames.has(this._normalizeName(a?.author?.display_name || a?.raw_author_name || '')));
+          if (!authorship) continue;
+          const raw = (authorship.raw_affiliation_strings || []).filter(Boolean);
+          const text = (raw.length ? raw : (authorship.institutions || []).map((inst) => inst?.display_name).filter(Boolean)).join('; ');
+          if (text) {
+            candidate.ownerBylineAffiliation = text;
+            found += 1;
+          }
+        }
+      } catch (error) {
+        log.warn('OpenAlex byline lookup failed', { error: error.message });
+      }
+    }
+    return found;
+  }
+
+  /** Store the classification on the contribution (only when it changed). */
+  async _recordHomeAffiliation(contribution, affiliation) {
+    if (!contribution?.id || !affiliation) return;
+    if (contribution.homeAffiliation === affiliation.status
+      && contribution.homeAffiliationBasis === affiliation.basis
+      && contribution.homeAffiliationDetail === affiliation.detail) return;
+    await this.prisma.researchContribution.update({
+      where: { id: contribution.id },
+      data: { homeAffiliation: affiliation.status, homeAffiliationBasis: affiliation.basis, homeAffiliationDetail: affiliation.detail },
+    });
   }
 
   async _findExistingContribution(userId, candidate) {
@@ -1103,7 +1267,11 @@ class PublicationSyncService {
     }
 
     // ── 4. Last-resort: normalized-title + year match ─────────────────────
-    return this.prisma.researchContribution.findFirst({
+    // A generic title ("Preface", "Editorial") is shared by unrelated works, even in one year:
+    // those match only when the book / journal is the same too.
+    const generic = GENERIC_WORK_TITLES.has(normalizedTitle);
+    const candidateVenue = this._normalizeTitle(candidate.bookTitle || candidate.venue || candidate.journalName || candidate.conferenceName || '');
+    return this.prisma.researchContribution.findMany({
       where: {
         applicantUserId: userId,
         title: { equals: candidate.title, mode: 'insensitive' },
@@ -1114,11 +1282,40 @@ class PublicationSyncService {
           },
         } : {}),
       },
-    }).then((record) => {
-      if (!record) return null;
-      const existingTitle = this._normalizeTitle(record.title);
-      return existingTitle === normalizedTitle ? record : null;
+      take: 20,
+    }).then((records) => (records || []).find((record) => {
+      if (this._normalizeTitle(record.title) !== normalizedTitle) return false;
+      if (!generic) return true;
+      const venue = this._normalizeTitle(record.bookTitle || record.journalName || record.conferenceName || '');
+      return Boolean(candidateVenue) && venue === candidateVenue;
+    }) || null).then((record) => record || this._findRepublishedEdition(userId, candidate, normalizedTitle, publishedYear));
+  }
+
+  /**
+   * ── 5. The same work re-published (a chapter reprinted in a later encyclopedia volume,
+   * a conference paper re-listed with the proceedings year): same author, same type, same
+   * distinctive title, published within REPUBLISHED_YEAR_WINDOW years, and at most one of
+   * the two carries a DOI (two different DOIs are two different published items).
+   * Generic front-matter titles ("Preface", "Editorial", ...) never merge: an editor writes
+   * one per book.
+   */
+  async _findRepublishedEdition(userId, candidate, normalizedTitle, publishedYear) {
+    const words = normalizedTitle.split(' ').filter(Boolean);
+    if (words.length < 4 || normalizedTitle.length < 25 || GENERIC_WORK_TITLES.has(normalizedTitle)) return null;
+    const publicationType = this._inferPublicationType(candidate);
+    const rows = await this.prisma.researchContribution.findMany({
+      where: { applicantUserId: userId, publicationType, title: { equals: candidate.title, mode: 'insensitive' } },
+      orderBy: { publicationDate: 'asc' },
+      take: 10,
     });
+    const candidateDoi = normalizeDoi(candidate.doi);
+    return rows.find((row) => {
+      if (this._normalizeTitle(row.title) !== normalizedTitle) return false;
+      const rowDoi = normalizeDoi(row.doi);
+      if (candidateDoi && rowDoi && candidateDoi !== rowDoi) return false;
+      const rowYear = row.publicationDate ? new Date(row.publicationDate).getFullYear() : null;
+      return !publishedYear || !rowYear || Math.abs(rowYear - publishedYear) <= REPUBLISHED_YEAR_WINDOW;
+    }) || null;
   }
 
   async _updateExistingContribution(existing, payload, candidate) {
@@ -1249,14 +1446,6 @@ class PublicationSyncService {
       data: { ...patch, ...bookkeeping },
     });
 
-    if (existing.status === 'draft' && existing.sourceType === 'auto_import') {
-      try {
-        await this.contributionService.submitContribution(existing.id, existing.applicantUserId, null);
-      } catch (submitErr) {
-        if (submitErr.code !== 'DUPLICATE_CLAIM') throw submitErr;
-      }
-    }
-
     return { ...updated, _outcome: 'updatedCount' };
   }
 
@@ -1290,42 +1479,48 @@ class PublicationSyncService {
     return true;
   }
 
+  /**
+   * Link each external id of the work (Scopus EID, DOI, …) to the contribution. One lookup for all
+   * of the work's ids; rows already pointing at this contribution with the same DOI / title only
+   * get lastSeenAt bumped (one statement); new ids are created; changed rows are updated. A row
+   * owned by another researcher's profile is left alone.
+   */
   async _upsertImportLinks(researchProfileId, contributionId, candidate) {
-    const entries = Object.entries(candidate.externalIds || {}).filter(([, value]) => value);
+    const entries = Object.entries(candidate.externalIds || {})
+      .filter(([, value]) => value)
+      .map(([sourceSystem, value]) => ({ sourceSystem, externalId: String(value) }));
+    if (!entries.length) return;
 
-    for (const [sourceSystem, externalId] of entries) {
-      const existingImport = await this.prisma.publicationImport.findFirst({
-        where: { sourceSystem, externalId: String(externalId) },
-      });
+    const sharedData = {
+      doi: this._cleanString(normalizeDoi(candidate.doi), 256),
+      publishedYear: candidate.publicationDate ? new Date(candidate.publicationDate).getFullYear() : null,
+      normalizedTitle: this._cleanString(this._normalizeTitle(candidate.title), 512),
+      lastSeenAt: new Date(),
+      metadata: {
+        title: candidate.title,
+        sourceSystems: candidate.sourceSystems,
+      },
+    };
+    const keyOf = (r) => `${r.sourceSystem}\u0001${r.externalId}`;
+    const existing = new Map((await this.prisma.publicationImport.findMany({ where: { OR: entries } })).map((r) => [keyOf(r), r]));
 
-      const sharedData = {
-        doi: this._cleanString(normalizeDoi(candidate.doi), 256),
-        publishedYear: candidate.publicationDate ? new Date(candidate.publicationDate).getFullYear() : null,
-        normalizedTitle: this._cleanString(this._normalizeTitle(candidate.title), 512),
-        lastSeenAt: new Date(),
-        metadata: {
-          title: candidate.title,
-          sourceSystems: candidate.sourceSystems,
-        },
-      };
-
-      if (!existingImport) {
+    const unchanged = [];
+    for (const entry of entries) {
+      const row = existing.get(keyOf(entry));
+      if (!row) {
         try {
           await this.prisma.publicationImport.create({
             data: {
               researchProfile: { connect: { id: researchProfileId } },
               researchContribution: { connect: { id: contributionId } },
-              sourceSystem,
-              externalId: String(externalId),
+              ...entry,
               ...sharedData,
             },
           });
         } catch (createErr) {
           // P2002 = unique constraint — a concurrent sync inserted the same row
           if (createErr.code !== 'P2002') throw createErr;
-          const concurrent = await this.prisma.publicationImport.findFirst({
-            where: { sourceSystem, externalId: String(externalId) },
-          });
+          const concurrent = await this.prisma.publicationImport.findFirst({ where: entry });
           if (concurrent && concurrent.researchProfileId === researchProfileId) {
             await this.prisma.publicationImport.update({
               where: { id: concurrent.id },
@@ -1335,18 +1530,19 @@ class PublicationSyncService {
         }
         continue;
       }
-
-      if (existingImport.researchProfileId !== researchProfileId) {
+      if (row.researchProfileId !== researchProfileId) continue;
+      if (row.researchContributionId === contributionId && row.doi === sharedData.doi
+        && row.normalizedTitle === sharedData.normalizedTitle && row.publishedYear === sharedData.publishedYear) {
+        unchanged.push(row.id);
         continue;
       }
-
       await this.prisma.publicationImport.update({
-        where: { id: existingImport.id },
-        data: {
-          researchContributionId: contributionId,
-          ...sharedData,
-        },
+        where: { id: row.id },
+        data: { researchContributionId: contributionId, ...sharedData },
       });
+    }
+    if (unchanged.length) {
+      await this.prisma.publicationImport.updateMany({ where: { id: { in: unchanged } }, data: { lastSeenAt: sharedData.lastSeenAt } });
     }
   }
 
@@ -1442,6 +1638,8 @@ class PublicationSyncService {
         specialReviewRequired,
         importConfidence,
         citationCount,
+        // This run's count per source wins over an older one; sources not seen this run keep theirs.
+        citationsBySource: { ...(existingDetails.citationsBySource || {}), ...(candidate.citationsBySource || {}) },
         // Store affiliation summary for each source system
         affiliationSummary: this._buildAffiliationSummary(candidate.authors || [], mapped.sgtAffiliatedAuthors),
       },
@@ -2409,6 +2607,7 @@ class PublicationSyncService {
       abstract: this._cleanString(entry?.['dc:description'], 8000),
       keywords: this._parseKeywordList(entry?.authkeywords),
       citationCount,
+      citationsBySource: { scopus: citationCount },
       homeInstitutionOnPaper,
     });
   }
@@ -2459,6 +2658,7 @@ class PublicationSyncService {
       keywords,
       publisherName: this._cleanString(work?.primary_location?.source?.host_organization_name, 256),
       citationCount,
+      citationsBySource: { openalex: citationCount },
       homeInstitutionOnPaper: authors.some((author) => author.isSgtByAfid),
     });
   }
@@ -2477,8 +2677,9 @@ class PublicationSyncService {
       keywords: (base.keywords && base.keywords.length > 0) ? base.keywords : incoming.keywords,
       homeInstitutionOnPaper: Boolean(base.homeInstitutionOnPaper || incoming.homeInstitutionOnPaper),
       trustedHomeInstitutionQuery: Boolean(base.trustedHomeInstitutionQuery || incoming.trustedHomeInstitutionQuery),
-      // Citation counts differ per source: keep the highest, not the last one seen.
+      // Citation counts differ per source: keep the highest, not the last one seen, and each source's own.
       citationCount: Math.max(Number(base.citationCount) || 0, Number(incoming.citationCount) || 0),
+      citationsBySource: { ...(base.citationsBySource || {}), ...(incoming.citationsBySource || {}) },
     };
 
     // Keep the most precise publication date (a full date beats a year-only one).
@@ -2832,10 +3033,23 @@ class PublicationSyncService {
     return this._orcidDateInfo(publicationDate).date;
   }
 
+  /** "All sources" with Scopus available: Scopus covers the profile on its own. */
+  _scopusOnlySync(identity, sourcePreference) {
+    return sourcePreference === 'all' && Boolean(identity?.scopusAuthorId && process.env.SCOPUS_API_KEY);
+  }
+
+  /**
+   * Sources to fetch. An explicit choice (orcid / scopus / openalex) is always honoured. For
+   * "all" (the Sync All button and scheduled syncs):
+   *   - Scopus author ID and Scopus configured: Scopus only. The profile counts Scopus-indexed
+   *     works; ORCID (slow per-work fetch) and OpenAlex (looked up through the ORCID iD) add nothing.
+   *   - otherwise: ORCID and Scopus as available, plus OpenAlex when configured.
+   */
   _determineSourceSystems(identity, sourcePreference) {
     if (sourcePreference === 'orcid') return ['orcid'];
     if (sourcePreference === 'scopus') return ['scopus'];
     if (sourcePreference === 'openalex') return ['openalex'];
+    if (this._scopusOnlySync(identity, sourcePreference)) return ['scopus'];
     const sources = [
       ...(identity.orcid ? ['orcid'] : []),
       ...(identity.scopusAuthorId ? ['scopus'] : []),
@@ -2844,6 +3058,16 @@ class PublicationSyncService {
       sources.push('openalex');
     }
     return Array.from(new Set(sources));
+  }
+
+  /** Sources an "all" sync left out because Scopus covers the profile (reported, not failures). */
+  _sourcesSkippedForScopus(identity, sourcePreference) {
+    if (!this._scopusOnlySync(identity, sourcePreference)) return [];
+    const reason = (name) => `Not needed: Scopus covers this profile. Use "Sync ${name}" to fetch it anyway.`;
+    return [
+      ...(identity.orcid ? [{ source: 'orcid', reason: reason('ORCID') }] : []),
+      ...(process.env.OPENALEX_API_KEY ? [{ source: 'openalex', reason: reason('OpenAlex') }] : []),
+    ];
   }
 
   _candidateKey(candidate) {

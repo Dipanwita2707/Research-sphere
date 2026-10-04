@@ -525,7 +525,7 @@ function SyncSettings({
         .map((item: { message?: string }) => item.message);
       onMessage(
         'success',
-        `Sync completed: ${result.createdCount} created, ${result.updatedCount} updated, ${result.skippedCount || 0} skipped (unchanged, or not affiliated with your university), ${result.specialReviewCount} flagged for special review${skippedSources.length ? `. ${skippedSources.join(' ')}` : ''}`
+        `Sync completed: ${result.createdCount} new, ${result.updatedCount} updated, ${result.skippedCount || 0} unchanged.${result.affiliation ? ` ${result.affiliation.affiliated} affiliated with your university (eligible for incentive), ${result.affiliation.unknown} need DRD verification, ${result.affiliation.not_affiliated} from other institutions.` : ''} Nothing is submitted automatically: open My Contributions → Synced works to submit them.${skippedSources.length ? ` ${skippedSources.join(' ')}` : ''}`
       );
     } catch (error) {
       logger.error('Sync failed:', error);
@@ -636,7 +636,7 @@ function SyncSettings({
                   onChange={(e) => setFormState((prev) => ({ ...prev, filterSgtOnly: e.target.checked }))}
                   className="rounded border-gray-300 text-wine focus:ring-wine"
                 />
-                Only import publications affiliated with my university
+                Search Scopus for works at my university only
               </label>
             </div>
           </div>
@@ -742,7 +742,7 @@ function SyncSettings({
               <div>
                 <h4 className="font-medium text-gray-900 dark:text-white">Combined Import</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Runs ORCID and Scopus when configured, then enriches with OpenAlex when available.
+                  With a Scopus ID, syncs from Scopus only (fastest, and what your profile counts). Without one, uses ORCID and OpenAlex.
                 </p>
               </div>
               <button
@@ -757,7 +757,16 @@ function SyncSettings({
                 )}
                 Sync All Sources
               </button>
+              <a
+                href="/research/my-contributions?tab=synced"
+                className="px-4 py-2 border border-wine/40 text-wine rounded-lg hover:bg-wine/5 flex items-center gap-2"
+              >
+                Review synced works &amp; submit for incentive →
+              </a>
             </div>
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              Synced works are saved as drafts. Works affiliated with your university can be submitted for incentive from My Contributions; works from other institutions are listed but not eligible.
+            </p>
           </div>
         </div>
 

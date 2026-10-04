@@ -87,6 +87,33 @@ export default function PublicationList({ publications }: PublicationListProps) 
   );
 }
 
+const PAYOUT_LABEL: Record<string, string> = {
+  pending_verification: 'awaiting finance verification',
+  recommended: 'recommended for payment',
+  on_hold: 'on hold',
+  approved: 'approved for payment',
+  paid: 'paid',
+};
+const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+
+/** The author's incentive for one work (author and admins only: the server never sends it to anyone else). */
+function IncentiveChip({ incentive }: { incentive: NonNullable<Publication['incentive']> }) {
+  if (!(incentive.amount > 0) && !(incentive.points > 0)) {
+    return <span className="text-xs text-gray-500 dark:text-gray-400">No incentive recorded</span>;
+  }
+  const paid = incentive.status === 'paid';
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${paid ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' : 'bg-amber-50 text-amber-900 dark:bg-amber-900/30 dark:text-amber-100'}`}
+      title={incentive.status ? `Payout: ${PAYOUT_LABEL[incentive.status] || incentive.status}` : 'Recorded when DRD approved this work'}
+    >
+      {incentive.amount > 0 && <span className="font-semibold tabular-nums">{inr.format(incentive.amount)}</span>}
+      {incentive.points > 0 && <span className="tabular-nums">{incentive.points} pts</span>}
+      <span>· {incentive.status ? PAYOUT_LABEL[incentive.status] || incentive.status : 'awarded'}</span>
+    </span>
+  );
+}
+
 function PublicationItem({ publication }: { publication: Publication }) {
   const hiddenAuthors = publication.authors.slice(3);
   const details = [
@@ -101,6 +128,11 @@ function PublicationItem({ publication }: { publication: Publication }) {
         <span className="rounded bg-blush-light px-1.5 py-0.5 text-xs font-medium text-wine dark:bg-gray-700 dark:text-wine-200">
           {TYPE_LABEL[publication.publicationType] || publication.publicationType}
         </span>
+        {!publication.isVerified && publication.source === 'synced' && (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400" title="Imported from the researcher's publication record. Not yet verified by DRD.">
+            Synced{publication.sourceSystems?.length ? ' from ' + publication.sourceSystems.map((x) => (x === 'orcid' ? 'ORCID' : x === 'openalex' ? 'OpenAlex' : x === 'scopus' ? 'Scopus' : x)).join(', ') : ''} · not yet DRD-verified
+          </span>
+        )}
         {publication.isVerified && (
           <span className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400">
             <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
@@ -137,6 +169,7 @@ function PublicationItem({ publication }: { publication: Publication }) {
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        {publication.incentive && (publication.isVerified || publication.incentive.amount > 0) && <IncentiveChip incentive={publication.incentive} />}
         <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
           <Quote className="h-3.5 w-3.5 text-gold" aria-hidden />
           <span className="font-semibold text-gray-900 dark:text-white">{publication.citationCount}</span>

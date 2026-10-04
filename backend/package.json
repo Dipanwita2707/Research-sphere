@@ -61,6 +61,7 @@
     "node-cron": "^4.6.0",
     "node-machine-id": "^1.1.12",
     "nodemailer": "^10.0.13",
+    "pdfkit": "^0.17.2",
     "pg": "^8.23.1",
     "sanitize-html": "^2.18.0",
     "sharp": "^0.35.5",

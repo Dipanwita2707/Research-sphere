@@ -268,6 +268,26 @@ exports.submitResearchContribution = async (req, res) => {
   }
 };
 
+/** POST /research/submit-many { ids } — submit each draft in turn; one failure never stops the rest. */
+exports.submitManyContributions = async (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? [...new Set(req.body.ids.map(String))] : [];
+  if (!ids.length) return res.status(400).json({ success: false, message: 'Select at least one contribution' });
+  if (ids.length > 200) return res.status(400).json({ success: false, message: 'Submit at most 200 contributions at a time' });
+  const results = [];
+  for (const id of ids) {
+    try {
+      const result = await contributionService.submitContribution(id, req.user.id, req);
+      results.push({ id, ok: true, status: result.data?.status || null });
+    } catch (error) {
+      if (!error.statusCode || error.statusCode >= 500) logger.logError('submit_many_contribution', error, { userId: req.user.id, contributionId: id });
+      results.push({ id, ok: false, code: error.code || null, message: error.statusCode && error.statusCode < 500 ? error.message : 'Failed to submit' });
+    }
+  }
+  const submitted = results.filter((r) => r.ok).length;
+  logger.logUserAction(req.user.id, 'submit_many_contributions', 'Bulk submit', { requested: ids.length, submitted });
+  return res.status(200).json({ success: true, data: { submitted, failed: results.length - submitted, results } });
+};
+
 exports.mentorApproveContribution = async (req, res) => {
   try {
     const result = await contributionService.mentorApprove(req.params.id, req.user.id, req.body.comments, req);

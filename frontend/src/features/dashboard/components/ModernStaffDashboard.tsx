@@ -10,6 +10,7 @@ import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { researchService } from '@/features/research-management/services/research.service';
+import { researchProfileService } from '@/features/research-profile/services/researchProfile.service';
 import { iprService } from '@/features/ipr-management/services/ipr.service';
 import { countDistinctCoAuthors } from '@/shared/utils/personName';
 import { useAffiliation } from '@/shared/hooks/useAffiliation';
@@ -67,16 +68,23 @@ export default function ModernStaffDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [cr, ir] = await Promise.all([
+        const [cr, ir, profile] = await Promise.all([
           researchService.getMyContributions({ limit: 100 }).catch(() => null),
           iprService.getMyApplications().catch(() => null),
+          // The research profile is the one source for publication, citation and co-author figures,
+          // so the dashboard and the profile page always show the same numbers.
+          user?.id ? researchProfileService.getProfileView(user.id).catch(() => null) : Promise.resolve(null),
         ]);
         const contribs: any[] = cr?.data?.contributions || cr?.contributions || [];
         const iprs: any[] = Array.isArray(ir) ? ir : (ir?.data || []);
-        const cits = contribs.reduce((s: number, c: any) => s + Number(c.indexingDetails?.citationCount || 0), 0);
-        setCitationsTotal(cits);
-        const pubs = contribs.filter((c: any) => ['submitted','under_review','resubmitted','approved'].includes(c.status)).length || contribs.length;
-        setPublicationsDynamics(pubs);
+        // Same rule as the research profile: synced works (ORCID / Scopus / OpenAlex) count straight away
+        // unless DRD rejected them; manually filed works count once DRD approves them.
+        const published = contribs.filter((c: any) => c.publicationType !== 'grant_proposal' && (
+          ['approved', 'completed'].includes(c.status) || (c.sourceType === 'auto_import' && c.status !== 'rejected')
+        ));
+        const cits = published.reduce((s: number, c: any) => s + Number(c.indexingDetails?.citationCount || 0), 0);
+        setCitationsTotal(profile?.profile?.metrics?.totalCitations ?? cits);
+        setPublicationsDynamics(profile?.publicationCount ?? published.length);
         const active = contribs.filter((c: any) => ['under_review','submitted','resubmitted','revision_requested'].includes(c.status)).length;
         setActiveProjects(active);
         const cr2 = contribs.filter((c: any) => ['approved','completed'].includes(c.status));
@@ -86,9 +94,11 @@ export default function ModernStaffDashboard() {
         if (tot > 10000000) setResearchFundingStr('Rs ' + (tot / 10000000).toFixed(2) + ' Cr');
         else if (tot > 100000) setResearchFundingStr('Rs ' + (tot / 100000).toFixed(2) + ' L');
         else setResearchFundingStr('Rs ' + tot.toLocaleString('en-IN'));
-        setPatentsCount(iprs.length);
-        // Distinct co-authors: one per person across name forms ("Madaan, V." / "Vishu Madaan"), never the user
-        setCollaborationsCount(countDistinctCoAuthors(contribs, { id: user?.id, name: getUserName() }));
+        // Filed with the patent office or later (drafts and applications still with DRD are not "filed").
+        const FILED = ['govt_application_filed', 'published', 'under_finance_review', 'finance_approved', 'finance_rejected', 'completed'];
+        setPatentsCount(iprs.filter((a: any) => FILED.includes(a.status) || a.grantedAt).length);
+        // Distinct co-authors on published works, as on the profile: one per person across name forms, never the user
+        setCollaborationsCount(profile?.coAuthorCount ?? countDistinctCoAuthors(published, { id: user?.id, name: getUserName() }));
 
         // Compute actual details
         const getTimestamp = (item: any) => {

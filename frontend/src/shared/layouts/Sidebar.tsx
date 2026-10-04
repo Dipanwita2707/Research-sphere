@@ -202,6 +202,7 @@ const getNavItems = (
     if (canFileResearch) {
       researchIprSubItems.push({ name: 'New Research Contribution', href: '/research/apply', icon: BookOpen });
       researchIprSubItems.push({ name: 'My Research', href: '/research/my-contributions', icon: FileText });
+      researchIprSubItems.push({ name: 'Synced Works – Submit', href: '/research/my-contributions?tab=synced', icon: FileText });
     }
     
     if (isFaculty) {

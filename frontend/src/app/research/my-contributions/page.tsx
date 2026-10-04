@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { 
-  FileText, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Plus,
   Search,
@@ -27,6 +27,10 @@ import {
   FolderOpen,
   Layers,
   Filter,
+  ShieldCheck,
+  ShieldQuestion,
+  ShieldX,
+  CloudDownload,
 } from 'lucide-react';
 import { researchService, ResearchContribution, ResearchPublicationType, GrantApplication } from '@/features/research-management/services/research.service';
 import { grantPolicyService, GrantIncentivePolicy } from '@/features/research-management/services/grantPolicy.service';
@@ -40,10 +44,11 @@ import { BRAND } from '@/shared/config/brand';
 
 const W = BRAND.palette;
 
-type TabType = 'all' | 'action_required' | 'draft' | 'in_progress' | 'completed';
+type TabType = 'all' | 'synced' | 'action_required' | 'draft' | 'in_progress' | 'completed';
 
 const TABS: { key: TabType; label: string; icon: React.ElementType; dotColor: string }[] = [
   { key: 'all',             label: 'All',             icon: FolderOpen,    dotColor: '' },
+  { key: 'synced',          label: 'Synced works',    icon: CloudDownload, dotColor: 'bg-emerald-500' },
   { key: 'action_required', label: 'Action Required', icon: AlertCircle,   dotColor: 'bg-amber' },
   { key: 'draft',           label: 'Drafts',          icon: Edit,          dotColor: 'bg-charcoal/40' },
   { key: 'in_progress',     label: 'In Progress',     icon: Clock,         dotColor: 'bg-wine' },
@@ -62,6 +67,43 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; do
   completed:               { label: 'Completed',        icon: CheckCircle, dot: 'bg-wine',        badge: 'bg-peach/60 text-wine',              borderColor: 'border-peach',     bgColor: 'bg-brand-50',   color: 'text-wine' },
 };
 
+/** Synced (auto-imported) drafts the researcher still has to act on. */
+const isSyncedDraft = (c: ResearchContribution) => c.sourceType === 'auto_import' && c.status === 'draft';
+
+const AFFILIATION_BASIS_LABEL: Record<string, string> = {
+  scopus_afid: 'Scopus lists this university as your primary affiliation',
+  trusted_query: 'Found by a Scopus search limited to this university',
+  name_match: 'Your primary affiliation on the paper is this university',
+  personal_alias: 'Your affiliation matches one of your saved aliases',
+  orcid_employment: 'Your ORCID employment history places you here that year',
+  orcid_employment_elsewhere: 'Your ORCID employment history places you at another institution that year',
+  other_institution: 'Your affiliation on the paper is another institution',
+  not_primary: 'This university is on the paper, but not as your primary (first) affiliation',
+  name_match_openalex: 'Your affiliation on the paper (from OpenAlex) names this university',
+  other_institution_openalex: 'Your affiliation on the paper (from OpenAlex) is another institution',
+  not_primary_openalex: 'This university is on the paper (from OpenAlex), but not as your primary affiliation',
+  no_data: 'The source gives no affiliation for you',
+};
+
+const AFFILIATION_BADGE = {
+  affiliated:     { label: 'Affiliated · eligible', icon: ShieldCheck,    cls: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' },
+  unknown:        { label: 'Affiliation unverified', icon: ShieldQuestion, cls: 'bg-amber-50 text-amber-900 ring-1 ring-amber-200' },
+  not_affiliated: { label: 'Other institution · not eligible', icon: ShieldX, cls: 'bg-stone-100 text-stone-600 ring-1 ring-stone-200' },
+} as const;
+
+function AffiliationBadge({ c }: { c: ResearchContribution }) {
+  if (c.sourceType !== 'auto_import' || !c.homeAffiliation) return null;
+  const cfg = AFFILIATION_BADGE[c.homeAffiliation];
+  const Icon = cfg.icon;
+  const why = [AFFILIATION_BASIS_LABEL[c.homeAffiliationBasis || ''] || '', c.homeAffiliationDetail || ''].filter(Boolean).join(': ');
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${cfg.cls}`} title={why || undefined}>
+      <Icon className="h-3 w-3" aria-hidden="true" />
+      {cfg.label}
+    </span>
+  );
+}
+
 const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; icon: React.ElementType; color: string; gradient: string; accent: string; accentBg: string; accentText: string }> = {
   research_paper:   { label: 'Research Paper',   icon: FileText,     color: 'bg-wine',        gradient: 'from-wine to-wine-dark',       accent: W.wine,   accentBg: 'bg-peach/40', accentText: 'text-wine' },
   book:             { label: 'Book',              icon: BookOpen,     color: 'bg-amber',       gradient: 'from-amber to-amber-dark',   accent: W.amber,  accentBg: 'bg-peach/50', accentText: 'text-amber-dark' },
@@ -78,7 +120,18 @@ export default function MyContributionsPage() {
   const [contributions, setContributions] = useState<ResearchContribution[]>([]);
   const [grants, setGrants] = useState<GrantApplication[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const t = searchParams?.get('tab');
+    return t && TABS.some((x) => x.key === t) ? (t as TabType) : 'all';
+  });
+  const [showOtherInstitutions, setShowOtherInstitutions] = useState(false);
+  // Navigating here again with another ?tab= (e.g. from the menu) switches the tab.
+  const tabParam = searchParams?.get('tab');
+  useEffect(() => {
+    if (tabParam && TABS.some((x) => x.key === tabParam)) setActiveTab(tabParam as TabType);
+  }, [tabParam]);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [publicationTypeFilter, setPublicationTypeFilter] = useState<string>('');
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
@@ -143,65 +196,65 @@ export default function MyContributionsPage() {
     const actionRequiredStatuses = ['changes_required'];
     const inProgressStatuses = ['submitted', 'under_review', 'resubmitted', 'pending_mentor_approval'];
     const completedStatuses = ['approved', 'completed'];
-    
-    const completedContribs = contributions.filter((c: ResearchContribution) => 
+
+    const completedContribs = contributions.filter((c: ResearchContribution) =>
       completedStatuses.includes(c.status)
     );
-    
+
     // Calculate total incentives (credited only)
-    const creditedIncentives = completedContribs.reduce((sum: number, c: ResearchContribution) => 
+    const creditedIncentives = completedContribs.reduce((sum: number, c: ResearchContribution) =>
       sum + getMyContributionShare(c).creditedIncentive, 0
     );
-    
-    const creditedPoints = completedContribs.reduce((sum: number, c: ResearchContribution) => 
+
+    const creditedPoints = completedContribs.reduce((sum: number, c: ResearchContribution) =>
       sum + getMyContributionShare(c).creditedPoints, 0
     );
-    
+
     // Add grant stats - calculate individual applicant's share
-    const completedGrants = grants.filter((g: GrantApplication) => 
+    const completedGrants = grants.filter((g: GrantApplication) =>
       ['approved', 'completed'].includes(g.status)
     );
-    
+
     // Calculate individual share for each grant
     const calculateApplicantShare = (grant: GrantApplication) => {
       if (!grant.calculatedIncentiveAmount && !grant.calculatedPoints) {
         return { incentive: 0, points: 0 };
       }
-      
+
       // Determine if applicant is internal
       const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
    'pi');
-      
+
       if (!applicantIsInternal) {
         return { incentive: 0, points: 0 };
       }
-      
+
       // Get internal team members
-      const internalTeamMembers = (grant.investigators || []).filter((inv: any) => 
+      const internalTeamMembers = (grant.investigators || []).filter((inv: any) =>
         inv.investigatorCategory ===
    'Internal' || inv.isInternal ===
    true
       );
-      
+
       // Total internal count includes applicant
       const totalInternal = 1 + internalTeamMembers.length;
-      
+
       if (totalInternal ===
    0) {
         return { incentive: 0, points: 0 };
       }
-      
+
       // For equal split (default behavior when no rolePercentages)
       const totalIncentive = Number(grant.calculatedIncentiveAmount) || 0;
       const totalPoints = Number(grant.calculatedPoints) || 0;
-      
+
       // Simple equal division using Math.floor
       const applicantIncentive = Math.floor(totalIncentive / totalInternal);
       const applicantPoints = Math.floor(totalPoints / totalInternal);
-      
+
       return { incentive: applicantIncentive, points: applicantPoints };
     };
-    
+
     const { totalGrantIncentives, totalGrantPoints } = completedGrants.reduce(
       (acc, g) => {
         const share = calculateApplicantShare(g);
@@ -212,11 +265,11 @@ export default function MyContributionsPage() {
       },
       { totalGrantIncentives: 0, totalGrantPoints: 0 }
     );
-    
+
     setStats({
       total: contributions.length + grants.length,
       drafts: contributions.filter((c: ResearchContribution) => c.status ===
-   'draft').length + 
+   'draft').length +
               grants.filter((g: GrantApplication) => g.status ===
    'draft').length,
       action_required: contributions.filter((c: ResearchContribution) => actionRequiredStatuses.includes(c.status)).length +
@@ -237,11 +290,18 @@ export default function MyContributionsPage() {
 
   const getFilteredContributions = useCallback(() => {
     if (!Array.isArray(contributions)) return [];
-    
+
     let filtered = [...contributions];
-    
+
     // Tab filter
-    if (activeTab ===
+    if (activeTab === 'synced') {
+      filtered = filtered
+        .filter(isSyncedDraft)
+        .filter((c) => showOtherInstitutions || c.homeAffiliation !== 'not_affiliated');
+      // Eligible first, then the ones DRD has to verify, then other institutions.
+      const rank = { affiliated: 0, unknown: 1, not_affiliated: 2 } as Record<string, number>;
+      filtered.sort((a, b) => (rank[a.homeAffiliation || 'unknown'] ?? 1) - (rank[b.homeAffiliation || 'unknown'] ?? 1));
+    } else if (activeTab ===
    'action_required') {
       filtered = filtered.filter(c => c.status ===
    'changes_required');
@@ -256,32 +316,33 @@ export default function MyContributionsPage() {
    'completed') {
       filtered = filtered.filter(c => ['approved', 'completed', 'rejected'].includes(c.status));
     }
-    
+
     // Publication type filter
     if (publicationTypeFilter && publicationTypeFilter !== 'grant') {
       filtered = filtered.filter(c => c.publicationType ===
    publicationTypeFilter);
     }
-    
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(c => 
+      filtered = filtered.filter(c =>
         c.title.toLowerCase().includes(query) ||
         c.applicationNumber?.toLowerCase().includes(query) ||
         c.journalName?.toLowerCase().includes(query) ||
         c.conferenceName?.toLowerCase().includes(query)
       );
     }
-    
+
     return filtered;
-  }, [contributions, activeTab, publicationTypeFilter, searchQuery]);
+  }, [contributions, activeTab, publicationTypeFilter, searchQuery, showOtherInstitutions]);
 
   const getFilteredGrants = useCallback(() => {
     if (!Array.isArray(grants)) return [];
-    
+
     let filtered = [...grants];
-    
+    if (activeTab === 'synced') return [];
+
     // Tab filter
     if (activeTab ===
    'action_required') {
@@ -298,32 +359,32 @@ export default function MyContributionsPage() {
    'completed') {
       filtered = filtered.filter(g => ['approved', 'completed', 'rejected'].includes(g.status));
     }
-    
+
     // Publication type filter
     if (publicationTypeFilter && publicationTypeFilter !== 'grant') {
       return []; // Don't show grants if filtering by other publication types
     }
-    
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(g => 
+      filtered = filtered.filter(g =>
         g.title.toLowerCase().includes(query) ||
         g.applicationNumber?.toLowerCase().includes(query) ||
         g.agencyName?.toLowerCase().includes(query)
       );
     }
-    
+
     return filtered;
   }, [grants, activeTab, publicationTypeFilter, searchQuery]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const confirmed = await confirmDelete('Delete Draft', 'Are you sure you want to delete this draft?');
     if (!confirmed) return;
-    
+
     try {
       await researchService.deleteContribution(id);
       fetchContributions();
@@ -336,12 +397,22 @@ export default function MyContributionsPage() {
   const handleSubmit = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const confirmed = await confirmAction('Confirm Submission', 'Submit this contribution for review?');
+
+    const c = contributions.find((x) => x.id === id);
+    const synced = c?.sourceType === 'auto_import';
+    const confirmed = await confirmAction(
+      synced ? (c?.homeAffiliation === 'affiliated' ? 'Submit for incentive' : 'Send to DRD for verification') : 'Confirm Submission',
+      synced
+        ? (c?.homeAffiliation === 'affiliated'
+          ? 'Submit this work to DRD for incentive review?'
+          : 'The sync could not confirm your affiliation with this university on this work. DRD will verify it before any incentive. Send it?')
+        : 'Submit this contribution for review?',
+    );
     if (!confirmed) return;
-    
+
     try {
       await researchService.submitContribution(id);
+      toast({ type: 'success', message: synced ? 'Sent to DRD for review.' : 'Submitted for review.' });
       fetchContributions();
     } catch (error: unknown) {
       logger.error('Error submitting contribution:', error);
@@ -355,13 +426,36 @@ export default function MyContributionsPage() {
     }
   };
 
+  const handleSubmitAllAffiliated = async () => {
+    const ids = contributions.filter((c) => isSyncedDraft(c) && c.homeAffiliation === 'affiliated').map((c) => c.id);
+    if (!ids.length) return;
+    const confirmed = await confirmAction('Submit for incentive', `Submit all ${ids.length} affiliated synced work${ids.length === 1 ? '' : 's'} to DRD for incentive review?`);
+    if (!confirmed) return;
+    setBulkSubmitting(true);
+    try {
+      const res = await researchService.submitManyContributions(ids);
+      const firstFailure = res.results.find((r) => !r.ok);
+      toast({
+        type: res.failed ? 'warning' : 'success',
+        message: `${res.submitted} submitted for incentive${res.failed ? `, ${res.failed} not submitted${firstFailure?.message ? ` (e.g. ${firstFailure.message})` : ''}` : ''}.`,
+        duration: res.failed ? 12000 : 5000,
+      });
+      fetchContributions();
+    } catch (error: unknown) {
+      logger.error('Bulk submit failed:', error);
+      toast({ type: 'error', message: extractErrorMessage(error) });
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
   const handleResubmit = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const confirmed = await confirmAction('Confirm Resubmission', 'Resubmit this contribution?');
     if (!confirmed) return;
-    
+
     try {
       await researchService.resubmitContribution(id);
       fetchContributions();
@@ -374,10 +468,10 @@ export default function MyContributionsPage() {
   const handleGrantDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const confirmed = await confirmDelete('Delete Grant Application', 'Are you sure you want to delete this grant application?');
     if (!confirmed) return;
-    
+
     try {
       await researchService.deleteGrantApplication(id);
       fetchGrants();
@@ -390,10 +484,10 @@ export default function MyContributionsPage() {
   const handleGrantSubmit = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const confirmed = await confirmAction('Confirm Submission', 'Submit this grant application for review?');
     if (!confirmed) return;
-    
+
     try {
       await researchService.submitGrantApplication(id);
       fetchGrants();
@@ -557,6 +651,7 @@ export default function MyContributionsPage() {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.key;
                 const count = tab.key === 'all' ? stats.total
+                            : tab.key === 'synced' ? contributions.filter(isSyncedDraft).length
                             : tab.key === 'action_required' ? stats.action_required
                             : tab.key === 'draft' ? stats.drafts
                             : tab.key === 'in_progress' ? stats.in_progress
@@ -614,6 +709,36 @@ export default function MyContributionsPage() {
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-charcoal/35 pointer-events-none" />
             </div>
           </div>
+
+          {activeTab === 'synced' && (() => {
+            const synced = contributions.filter(isSyncedDraft);
+            const n = (k: string) => synced.filter((c) => (c.homeAffiliation || 'unknown') === k).length;
+            return (
+              <div className="flex flex-col gap-3 border-b border-blush-deep/50 bg-emerald-50/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-charcoal/80">
+                  <p className="font-semibold text-charcoal">Synced works are not submitted automatically.</p>
+                  <p className="mt-0.5">
+                    <span className="font-semibold text-emerald-800">{n('affiliated')} affiliated</span> with this university (eligible for incentive) ·{' '}
+                    <span className="font-semibold text-amber-900">{n('unknown')} unverified</span> (DRD checks them) ·{' '}
+                    <span className="font-semibold text-stone-600">{n('not_affiliated')} other institutions</span> (not eligible)
+                  </p>
+                  <label className="mt-1.5 inline-flex items-center gap-2 text-xs text-charcoal/60">
+                    <input type="checkbox" checked={showOtherInstitutions} onChange={(e) => setShowOtherInstitutions(e.target.checked)} className="rounded border-blush-deep text-wine focus:ring-wine/30" />
+                    Show works from other institutions
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSubmitAllAffiliated}
+                  disabled={bulkSubmitting || n('affiliated') === 0}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  {bulkSubmitting ? 'Submitting…' : `Submit all affiliated for incentive (${n('affiliated')})`}
+                </button>
+              </div>
+            );
+          })()}
 
           {/* List */}
           <div className="divide-y divide-blush-deep/50">
@@ -737,7 +862,16 @@ export default function MyContributionsPage() {
                   const contributionShare = getMyContributionShare(contribution);
 
                   return (
-                    <div key={contribution.id}>
+                    <div
+                      key={contribution.id}
+                      className={isSyncedDraft(contribution)
+                        ? contribution.homeAffiliation === 'affiliated'
+                          ? 'border-l-4 border-emerald-500 bg-emerald-50/50'
+                          : contribution.homeAffiliation === 'not_affiliated'
+                            ? 'border-l-4 border-stone-200 opacity-70'
+                            : 'border-l-4 border-amber-300 bg-amber-50/30'
+                        : undefined}
+                    >
                       <Link
                         href={`/research/contribution/${contribution.id}`}
                         className="flex items-start gap-4 px-6 py-4 hover:bg-blush/80 transition-colors group"
@@ -779,6 +913,17 @@ export default function MyContributionsPage() {
                                   </>
                                 )}
                               </div>
+
+                              {contribution.sourceType === 'auto_import' && contribution.homeAffiliation && (
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                  <AffiliationBadge c={contribution} />
+                                  {contribution.homeAffiliationDetail && (
+                                    <span className="max-w-[420px] truncate text-[11px] text-charcoal/50" title={contribution.homeAffiliationDetail}>
+                                      {contribution.homeAffiliationDetail}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Incentives row */}
                               {(contributionShare.estimatedIncentive > 0 || contributionShare.estimatedPoints > 0) && (
@@ -829,6 +974,27 @@ export default function MyContributionsPage() {
 
                               {contribution.status === 'draft' && (
                                 <div className="flex items-center gap-1" onClick={e => e.preventDefault()}>
+                                  {contribution.sourceType === 'auto_import' ? (
+                                    contribution.homeAffiliation === 'not_affiliated' ? (
+                                      <span className="px-2 py-1 text-[11px] font-medium text-stone-500" title={contribution.homeAffiliationDetail || 'Another institution'}>
+                                        Not eligible
+                                      </span>
+                                    ) : contribution.homeAffiliation === 'affiliated' ? (
+                                      <button
+                                        onClick={e => handleSubmit(contribution.id, e)}
+                                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
+                                      >
+                                        <Send className="w-3.5 h-3.5" aria-hidden="true" /> Submit for incentive
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={e => handleSubmit(contribution.id, e)}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-50"
+                                      >
+                                        <ShieldQuestion className="w-3.5 h-3.5" aria-hidden="true" /> Send to DRD to verify
+                                      </button>
+                                    )
+                                  ) : (
                                   <button
                                     onClick={e => handleSubmit(contribution.id, e)}
                                     className="p-1.5 text-wine hover:bg-peach/50 rounded-lg transition-colors"
@@ -836,6 +1002,7 @@ export default function MyContributionsPage() {
                                   >
                                     <Send className="w-3.5 h-3.5" />
                                   </button>
+                                  )}
                                   <button
                                     onClick={e => handleDelete(contribution.id, e)}
                                     className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"

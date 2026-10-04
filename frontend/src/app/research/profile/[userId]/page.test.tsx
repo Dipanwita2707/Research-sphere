@@ -58,6 +58,8 @@ function makeView(overrides: Partial<AuthorProfileView> = {}): AuthorProfileView
     },
     publications: [],
     publicationCount: 0,
+    incentiveSummary: null,
+    coAuthorCount: 0,
     coAuthors: [],
     impactMetrics: null,
     sections,

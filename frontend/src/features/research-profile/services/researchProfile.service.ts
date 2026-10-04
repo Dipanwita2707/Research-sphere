@@ -1,5 +1,5 @@
 import api, { unwrapResponse } from '@/shared/api/api';
-import type { CoAuthor, ImpactMetrics, ProfileData, ProfileVisibility, Publication } from '@/shared/types/research-profile.types';
+import type { CoAuthor, ImpactMetrics, IncentiveSummary, ProfileData, ProfileVisibility, Publication } from '@/shared/types/research-profile.types';
 
 export interface ResearchProfileIdentity {
   id: string | null;
@@ -34,6 +34,8 @@ export interface PublicationImportRun {
 }
 
 export interface PublicationSyncResult {
+  /** How many synced works are affiliated with this university (eligible for incentive), not, or unknown. */
+  affiliation?: { affiliated: number; not_affiliated: number; unknown: number };
   runId: string;
   discoveredCount: number;
   createdCount: number;
@@ -113,7 +115,11 @@ export interface AuthorProfileView {
   };
   publications: Publication[];
   publicationCount: number | null;
+  /** Incentives earned across the listed works; null for everyone except the author and admins. */
+  incentiveSummary: IncentiveSummary | null;
   coAuthors: CoAuthor[];
+  /** Distinct co-authors across the listed works (the coAuthors list is capped at 100). */
+  coAuthorCount: number | null;
   impactMetrics: ImpactMetrics | null;
   sections: AuthorProfileSections;
   access: { isOwner: boolean; canEdit: boolean; canViewPrivate: boolean };
@@ -197,6 +203,24 @@ class ResearchProfileService {
   async getProfileView(userId: string): Promise<AuthorProfileView> {
     const response = await api.get(`/research/profile/${userId}/view`);
     return unwrapResponse<AuthorProfileView>(response);
+  }
+
+  /** Download the researcher's CV (PDF). The server applies the same visibility rules as the profile. */
+  async downloadCv(userId: string, fallbackName = 'Research-CV'): Promise<void> {
+    const response = await api.get<Blob>(`/research/profile/${userId}/cv`, { responseType: 'blob' });
+    const disposition = String(response.headers?.['content-disposition'] || '');
+    const filename = /filename="([^"]+)"/.exec(disposition)?.[1] || `${fallbackName}.pdf`;
+    const url = URL.createObjectURL(response.data);
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
   }
 
   async getProfileSettings(userId: string): Promise<AuthorProfileSettings> {

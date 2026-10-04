@@ -282,6 +282,7 @@ export default function NavigationHeader() {
   // =====================================
     const myResearchChildren: SubMenuItem[] = [
       { name: 'All Submissions', href: '/my-work', description: 'View all submissions at once' },
+      ...(canFileResearch ? [{ name: 'Synced Works – Submit for Incentive', href: '/research/my-contributions?tab=synced', description: 'Works synced from Scopus / ORCID: submit the ones affiliated with your university' }] : []),
       ...(canFileResearch ? [{ name: 'Research Papers, Books, Chapters & Conference Papers', href: '/research/my-contributions', description: 'View research papers' }] : []),
       ...(canFileIpr ? [{ name: 'Patents / IPR', href: '/ipr/my-applications', description: 'View patent applications' }] : []),
     ];
@@ -353,6 +354,7 @@ export default function NavigationHeader() {
       href: '/research/my-profile',
       description: 'Open your research profile and manage sync settings',
     });
+    if (canFileResearch) rndSubItems.push({ name: 'Synced Works – Submit for Incentive', href: '/research/my-contributions?tab=synced', description: 'Works synced from Scopus / ORCID: submit the ones affiliated with your university' });
     rndSubItems.push({
       name: 'My Incentives',
       href: '/research/my-incentives',

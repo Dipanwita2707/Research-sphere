@@ -101,6 +101,7 @@ export default function ProfilePage() {
   const [view, setView] = useState<AuthorProfileView | null>(null);
   const [deniedCode, setDeniedCode] = useState<ProfileAccessCode | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [cvState, setCvState] = useState<'idle' | 'busy' | 'error'>('idle');
   
   // UI State
   const [activeTab, setActiveTab] = useState<'overview' | 'publications' | 'collaborations' | 'metrics' | 'analytics'>('overview');
@@ -230,6 +231,16 @@ export default function ProfilePage() {
     institution: { label: 'University only', icon: <Building2 className="w-3.5 h-3.5" /> },
     private: { label: 'Private', icon: <Lock className="w-3.5 h-3.5" /> },
   }[visibility];
+  const downloadCv = async () => {
+    setCvState('busy');
+    try {
+      await researchProfileService.downloadCv(userId, `Research-CV-${name.replace(/[^A-Za-z0-9]+/g, '-')}`);
+      setCvState('idle');
+    } catch (err) {
+      logger.error('Research CV download failed:', err);
+      setCvState('error');
+    }
+  };
   const copyPublicLink = async () => {
     if (!publicPath) return;
     try {
@@ -244,7 +255,7 @@ export default function ProfilePage() {
   const citations = profileData.profile.metrics.totalCitations || 0;
   const hIndex = profileData.profile.metrics.hIndex || 0;
   const publicationsCount = profileData.publications.length || 0;
-  const collaboratorsCount = profileData.coAuthors.length || 0;
+  const collaboratorsCount = view?.coAuthorCount ?? profileData.coAuthors.length ?? 0;
 
   const bio = profileData.profile.bio;
   const researchInterests = profileData.profile.researchInterests;
@@ -354,6 +365,10 @@ export default function ProfilePage() {
               <button onClick={() => router.push('/research')} className="btn-outline">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Research
+              </button>
+              <button onClick={downloadCv} disabled={cvState === 'busy'} className="btn-outline" title="Download a research CV (PDF) built from this profile">
+                <Download className="w-4 h-4" />
+                {cvState === 'busy' ? 'Preparing CV…' : cvState === 'error' ? 'CV failed, retry' : 'Download CV'}
               </button>
               {canEdit && publicPath && (
                 <button onClick={copyPublicLink} className="btn-outline" title="Copy your public profile link">
@@ -600,6 +615,17 @@ export default function ProfilePage() {
 
                 </div>
               </div>
+
+              {view?.incentiveSummary && (view.incentiveSummary.total > 0 || view.incentiveSummary.points > 0) && (
+                <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-blush-line bg-white px-5 py-3 text-sm" role="note" aria-label="Your incentives">
+                  <span className="font-semibold text-gray-900">Incentives from these works</span>
+                  <span className="text-gray-600">Total <strong className="tabular-nums text-wine">₹{view.incentiveSummary.total.toLocaleString('en-IN')}</strong></span>
+                  <span className="text-gray-600">Paid <strong className="tabular-nums text-emerald-700">₹{view.incentiveSummary.paid.toLocaleString('en-IN')}</strong></span>
+                  <span className="text-gray-600">In process <strong className="tabular-nums text-amber-700">₹{view.incentiveSummary.inProcess.toLocaleString('en-IN')}</strong></span>
+                  {view.incentiveSummary.points > 0 && <span className="text-gray-600">Points <strong className="tabular-nums">{view.incentiveSummary.points}</strong></span>}
+                  <span className="text-xs text-gray-500">Only you and administrators can see this.</span>
+                </div>
+              )}
 
               <PublicationList publications={filteredPublications} />
             </div>

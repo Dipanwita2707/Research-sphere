@@ -131,6 +131,10 @@ router.get('/duplicates/check', protect, async (req, res) => {
   }
 });
 
+// Submit several of my drafts at once (e.g. every affiliated synced work). Each one goes through
+// the same checks as a single submit; the response lists what happened to each.
+router.post('/submit-many', protect, researchContributionController.submitManyContributions);
+
 // =====================================
 // Get my research contributions
 router.get(

@@ -1,4 +1,5 @@
 const authorProfileService = require('../services/authorProfile.service');
+const researchCvService = require('../services/researchCv.service');
 const { sendResolvedFile } = require('../../uploads/fileAccess.service');
 const logger = require('../../../shared/utils/logger');
 
@@ -23,6 +24,22 @@ const publicHandler = handle('Failed to load profile');
 /** GET /research/profile/:userId/view — profile as the signed-in viewer is allowed to see it. */
 exports.getProfileView = (req, res) =>
   viewHandler(res, () => authorProfileService.getProfileForViewer(req.params.userId, req.user));
+
+/** GET /research/profile/:userId/cv — research CV (PDF), with the same visibility rules as the profile. */
+exports.downloadCv = async (req, res) => {
+  try {
+    const { filename, buffer } = await researchCvService.build(req.params.userId, req.user);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.status(200).send(buffer);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    if (statusCode < 500) return res.status(statusCode).json({ success: false, code: error.code, message: error.message });
+    logger.error('Failed to generate research CV', error);
+    return res.status(500).json({ success: false, message: 'Failed to generate the research CV' });
+  }
+};
 
 /** GET /research/profile/:userId/settings — author/admin only. */
 exports.getProfileSettings = (req, res) =>

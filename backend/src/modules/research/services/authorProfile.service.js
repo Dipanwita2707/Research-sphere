@@ -12,6 +12,9 @@
  * Section toggles (showEmail, showPublications, ...) apply to every viewer
  * except the author and admins. Hidden sections are removed on the server, so
  * the data never reaches a viewer who is not allowed to see it.
+ *
+ * Incentives (amount, points, payout status per work and a summary) are money:
+ * only the author and admins ever receive them, whatever the visibility settings.
  */
 const prisma = require('../../../shared/config/database');
 const { personNameKey, fullestName } = require('../../../shared/utils/personNameKey');
@@ -24,6 +27,25 @@ const VISIBILITY_LEVELS = ['public', 'institution', 'private'];
 const SECTION_KEYS = ['showPhoto', 'showEmail', 'showPhone', 'showResearchInterests', 'showPublications', 'showCoAuthors', 'showMetrics'];
 const PHOTO_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 const PUBLISHED_STATUSES = ['approved', 'completed'];
+/**
+ * Which works are on a profile (and so on the dashboard and the CV):
+ *   - any work DRD approved (manual form or synced);
+ *   - synced works straight away, whatever their incentive review stage, except ones DRD rejected
+ *     (they may not be the researcher's at all). When the researcher has a Scopus author ID, only
+ *     Scopus-indexed synced works count, so the profile reports what Scopus reports (the figures
+ *     NAAC / NIRF use); without one, every synced work counts.
+ * @param {boolean} scopusOnly
+ */
+function profileWorkFilter(scopusOnly) {
+  return {
+    OR: [
+      { status: { in: PUBLISHED_STATUSES } },
+      { sourceType: 'auto_import', status: { not: 'rejected' }, ...(scopusOnly ? { sourceSystems: { has: 'scopus' } } : {}) },
+    ],
+  };
+}
+/** Payout lines that count as money the author is owed or has received (cancelled lines do not). */
+const PAYOUT_PAID = 'paid';
 const PRIVILEGED_ROLES = new Set(['admin', 'superadmin']);
 const MAX_INTERESTS = 15;
 const MAX_INTEREST_LENGTH = 60;
@@ -84,8 +106,11 @@ function hIndexOf(citationCounts) {
   return h;
 }
 
+/** Citations of a work: Scopus's own count when Scopus has the work, else the highest any source reported. */
 function citationsOf(contribution) {
-  const n = Number(contribution.indexingDetails?.citationCount ?? contribution.indexingDetails?.citations ?? 0);
+  const details = contribution.indexingDetails || {};
+  const scopus = details.citationsBySource?.scopus;
+  const n = Number(scopus ?? details.citationCount ?? details.citations ?? 0);
   return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
 }
 
@@ -150,12 +175,25 @@ class AuthorProfileService {
     return { allowed: false, full: false, isOwner, privileged, reason: 'private' };
   }
 
-  async _publications(userId) {
+  /**
+   * Approved works the person wrote or filed. Besides the account links (applicant, author.userId)
+   * an internal author typed into the manual form by UID or email counts too, so a paper whose
+   * author row never got linked to the account still reaches that person's profile.
+   */
+  async _publications(author) {
+    const userId = author.id;
+    const email = author.email || author.employeeDetails?.email || null;
+    const byIdentity = [
+      ...(author.uid ? [{ authors: { some: { userId: null, uid: { equals: author.uid, mode: 'insensitive' } } } }] : []),
+      ...(email ? [{ authors: { some: { userId: null, email: { equals: email, mode: 'insensitive' } } } }] : []),
+    ];
     return prisma.researchContribution.findMany({
       where: {
-        status: { in: PUBLISHED_STATUSES },
         publicationType: { not: 'grant_proposal' }, // proposals are not publications
-        OR: [{ applicantUserId: userId }, { authors: { some: { userId } } }],
+        AND: [
+          profileWorkFilter(Boolean(author.researchProfileIdentity?.scopusAuthorId)),
+          { OR: [{ applicantUserId: userId }, { authors: { some: { userId } } }, ...byIdentity] },
+        ],
       },
       select: {
         id: true,
@@ -173,13 +211,15 @@ class AuthorProfileService {
         abstract: true,
         keywords: true,
         status: true,
+        sourceType: true,
+        sourceSystems: true,
         publicationDate: true,
         submittedAt: true,
         createdAt: true,
         updatedAt: true,
         indexingDetails: true,
         authors: {
-          select: { userId: true, name: true, affiliation: true, authorOrder: true, isCorresponding: true, isInternal: true },
+          select: { userId: true, uid: true, email: true, name: true, affiliation: true, authorOrder: true, isCorresponding: true, isInternal: true, incentiveShare: true, pointsShare: true },
           orderBy: { authorOrder: 'asc' },
         },
       },
@@ -188,7 +228,7 @@ class AuthorProfileService {
     });
   }
 
-  _buildMetrics(contributions, expertise) {
+  _buildMetrics(contributions, expertise, { scopusOnly = false } = {}) {
     const counts = contributions.map(citationsOf);
     const total = counts.reduce((s, n) => s + n, 0);
     const byYear = new Map();
@@ -199,8 +239,10 @@ class AuthorProfileService {
     const computedH = hIndexOf(counts);
     return {
       // Prefer the Research Intelligence figures when they have been computed; they include synced citation data.
-      totalCitations: Math.max(total, expertise?.totalCitations || 0),
-      hIndex: Math.max(computedH, expertise?.hIndex || 0),
+      // Scopus-reported profiles use only the Scopus figures; otherwise prefer the Research
+      // Intelligence figures when they are higher (they include synced citation data).
+      totalCitations: scopusOnly ? total : Math.max(total, expertise?.totalCitations || 0),
+      hIndex: scopusOnly ? computedH : Math.max(computedH, expertise?.hIndex || 0),
       i10Index: counts.filter((n) => n >= 10).length,
       avgCitationsPerPaper: counts.length ? Number((total / counts.length).toFixed(2)) : 0,
       citationsPerYear: [...byYear.entries()].sort((a, b) => a[0] - b[0]).map(([year, count]) => ({ year, count })),
@@ -244,7 +286,7 @@ class AuthorProfileService {
         map.set(key, entry);
       }
     }
-    return [...map.values()].sort((a, b) => b.collaborationCount - a.collaborationCount).slice(0, 100);
+    return [...map.values()].sort((a, b) => b.collaborationCount - a.collaborationCount);
   }
 
   _derivedInterests(contributions) {
@@ -262,7 +304,45 @@ class AuthorProfileService {
     return [...counts.values()].sort((a, b) => b.n - a.n).slice(0, 8).map((x) => x.label);
   }
 
-  _mapPublication(c, userId) {
+  /**
+   * What this person earned from each work: their payout line when finance has one (amount, status,
+   * paid date), else the share DRD recorded on approval. Returns a Map(contributionId → incentive)
+   * and a summary. Only called for the author and admins.
+   */
+  async _incentives(author, contributions) {
+    const ids = contributions.map((c) => c.id);
+    const lines = ids.length
+      ? await prisma.incentivePayout
+        .findMany({
+          where: { payeeUserId: author.id, researchContributionId: { in: ids }, NOT: { status: 'cancelled' } },
+          select: { researchContributionId: true, approvedAmount: true, points: true, status: true, paidAt: true },
+        })
+        .catch(() => [])
+      : [];
+    const lineOf = new Map(lines.map((l) => [l.researchContributionId, l]));
+    const email = (author.email || author.employeeDetails?.email || '').toLowerCase();
+    const mine = (a) => a.userId === author.id
+      || (!a.userId && ((a.uid && a.uid.toLowerCase() === String(author.uid).toLowerCase()) || (email && a.email && a.email.toLowerCase() === email)));
+
+    const byWork = new Map();
+    const summary = { total: 0, paid: 0, inProcess: 0, points: 0, works: 0 };
+    for (const c of contributions) {
+      const line = lineOf.get(c.id);
+      const share = (c.authors || []).find(mine);
+      const amount = line ? Number(line.approvedAmount) || 0 : Number(share?.incentiveShare) || 0;
+      const points = line ? Number(line.points) || 0 : Number(share?.pointsShare) || 0;
+      const status = line ? line.status : null; // null: recorded at approval, not yet in the payout ledger
+      byWork.set(c.id, { amount, points, status, paidAt: line?.paidAt || null });
+      if (amount > 0 || points > 0) summary.works += 1;
+      summary.total += amount;
+      summary.points += points;
+      if (status === PAYOUT_PAID) summary.paid += amount; else summary.inProcess += amount;
+    }
+    const r2 = (n) => Math.round(n * 100) / 100;
+    return { byWork, summary: { ...summary, total: r2(summary.total), paid: r2(summary.paid), inProcess: r2(summary.inProcess) } };
+  }
+
+  _mapPublication(c, userId, incentive = undefined) {
     return {
       id: c.id,
       profileId: userId,
@@ -288,13 +368,16 @@ class AuthorProfileService {
       pubmedId: null,
       citationCount: citationsOf(c),
       citationsPerYear: {},
-      source: 'manual',
       externalId: null,
       pdfUrl: null,
       publicationUrl: c.doi ? `https://doi.org/${c.doi}` : null,
       abstract: c.abstract || null,
       keywords: String(c.keywords || '').split(/[,;]/).map((k) => k.trim()).filter(Boolean),
-      isVerified: true,
+      // Verified = approved by DRD. Synced works show before that, marked as not yet verified.
+      isVerified: PUBLISHED_STATUSES.includes(c.status),
+      source: c.sourceType === 'auto_import' ? 'synced' : 'manual',
+      sourceSystems: c.sourceType === 'auto_import' ? (c.sourceSystems || []) : [],
+      ...(incentive ? { incentive } : {}),
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
     };
@@ -302,7 +385,7 @@ class AuthorProfileService {
 
   async _build(author, access, settings, photoUrlFor = (a) => `/uploads/profiles/${a.profileImage}`) {
     const [contributions, expertise] = await Promise.all([
-      this._publications(author.id),
+      this._publications(author),
       prisma.ripResearcherExpertiseProfile
         .findUnique({ where: { userId: author.id }, select: { totalCitations: true, hIndex: true } })
         .catch(() => null),
@@ -315,9 +398,13 @@ class AuthorProfileService {
     const full = access.full;
     const show = (key) => full || settings[key];
 
-    const publications = contributions.map((c) => this._mapPublication(c, author.id));
-    const metrics = this._buildMetrics(contributions, expertise);
-    const coAuthors = this._buildCoAuthors(author.id, name, contributions);
+    // Money is for the author and admins only, whatever the visibility settings say.
+    const incentives = full ? await this._incentives(author, contributions) : null;
+    const publications = contributions.map((c) => this._mapPublication(c, author.id, incentives?.byWork.get(c.id)));
+    const scopusOnly = Boolean(author.researchProfileIdentity?.scopusAuthorId);
+    const metrics = this._buildMetrics(contributions, expertise, { scopusOnly });
+    const allCoAuthors = this._buildCoAuthors(author.id, name, contributions);
+    const coAuthors = allCoAuthors.slice(0, 100); // the list is capped; the count is not
 
     const sections = {
       photo: show('showPhoto') && Boolean(author.profileImage),
@@ -361,7 +448,9 @@ class AuthorProfileService {
       },
       publications: sections.publications ? publications : [],
       publicationCount: sections.publications ? publications.length : null,
+      incentiveSummary: incentives ? incentives.summary : null,
       coAuthors: sections.coAuthors ? coAuthors : [],
+      coAuthorCount: sections.coAuthors ? allCoAuthors.length : null,
       impactMetrics: sections.metrics
         ? {
             avgCitationsPerPaper: metrics.avgCitationsPerPaper,
