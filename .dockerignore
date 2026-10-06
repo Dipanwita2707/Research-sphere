@@ -43,6 +43,10 @@ test-results/
 **/__tests__/
 **/*.test.js
 **/*.spec.js
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
 
 # Local uploads (use S3 in production, don't bake sample files into the image)
 backend/uploads/
