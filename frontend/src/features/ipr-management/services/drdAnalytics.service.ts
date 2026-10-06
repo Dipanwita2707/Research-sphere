@@ -404,18 +404,19 @@ export interface CategoryBreakdownResponse {
 class DrdAnalyticsService {
   private baseUrl = '/drd-analytics';
 
-  async getApplicantAnalytics(filters?: DrdAnalyticsFilters) {
+  /** opts.optional: the caller handles a 403 itself (no error logging for it). */
+  async getApplicantAnalytics(filters?: DrdAnalyticsFilters, opts?: { optional?: boolean }) {
     const response = await api.get<{ success: boolean; data: DrdAnalyticsResponse }>(
       `${this.baseUrl}/applicant`,
-      { params: filters }
+      opts?.optional ? optionalRequest({ params: filters }) : { params: filters }
     );
     return response.data;
   }
 
-  async getCategoryBreakdown(filters?: DrdAnalyticsFilters) {
+  async getCategoryBreakdown(filters?: DrdAnalyticsFilters, opts?: { optional?: boolean }) {
     const response = await api.get<{ success: boolean; data: CategoryBreakdownResponse }>(
       `${this.baseUrl}/applicant/category-breakdown`,
-      { params: filters }
+      opts?.optional ? optionalRequest({ params: filters }) : { params: filters }
     );
     return response.data;
   }
@@ -484,10 +485,10 @@ class DrdAnalyticsService {
     return response.data;
   }
 
-  async getProgressTrackerAnalytics(filters?: ProgressTrackerFilters) {
+  async getProgressTrackerAnalytics(filters?: ProgressTrackerFilters, opts?: { optional?: boolean }) {
     const response = await api.get<{ success: boolean; data: ProgressTrackerAnalyticsData }>(
       `${this.baseUrl}/progress-tracker`,
-      { params: filters }
+      opts?.optional ? optionalRequest({ params: filters }) : { params: filters }
     );
     return response.data;
   }

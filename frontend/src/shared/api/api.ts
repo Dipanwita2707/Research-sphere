@@ -193,7 +193,8 @@ api.interceptors.response.use(
     if (error.response?.status ===
    401 || error.response?.status ===
    403) {
-      const logAuth = isExpectedAuthOutcome(config.url, error.response.status) ? logger.debug.bind(logger) : logger.error.bind(logger);
+      // An optional request's caller handles a refusal itself (e.g. shows "access denied").
+      const logAuth = config.optional || isExpectedAuthOutcome(config.url, error.response.status) ? logger.debug.bind(logger) : logger.error.bind(logger);
       logAuth(`[API] ${error.response.status} - ${config.url}`, {
         status: error.response.status,
         statusText: error.response.statusText,

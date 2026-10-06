@@ -130,6 +130,9 @@ export default function NavigationHeader() {
   const hasAnalyticsAccess = isAdmin || userPermissions.some(dept =>
     (dept.permissions || []).some(p => analyticsKeys.some(k => p.toLowerCase().includes(k)))
   );
+  const hasApplicantAnalyticsAccess = isAdmin || userPermissions.some(dept =>
+    (dept.permissions || []).some(p => p.toLowerCase().includes('applicant_analytics'))
+  );
 
   // Review and Approval permissions
   const canReviewIpr = hasPermission(userPermissions, 'ipr_review') || hasPermission(userPermissions, 'review_ipr');
@@ -418,7 +421,8 @@ export default function NavigationHeader() {
       description: 'Research & IPR analytics dashboards',
       children: [
         { name: 'Overview', href: '/drd/analytics/overview', description: 'High-level KPIs & trends' },
-        { name: 'Applicant Analytics', href: '/drd/analytics/applicant', description: 'Submission trends by school & department' },
+        // Needs an applicant-analytics key (general or per category); DRD reviewers without one would only get "access denied".
+        ...(hasApplicantAnalyticsAccess ? [{ name: 'Applicant Analytics', href: '/drd/analytics/applicant', description: 'Submission trends by school & department' }] : []),
         { name: 'DRD Member Performance', href: '/drd/analytics/drd-member', description: 'Review turnaround & workload' },
         { name: 'NAAC & NIRF Reports', href: '/drd/analytics/naac-nirf', description: 'Accreditation workbooks & data quality' },
         // Applicant-analytics holders get a read-only budget view of their schools (finance users reach it under Finance).

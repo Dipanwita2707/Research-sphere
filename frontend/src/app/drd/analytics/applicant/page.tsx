@@ -181,19 +181,27 @@ export default function ApplicantAnalyticsPage() {
         schoolId: schoolId || undefined,
         departmentId: departmentId || undefined,
       };
+      // Optional: this page shows its own "access denied" state, so refusals are not logged as errors.
+      // The progress tracker needs the general applicant_analytics key; category-only holders
+      // simply don't get that panel.
       const [applicantRes, trackerRes, breakdownRes] = await Promise.allSettled([
-        drdAnalyticsService.getApplicantAnalytics(filters),
+        drdAnalyticsService.getApplicantAnalytics(filters, { optional: true }),
         drdAnalyticsService.getProgressTrackerAnalytics({
           from: fromDate,
           to: toDate,
           schoolId: schoolId || undefined,
           departmentId: departmentId || undefined,
-        }),
-        drdAnalyticsService.getCategoryBreakdown(filters),
+        }, { optional: true }),
+        drdAnalyticsService.getCategoryBreakdown(filters, { optional: true }),
       ]);
 
       if (applicantRes.status === 'fulfilled' && applicantRes.value?.data) {
+        setAccessDenied(false);
         setData(applicantRes.value.data);
+      } else if (applicantRes.status === 'rejected') {
+        // allSettled never throws: a refused main request must switch the page to "access denied".
+        if (is403(applicantRes.reason)) setAccessDenied(true);
+        else logger.error('Failed to load applicant analytics', applicantRes.reason);
       }
 
       if (trackerRes.status === 'fulfilled' && trackerRes.value?.data) {
