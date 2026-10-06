@@ -37,6 +37,8 @@ export interface Branding {
   logoUrl: string | null;
   logoDarkUrl: string | null;
   faviconUrl: string | null;
+  /** Banner illustration on research profile / My Work pages (null = the built-in art). */
+  heroImageUrl?: string | null;
   version: number;
 }
 

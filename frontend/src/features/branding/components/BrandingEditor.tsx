@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, Palette, RotateCcw, Trash2, Upload } from 'lucide-react';
 import BrandPreview from '@/features/branding/components/BrandPreview';
+import defaultHeroArt from '@/assets/hero-art.jpg';
 import {
   BRAND_IMAGE_ACCEPT,
   checkBrandImage,
@@ -62,7 +63,7 @@ export async function uploadDraftImages(api: BrandingApi, draft: BrandingDraft):
     try {
       await api.upload(variant, file);
     } catch (err: any) {
-      failures.push(`${variant} logo: ${err?.response?.data?.message || 'upload failed'}`);
+      failures.push(`${variant === 'hero' ? 'banner image' : `${variant} logo`}: ${err?.response?.data?.message || 'upload failed'}`);
     }
   }
   return failures;
@@ -131,7 +132,7 @@ export default function BrandingEditor(props: Props) {
   const applyData = (data: BrandingEditorData) => {
     setValues(data.values);
     setSaved(data.values);
-    setImages({ light: data.branding.logoUrl, dark: data.branding.logoDarkUrl, favicon: data.branding.faviconUrl });
+    setImages({ light: data.branding.logoUrl, dark: data.branding.logoDarkUrl, favicon: data.branding.faviconUrl, hero: data.branding.heroImageUrl ?? null });
   };
 
   useEffect(() => {
@@ -185,7 +186,7 @@ export default function BrandingEditor(props: Props) {
 
   const pickFile = (variant: BrandAssetVariant, file: File | undefined) => {
     if (!file) return;
-    const problem = checkBrandImage(file);
+    const problem = checkBrandImage(file, variant);
     if (problem) {
       setMessage({ kind: 'error', text: problem });
       return;
@@ -221,7 +222,7 @@ export default function BrandingEditor(props: Props) {
       setImages({});
       return;
     }
-    if (!window.confirm('Reset branding to the default ResearchSphere theme? This removes the logos, colours and custom text.')) return;
+    if (!window.confirm('Reset branding to the default ResearchSphere theme? This removes the logos, banner image, colours and custom text.')) return;
     run('reset', () => editApi.reset(), 'Branding reset to the default theme.');
   };
 
@@ -319,6 +320,51 @@ export default function BrandingEditor(props: Props) {
               })}
             </div>
             <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">PNG, JPG, WebP or SVG, up to 1 MB. Images are re-encoded to PNG; SVGs are converted to PNG.</p>
+          </div>
+
+          {/* Profile banner image */}
+          <div>
+            <p className={label}>Profile banner image</p>
+            <div className="flex flex-col gap-4 rounded-xl border border-gray-200 p-3 sm:flex-row dark:border-gray-700">
+              <div className="relative h-32 w-full shrink-0 overflow-hidden rounded-lg border border-dashed border-gray-200 bg-gray-50 sm:w-56 dark:border-gray-700 dark:bg-gray-900">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local preview or branding API image */}
+                <img
+                  src={images.hero || (typeof defaultHeroArt === 'string' ? defaultHeroArt : defaultHeroArt.src)}
+                  alt="Profile banner preview"
+                  className="h-full w-full object-cover"
+                />
+                {!images.hero && (
+                  <span className="absolute left-2 top-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm">Default</span>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400">
+                  The picture on the right of every researcher&apos;s profile banner and the My Work page. A landscape photo or
+                  illustration works best (about 1600×1000; the left edge fades into the banner). Up to 4 MB; stored as JPEG.
+                </p>
+                <div className="mt-auto flex items-center gap-2 pt-3">
+                  <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-wine px-2.5 py-1.5 text-xs font-semibold text-wine-fg hover:bg-wine-dark">
+                    {busy === 'upload-hero' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    {images.hero ? 'Replace' : 'Upload'}
+                    <input
+                      type="file"
+                      accept={BRAND_IMAGE_ACCEPT}
+                      className="sr-only"
+                      aria-label="Upload profile banner image"
+                      onChange={(e) => {
+                        pickFile('hero', e.target.files?.[0]);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {images.hero && (
+                    <button type="button" onClick={() => removeFile('hero')} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-red-600 dark:text-gray-400" aria-label="Remove profile banner image">
+                      <Trash2 className="h-3.5 w-3.5" /> Use default
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Presets */}

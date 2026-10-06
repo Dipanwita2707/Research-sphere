@@ -26,6 +26,7 @@ const BRANDING_SELECT = Object.freeze({
   logoUrl: true, // storage key of the light logo (see schema comment)
   logoDarkKey: true,
   faviconKey: true,
+  heroImageKey: true,
   themePreset: true,
   primaryColor: true,
   accentColor: true,
@@ -38,7 +39,10 @@ const BRANDING_SELECT = Object.freeze({
 const EDITABLE_FIELDS = ['displayName', 'shortName', 'tagline', 'heroHeading', 'heroSubheading', 'themePreset', 'primaryColor', 'accentColor'];
 
 /** DB column holding each asset variant's storage key. */
-const ASSET_FIELD = Object.freeze({ light: 'logoUrl', dark: 'logoDarkKey', favicon: 'faviconKey' });
+const ASSET_FIELD = Object.freeze({ light: 'logoUrl', dark: 'logoDarkKey', favicon: 'faviconKey', hero: 'heroImageKey' });
+
+/** How an image variant is named in audit entries. */
+const ASSET_LABEL = Object.freeze({ light: 'light logo', dark: 'dark logo', favicon: 'favicon', hero: 'profile banner image' });
 
 class BrandingError extends Error {
   constructor(message, statusCode = 400, details) {
@@ -84,6 +88,7 @@ function toBrandingDto(uni) {
     logoUrl: assetUrl('light', uni.logoUrl),
     logoDarkUrl: assetUrl('dark', uni.logoDarkKey),
     faviconUrl: assetUrl('favicon', uni.faviconKey),
+    heroImageUrl: assetUrl('hero', uni.heroImageKey),
     version,
   };
 }
@@ -189,7 +194,7 @@ async function resetBranding(universityId, { actor, req } = {}) {
   const cleared = {
     displayName: null, shortName: null, tagline: null, heroHeading: null, heroSubheading: null,
     themePreset: DEFAULT_THEME_PRESET, primaryColor: null, accentColor: null,
-    logoUrl: null, logoDarkKey: null, faviconKey: null,
+    logoUrl: null, logoDarkKey: null, faviconKey: null, heroImageKey: null,
   };
   const updated = await prisma.university.update({
     where: { id: universityId },
@@ -205,7 +210,7 @@ async function resetBranding(universityId, { actor, req } = {}) {
 /** Validate, re-encode and store a logo/favicon, replacing the previous one. */
 async function uploadBrandAsset(universityId, variant, file, { actor, req } = {}) {
   const field = ASSET_FIELD[variant];
-  if (!field) throw new BrandingError('Unknown image type. Use light, dark or favicon.', 400);
+  if (!field) throw new BrandingError('Unknown image type. Use light, dark, favicon or hero.', 400);
   const uni = await loadUniversity(universityId);
   const processed = await assets.processBrandImage(file, variant).catch((err) => {
     throw new BrandingError(err.message, err.statusCode || 400);
@@ -220,7 +225,7 @@ async function uploadBrandAsset(universityId, variant, file, { actor, req } = {}
   await auditBrandingChange({
     actor,
     universityId,
-    action: `Uploaded ${variant === 'favicon' ? 'favicon' : `${variant} logo`} for ${uni.code}`,
+    action: `Uploaded ${ASSET_LABEL[variant]} for ${uni.code}`,
     actionType: AuditActionType.UPLOAD,
     oldValues: { [field]: uni[field] ?? null },
     newValues: { [field]: key, width: processed.width, height: processed.height, originalName: String(file.originalname || '').slice(0, 120) },
@@ -231,7 +236,7 @@ async function uploadBrandAsset(universityId, variant, file, { actor, req } = {}
 
 async function removeBrandAsset(universityId, variant, { actor, req } = {}) {
   const field = ASSET_FIELD[variant];
-  if (!field) throw new BrandingError('Unknown image type. Use light, dark or favicon.', 400);
+  if (!field) throw new BrandingError('Unknown image type. Use light, dark, favicon or hero.', 400);
   const uni = await loadUniversity(universityId);
   if (!uni[field]) return { branding: toBrandingDto(uni), values: toEditableValues(uni) };
   const updated = await prisma.university.update({
@@ -243,7 +248,7 @@ async function removeBrandAsset(universityId, variant, { actor, req } = {}) {
   await auditBrandingChange({
     actor,
     universityId,
-    action: `Removed ${variant === 'favicon' ? 'favicon' : `${variant} logo`} for ${uni.code}`,
+    action: `Removed ${ASSET_LABEL[variant]} for ${uni.code}`,
     actionType: AuditActionType.DELETE,
     oldValues: { [field]: uni[field] },
     newValues: { [field]: null },

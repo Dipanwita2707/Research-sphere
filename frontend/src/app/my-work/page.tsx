@@ -29,7 +29,7 @@ import { iprService } from '@/features/ipr-management/services/ipr.service';
 import { researchService, ResearchContribution } from '@/features/research-management/services/research.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { logger } from '@/shared/utils/logger';
-import heroArtSrc from '@/assets/hero-art.jpg';
+import { useBannerArt } from '@/shared/hooks/useBannerArt';
 
 const IPR_TYPES = [
   { type: 'patent', label: 'Patent', icon: Lightbulb, color: 'bg-maroon-solid', description: 'Protect your inventions and novel ideas', href: '/ipr/apply?type=patent', bgType: 'maroon' },
@@ -77,7 +77,7 @@ export default function MyWorkDashboard() {
   const [researchContributions, setResearchContributions] = useState<ResearchContribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showHeroArt, setShowHeroArt] = useState(true);
+  const heroArt = useBannerArt();
   const [pendingMentorCount, setPendingMentorCount] = useState(0);
   
   const [iprStats, setIprStats] = useState({
@@ -244,14 +244,14 @@ export default function MyWorkDashboard() {
               <div className="hero-underline"></div>
               <p>Manage your intellectual property and research contributions</p>
             </div>
-            {showHeroArt ? (
+            {heroArt.src ? (
               <img
-                src={typeof heroArtSrc === 'string' ? heroArtSrc : heroArtSrc.src}
+                src={heroArt.src}
                 alt=""
                 aria-hidden
                 className="hero-art"
                 style={{ height: '100%', objectFit: 'contain', objectPosition: 'right' }}
-                onError={() => setShowHeroArt(false)}
+                onError={heroArt.onError}
               />
             ) : null}
           </div>

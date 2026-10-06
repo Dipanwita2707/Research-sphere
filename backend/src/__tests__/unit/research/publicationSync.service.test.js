@@ -296,6 +296,32 @@ describe('PublicationSyncService', () => {
       expect(p3.researchContribution.findMany.mock.calls.some(([q]) => q.where.publicationType)).toBe(false);
     });
 
+    test('two different Scopus records with the same title stay two works (Scopus counts both)', async () => {
+      // Same chapter title in two different books: Scopus 85125212825 (2021) and 85216650092 (2024).
+      const stored = { ...chapter2021, externalIds: { scopus: 'SCOPUS_ID:85125212825' } };
+      const { service } = serviceWith([stored]);
+      expect(await service._findExistingContribution('user-1', {
+        title: 'Impact of COVID-19 on Lifestyle and Education', publicationType: 'book_chapter', publicationDate: '2024-01-01',
+        externalIds: { scopus: 'SCOPUS_ID:85216650092' },
+      })).toBeNull();
+      // The same Scopus record (or a listing with no Scopus id) is still the existing work.
+      expect(await service._findExistingContribution('user-1', {
+        title: chapter2021.title, publicationType: 'book_chapter', publicationDate: '2021-09-03',
+        externalIds: { scopus: '85125212825' },
+      })).toBe(stored);
+    });
+
+    test('an import link to a work that holds another Scopus record is not reused', async () => {
+      // A work merged before this rule: the 2021 Scopus id still points at the 2024 chapter.
+      const merged = { ...chapter2021, id: 'c-2024', publicationDate: new Date('2024-01-01T00:00:00Z'), externalIds: { scopus: 'SCOPUS_ID:85216650092' } };
+      const { service, prisma } = serviceWith([merged]);
+      prisma.publicationImport.findFirst.mockResolvedValue({ researchContribution: merged });
+      expect(await service._findExistingContribution('user-1', {
+        title: chapter2021.title, publicationType: 'book_chapter', publicationDate: '2021-09-03',
+        externalIds: { scopus: 'SCOPUS_ID:85125212825' },
+      })).toBeNull();
+    });
+
     test('two prefaces in the same year are different works unless the book is the same', async () => {
       const prefaceA = { id: 'pA', applicantUserId: 'user-1', publicationType: 'book', title: 'Preface', journalName: 'Integration of Cloud Computing with Emerging Technologies', publicationDate: new Date('2023-01-01T00:00:00Z') };
       const { service } = serviceWith([prefaceA]);

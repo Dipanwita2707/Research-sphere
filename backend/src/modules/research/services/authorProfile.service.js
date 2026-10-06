@@ -64,7 +64,52 @@ const DEFAULT_SETTINGS = {
   showPhoto: true,
   allowSearchIndexing: false,
   publicHandle: null,
+  cvDetails: {},
 };
+
+/**
+ * Research CV sections the author fills in (the system has no other source for them).
+ * Lists of short texts, or of small records; everything is trimmed and capped.
+ */
+const CV_LIST_LIMIT = 15;
+const CV_TEXT = (v, max = 300) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+const CV_RECORD_FIELDS = {
+  education: ['degree', 'institution', 'year', 'thesis'],
+  experience: ['role', 'organization', 'period', 'details'],
+  references: ['name', 'designation', 'organization', 'email', 'phone'],
+};
+const CV_TEXT_LISTS = ['teaching', 'skills', 'memberships', 'awards', 'presentations'];
+
+function cleanCvDetails(input) {
+  if (input === null || input === undefined) return {};
+  if (typeof input !== 'object' || Array.isArray(input)) {
+    throw new ProfileAccessError(400, 'VALIDATION_ERROR', 'cvDetails must be an object');
+  }
+  const out = {};
+  const scholar = CV_TEXT(input.googleScholarUrl, 300);
+  if (scholar) {
+    let url;
+    try { url = new URL(scholar); } catch { url = null; }
+    if (!url || url.protocol !== 'https:' || !/(^|\.)scholar\.google\./i.test(url.hostname)) {
+      throw new ProfileAccessError(400, 'VALIDATION_ERROR', 'Google Scholar link must be an https://scholar.google… address');
+    }
+    out.googleScholarUrl = url.toString();
+  }
+  for (const [key, fields] of Object.entries(CV_RECORD_FIELDS)) {
+    if (input[key] === undefined) continue;
+    if (!Array.isArray(input[key])) throw new ProfileAccessError(400, 'VALIDATION_ERROR', `${key} must be a list`);
+    out[key] = input[key]
+      .map((item) => Object.fromEntries(fields.map((f) => [f, CV_TEXT(item?.[f], f === 'details' || f === 'thesis' ? 400 : 200)])))
+      .filter((item) => fields.some((f) => item[f]))
+      .slice(0, CV_LIST_LIMIT);
+  }
+  for (const key of CV_TEXT_LISTS) {
+    if (input[key] === undefined) continue;
+    if (!Array.isArray(input[key])) throw new ProfileAccessError(400, 'VALIDATION_ERROR', `${key} must be a list`);
+    out[key] = input[key].map((v) => CV_TEXT(v, 300)).filter(Boolean).slice(0, key === 'skills' ? 30 : CV_LIST_LIMIT);
+  }
+  return out;
+}
 
 class ProfileAccessError extends Error {
   constructor(statusCode, code, message) {
@@ -96,6 +141,7 @@ function pickSettings(identity) {
     if (identity[key] !== undefined && identity[key] !== null) out[key] = identity[key];
   }
   if (!VISIBILITY_LEVELS.includes(out.profileVisibility)) out.profileVisibility = 'institution';
+  if (!out.cvDetails || typeof out.cvDetails !== 'object' || Array.isArray(out.cvDetails)) out.cvDetails = {};
   return out;
 }
 
@@ -465,6 +511,10 @@ class AuthorProfileService {
           }
         : null,
       sections,
+      cvDetails: (() => {
+        const { references = [], ...rest } = settings.cvDetails || {};
+        return full ? { ...rest, references } : { ...rest, references: [], hasReferences: references.length > 0 };
+      })(),
       access: { isOwner: access.isOwner, canEdit: access.isOwner || access.privileged, canViewPrivate: access.full },
       // Only the author/admins see the raw settings and public link.
       settings: full ? { ...settings, publicPath: this._publicPath(author, settings) } : undefined,
@@ -576,6 +626,9 @@ class AuthorProfileService {
       const bio = input.bio === null ? '' : String(input.bio).trim();
       if (bio.length > MAX_BIO_LENGTH) throw new ProfileAccessError(400, 'VALIDATION_ERROR', `Bio must be ${MAX_BIO_LENGTH} characters or fewer`);
       data.bio = bio || null;
+    }
+    if (input.cvDetails !== undefined) {
+      data.cvDetails = cleanCvDetails(input.cvDetails);
     }
     if (input.researchInterests !== undefined) {
       if (!Array.isArray(input.researchInterests)) throw new ProfileAccessError(400, 'VALIDATION_ERROR', 'researchInterests must be a list');

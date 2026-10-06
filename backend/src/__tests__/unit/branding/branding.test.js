@@ -183,8 +183,20 @@ describe('image upload safety', () => {
     await expect(assets.processBrandImage({ originalname: 'logo.gif', mimetype: 'image/gif', buffer: Buffer.from('GIF89a') }, 'light')).rejects.toThrow(/not allowed/);
     await expect(assets.processBrandImage({ originalname: 'logo.png', mimetype: 'image/png', buffer: Buffer.alloc(1024 * 1024 + 1) }, 'light')).rejects.toThrow(/1 MB/);
   });
+  test('the profile banner image is re-encoded to JPEG, capped at 1600px and 4 MB', async () => {
+    const out = await assets.processBrandImage({ originalname: 'banner.png', mimetype: 'image/png', buffer: await png(3200, 1800) }, 'hero');
+    const meta = await sharp(out.buffer).metadata();
+    expect(meta.format).toBe('jpeg');
+    expect(meta.width).toBe(1600);
+    expect(meta.height).toBe(900);
+    // 1 MB is the logo cap, not the banner's
+    await expect(assets.processBrandImage({ originalname: 'b.png', mimetype: 'image/png', buffer: Buffer.alloc(1024 * 1024 + 1) }, 'hero')).rejects.not.toThrow(/MB or smaller/);
+    await expect(assets.processBrandImage({ originalname: 'b.png', mimetype: 'image/png', buffer: Buffer.alloc(4 * 1024 * 1024 + 1) }, 'hero')).rejects.toThrow(/4 MB/);
+  });
   test('keys are only honoured for the owning university', () => {
     expect(assets.keyBelongsTo(`branding/${UNI_A}/1-abc-light.png`, UNI_A)).toBe(true);
+    expect(assets.keyBelongsTo(`branding/${UNI_A}/1-abc-hero.jpg`, UNI_A)).toBe(true);
+    expect(assets.keyBelongsTo(`branding/${UNI_A}/1-abc-hero.svg`, UNI_A)).toBe(false);
     expect(assets.keyBelongsTo(`branding/${UNI_A}/1-abc-light.png`, UNI_B)).toBe(false);
     expect(assets.keyBelongsTo(`branding/${UNI_A}/../../secret.png`, UNI_A)).toBe(false);
     expect(assets.keyBelongsTo('documents/x/y.png', UNI_A)).toBe(false);

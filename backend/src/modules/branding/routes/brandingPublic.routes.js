@@ -4,7 +4,7 @@
  * are served; the response holds display data only (names, colours, logo URLs).
  *
  *   GET /:slug                  branding JSON
- *   GET /:slug/logo/:variant    light|dark|favicon PNG
+ *   GET /:slug/logo/:variant    light|dark|favicon PNG, hero JPEG
  */
 const express = require('express');
 const rateLimit = require('express-rate-limit');
@@ -21,7 +21,7 @@ const publicLimiter = rateLimit({
 });
 
 const SLUG = /^[a-z0-9-]{1,64}$/i;
-const VARIANT = /^(light|dark|favicon)$/;
+const VARIANT = /^(light|dark|favicon|hero)$/;
 const validParams = (req, res, next) => {
   const { slug, variant } = req.params;
   if (!SLUG.test(slug || '') || (variant !== undefined && !VARIANT.test(variant))) {

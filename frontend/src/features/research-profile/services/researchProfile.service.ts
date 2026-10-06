@@ -57,6 +57,22 @@ export interface ManualProfileImportPublication {
   publicationType?: string;
 }
 
+/** Research CV sections the author fills in (the CV adds publications, grants, patents and metrics itself). */
+export interface CvDetails {
+  googleScholarUrl?: string;
+  education?: Array<{ degree?: string; institution?: string; year?: string; thesis?: string }>;
+  experience?: Array<{ role?: string; organization?: string; period?: string; details?: string }>;
+  presentations?: string[];
+  awards?: string[];
+  teaching?: string[];
+  skills?: string[];
+  memberships?: string[];
+  /** Printed only on the author's own CV. */
+  references?: Array<{ name?: string; designation?: string; organization?: string; email?: string; phone?: string }>;
+  /** Other viewers: references exist but are not shown. */
+  hasReferences?: boolean;
+}
+
 /** The author's privacy + profile content settings (author/admin only). */
 export interface AuthorProfileSettings {
   bio: string | null;
@@ -71,6 +87,7 @@ export interface AuthorProfileSettings {
   showPhoto: boolean;
   allowSearchIndexing: boolean;
   publicHandle: string | null;
+  cvDetails: CvDetails;
   /** e.g. /p/sgt-demo/dr-suresh-patel — set only while the profile is public. */
   publicPath: string | null;
 }

@@ -96,7 +96,7 @@ describe('Research profile page', () => {
         settings: {
           bio: null, researchInterests: [], profileVisibility: 'public', showEmail: true, showPhone: false,
           showResearchInterests: true, showPublications: true, showCoAuthors: true, showMetrics: true, showPhoto: true,
-          allowSearchIndexing: false, publicHandle: 'asha-rao', publicPath: '/p/demo/asha-rao',
+          allowSearchIndexing: false, publicHandle: 'asha-rao', publicPath: '/p/demo/asha-rao', cvDetails: {},
         },
       }),
     );

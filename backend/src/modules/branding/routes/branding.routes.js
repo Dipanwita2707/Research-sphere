@@ -3,7 +3,7 @@
  * gate: the app chrome needs the university's look even while consent is pending).
  *
  *   GET    /me                      branding of the caller's university
- *   GET    /me/logo/:variant        that university's light|dark|favicon image
+ *   GET    /me/logo/:variant        that university's light|dark|favicon|hero image
  *   GET    /admin                   editor values          (tenant admin, own university only)
  *   PUT    /admin                   update                 (tenant admin)
  *   POST   /admin/reset             back to default        (tenant admin)
@@ -16,7 +16,7 @@ const tenantContext = require('../../../shared/tenancy/tenantContext');
 const controller = require('../controllers/branding.controller');
 
 const router = express.Router();
-const VARIANT = /^(light|dark|favicon)$/;
+const VARIANT = /^(light|dark|favicon|hero)$/;
 const checkVariant = (req, res, next) =>
   VARIANT.test(req.params.variant || '') ? next() : res.status(404).json({ success: false, message: 'Not found' });
 

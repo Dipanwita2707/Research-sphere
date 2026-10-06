@@ -1232,7 +1232,8 @@ class PublicationSyncService {
           researchContribution: true,
         },
       });
-      if (publicationImport?.researchContribution?.applicantUserId === userId) {
+      if (publicationImport?.researchContribution?.applicantUserId === userId
+        && !this._isOtherScopusDocument(publicationImport.researchContribution, candidate)) {
         return publicationImport.researchContribution;
       }
     }
@@ -1249,7 +1250,7 @@ class PublicationSyncService {
           ],
         },
       });
-      if (byDoi) return byDoi;
+      if (byDoi && !this._isOtherScopusDocument(byDoi, candidate)) return byDoi;
     }
 
     // ── 3. Fallback: search by externalIds JSON values (catches orphaned   ──
@@ -1263,7 +1264,7 @@ class PublicationSyncService {
           externalIds: { path: [], string_contains: String(externalId) },
         },
       });
-      if (byExternalId) return byExternalId;
+      if (byExternalId && !this._isOtherScopusDocument(byExternalId, candidate)) return byExternalId;
     }
 
     // ── 4. Last-resort: normalized-title + year match ─────────────────────
@@ -1285,6 +1286,7 @@ class PublicationSyncService {
       take: 20,
     }).then((records) => (records || []).find((record) => {
       if (this._normalizeTitle(record.title) !== normalizedTitle) return false;
+      if (this._isOtherScopusDocument(record, candidate)) return false;
       if (!generic) return true;
       const venue = this._normalizeTitle(record.bookTitle || record.journalName || record.conferenceName || '');
       return Boolean(candidateVenue) && venue === candidateVenue;
@@ -1297,7 +1299,7 @@ class PublicationSyncService {
    * distinctive title, published within REPUBLISHED_YEAR_WINDOW years, and at most one of
    * the two carries a DOI (two different DOIs are two different published items).
    * Generic front-matter titles ("Preface", "Editorial", ...) never merge: an editor writes
-   * one per book.
+   * one per book. Neither do two different Scopus records (see _isOtherScopusDocument).
    */
   async _findRepublishedEdition(userId, candidate, normalizedTitle, publishedYear) {
     const words = normalizedTitle.split(' ').filter(Boolean);
@@ -1311,11 +1313,23 @@ class PublicationSyncService {
     const candidateDoi = normalizeDoi(candidate.doi);
     return rows.find((row) => {
       if (this._normalizeTitle(row.title) !== normalizedTitle) return false;
+      if (this._isOtherScopusDocument(row, candidate)) return false;
       const rowDoi = normalizeDoi(row.doi);
       if (candidateDoi && rowDoi && candidateDoi !== rowDoi) return false;
       const rowYear = row.publicationDate ? new Date(row.publicationDate).getFullYear() : null;
       return !publishedYear || !rowYear || Math.abs(rowYear - publishedYear) <= REPUBLISHED_YEAR_WINDOW;
     }) || null;
+  }
+
+  /**
+   * Two different Scopus records are two documents, even with the same title (a chapter in two
+   * different books, say): Scopus counts both, and a profile with a Scopus ID reports what Scopus
+   * reports. So a stored work already linked to another Scopus id is never the match for this one.
+   */
+  _isOtherScopusDocument(record, candidate) {
+    const incoming = this._scopusNumericId(candidate?.externalIds?.scopus);
+    const stored = this._scopusNumericId(this._asObject(record?.externalIds).scopus);
+    return Boolean(incoming && stored && incoming !== stored);
   }
 
   async _updateExistingContribution(existing, payload, candidate) {

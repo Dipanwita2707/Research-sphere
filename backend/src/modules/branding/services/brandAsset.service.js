@@ -1,7 +1,8 @@
 /**
- * Brand image processing and storage (university logos and favicon).
+ * Brand image processing and storage (university logos, favicon and profile banner image).
  *
- * Every accepted image is decoded and re-encoded to PNG with sharp before it is stored:
+ * Every accepted image is decoded and re-encoded with sharp before it is stored (PNG; the
+ * photographic banner image as JPEG, a fraction of the size):
  *   - raster uploads (PNG/JPG/WebP) lose metadata, embedded profiles and any trailing
  *     payload; a file that only *claims* to be an image fails to decode and is rejected;
  *   - SVG uploads are RASTERISED, never stored or served as SVG. An SVG is an XML
@@ -27,15 +28,22 @@ const { createModuleLogger } = require('../../../shared/utils/logger');
 
 const log = createModuleLogger('branding');
 
-const MAX_BRAND_IMAGE_BYTES = 1024 * 1024; // 1 MB
+const MAX_BRAND_IMAGE_BYTES = 1024 * 1024; // 1 MB (logos, favicon)
+const MAX_HERO_IMAGE_BYTES = 4 * 1024 * 1024; // 4 MB (banner photo / illustration)
+/** Largest upload any variant accepts (the multer limit; each variant re-checks its own). */
+const MAX_UPLOAD_BYTES = MAX_HERO_IMAGE_BYTES;
+const maxBytesFor = (variant) => (variant === 'hero' ? MAX_HERO_IMAGE_BYTES : MAX_BRAND_IMAGE_BYTES);
 const LOCAL_ROOT = path.join(__dirname, '..', '..', '..', '..', 'uploads');
-const KEY_RE = /^branding\/[0-9a-f-]{36}\/[\w.-]+\.png$/i;
+const KEY_RE = /^branding\/[0-9a-f-]{36}\/[\w.-]+\.(png|jpg)$/i;
+/** Stored format per variant: the banner is a photo, so JPEG; everything else PNG (keeps transparency). */
+const outputExt = (variant) => (variant === 'hero' ? 'jpg' : 'png');
 
 /** Output size per variant: logos fit inside the box keeping aspect; favicon is square. */
 const VARIANT_SIZE = Object.freeze({
   light: { width: 1200, height: 400, fit: 'inside' },
   dark: { width: 1200, height: 400, fit: 'inside' },
   favicon: { width: 128, height: 128, fit: 'contain' },
+  hero: { width: 1600, height: 1200, fit: 'inside' },
 });
 
 class BrandAssetError extends Error {
@@ -71,14 +79,14 @@ function svgRejectionReason(buffer) {
 }
 
 /**
- * Validate and re-encode an uploaded image to PNG.
+ * Validate and re-encode an uploaded image (PNG, or JPEG for the hero banner).
  * @param {{ originalname: string, buffer: Buffer, size?: number }} file
- * @param {'light'|'dark'|'favicon'} variant
+ * @param {'light'|'dark'|'favicon'|'hero'} variant
  * @returns {Promise<{ buffer: Buffer, width: number, height: number }>}
  */
 async function processBrandImage(file, variant) {
   if (!file || !Buffer.isBuffer(file.buffer) || file.buffer.length === 0) throw new BrandAssetError('No image uploaded');
-  if (file.buffer.length > MAX_BRAND_IMAGE_BYTES) throw new BrandAssetError('Image must be 1 MB or smaller');
+  if (file.buffer.length > maxBytesFor(variant)) throw new BrandAssetError(`Image must be ${maxBytesFor(variant) / (1024 * 1024)} MB or smaller`);
   const metaError = checkUploadMetadata(file, Object.keys(BRAND_IMAGE_TYPES), BRAND_IMAGE_TYPES);
   if (metaError) throw new BrandAssetError(`${metaError}. Use PNG, JPG, WebP or SVG.`);
   if (!contentMatchesExtension(file, BRAND_IMAGE_TYPES)) throw new BrandAssetError('File content does not match its file type');
@@ -101,7 +109,7 @@ async function processBrandImage(file, variant) {
     if (meta.format !== expected) throw new BrandAssetError('File content does not match its file type');
     if ((meta.pages || 1) > 1) throw new BrandAssetError('Animated images are not supported');
 
-    const out = await image
+    const resized = image
       .rotate()
       .resize({
         width: size.width,
@@ -109,9 +117,11 @@ async function processBrandImage(file, variant) {
         fit: size.fit,
         withoutEnlargement: variant !== 'favicon',
         background: { r: 0, g: 0, b: 0, alpha: 0 },
-      })
-      .png({ compressionLevel: 9, adaptiveFiltering: true })
-      .toBuffer({ resolveWithObject: true });
+      });
+    const encoded = outputExt(variant) === 'jpg'
+      ? resized.flatten({ background: '#ffffff' }).jpeg({ quality: 84, mozjpeg: true })
+      : resized.png({ compressionLevel: 9, adaptiveFiltering: true });
+    const out = await encoded.toBuffer({ resolveWithObject: true });
     return { buffer: out.data, width: out.info.width, height: out.info.height };
   } catch (err) {
     if (err instanceof BrandAssetError) throw err;
@@ -127,16 +137,17 @@ const isS3CredentialError = (err) =>
 function saveLocal(buffer, universityId, variant) {
   const dir = path.join(LOCAL_ROOT, 'branding', universityId);
   fs.mkdirSync(dir, { recursive: true });
-  const name = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${variant}.png`;
+  const name = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${variant}.${outputExt(variant)}`;
   fs.writeFileSync(path.join(dir, name), buffer);
   return `branding/${universityId}/${name}`;
 }
 
-/** Store a processed PNG; returns its storage key. */
+/** Store a processed image; returns its storage key. */
 async function storeBrandImage(buffer, universityId, variant) {
   if (s3Configured()) {
     try {
-      const result = await uploadToS3(buffer, 'branding', universityId, `${variant}.png`, 'image/png');
+      const ext = outputExt(variant);
+      const result = await uploadToS3(buffer, 'branding', universityId, `${variant}.${ext}`, ext === 'jpg' ? 'image/jpeg' : 'image/png');
       return result.key;
     } catch (err) {
       if (!isS3CredentialError(err)) throw err;
@@ -165,8 +176,8 @@ async function deleteBrandImage(key, universityId) {
 }
 
 /**
- * Stream a stored brand image. Only PNGs written by storeBrandImage are served, always as
- * image/png with nosniff and a sandbox CSP.
+ * Stream a stored brand image. Only PNG/JPEG files written by storeBrandImage are served,
+ * with the matching image type, nosniff and a sandbox CSP.
  * @param {import('express').Response} res
  * @param {string} key
  * @param {string} universityId
@@ -175,15 +186,16 @@ async function deleteBrandImage(key, universityId) {
 async function sendBrandImage(res, key, universityId, { versioned = false } = {}) {
   if (!keyBelongsTo(key, universityId)) return res.status(404).json({ success: false, message: 'Logo not found' });
   const fileName = path.basename(key);
+  const contentType = /\.jpg$/i.test(key) ? 'image/jpeg' : 'image/png';
   const applyHeaders = () => {
     setSafeFileHeaders(res, fileName);
-    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', versioned ? 'public, max-age=86400' : 'public, max-age=300');
   };
   const local = resolveLocalFile(key.split('/'));
   if (local) {
     applyHeaders();
-    return res.sendFile(local, { dotfiles: 'deny', headers: { 'Content-Type': 'image/png' } });
+    return res.sendFile(local, { dotfiles: 'deny', headers: { 'Content-Type': contentType } });
   }
   if (s3Configured()) {
     try {
@@ -200,6 +212,8 @@ async function sendBrandImage(res, key, universityId, { versioned = false } = {}
 
 module.exports = {
   MAX_BRAND_IMAGE_BYTES,
+  MAX_HERO_IMAGE_BYTES,
+  MAX_UPLOAD_BYTES,
   BrandAssetError,
   brandImageFileFilter,
   svgRejectionReason,

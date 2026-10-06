@@ -29,7 +29,7 @@ router.post('/universities/:id/admins', superadminController.createUniversityAdm
 
 // Branding & theme (logo, colours, dashboard text) — see modules/branding
 const branding = require('../../branding').controller;
-const BRAND_VARIANT = /^(light|dark|favicon)$/;
+const BRAND_VARIANT = /^(light|dark|favicon|hero)$/;
 const brandVariant = (req, res, next) =>
   BRAND_VARIANT.test(req.params.variant || '') ? next() : res.status(404).json({ success: false, message: 'Not found' });
 router.get('/universities/:id/branding', branding.superadminEditor.get);

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft, BookOpen, Eye, Settings } from 'lucide-react';
 import ProfileManagement from '@/features/research-profile/components/ProfileManagement';
 import type { ProfileData } from '@/shared/types/research-profile.types';
 import { useAuthStore } from '@/shared/auth/authStore';
@@ -70,7 +70,7 @@ export default function ProfileManagePage() {
 
   if (error || !profileData) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-blush dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Settings className="w-8 h-8 text-red-600" />
@@ -92,49 +92,67 @@ export default function ProfileManagePage() {
     );
   }
 
+  const { user: person, profile } = profileData;
+  const initials = person.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push(`/research/profile/${userId}`)}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            
-            <div className="flex items-center gap-3">
-              {profileData.user.photo ? (
-                <img
-                  src={profileData.user.photo}
-                  alt={profileData.user.name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-wine flex items-center justify-center">
-                  <span className="text-lg font-semibold text-white">
-                    {profileData.user.name.charAt(0)}
-                  </span>
-                </div>
-              )}
-              
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Manage Profile
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {[profileData.user.name, profileData.user.department].filter(Boolean).join(' · ')}
-                </p>
+    <div className="min-h-screen bg-blush dark:bg-gray-900">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        <button
+          type="button"
+          onClick={() => router.push(`/research/profile/${userId}`)}
+          className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-ink-muted transition-colors hover:bg-white/70 hover:text-wine dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gold"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to profile
+        </button>
+
+        {/* Banner */}
+        <header className="relative mb-6 overflow-hidden rounded-2xl border border-blush-line bg-gradient-to-r from-gold-50 via-blush-light to-blush-light px-5 py-6 sm:px-8 dark:border-gray-700 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            {person.photo ? (
+              <img
+                src={person.photo}
+                alt={person.name}
+                className="h-20 w-20 shrink-0 rounded-full border-4 border-white object-cover ring-2 ring-gold dark:border-gray-700"
+              />
+            ) : (
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-white bg-wine-dark font-serif text-2xl font-bold text-white ring-2 ring-gold dark:border-gray-700">
+                {initials || '?'}
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gold-dark dark:text-gold">Profile settings</p>
+              <h1 className="mt-1 truncate font-serif text-2xl font-bold text-ink sm:text-3xl dark:text-white">{person.name}</h1>
+              <p className="mt-1 text-sm text-ink-muted dark:text-gray-400">
+                {[person.designation, person.department].filter(Boolean).join(' · ') || 'Researcher'}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <IdChip label="ORCID" value={profile.orcid} />
+                <IdChip label="Scopus" value={profile.scopusAuthorId} />
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-blush-line bg-white px-2.5 py-1 text-xs font-semibold text-ink dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                  <BookOpen className="h-3.5 w-3.5 text-gold" />
+                  {profileData.publications.length} publication{profileData.publications.length === 1 ? '' : 's'}
+                </span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <a
+              href={`/research/profile/${userId}`}
+              className="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-lg border border-blush-line bg-white px-4 text-sm font-semibold text-ink transition-colors hover:border-wine/40 hover:text-wine sm:self-center dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:text-gold"
+            >
+              <Eye className="h-4 w-4" />
+              View profile
+            </a>
+          </div>
+        </header>
+
         <ProfileManagement
           profileData={profileData}
           onProfileUpdate={handleProfileUpdate}
@@ -148,9 +166,26 @@ export default function ProfileManagePage() {
   );
 }
 
+function IdChip({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${
+        value
+          ? 'border-blush-line bg-white text-ink dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200'
+          : 'border-dashed border-blush-line bg-transparent text-ink-subtle dark:border-gray-600 dark:text-gray-500'
+      }`}
+      title={value ? `${label}: ${value}` : `${label} not linked`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${value ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+      {label}
+      {value ? <span className="font-mono font-normal text-ink-muted dark:text-gray-400">{value}</span> : <span className="font-normal">not linked</span>}
+    </span>
+  );
+}
+
 function ManageAccessRestricted({ onBack, onView }: { userId: string; onBack: () => void; onView: () => void }) {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+    <div className="min-h-screen bg-blush dark:bg-gray-900 flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Settings className="w-8 h-8 text-yellow-600" />
@@ -168,29 +203,26 @@ function ManageAccessRestricted({ onBack, onView }: { userId: string; onBack: ()
 
 // Loading Skeleton Component
 function ProfileManageSkeleton() {
+  const bar = 'rounded bg-blush-deep/60 animate-pulse dark:bg-gray-700';
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-            <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
-            <div className="space-y-2">
-              <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-              <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-            </div>
+    <div className="min-h-screen bg-blush dark:bg-gray-900">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        <div className={`mb-4 h-6 w-32 ${bar}`} />
+        <div className="mb-6 flex items-center gap-5 rounded-2xl border border-blush-line bg-blush-light px-8 py-6 dark:border-gray-700 dark:bg-gray-800">
+          <div className="h-20 w-20 rounded-full bg-blush-deep/60 animate-pulse dark:bg-gray-700" />
+          <div className="space-y-2">
+            <div className={`h-3 w-24 ${bar}`} />
+            <div className={`h-7 w-64 ${bar}`} />
+            <div className={`h-4 w-48 ${bar}`} />
           </div>
         </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="p-6">
-            <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-6" />
-            <div className="space-y-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-              ))}
-            </div>
+        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <div className="hidden space-y-2 lg:block">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className={`h-14 ${bar} rounded-xl`} />)}
+          </div>
+          <div className="space-y-4 rounded-2xl border border-blush-line bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className={`h-6 w-48 ${bar}`} />
+            {Array.from({ length: 5 }).map((_, i) => <div key={i} className={`h-16 ${bar} rounded-xl`} />)}
           </div>
         </div>
       </div>

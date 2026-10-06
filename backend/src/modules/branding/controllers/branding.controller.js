@@ -17,17 +17,20 @@ const sendError = (res, err) => {
     return res.status(err.statusCode || 400).json({ success: false, message: err.message, errors: err.details });
   }
   if (err instanceof multer.MulterError) {
-    const message = err.code === 'LIMIT_FILE_SIZE' ? 'Image must be 1 MB or smaller' : 'Upload one image in the "file" field';
+    const message = err.code === 'LIMIT_FILE_SIZE' ? 'Image is too large (logos up to 1 MB, banner image up to 4 MB)' : 'Upload one image in the "file" field';
     return res.status(400).json({ success: false, message });
   }
   log.error('Branding request failed', { message: err?.message, stack: err?.stack });
   return res.status(500).json({ success: false, message: 'Branding request failed' });
 };
 
-/** multer for one brand image, in memory, ≤ 1 MB (wrapped in bindMiddleware by the routes). */
+/**
+ * multer for one brand image, in memory (wrapped in bindMiddleware by the routes). The cap is the
+ * largest variant's (banner, 4 MB); processBrandImage re-checks each variant's own limit.
+ */
 const brandImageUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: assets.MAX_BRAND_IMAGE_BYTES, files: 1, fields: 5 },
+  limits: { fileSize: assets.MAX_UPLOAD_BYTES, files: 1, fields: 5 },
   fileFilter: assets.brandImageFileFilter,
 }).single('file');
 

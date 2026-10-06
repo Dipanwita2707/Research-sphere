@@ -55,7 +55,7 @@ import {
   type AuthorProfileView,
   type ProfileAccessCode,
 } from '@/features/research-profile/services/researchProfile.service';
-import heroArtSrc from '@/assets/hero-art.jpg';
+import { useBannerArt } from '@/shared/hooks/useBannerArt';
 
 const PublicationList = PublicationListDirect;
 
@@ -109,7 +109,7 @@ export default function ProfilePage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showBannerArt, setShowBannerArt] = useState(true);
+  const bannerArt = useBannerArt();
 
   const isOwnProfile = user?.id === userId;
 
@@ -222,6 +222,8 @@ export default function ProfilePage() {
   const designation = profileData.user.designation;
   const department = profileData.user.department;
   const school = profileData.user.school;
+  const orcid = profileData.profile.orcid;
+  const scopusId = profileData.profile.scopusAuthorId;
   const sections = view?.sections || { photo: true, email: true, phone: true, researchInterests: true, publications: true, coAuthors: true, metrics: true };
   const canEdit = Boolean(view?.access.isOwner);
   const visibility = view?.visibility || 'institution';
@@ -288,13 +290,39 @@ export default function ProfilePage() {
   const citationAxis = integerAxis(maxCitationInHistory);
 
   // Custom CSS block
-  const CSS = `:root{--maroon:rgb(var(--brand-primary));--maroon-dark:rgb(var(--brand-primary-dark));--gold:rgb(var(--brand-gold));--page-bg:rgb(var(--brand-canvas));--card-bg:#ffffff;--border:rgb(var(--brand-line));--text-dark:rgb(var(--brand-ink));--text-gray:rgb(var(--brand-ink-muted));--text-gray-light:rgb(var(--brand-ink-subtle));}.profile-body *{box-sizing:border-box;}.profile-body{background:var(--page-bg);color:var(--text-dark);font-family:Arial,Helvetica,sans-serif;min-height:100vh;}.profile-main{max-width:1600px;margin:0 auto;padding:30px 40px 60px;position:relative;}.profile-banner{position:relative;background:linear-gradient(to right, rgb(var(--brand-gold-50)) 0%, rgb(var(--brand-canvas-light)) 50%, rgb(var(--brand-canvas-light)) 100%);border-radius:18px;padding:36px 40px;overflow:hidden;margin-bottom:24px;display:flex;align-items:center;gap:34px;border:1px solid var(--border);}.avatar-lg{width:135px;height:135px;border-radius:50%;background:var(--maroon-dark);border:4px solid #fff;box-shadow:0 0 0 2px var(--gold);display:flex;align-items:center;justify-content:center;color:#fff;font-size:56px;font-weight:700;font-family:Georgia,serif;flex-shrink:0;position:relative;z-index:1;}.status-dot{position:absolute;bottom:6px;right:6px;width:18px;height:18px;background:#2ecc71;border:3px solid #fff;border-radius:50%;}.profile-info{position:relative;z-index:1;flex-shrink:0;}.profile-info h2{font-family:Georgia,serif;font-size:30px;margin-bottom:8px;color:var(--text-dark);}.profile-role{display:flex;align-items:center;gap:8px;color:var(--maroon);font-weight:700;font-size:15px;margin-bottom:4px;}.profile-role svg{width:17px;height:17px;}.profile-dept{color:var(--text-gray);font-size:14px;margin-bottom:14px;}.profile-tags{display:flex;gap:10px;margin-bottom:14px;}.tag{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--text-dark);}.tag svg{width:14px;height:14px;}.tag.gold{color:rgb(var(--brand-gold));}.profile-email{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-gray);}.profile-email svg{width:15px;height:15px;color:var(--gold);}.banner-art{position:absolute;right:0;top:0;bottom:0;width:480px;height:100%;object-fit:contain;object-position:right center;pointer-events:none;}.banner-actions{position:absolute;top:36px;right:40px;display:flex;gap:10px;z-index:2;}.btn-outline{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;color:var(--text-dark);cursor:pointer;}.btn-solid{background:var(--maroon-dark);color:#fff;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;border:none;}.btn-outline svg,.btn-solid svg{width:14px;height:14px;}.stats-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-bottom:24px;}.stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(125,26,52,0.02);}.stat-left{display:flex;align-items:center;gap:14px;}.stat-icon{width:48px;height:48px;border-radius:12px;background:rgb(var(--brand-gold-50));display:flex;align-items:center;justify-content:center;flex-shrink:0;}.stat-icon svg{width:22px;height:22px;color:var(--gold);}.stat-value{font-size:26px;font-weight:800;color:var(--maroon);line-height:1;}.stat-value.gold{color:rgb(var(--brand-gold));}.stat-label{font-size:11.5px;font-weight:700;letter-spacing:0.5px;color:var(--text-gray);margin-top:4px;}.sparkline{width:80px;height:34px;}.tabs-bar{display:flex;gap:8px 22px;border-bottom:1px solid var(--border);margin-bottom:26px;flex-wrap:wrap;overflow:visible;position:relative;z-index:20;background:var(--page-bg);padding:6px 2px 0;}.tabs-bar::-webkit-scrollbar{display:none;width:0;height:0;}.ptab{display:flex;align-items:center;gap:8px;padding:0 6px 16px;font-size:14px;font-weight:600;color:var(--text-gray-light);cursor:pointer;position:relative;background:transparent;border:none;flex-shrink:0;white-space:nowrap;}.ptab svg{width:17px;height:17px;flex-shrink:0;}.ptab.active{color:var(--maroon);}.ptab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;background:var(--maroon);}.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px;}.card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:26px 28px;box-shadow:0 10px 30px rgba(125,26,52,0.02);}.card h3{font-size:16.5px;font-weight:700;margin-bottom:14px;position:relative;padding-bottom:10px;color:var(--text-dark);}.card h3::after{content:"";position:absolute;left:0;bottom:0;width:34px;height:3px;background:var(--gold);}.chart-head h3::after{display:none;}.card p{font-size:13.5px;color:var(--text-gray);line-height:1.6;}.pill-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}.pill{display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:rgb(var(--brand-canvas-light));border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;color:var(--text-dark);}.pill svg{width:15px;height:15px;color:var(--maroon);}.featured-pub{display:flex;gap:16px;align-items:flex-start;}.pub-icon{width:56px;height:56px;border-radius:12px;background:rgb(var(--brand-gold-50));display:flex;align-items:center;justify-content:center;flex-shrink:0;}.pub-icon svg{width:24px;height:24px;color:var(--gold);}.pub-title{color:var(--maroon);font-weight:700;font-size:15px;line-height:1.4;margin-bottom:8px;}.pub-meta{font-size:12.5px;color:var(--text-gray);margin-bottom:10px;}.pub-cites{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-gray);font-weight:600;}.pub-cites svg{width:14px;height:14px;color:var(--gold);}.chart-card{grid-column:span 1;}.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}.yearly-btn{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--text-dark);}.yearly-btn svg{width:14px;height:14px;}.bar-chart{display:flex;align-items:flex-end;gap:14px;height:230px;padding-left:34px;position:relative;}.y-axis{position:absolute;left:0;top:0;bottom:24px;display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--text-gray-light);}.bars{display:flex;align-items:flex-end;gap:16px;flex:1;height:100%;padding-bottom:24px;border-left:1px solid var(--border);padding-left:16px;}.bar-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;height:100%;justify-content:flex-end;}.bar{width:100%;max-width:34px;background:linear-gradient(180deg,var(--maroon) 0%,var(--maroon-dark) 100%);border-radius:4px 4px 0 0;}.bar-col span{font-size:11px;color:var(--text-gray-light);}.fab-stack{position:fixed;right:24px;bottom:2rem;top:auto;transform:none;display:flex;flex-direction:column;gap:14px;z-index:30;}.fab{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 8px 18px rgba(0,0,0,0.18);border:none;cursor:pointer;transition:transform 0.2s;}.fab:hover{transform:scale(1.1);}.fab svg{width:19px;height:19px;}.fab-maroon{background:var(--maroon-dark);}.fab-gold{background:var(--gold);}@media (max-width:1100px){.stats-row{grid-template-columns:repeat(2,minmax(0,1fr));}}@media (max-width:900px){.profile-main{padding:20px 16px 48px;}.profile-banner{flex-direction:column;align-items:flex-start;padding:24px 20px;}.banner-art{width:min(100%,320px);height:auto;max-height:160px;position:relative;margin-top:8px;align-self:flex-end;}.banner-actions{position:static;margin-top:16px;width:100%;flex-wrap:wrap;}.content-grid{grid-template-columns:1fr;}.ptab{font-size:13px;}}@media (max-width:520px){.stats-row{grid-template-columns:1fr;}}`;
+  const CSS = `:root{--maroon:rgb(var(--brand-primary));--maroon-dark:rgb(var(--brand-primary-dark));--gold:rgb(var(--brand-gold));--page-bg:rgb(var(--brand-canvas));--card-bg:#ffffff;--border:rgb(var(--brand-line));--text-dark:rgb(var(--brand-ink));--text-gray:rgb(var(--brand-ink-muted));--text-gray-light:rgb(var(--brand-ink-subtle));}.profile-body *{box-sizing:border-box;}.profile-body{background:var(--page-bg);color:var(--text-dark);font-family:Arial,Helvetica,sans-serif;min-height:100vh;}.profile-main{max-width:1600px;margin:0 auto;padding:30px 40px 60px;position:relative;}.profile-banner{position:relative;min-height:240px;background:linear-gradient(to right, rgb(var(--brand-gold-50)) 0%, rgb(var(--brand-canvas-light)) 50%, rgb(var(--brand-canvas-light)) 100%);border-radius:18px;padding:36px 40px;overflow:hidden;margin-bottom:24px;display:flex;align-items:center;gap:34px;border:1px solid var(--border);}.avatar-lg{width:135px;height:135px;border-radius:50%;background:var(--maroon-dark);border:4px solid #fff;box-shadow:0 0 0 2px var(--gold);display:flex;align-items:center;justify-content:center;color:#fff;font-size:56px;font-weight:700;font-family:Georgia,serif;flex-shrink:0;position:relative;z-index:1;}.status-dot{position:absolute;bottom:6px;right:6px;width:18px;height:18px;background:#2ecc71;border:3px solid #fff;border-radius:50%;}.profile-info{position:relative;z-index:1;flex:1 1 auto;min-width:0;}.profile-info h2{font-family:Georgia,serif;font-size:30px;margin-bottom:8px;color:var(--text-dark);}.profile-role{display:flex;align-items:center;gap:8px;color:var(--maroon);font-weight:700;font-size:15px;margin-bottom:4px;}.profile-role svg{width:17px;height:17px;}.profile-dept{color:var(--text-gray);font-size:14px;margin-bottom:14px;}.profile-tags{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}.tag{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--text-dark);}.tag svg{width:14px;height:14px;}.tag.gold{color:rgb(var(--brand-gold));}.profile-email{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-gray);}.profile-email svg{width:15px;height:15px;color:var(--gold);}.banner-art{position:relative;flex:0 0 auto;align-self:stretch;width:clamp(300px,34%,500px);margin:-36px -40px -36px 0;object-fit:cover;object-position:center;pointer-events:none;-webkit-mask-image:linear-gradient(to right,transparent 0%,#000 28%);mask-image:linear-gradient(to right,transparent 0%,#000 28%);}.profile-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}.toolbar-actions{display:flex;flex-wrap:wrap;gap:10px;}.btn-ghost{background:transparent;border:none;border-radius:10px;padding:9px 10px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;color:var(--text-gray);cursor:pointer;transition:color .15s,background .15s;}.btn-ghost:hover{color:var(--maroon);background:rgba(255,255,255,.7);}.id-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}.id-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:rgba(255,255,255,.8);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;color:var(--text-dark);text-decoration:none;transition:border-color .15s,color .15s;}.id-chip:hover{border-color:var(--maroon);color:var(--maroon);}.id-chip b{font-weight:800;color:var(--maroon);}.id-chip span{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:500;color:var(--text-gray);}.btn-outline{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;color:var(--text-dark);cursor:pointer;transition:border-color .15s,color .15s,box-shadow .15s;}.btn-outline:hover{border-color:var(--maroon);color:var(--maroon);box-shadow:0 2px 8px rgba(125,26,52,.08);}.btn-outline:disabled{opacity:.6;cursor:wait;}.btn-solid{background:var(--maroon-dark);color:#fff;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;border:none;transition:background .15s,box-shadow .15s;}.btn-solid:hover{background:var(--maroon);box-shadow:0 4px 12px rgba(125,26,52,.25);}.btn-outline svg,.btn-solid svg{width:14px;height:14px;}.stats-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-bottom:24px;}.stat-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(125,26,52,0.02);transition:transform .15s,box-shadow .15s;}.stat-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(125,26,52,0.07);}.stat-left{display:flex;align-items:center;gap:14px;}.stat-icon{width:48px;height:48px;border-radius:12px;background:rgb(var(--brand-gold-50));display:flex;align-items:center;justify-content:center;flex-shrink:0;}.stat-icon svg{width:22px;height:22px;color:var(--gold);}.stat-value{font-size:26px;font-weight:800;color:var(--maroon);line-height:1;}.stat-value.gold{color:rgb(var(--brand-gold));}.stat-label{font-size:11.5px;font-weight:700;letter-spacing:0.5px;color:var(--text-gray);margin-top:4px;}.sparkline{width:80px;height:34px;}.tabs-bar{display:flex;gap:8px 22px;border-bottom:1px solid var(--border);margin-bottom:26px;flex-wrap:wrap;overflow:visible;position:relative;z-index:20;background:var(--page-bg);padding:6px 2px 0;}.tabs-bar::-webkit-scrollbar{display:none;width:0;height:0;}.ptab{display:flex;align-items:center;gap:8px;padding:0 6px 16px;font-size:14px;font-weight:600;color:var(--text-gray-light);cursor:pointer;position:relative;background:transparent;border:none;flex-shrink:0;white-space:nowrap;}.ptab svg{width:17px;height:17px;flex-shrink:0;}.ptab.active{color:var(--maroon);}.ptab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;background:var(--maroon);}.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px;}.card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:26px 28px;box-shadow:0 10px 30px rgba(125,26,52,0.02);}.card h3{font-size:16.5px;font-weight:700;margin-bottom:14px;position:relative;padding-bottom:10px;color:var(--text-dark);}.card h3::after{content:"";position:absolute;left:0;bottom:0;width:34px;height:3px;background:var(--gold);}.chart-head h3::after{display:none;}.card p{font-size:13.5px;color:var(--text-gray);line-height:1.6;}.pill-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}.pill{display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:rgb(var(--brand-canvas-light));border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;color:var(--text-dark);}.pill svg{width:15px;height:15px;color:var(--maroon);}.featured-pub{display:flex;gap:16px;align-items:flex-start;}.pub-icon{width:56px;height:56px;border-radius:12px;background:rgb(var(--brand-gold-50));display:flex;align-items:center;justify-content:center;flex-shrink:0;}.pub-icon svg{width:24px;height:24px;color:var(--gold);}.pub-title{color:var(--maroon);font-weight:700;font-size:15px;line-height:1.4;margin-bottom:8px;}.pub-meta{font-size:12.5px;color:var(--text-gray);margin-bottom:10px;}.pub-cites{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-gray);font-weight:600;}.pub-cites svg{width:14px;height:14px;color:var(--gold);}.chart-card{grid-column:span 1;}.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}.yearly-btn{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--text-dark);}.yearly-btn svg{width:14px;height:14px;}.bar-chart{display:flex;align-items:flex-end;gap:14px;height:230px;padding-left:34px;position:relative;}.y-axis{position:absolute;left:0;top:0;bottom:24px;display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--text-gray-light);}.bars{display:flex;align-items:flex-end;gap:16px;flex:1;height:100%;padding-bottom:24px;border-left:1px solid var(--border);padding-left:16px;}.bar-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;height:100%;justify-content:flex-end;}.bar{width:100%;max-width:34px;background:linear-gradient(180deg,var(--maroon) 0%,var(--maroon-dark) 100%);border-radius:4px 4px 0 0;}.bar-col span{font-size:11px;color:var(--text-gray-light);}.fab-stack{position:fixed;right:24px;bottom:2rem;top:auto;transform:none;display:flex;flex-direction:column;gap:14px;z-index:30;}.fab{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 8px 18px rgba(0,0,0,0.18);border:none;cursor:pointer;transition:transform 0.2s;}.fab:hover{transform:scale(1.1);}.fab svg{width:19px;height:19px;}.fab-maroon{background:var(--maroon-dark);}.fab-gold{background:var(--gold);}@media (max-width:1100px){.stats-row{grid-template-columns:repeat(2,minmax(0,1fr));}.banner-art{display:none;}}@media (max-width:900px){.profile-main{padding:20px 16px 48px;}.profile-banner{flex-direction:column;align-items:flex-start;padding:24px 20px;}.content-grid{grid-template-columns:1fr;}.ptab{font-size:13px;}}@media (max-width:520px){.stats-row{grid-template-columns:1fr;}}`;
 
   return (
     <>
       <style>{CSS}</style>
       <div className="profile-body">
         <main className="profile-main">
+
+          {/* Toolbar: navigation and actions sit above the banner, never on the artwork */}
+          <div className="profile-toolbar no-print">
+            <button onClick={() => router.push('/research')} className="btn-ghost">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Research
+            </button>
+            <div className="toolbar-actions">
+              {canEdit && publicPath && (
+                <button onClick={copyPublicLink} className="btn-outline" title="Copy your public profile link">
+                  {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {linkCopied ? 'Link copied' : 'Share public link'}
+                </button>
+              )}
+              <button onClick={downloadCv} disabled={cvState === 'busy'} className="btn-outline" title="Download a research CV (PDF) built from this profile">
+                <Download className="w-4 h-4" />
+                {cvState === 'busy' ? 'Preparing CV…' : cvState === 'error' ? 'CV failed, retry' : 'Download CV'}
+              </button>
+              {canEdit && (
+                <button onClick={() => router.push('/research/profile/' + userId + '/manage')} className="btn-solid">
+                  <Settings className="w-4 h-4" />
+                  Manage Profile
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Profile Banner */}
           <div className="profile-banner">
@@ -349,40 +377,32 @@ export default function ProfilePage() {
                   {phone}
                 </a>
               )}
+              {(orcid || scopusId) && (
+                <div className="id-row">
+                  {orcid && (
+                    <a className="id-chip" href={`https://orcid.org/${orcid}`} target="_blank" rel="noopener noreferrer" title="ORCID iD">
+                      <b>ORCID</b><span>{orcid}</span>
+                    </a>
+                  )}
+                  {scopusId && (
+                    <a className="id-chip" href={`https://www.scopus.com/authid/detail.uri?authorId=${encodeURIComponent(scopusId)}`} target="_blank" rel="noopener noreferrer" title="Scopus author profile">
+                      <b>Scopus</b><span>{scopusId}</span>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
-            {showBannerArt ? (
+            {bannerArt.src ? (
               <img
                 className="banner-art"
-                src={typeof heroArtSrc === 'string' ? heroArtSrc : heroArtSrc.src}
+                src={bannerArt.src}
                 alt=""
                 aria-hidden
-                onError={() => setShowBannerArt(false)}
+                onError={bannerArt.onError}
               />
             ) : null}
 
-            <div className="banner-actions">
-              <button onClick={() => router.push('/research')} className="btn-outline">
-                <ArrowLeft className="w-4 h-4" />
-                Back to Research
-              </button>
-              <button onClick={downloadCv} disabled={cvState === 'busy'} className="btn-outline" title="Download a research CV (PDF) built from this profile">
-                <Download className="w-4 h-4" />
-                {cvState === 'busy' ? 'Preparing CV…' : cvState === 'error' ? 'CV failed, retry' : 'Download CV'}
-              </button>
-              {canEdit && publicPath && (
-                <button onClick={copyPublicLink} className="btn-outline" title="Copy your public profile link">
-                  {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {linkCopied ? 'Link copied' : 'Share public link'}
-                </button>
-              )}
-              {canEdit && (
-                <button onClick={() => router.push('/research/profile/' + userId + '/manage')} className="btn-solid">
-                  <Settings className="w-4 h-4" />
-                  Manage Profile
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Stats Row */}
